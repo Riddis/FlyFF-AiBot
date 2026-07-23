@@ -46,7 +46,7 @@ class WindowCapture:
         cDC.SelectObject(dataBitMap)
         cDC.BitBlt((0, 0), (self.w, self.h), dcObj, (self.crop_l, self.crop_t), win32con.SRCCOPY)
         signedIntsArray = dataBitMap.GetBitmapBits(True)
-        img = np.fromstring(signedIntsArray, dtype="uint8")
+        img = np.frombuffer(signedIntsArray, dtype=np.uint8)
         img.shape = (self.h, self.w, 4)
         dcObj.DeleteDC()
         cDC.DeleteDC()
