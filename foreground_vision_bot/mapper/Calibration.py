@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
-from threading import Event
-from time import perf_counter, sleep
-from typing import Callable
-import json
+from time import perf_counter
+
+from worker_manager import CancellationToken
 
 from mapper.MappingController import MappingController
 from mapper.MinimapHeading import (
@@ -70,6 +71,7 @@ class RotationCalibrator:
         maximum_pulse_seconds: float = 0.45,
         settle_seconds: float = 0.28,
         visual_confirmation_callback=None,
+        cancellation: CancellationToken | None = None,
     ) -> None:
         if bot.keyboard is None:
             raise RuntimeError("Attach the Flyff window first.")
@@ -83,20 +85,14 @@ class RotationCalibrator:
         self.minimum_pulse_seconds = minimum_pulse_seconds
         self.maximum_pulse_seconds = maximum_pulse_seconds
         self.settle_seconds = settle_seconds
-        self.visual_confirmation_callback = (
-            visual_confirmation_callback
-        )
-        self.stop_event = Event()
+        self.visual_confirmation_callback = visual_confirmation_callback
+        self.cancellation = cancellation or CancellationToken()
 
     def stop(self) -> None:
-        self.stop_event.set()
+        self.cancellation.cancel()
         self.controller.stop()
 
     def run(self, *, manual: bool = True) -> Path:
-        # A previous GUI Stop action can leave this calibrator's Event set if
-        # the same task object is reused. Always begin a new run from a clean,
-        # released-input state.
-        self.stop_event.clear()
         self.controller.stop()
 
         mode = "manual GUI calibration" if manual else "automatic recalibration"
@@ -104,22 +100,18 @@ class RotationCalibrator:
             f"Starting {mode}. Calibration will use small, settled turn "
             "bursts and converge toward 45 degrees."
         )
-        self.status(
-            f"Minimap detector version: {self.detector.version()}"
-        )
+        self.status(f"Minimap detector version: {self.detector.version()}")
 
         if manual:
             for remaining in range(5, 0, -1):
-                if self.stop_event.wait(1.0):
+                if self.cancellation.wait(1.0):
                     raise RuntimeError(
-                    "Calibration stopped because the GUI stop event was set."
-                )
+                        "Calibration stopped because the GUI stop event was set."
+                    )
                 self.status(f"Calibration starting in {remaining}...")
 
         self.status("Reading initial minimap arrow...")
-        initial = self._stable_heading(
-            "Initial heading before calibration"
-        )
+        initial = self._stable_heading("Initial heading before calibration")
         original_heading = initial.angle_deg
         self.status(
             f"Initial minimap heading: {original_heading:.1f}° "
@@ -164,13 +156,11 @@ class RotationCalibrator:
                 "Refinement begins in 3 seconds. Use Stop immediately if "
                 "movement is clearly incorrect."
             )
-            if self.stop_event.wait(3.0):
+            if self.cancellation.wait(3.0):
                 raise RuntimeError("Calibration refinement stopped.")
             turns_each_direction = 4
         else:
-            self.status(
-                "Starting closed-loop calibration refinement."
-            )
+            self.status("Starting closed-loop calibration refinement.")
             turns_each_direction = 2
 
         self.status(
@@ -213,7 +203,7 @@ class RotationCalibrator:
 
         result = CalibrationResult(
             version=5,
-            created_at=datetime.now().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
             source="minimap_closed_loop_refined",
             left_seconds_90=round(refined_left_seconds_90, 5),
             right_seconds_90=round(refined_right_seconds_90, 5),
@@ -262,7 +252,7 @@ class RotationCalibrator:
         )
 
         while len(trials) < self.trials_per_direction:
-            if self.stop_event.is_set():
+            if self.cancellation.cancelled:
                 raise RuntimeError("Calibration stopped.")
             attempts += 1
             if attempts > maximum_attempts:
@@ -272,7 +262,7 @@ class RotationCalibrator:
 
             before = self._stable_heading()
             self._turn_burst(direction, pulse)
-            sleep(max(self.settle_seconds, 0.55))
+            self._wait_or_cancel(max(self.settle_seconds, 0.55))
             after = self._stable_heading()
 
             signed_change = signed_angle_delta(
@@ -319,9 +309,7 @@ class RotationCalibrator:
                 continue
 
             if sign != learned_sign:
-                self.status(
-                    f"Ignoring inconsistent {direction} heading reading."
-                )
+                self.status(f"Ignoring inconsistent {direction} heading reading.")
                 # Keep the current pulse; do not shrink toward zero because of
                 # one vision outlier.
                 continue
@@ -421,7 +409,7 @@ class RotationCalibrator:
         }
 
         for correction in range(1, 15):
-            if self.stop_event.is_set():
+            if self.cancellation.cancelled:
                 raise RuntimeError(
                     f"{label} stopped because the GUI stop event was set."
                 )
@@ -434,27 +422,17 @@ class RotationCalibrator:
 
             if abs(error) <= tolerance_degrees:
                 self.status(
-                    f"{label} complete: {current.angle_deg:.1f}°, "
-                    f"error {error:+.1f}°."
+                    f"{label} complete: {current.angle_deg:.1f}°, error {error:+.1f}°."
                 )
                 return
 
             # Select the key whose learned heading sign matches the required
             # correction direction.
             desired_sign = 1 if error > 0.0 else -1
-            direction = (
-                "left"
-                if signs["left"] == desired_sign
-                else "right"
-            )
+            direction = "left" if signs["left"] == desired_sign else "right"
 
             degrees = min(abs(error), 42.0)
-            pulse_seconds = (
-                durations[direction]
-                * degrees
-                / 90.0
-                * 0.86
-            )
+            pulse_seconds = durations[direction] * degrees / 90.0 * 0.86
             pulse_seconds = min(0.180, max(0.018, pulse_seconds))
 
             self.status(
@@ -464,7 +442,7 @@ class RotationCalibrator:
                 f"{pulse_seconds * 1000.0:.0f} ms."
             )
             self._turn_burst(direction, pulse_seconds)
-            sleep(max(self.settle_seconds, 0.50))
+            self._wait_or_cancel(max(self.settle_seconds, 0.50))
 
         final = self._stable_heading()
         final_error = signed_angle_delta(
@@ -507,10 +485,7 @@ class RotationCalibrator:
         }
         records: list[dict] = []
 
-        sequence = (
-            ["left"] * turns_each_direction
-            + ["right"] * turns_each_direction
-        )
+        sequence = ["left"] * turns_each_direction + ["right"] * turns_each_direction
 
         for index, direction in enumerate(sequence, start=1):
             sign = signs[direction]
@@ -530,7 +505,7 @@ class RotationCalibrator:
             stalled_reads = 0
 
             for correction in range(1, 11):
-                if self.stop_event.is_set():
+                if self.cancellation.cancelled:
                     raise RuntimeError("Calibration refinement stopped.")
 
                 current = previous
@@ -555,10 +530,7 @@ class RotationCalibrator:
 
                 seconds_per_90 = durations[pulse_direction]
                 proposed = (
-                    seconds_per_90
-                    * min(max(error_degrees, 3.0), 42.0)
-                    / 90.0
-                    * 0.88
+                    seconds_per_90 * min(max(error_degrees, 3.0), 42.0) / 90.0 * 0.88
                 )
                 pulse_seconds = min(0.180, max(0.018, proposed))
 
@@ -569,7 +541,7 @@ class RotationCalibrator:
                 )
 
                 self._turn_burst(pulse_direction, pulse_seconds)
-                sleep(max(self.settle_seconds, 0.48))
+                self._wait_or_cancel(max(self.settle_seconds, 0.48))
                 after = self._stable_heading()
 
                 signed_motion = signed_angle_delta(
@@ -604,9 +576,7 @@ class RotationCalibrator:
                     )
 
                 if 4.0 <= directed_motion <= 55.0:
-                    equivalent_90 = (
-                        pulse_seconds * 90.0 / directed_motion
-                    )
+                    equivalent_90 = pulse_seconds * 90.0 / directed_motion
                     samples[pulse_direction].append(equivalent_90)
                     durations[pulse_direction] = self._bounded_median(
                         samples[pulse_direction],
@@ -646,9 +616,7 @@ class RotationCalibrator:
 
             if total_directed_motion >= 20.0:
                 whole_turn_estimate = (
-                    total_requested_seconds
-                    * 90.0
-                    / total_directed_motion
+                    total_requested_seconds * 90.0 / total_directed_motion
                 )
                 samples[direction].append(whole_turn_estimate)
                 durations[direction] = self._bounded_median(
@@ -677,7 +645,7 @@ class RotationCalibrator:
                 f"R={durations['right']:.4f}s."
             )
 
-            if self.stop_event.wait(0.65):
+            if self.cancellation.wait(0.65):
                 raise RuntimeError("Calibration refinement stopped.")
 
         return durations["left"], durations["right"], records
@@ -713,10 +681,9 @@ class RotationCalibrator:
             if reading is None or reading.confidence < 0.52:
                 if attempt < 11:
                     self.status(
-                        "Strict heading was ambiguous; reacquiring "
-                        f"({attempt + 1}/12)."
+                        f"Strict heading was ambiguous; reacquiring ({attempt + 1}/12)."
                     )
-                    sleep(0.10)
+                    self._wait_or_cancel(0.10)
                 continue
 
             self._publish_debug(reading)
@@ -746,34 +713,29 @@ class RotationCalibrator:
                     "Calibration stopped during visual heading validation."
                 )
 
-            self.status(
-                "Visual heading rejected; reacquiring from scratch."
-            )
+            self.status("Visual heading rejected; reacquiring from scratch.")
             self.detector.reset_fast()
-            sleep(max(0.10, self.settle_seconds))
+            self._wait_or_cancel(max(0.10, self.settle_seconds))
 
-        debug_folder = self.detector.save_debug(
-            "visual_or_strict_heading_failed"
-        )
+        debug_folder = self.detector.save_debug("visual_or_strict_heading_failed")
         debug_text = (
-            f" Debug saved to: {debug_folder}"
-            if debug_folder is not None
-            else ""
+            f" Debug saved to: {debug_folder}" if debug_folder is not None else ""
         )
         raise RuntimeError(
             "Could not obtain a visually accepted strict heading after "
             f"12 attempts.{debug_text}"
         )
 
-
     def _publish_debug(self, reading) -> None:
         if self.frame_callback is None:
             return
         frame = self.bot.get_debug_frame()
         if frame is not None:
-            self.frame_callback(
-                self.detector.draw_debug(frame, reading)
-            )
+            self.frame_callback(self.detector.draw_debug(frame, reading))
+
+    def _wait_or_cancel(self, seconds: float) -> None:
+        if self.cancellation.wait(seconds):
+            raise RuntimeError("Calibration stopped.")
 
     @staticmethod
     def _trial_sign(trials: list[TurnTrial]) -> int:
@@ -786,8 +748,6 @@ class RotationCalibrator:
         deviations = [abs(value - center) for value in values]
         mad = median(deviations) or 0.001
         filtered = [
-            value
-            for value in values
-            if abs(value - center) <= max(3.0 * mad, 0.015)
+            value for value in values if abs(value - center) <= max(3.0 * mad, 0.015)
         ]
         return float(median(filtered or values))

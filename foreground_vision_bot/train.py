@@ -1,17 +1,16 @@
 from __future__ import annotations
 
+import traceback
 from collections import Counter, deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic, sleep
-from typing import Callable
-import traceback
 
 import numpy as np
-
 from libs.FlyffEnv import FlyffEnv, FlyffEnvConfig
 from libs.ObservationBuilder import ObservationBuilder, ObservationConfig
-
+from worker_manager import CancellationToken
 
 StatusCallback = Callable[[str], None]
 
@@ -146,9 +145,11 @@ def train_agent(
     bot,
     config: TrainingConfig | None = None,
     status_callback: StatusCallback | None = None,
+    cancellation: CancellationToken | None = None,
 ) -> Path:
     config = config or TrainingConfig()
-    PPO, BaseCallback, CheckpointCallback, CallbackList, check_env = (
+    cancellation = cancellation or CancellationToken()
+    PPO, BaseCallback, CheckpointCallback, CallbackList, _check_env = (
         _require_dependencies()
     )
 
@@ -165,7 +166,7 @@ def train_agent(
 
     class StopWhenBotStopsCallback(BaseCallback):
         def _on_step(self) -> bool:
-            return bool(bot.rl_enabled)
+            return bool(bot.rl_enabled and not cancellation.cancelled)
 
     class TrainingStatsCallback(BaseCallback):
         def __init__(self) -> None:
@@ -208,16 +209,12 @@ def train_agent(
                 action_name = info.get("action_name", "UNKNOWN")
                 self.action_counts[action_name] += 1
 
-                if action_name == "CAST_EVA" and not info.get(
-                    "invalid_eva", False
-                ):
+                if action_name == "CAST_EVA" and not info.get("invalid_eva", False):
                     self.total_eva_casts += 1
 
                 if info.get("eva_success", False):
                     self.total_eva_success += 1
-                    self.total_eva_kills += int(
-                        info.get("eva_kills", 0)
-                    )
+                    self.total_eva_kills += int(info.get("eva_kills", 0))
 
                 if info.get("eva_miss", False):
                     self.total_eva_miss += 1
@@ -235,34 +232,21 @@ def train_agent(
                 if info.get("invalid_eva", False):
                     self.total_invalid_eva += 1
 
-                for name, value in info.get(
-                    "reward_components", {}
-                ).items():
+                for name, value in info.get("reward_components", {}).items():
                     self.reward_parts[name] += float(value)
 
-                done = (
-                    bool(np.asarray(dones)[index])
-                    if dones is not None
-                    else False
-                )
+                done = bool(np.asarray(dones)[index]) if dones is not None else False
                 if done:
                     summary = info.get("episode_summary")
                     if summary:
                         self.episode_count += 1
-                        self.episode_rewards.append(
-                            float(summary["reward"])
-                        )
-                        self.episode_kills.append(
-                            int(summary["kills"])
-                        )
+                        self.episode_rewards.append(float(summary["reward"]))
+                        self.episode_kills.append(int(summary["kills"]))
 
             self._write_tensorboard()
 
             now = monotonic()
-            if (
-                now - self.last_report_at
-                >= config.stats_interval_seconds
-            ):
+            if now - self.last_report_at >= config.stats_interval_seconds:
                 self._report(now)
                 self.last_report_at = now
 
@@ -288,18 +272,14 @@ def train_agent(
                 "flyff/eva_casts_total",
                 self.total_eva_casts,
             )
-            resolved_eva = (
-                self.total_eva_success + self.total_eva_miss
-            )
+            resolved_eva = self.total_eva_success + self.total_eva_miss
             self.logger.record(
                 "flyff/kills_per_eva",
-                self.total_eva_kills
-                / max(self.total_eva_casts, 1),
+                self.total_eva_kills / max(self.total_eva_casts, 1),
             )
             self.logger.record(
                 "flyff/kills_per_successful_eva",
-                self.total_eva_kills
-                / max(self.total_eva_success, 1),
+                self.total_eva_kills / max(self.total_eva_success, 1),
             )
             self.logger.record(
                 "flyff/eva_success_total",
@@ -355,9 +335,7 @@ def train_agent(
                     "flyff/density_score",
                     self.latest_info.get("density_score", 0.0),
                 )
-                distance = self.latest_info.get(
-                    "average_nearest_distance"
-                )
+                distance = self.latest_info.get("average_nearest_distance")
                 if distance is not None:
                     self.logger.record(
                         "flyff/average_nearest_distance",
@@ -380,38 +358,23 @@ def train_agent(
             hours = elapsed / 3600.0
             steps_per_second = self.num_timesteps / elapsed
             kills_per_hour = self.total_kills / max(hours, 1e-9)
-            kills_per_eva = (
-                self.total_eva_kills / max(self.total_eva_casts, 1)
+            kills_per_eva = self.total_eva_kills / max(self.total_eva_casts, 1)
+            kills_per_successful_eva = self.total_eva_kills / max(
+                self.total_eva_success, 1
             )
-            kills_per_successful_eva = (
-                self.total_eva_kills
-                / max(self.total_eva_success, 1)
-            )
-            resolved_eva = (
-                self.total_eva_success + self.total_eva_miss
-            )
-            eva_success_rate = (
-                100.0
-                * self.total_eva_success
-                / max(resolved_eva, 1)
-            )
+            resolved_eva = self.total_eva_success + self.total_eva_miss
+            eva_success_rate = 100.0 * self.total_eva_success / max(resolved_eva, 1)
             mean_reward = (
-                float(np.mean(self.episode_rewards))
-                if self.episode_rewards
-                else 0.0
+                float(np.mean(self.episode_rewards)) if self.episode_rewards else 0.0
             )
             mean_kills = (
-                float(np.mean(self.episode_kills))
-                if self.episode_kills
-                else 0.0
+                float(np.mean(self.episode_kills)) if self.episode_kills else 0.0
             )
 
             info = self.latest_info
             reward_summary = " ".join(
                 f"{name}={value:+.2f}"
-                for name, value in sorted(
-                    self.reward_parts.items()
-                )
+                for name, value in sorted(self.reward_parts.items())
             )
 
             message = (
@@ -529,8 +492,10 @@ def run_trained_agent(
     config: TrainingConfig | None = None,
     status_callback: StatusCallback | None = None,
     deterministic: bool = True,
+    cancellation: CancellationToken | None = None,
 ) -> None:
     config = config or TrainingConfig()
+    cancellation = cancellation or CancellationToken()
     PPO, _, _, _, _ = _require_dependencies()
 
     model_path = Path(config.model_path)
@@ -549,8 +514,7 @@ def run_trained_agent(
 
     _status(
         status_callback,
-        f"Loaded {saved_model}. Running the trained agent. "
-        "Press Stop to end it.",
+        f"Loaded {saved_model}. Running the trained agent. Press Stop to end it.",
     )
 
     run_started_at = monotonic()
@@ -558,7 +522,7 @@ def run_trained_agent(
     last_report_at = run_started_at
 
     try:
-        while bot.rl_enabled:
+        while bot.rl_enabled and not cancellation.cancelled:
             action, _state = model.predict(
                 observation,
                 deterministic=deterministic,

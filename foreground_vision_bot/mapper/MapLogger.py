@@ -7,9 +7,20 @@ from typing import Any
 
 class MapLogger:
     FIELDS = (
-        "timestamp", "step", "x", "y", "heading", "action", "reason",
-        "change_score", "median_flow_px", "tracked_points", "collision",
-        "pang_visible", "pang_score", "teleport_suspected",
+        "timestamp",
+        "step",
+        "x",
+        "y",
+        "heading",
+        "action",
+        "reason",
+        "change_score",
+        "median_flow_px",
+        "tracked_points",
+        "collision",
+        "pang_visible",
+        "pang_score",
+        "teleport_suspected",
     )
 
     def __init__(self, path: Path) -> None:
@@ -24,4 +35,5 @@ class MapLogger:
         self.handle.flush()
 
     def close(self) -> None:
-        self.handle.close()
+        if not self.handle.closed:
+            self.handle.close()

@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime
-from pathlib import Path
-from threading import Event
-from time import monotonic, sleep
-from typing import Callable
 import json
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from time import monotonic
 
+from worker_manager import CancellationToken
+
+from mapper.Calibration import RotationCalibrator
 from mapper.Explorer import Explorer
 from mapper.MapLogger import MapLogger
-from mapper.Calibration import RotationCalibrator
 from mapper.MappingController import MappingController
 from mapper.MinimapHeading import (
     MinimapHeadingDetector,
@@ -19,7 +20,6 @@ from mapper.MinimapHeading import (
 from mapper.MotionTracker import MotionTracker
 from mapper.OccupancyGrid import OccupancyGrid
 from mapper.PangDetector import PangDetector
-
 
 StatusCallback = Callable[[str], None]
 FrameCallback = Callable[[object], None]
@@ -45,6 +45,7 @@ class Mapper:
         status_callback: StatusCallback | None = None,
         frame_callback: FrameCallback | None = None,
         config: MapperConfig | None = None,
+        cancellation: CancellationToken | None = None,
     ) -> None:
         if bot.keyboard is None:
             raise RuntimeError("Attach the Flyff window first.")
@@ -60,53 +61,50 @@ class Mapper:
         self.fast_heading_miss_streak = 0
         self.grid = OccupancyGrid()
         self.explorer = Explorer()
-        self.stop_event = Event()
+        self.cancellation = cancellation or CancellationToken()
         self._last_map_publish_at = 0.0
         self._map_publish_interval = 0.25
 
         template_path = (
-            Path(__file__).resolve().parents[1]
-            / "assets"
-            / "names"
-            / "Pang.png"
+            Path(__file__).resolve().parents[1] / "assets" / "names" / "Pang.png"
         )
         self.pang = PangDetector(
             template_path,
             threshold=self.config.pang_threshold,
         )
 
-        run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.output_dir = (
-            Path(__file__).resolve().parent
-            / "mapping_runs"
-            / run_id
-        )
+        run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        self.output_dir = Path(__file__).resolve().parent / "mapping_runs" / run_id
         self.logger = MapLogger(self.output_dir / "mapping_steps.csv")
 
     def _publish_map_preview(self, force: bool = False) -> None:
         if self.frame_callback is None:
             return
         now = monotonic()
-        if (
-            not force
-            and now - self._last_map_publish_at
-            < self._map_publish_interval
-        ):
+        if not force and now - self._last_map_publish_at < self._map_publish_interval:
             return
         self.frame_callback(self.grid.render())
         self._last_map_publish_at = now
 
     def stop(self) -> None:
-        self.stop_event.set()
+        self.cancellation.cancel()
         self.controller.stop()
 
     def run(self) -> Path:
+        try:
+            return self._run()
+        finally:
+            self.controller.stop()
+            self.grid.save(self.output_dir)
+            self.logger.close()
+
+    def _run(self) -> Path:
         self.status_callback(
             "Mapper starts in 5 seconds. Manually enter the dungeon, stand "
             "at the known spawn, and face the normal starting direction."
         )
         for remaining in range(5, 0, -1):
-            if self.stop_event.wait(1.0):
+            if self.cancellation.wait(1.0):
                 return self.output_dir
             self.status_callback(f"Mapper starting in {remaining}...")
 
@@ -118,14 +116,12 @@ class Mapper:
             delay=0.018,
         )
         if initial_heading is None:
-            raise RuntimeError(
-                "Could not read the minimap heading before mapping."
-            )
+            raise RuntimeError("Could not read the minimap heading before mapping.")
         expected_heading = initial_heading.angle_deg
         self.heading_detector.reset_fast()
 
         try:
-            while not self.stop_event.is_set():
+            while not self.cancellation.cancelled:
                 before = self._wait_for_frame()
                 decision = self.explorer.decide(self.grid)
 
@@ -133,27 +129,21 @@ class Mapper:
                     self.controller.forward(self.config.forward_seconds)
                     commanded_forward = True
                 elif decision.action == "TURN_LEFT":
-                    self.controller.turn_left(
-                        self.config.turn_left_seconds_90
-                    )
+                    self.controller.turn_left(self.config.turn_left_seconds_90)
                     self.grid.pose.heading_index = (
                         self.grid.pose.heading_index + 1
                     ) % 4
                     expected_heading = (
-                        expected_heading
-                        + 90.0 * self.config.left_heading_sign
+                        expected_heading + 90.0 * self.config.left_heading_sign
                     ) % 360.0
                     commanded_forward = False
                 else:
-                    self.controller.turn_right(
-                        self.config.turn_right_seconds_90
-                    )
+                    self.controller.turn_right(self.config.turn_right_seconds_90)
                     self.grid.pose.heading_index = (
                         self.grid.pose.heading_index - 1
                     ) % 4
                     expected_heading = (
-                        expected_heading
-                        + 90.0 * self.config.right_heading_sign
+                        expected_heading + 90.0 * self.config.right_heading_sign
                     ) % 360.0
                     commanded_forward = False
 
@@ -163,9 +153,7 @@ class Mapper:
                 # Single-frame, non-blocking heading update. This is the same
                 # path intended for future farming/training control.
                 fast_heading = self.heading_detector.read_fast(after)
-                if fast_heading is None:
-                    self.fast_heading_miss_streak += 1
-                elif fast_heading.is_stale:
+                if fast_heading is None or fast_heading.is_stale:
                     self.fast_heading_miss_streak += 1
                 else:
                     self.fast_heading_miss_streak = 0
@@ -214,29 +202,18 @@ class Mapper:
                             self.bot,
                             status_callback=self.status_callback,
                             frame_callback=self.frame_callback,
+                            cancellation=self.cancellation,
                         )
                         calibration_path = calibrator.run(manual=False)
-                        data = json.loads(
-                            calibration_path.read_text(encoding="utf-8")
-                        )
+                        data = json.loads(calibration_path.read_text(encoding="utf-8"))
                         self.config = MapperConfig(
                             forward_seconds=self.config.forward_seconds,
-                            turn_left_seconds_90=float(
-                                data["left_seconds_90"]
-                            ),
-                            turn_right_seconds_90=float(
-                                data["right_seconds_90"]
-                            ),
-                            left_heading_sign=int(
-                                data.get("left_heading_sign", -1)
-                            ),
-                            right_heading_sign=int(
-                                data.get("right_heading_sign", 1)
-                            ),
+                            turn_left_seconds_90=float(data["left_seconds_90"]),
+                            turn_right_seconds_90=float(data["right_seconds_90"]),
+                            left_heading_sign=int(data.get("left_heading_sign", -1)),
+                            right_heading_sign=int(data.get("right_heading_sign", 1)),
                             settle_seconds=self.config.settle_seconds,
-                            teleport_confirmations=(
-                                self.config.teleport_confirmations
-                            ),
+                            teleport_confirmations=(self.config.teleport_confirmations),
                             pang_threshold=self.config.pang_threshold,
                             save_every_steps=self.config.save_every_steps,
                         )
@@ -253,9 +230,7 @@ class Mapper:
                         self.heading_error_streak = 0
 
                 if commanded_forward:
-                    dx, dy = self.grid.DIRECTIONS[
-                        self.grid.pose.heading_index
-                    ]
+                    dx, dy = self.grid.DIRECTIONS[self.grid.pose.heading_index]
                     next_x = self.grid.pose.x + dx
                     next_y = self.grid.pose.y + dy
                     if motion.collision_likely:
@@ -273,17 +248,11 @@ class Mapper:
                         pang.score,
                     )
 
-                teleport_streak = (
-                    teleport_streak + 1
-                    if motion.teleport_likely
-                    else 0
-                )
-                teleport = (
-                    teleport_streak >= self.config.teleport_confirmations
-                )
+                teleport_streak = teleport_streak + 1 if motion.teleport_likely else 0
+                teleport = teleport_streak >= self.config.teleport_confirmations
 
                 step += 1
-                now = datetime.now().isoformat(timespec="milliseconds")
+                now = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
                 self.logger.write(
                     {
                         "timestamp": now,
@@ -311,9 +280,7 @@ class Mapper:
                             else ""
                         ),
                         "fast_heading_stale": (
-                            fast_heading.is_stale
-                            if fast_heading is not None
-                            else True
+                            fast_heading.is_stale if fast_heading is not None else True
                         ),
                     }
                 )
@@ -327,8 +294,7 @@ class Mapper:
                     f"{fast_heading.angle_deg:.1f}°/"
                     f"{fast_heading.confidence:.2f}"
                     if fast_heading is not None
-                    else
-                    f"map step={step} pose=({self.grid.pose.x},"
+                    else f"map step={step} pose=({self.grid.pose.x},"
                     f"{self.grid.pose.y}) heading={self.grid.pose.heading_index} "
                     f"action={decision.action} collision="
                     f"{motion.collision_likely} pang={pang.visible} "
@@ -355,8 +321,6 @@ class Mapper:
                     break
         finally:
             self.controller.stop()
-            self.grid.save(self.output_dir)
-            self.logger.close()
 
         return self.output_dir
 
@@ -376,10 +340,11 @@ class Mapper:
 
     def _wait_for_frame(self):
         for _ in range(50):
-            if self.stop_event.is_set():
+            if self.cancellation.cancelled:
                 raise RuntimeError("Mapper stopped.")
             frame = self.bot.get_frame()
             if frame is not None:
                 return frame
-            sleep(0.05)
+            if self.cancellation.wait(0.05):
+                raise RuntimeError("Mapper stopped.")
         raise RuntimeError("No game frame is available.")
