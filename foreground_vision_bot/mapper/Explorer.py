@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from mapper.OccupancyGrid import OccupancyGrid
+
+
+@dataclass(frozen=True)
+class ExplorerDecision:
+    action: str
+    reason: str
+
+
+class Explorer:
+    """
+    Frontier-oriented local planner.
+
+    It first follows a reachable path to the nearest known frontier. When the
+    current cell itself is a frontier, it turns toward an unknown neighboring
+    cell. Forbidden and blocked cells are never selected.
+    """
+
+    def decide(self, grid: OccupancyGrid) -> ExplorerDecision:
+        pose = grid.pose
+        path = grid.nearest_frontier_path()
+
+        if path:
+            target = path[0]
+            desired = self._direction_index(
+                target[0] - pose.x,
+                target[1] - pose.y,
+            )
+            return self._turn_or_forward(pose.heading_index, desired, "frontier path")
+
+        candidates = []
+        for direction, (dx, dy) in enumerate(grid.DIRECTIONS):
+            value = grid.value(pose.x + dx, pose.y + dy)
+            if value == 0:
+                candidates.append(direction)
+
+        if candidates:
+            desired = min(
+                candidates,
+                key=lambda d: self._turn_distance(pose.heading_index, d),
+            )
+            return self._turn_or_forward(
+                pose.heading_index,
+                desired,
+                "unknown neighbor",
+            )
+
+        # No local unknown cell and no reachable frontier. Turn to rescan.
+        return ExplorerDecision("TURN_RIGHT", "no reachable frontier")
+
+    @staticmethod
+    def _direction_index(dx: int, dy: int) -> int:
+        mapping = {(1, 0): 0, (0, 1): 1, (-1, 0): 2, (0, -1): 3}
+        return mapping[(dx, dy)]
+
+    @staticmethod
+    def _turn_distance(current: int, desired: int) -> int:
+        delta = (desired - current) % 4
+        return min(delta, 4 - delta)
+
+    @staticmethod
+    def _turn_or_forward(
+        current: int,
+        desired: int,
+        reason: str,
+    ) -> ExplorerDecision:
+        delta = (desired - current) % 4
+        if delta == 0:
+            return ExplorerDecision("FORWARD", reason)
+        if delta == 1:
+            return ExplorerDecision("TURN_LEFT", reason)
+        if delta == 3:
+            return ExplorerDecision("TURN_RIGHT", reason)
+        return ExplorerDecision("TURN_RIGHT", reason + " (about-face)")

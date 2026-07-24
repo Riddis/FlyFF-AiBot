@@ -4,7 +4,7 @@ import collections
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock, Thread
-from time import sleep, time
+from time import monotonic, sleep, time
 from typing import Iterable
 
 import cv2 as cv
@@ -61,6 +61,7 @@ class Bot:
         }
 
         self.gui_window = None
+        self.runtime_bus = None
         self.wincap: WindowCapture | None = None
         self.keyboard: HumanKeyboard | None = None
         self.action_executor: ActionExecutor | None = None
@@ -74,6 +75,10 @@ class Bot:
         self._rl_enabled = False
         self._last_capture_error_at = 0.0
         self._last_overlay_publish_at = 0.0
+        self._last_preview_publish_at = 0.0
+        self._last_fps_publish_at = 0.0
+        self._preview_interval = 1.0 / 12.0
+        self._fps_interval = 0.50
         self._latest_mob_points: list[Point] = []
         self._latest_mob_points_at = 0.0
 
@@ -90,7 +95,16 @@ class Bot:
     # ------------------------------------------------------------------
 
     def setup(self, window_handler, gui_window=None) -> None:
+        # Attaching a new window must never leave the previous capture loop
+        # alive. This was a common source of duplicate frame producers.
+        self._stop_capture_thread(timeout=3.0)
+
         self.gui_window = gui_window
+        self.runtime_bus = (
+            gui_window
+            if hasattr(gui_window, "publish_latest")
+            else None
+        )
         self.wincap = WindowCapture(window_handler)
         self.keyboard = HumanKeyboard(window_handler)
         self.action_executor = ActionExecutor(self.keyboard)
@@ -98,12 +112,13 @@ class Bot:
         self._capture_running = True
         self._capture_thread = Thread(
             target=self._frame_loop,
-            daemon=True,
+            daemon=False,
             name="flyff-frame-capture",
         )
         self._capture_thread.start()
 
         self._emit("msg_green", "RL bot is ready.")
+
 
     def start(self) -> None:
         """
@@ -126,12 +141,18 @@ class Bot:
 
     def close(self) -> None:
         self.stop()
-        self._capture_running = False
-
-        if self._capture_thread is not None:
-            self._capture_thread.join(timeout=1.0)
-
+        self._stop_capture_thread(timeout=5.0)
+        self.gui_window = None
+        self.runtime_bus = None
         cv.destroyAllWindows()
+
+    def _stop_capture_thread(self, timeout: float = 3.0) -> None:
+        self._capture_running = False
+        thread = self._capture_thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=timeout)
+        self._capture_thread = None
+
 
     def set_config(self, **options) -> None:
         reload_templates = False
@@ -303,13 +324,23 @@ class Bot:
         height, width = frame.shape[:2]
         return height, width
 
+    def get_frame(self) -> np.ndarray | None:
+        """Return a thread-safe copy of the latest grayscale frame."""
+        frame, _ = self._frame_snapshot()
+        return frame
+
+    def get_debug_frame(self) -> np.ndarray | None:
+        """Return a thread-safe copy of the latest BGR frame."""
+        _, debug_frame = self._frame_snapshot()
+        return debug_frame
+
     # ------------------------------------------------------------------
     # Capture and detection internals
     # ------------------------------------------------------------------
 
     def _frame_loop(self) -> None:
-        fps_samples = collections.deque(maxlen=20)
-        previous_time = time()
+        fps_samples = collections.deque(maxlen=30)
+        previous_time = monotonic()
 
         while self._capture_running:
             try:
@@ -320,27 +351,37 @@ class Bot:
                     self.debug_frame = debug_frame
                     self.frame = gray_frame
 
-                now = time()
+                now = monotonic()
                 frame_time = max(now - previous_time, 1e-6)
                 previous_time = now
                 fps_samples.append(frame_time)
 
-                average = sum(fps_samples) / len(fps_samples)
-                fps = round(1.0 / average)
-                self._emit("video_fps", f"Video FPS: {fps}")
+                bus = self.runtime_bus
+                if bus is not None:
+                    bus.heartbeat("capture")
 
-                if self.config["show_frames"]:
-                    # Draw the latest detected mob positions onto every fresh
-                    # capture frame. This prevents the high-FPS raw preview from
-                    # overwriting markers between slower RL/detection steps.
+                if now - self._last_fps_publish_at >= self._fps_interval:
+                    average = sum(fps_samples) / max(1, len(fps_samples))
+                    fps = round(1.0 / average)
+                    self._emit("video_fps", fps)
+                    self._last_fps_publish_at = now
+
+                if (
+                    self.config["show_frames"]
+                    and now - self._last_preview_publish_at
+                    >= self._preview_interval
+                ):
                     preview_frame = debug_frame.copy()
-                    self._draw_cached_mob_overlay(preview_frame, now)
+                    self._draw_cached_mob_overlay(
+                        preview_frame,
+                        time(),
+                    )
                     self._emit("debug_frame", preview_frame)
+                    self._last_preview_publish_at = now
 
             except Exception as error:
-                now = time()
-
-                if now - self._last_capture_error_at >= 15.0:
+                now_wall = time()
+                if now_wall - self._last_capture_error_at >= 15.0:
                     print(
                         "Error capturing Flyff window. "
                         f"Check that it is visible: {error}"
@@ -349,9 +390,10 @@ class Bot:
                         "msg_red",
                         "Error capturing the game window.",
                     )
-                    self._last_capture_error_at = now
+                    self._last_capture_error_at = now_wall
 
                 sleep(0.25)
+
 
     def _frame_snapshot(
         self,
@@ -607,11 +649,23 @@ class Bot:
             )
 
     def _emit(self, event: str, value) -> None:
-        if self.gui_window is None:
+        bus = self.runtime_bus
+        if bus is not None:
+            if event == "debug_frame":
+                bus.publish_latest("debug_frame", value)
+            elif event == "video_fps":
+                bus.publish_latest("video_fps", value)
+            elif event.startswith("msg"):
+                bus.log(str(value), event)
+            else:
+                bus.publish_latest(event, value)
             return
 
+        # Compatibility fallback for older launchers.
+        if self.gui_window is None:
+            return
         try:
             self.gui_window.write_event_value(event, value)
         except Exception:
-            # GUI shutdown must not kill the capture/RL process.
             pass
+

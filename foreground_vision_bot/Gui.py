@@ -1,9 +1,12 @@
 import difflib
-from threading import Thread
+import math
+from threading import Lock, Thread
+from time import monotonic
 
 import cv2 as cv
 import PySimpleGUI as sg
 from utils.helpers import get_window_handlers, hex_variant
+from runtime_bus import RuntimeBus
 
 import re
 
@@ -24,7 +27,9 @@ class Gui:
             "320x240": (320, 240),
             "400x300": (400, 300),
             "640x480": (640, 480),
+            "800x450": (800, 450),
             "800x600": (800, 600),
+            "960x540": (960, 540),
             "1024x600": (1024, 600),
             "1024x768": (1024, 768),
             "1280x700": (1280, 700),
@@ -34,11 +39,38 @@ class Gui:
             "1366x768": (1366, 768),
         }
         self._rl_task_running = False
+        self._mapper_task_running = False
+        self._active_mapper = None
+        self._heading_overlay_detector = None
+        self._status_mode = "Idle"
+        self._last_status_message = "Ready"
+        self.runtime_bus = RuntimeBus(max_logs=1500)
+        self._worker_threads = set()
+        self._worker_lock = Lock()
+        self._last_versions = {
+            "debug_frame": 0,
+            "map_frame": 0,
+            "video_fps": 0,
+            "rl_status": 0,
+            "mapper_status": 0,
+        }
+        self._last_preview_render_at = 0.0
+        self._last_map_render_at = 0.0
+        self._last_log_render_at = 0.0
+        self._preview_render_interval = 1.0 / 10.0
+        self._map_render_interval = 1.0 / 4.0
         sg.theme(theme)
 
     def init(self):
         layout = self.__get_layout()
-        self.window = sg.Window("Flyff FVF", layout, location=(0, 0), resizable=True, finalize=True)
+        self.window = sg.Window(
+            "Flyff FVF",
+            layout,
+            location=(0, 0),
+            size=(1320, 990),
+            resizable=True,
+            finalize=True,
+        )
         sg.cprint_set_output_destination(self.window, "-ML-")
         sg.user_settings_filename(path=".")
         self.__set_hotkeys()
@@ -47,16 +79,18 @@ class Gui:
     def loop(self, bot):
         self.__load_settings(bot)
         while True:
-            event, values = self.window.read(timeout=1000)
+            event, values = self.window.read(timeout=50)
+            self.__refresh_runtime(values)
 
             # ACTIONS - Button events
             if event == "Exit" or event == sg.WIN_CLOSED:
+                self.__shutdown(bot)
                 break
             if event == "-ATTACH_WINDOW-":
                 game_window_name, game_window_handler = self.__attach_window_popup()
                 if game_window_name and game_window_handler:
                     bot.stop()
-                    bot.setup(game_window_handler, self.window)
+                    bot.setup(game_window_handler, self.runtime_bus)
                     truncated_game_window_name = (
                         game_window_name[:30] + "..." if len(game_window_name) > 30 else game_window_name
                     )
@@ -69,29 +103,33 @@ class Gui:
             if event == "-RUN_AGENT-":
                 self.__start_rl_task(bot, mode="agent")
 
-            if event == "-RL_TASK_FINISHED-":
-                self._rl_task_running = False
-                self.__set_rl_buttons(attached=True, running=False)
+            if event == "-START_MAPPER-":
+                self.__start_mapper_task(bot)
 
-                result = values[event]
-                if result.get("ok"):
-                    sg.cprint(
-                        result.get("message", "RL task completed."),
-                        c=("white", "green"),
-                    )
-                else:
-                    sg.cprint(
-                        f"RL task failed: {result.get('error', 'unknown error')}",
-                        c=("white", "red"),
-                    )
+            if event == "-SET_MINIMAP_ANCHOR-":
+                self.__set_minimap_anchor(bot)
 
-            if event == "-RL_STATUS-":
-                sg.cprint(values[event], c=("white", "blue"))
+            if event == "-CALIBRATE_MAPPER-":
+                self.__start_calibration_task(bot)
+
+            if event == "-DEBUG_CALIBRATE_MAPPER-":
+                self.__start_calibration_task(
+                    bot,
+                    visual_confirmation=True,
+                )
+
+            if event == "-SHOW_LOG-":
+                self.__show_log_window()
 
             if event == "-STOP_BOT-":
+                self.__set_status("Idle", "Stopped")
+                if self._active_mapper is not None:
+                    self._active_mapper.stop()
                 bot.stop()
-                self._rl_task_running = False
-                self.__set_rl_buttons(attached=True, running=False)
+                self.runtime_bus.log(
+                    "Stop requested. Waiting for the active worker to exit.",
+                    "msg_blue",
+                )
 
             # BOT OPTIONS - Video options
             if event == "-SHOW_FRAMES-":
@@ -200,12 +238,6 @@ class Gui:
                     bot.set_config(convert_penya_to_perins_timer_min=30)
                     sg.user_settings_set_entry("-CONVERT_PENYA_TO_PERINS_TIMER_MIN-", "30")
 
-            # STATUS - Text events
-            if event in self.logger_events:
-                sg.cprint(values[event], c=self.logger_events_color[event])
-            if event == "video_fps":
-                self.window["-VIDEO_FPS-"].update(values["video_fps"])
-
             # MOBS - Mobs configuration
             if event == "-SELECT_MOBS-":
                 self.__select_mobs_popup(bot)
@@ -216,15 +248,165 @@ class Gui:
             if event == "-DELETE_MOB-":
                 self.__select_mobs_popup(bot, is_delete_form=True)
 
-            # VIDEO - Bot's Vision
-            if event == "debug_frame" and values["-SHOW_FRAMES-"]:
-                img = values.get("debug_frame")
-                if img is not None:
-                    resolution = values["-DEBUG_IMG_WIDTH-"]
-                    w, h = self.frame_resolutions[resolution]
-                    img = cv.resize(img, (w, h))
-                    imgbytes = cv.imencode(".png", img)[1].tobytes()
-                    self.window["-DEBUG_IMAGE-"].update(data=imgbytes)
+
+    def __start_worker(self, *, target, args, name):
+        def guarded_target():
+            try:
+                target(*args)
+            finally:
+                with self._worker_lock:
+                    self._worker_threads.discard(thread)
+
+        thread = Thread(
+            target=guarded_target,
+            daemon=False,
+            name=name,
+        )
+        with self._worker_lock:
+            self._worker_threads.add(thread)
+        thread.start()
+
+    def __refresh_runtime(self, values):
+        now = monotonic()
+
+        # High-rate preview: latest frame only, rendered at <=10 FPS.
+        version, frame = self.runtime_bus.read_latest(
+            "debug_frame",
+            self._last_versions["debug_frame"],
+        )
+        if (
+            frame is not None
+            and values.get("-SHOW_FRAMES-", False)
+            and now - self._last_preview_render_at
+            >= self._preview_render_interval
+        ):
+            self._last_versions["debug_frame"] = version
+            image = self.__draw_heading_overlay(frame.copy())
+            resolution = values.get("-DEBUG_IMG_WIDTH-", "960x540")
+            width, height = self.frame_resolutions[resolution]
+            image = self.__fit_image(image, width, height)
+            encoded = cv.imencode(".jpg", image, [cv.IMWRITE_JPEG_QUALITY, 82])
+            if encoded[0]:
+                self.window["-DEBUG_IMAGE-"].update(
+                    data=encoded[1].tobytes()
+                )
+            self._last_preview_render_at = now
+
+        # Map is latest-only and deliberately slow.
+        version, frame = self.runtime_bus.read_latest(
+            "map_frame",
+            self._last_versions["map_frame"],
+        )
+        if (
+            frame is not None
+            and now - self._last_map_render_at >= self._map_render_interval
+        ):
+            self._last_versions["map_frame"] = version
+            image = self.__fit_image(frame, 960, 245)
+            encoded = cv.imencode(".png", image)
+            if encoded[0]:
+                self.window["-MAPPER_IMAGE-"].update(
+                    data=encoded[1].tobytes()
+                )
+            self._last_map_render_at = now
+
+        version, fps = self.runtime_bus.read_latest(
+            "video_fps",
+            self._last_versions["video_fps"],
+        )
+        if fps is not None:
+            self._last_versions["video_fps"] = version
+            self.window["-VIDEO_FPS-"].update(f"FPS: {fps}")
+
+        for key, mode in (
+            ("rl_status", "Training"),
+            ("mapper_status", self._status_mode),
+        ):
+            version, status = self.runtime_bus.read_latest(
+                key,
+                self._last_versions[key],
+            )
+            if status is not None:
+                self._last_versions[key] = version
+                self.__set_status(mode, status)
+
+        # Bounded log draining at <=5 FPS.
+        if now - self._last_log_render_at >= 0.20:
+            for level, message in self.runtime_bus.drain_logs(80):
+                color = self.logger_events_color.get(
+                    level,
+                    ("white", "black"),
+                )
+                sg.cprint(message, c=color)
+                self._last_status_message = message
+            self._last_log_render_at = now
+
+        for completion in self.runtime_bus.drain_completions():
+            task = completion.worker_name
+            result = completion.result
+            if task == "rl":
+                self._rl_task_running = False
+            else:
+                self._mapper_task_running = False
+                self._active_mapper = None
+
+            self.__set_rl_buttons(attached=True, running=False)
+            if result.get("ok"):
+                self.runtime_bus.log(
+                    result.get("message", f"{task} finished."),
+                    "msg_green",
+                )
+            else:
+                self.runtime_bus.log(
+                    f"{task.title()} failed: "
+                    f"{result.get('error', 'unknown error')}",
+                    "msg_red",
+                )
+
+        request = self.runtime_bus.pop_confirmation()
+        if request is not None:
+            request.result = self.__confirm_heading_reading(
+                request.frame,
+                request.angle_deg,
+                request.confidence,
+                request.context,
+            )
+            request.completed.set()
+
+    def __shutdown(self, bot):
+        self.__set_status("Stopping", "Stopping workers safely…")
+        if self._active_mapper is not None:
+            try:
+                self._active_mapper.stop()
+            except Exception:
+                pass
+        try:
+            bot.stop()
+        except Exception:
+            pass
+
+        deadline = monotonic() + 5.0
+        while monotonic() < deadline:
+            with self._worker_lock:
+                workers = [
+                    thread
+                    for thread in self._worker_threads
+                    if thread.is_alive()
+                ]
+            if not workers:
+                break
+            for thread in workers:
+                thread.join(timeout=0.10)
+            try:
+                self.window.refresh()
+            except Exception:
+                break
+
+        try:
+            bot.close()
+        except Exception:
+            pass
+        self.runtime_bus.close()
 
     def __set_rl_buttons(self, attached, running):
         """Keep the RL action buttons in a consistent state."""
@@ -232,6 +414,18 @@ class Gui:
             disabled=(not attached or running)
         )
         self.window["-RUN_AGENT-"].update(
+            disabled=(not attached or running)
+        )
+        self.window["-START_MAPPER-"].update(
+            disabled=(not attached or running)
+        )
+        self.window["-SET_MINIMAP_ANCHOR-"].update(
+            disabled=(not attached or running)
+        )
+        self.window["-CALIBRATE_MAPPER-"].update(
+            disabled=(not attached or running)
+        )
+        self.window["-DEBUG_CALIBRATE_MAPPER-"].update(
             disabled=(not attached or running)
         )
         self.window["-STOP_BOT-"].update(
@@ -254,18 +448,23 @@ class Gui:
         self.__set_rl_buttons(attached=True, running=True)
 
         label = "training" if mode == "train" else "trained agent"
-        sg.cprint(f"Starting {label}...", c=("white", "blue"))
+        self.__set_status(
+            "Training" if mode == "train" else "Agent",
+            f"Starting {label}...",
+        )
+        self.runtime_bus.log(f"Starting {label}...", "msg_blue")
 
-        Thread(
+        self.__start_worker(
             target=self.__run_rl_task,
             args=(bot, mode),
-            daemon=True,
             name=f"flyff-rl-{mode}",
-        ).start()
+        )
 
     def __run_rl_task(self, bot, mode):
         def report(message):
-            self.window.write_event_value("-RL_STATUS-", message)
+            self.runtime_bus.publish_latest("rl_status", str(message))
+            self.runtime_bus.log(str(message), "msg_blue")
+            self.runtime_bus.heartbeat("rl")
 
         try:
             from train import run_trained_agent, train_agent
@@ -300,13 +499,249 @@ class Gui:
                 pass
             bot.stop()
 
-        self.window.write_event_value("-RL_TASK_FINISHED-", result)
+        self.runtime_bus.complete("rl", result)
+
+    def __start_mapper_task(self, bot):
+        if self._rl_task_running or self._mapper_task_running:
+            sg.cprint(
+                "Another control task is already running.",
+                c=("white", "red"),
+            )
+            return
+
+        if not bot.is_ready:
+            sg.cprint(
+                "Attach the Flyff window first.",
+                c=("white", "red"),
+            )
+            return
+
+        self._mapper_task_running = True
+        self.__set_rl_buttons(attached=True, running=True)
+        self.__set_status("Mapping", "Starting autonomous mapper...")
+        self.__clear_live_map("Mapping is starting…")
+        self.runtime_bus.log(
+            "Starting autonomous mapper...",
+            "msg_blue",
+        )
+
+        self.__start_worker(
+            target=self.__run_mapper_task,
+            args=(bot,),
+            name="flyff-mapper",
+        )
+
+    def __run_mapper_task(self, bot):
+        def report(message):
+            self.runtime_bus.publish_latest("mapper_status", str(message))
+            self.runtime_bus.log(str(message), "msg_blue")
+            self.runtime_bus.heartbeat("mapper")
+
+        def publish_map(frame):
+            self.runtime_bus.publish_latest("map_frame", frame)
+            self.runtime_bus.heartbeat("mapper")
+
+        try:
+            from mapper import Mapper
+
+            mapper = Mapper(
+                bot,
+                status_callback=report,
+                frame_callback=publish_map,
+            )
+            self._active_mapper = mapper
+            output_dir = mapper.run()
+            result = {
+                "ok": True,
+                "message": f"Mapper stopped. Map saved to {output_dir}.",
+            }
+        except Exception as error:
+            result = {"ok": False, "error": str(error)}
+        finally:
+            self._active_mapper = None
+            try:
+                bot.stop_movement()
+            except Exception:
+                pass
+
+        self.runtime_bus.complete("mapper", result)
+
+    def __set_minimap_anchor(self, bot):
+        if self._rl_task_running or self._mapper_task_running:
+            sg.cprint(
+                "Stop the active control task before setting the minimap "
+                "center.",
+                c=("white", "red"),
+            )
+            return
+
+        if not bot.is_ready:
+            sg.cprint(
+                "Attach the Flyff window first.",
+                c=("white", "red"),
+            )
+            return
+
+        try:
+            from mapper import MinimapAnchorSetup
+
+            sg.cprint(
+                "Opening minimap-center selector. Click the exact center of "
+                "the player arrow, then press Enter.",
+                c=("white", "blue"),
+            )
+            setup = MinimapAnchorSetup(bot)
+            output_path = setup.run()
+            sg.cprint(
+                f"Fixed minimap center saved to {output_path}.",
+                c=("white", "green"),
+            )
+        except Exception as error:
+            sg.cprint(
+                f"Minimap-center setup failed: {error}",
+                c=("white", "red"),
+            )
+
+    def __clear_manual_calibration_artifacts(self):
+        """
+        Manual recalibration starts a new diagnostic session.
+
+        Preserve minimap_anchor.json because that is fixed UI geometry, but
+        remove prior timing calibration and old heading-debug captures.
+        """
+        from pathlib import Path
+        import shutil
+
+        project_root = Path(__file__).resolve().parent
+        calibration_files = [
+            project_root / "mapper" / "calibration.json",
+        ]
+        debug_directories = [
+            project_root / "debug" / "minimap_heading",
+        ]
+
+        removed = []
+        for file_path in calibration_files:
+            if file_path.exists():
+                file_path.unlink()
+                removed.append(str(file_path))
+
+        for directory in debug_directories:
+            if directory.exists():
+                shutil.rmtree(directory)
+                removed.append(str(directory))
+            directory.mkdir(parents=True, exist_ok=True)
+
+        if removed:
+            sg.cprint(
+                "Manual recalibration cleared the previous calibration and "
+                "minimap-heading debug files.",
+                c=("white", "blue"),
+            )
+        else:
+            sg.cprint(
+                "Manual recalibration started with no old calibration/debug "
+                "files to clear.",
+                c=("white", "blue"),
+            )
+
+    def __start_calibration_task(
+        self,
+        bot,
+        visual_confirmation=False,
+    ):
+        if self._rl_task_running or self._mapper_task_running:
+            sg.cprint(
+                "Another control task is already running.",
+                c=("white", "red"),
+            )
+            return
+
+        if not bot.is_ready:
+            sg.cprint(
+                "Attach the Flyff window first.",
+                c=("white", "red"),
+            )
+            return
+
+        self._mapper_task_running = True
+        self.__set_rl_buttons(attached=True, running=True)
+        self.__clear_manual_calibration_artifacts()
+
+        self.__set_status(
+            "Calibration",
+            (
+                "Starting visual-confirmation calibration..."
+                if visual_confirmation
+                else "Starting rotation calibration..."
+            ),
+        )
+        self.__clear_live_map(
+            "No map yet — start Map Area to build the occupancy preview."
+        )
+        self.runtime_bus.log(
+            "Starting rotation calibration...",
+            "msg_blue",
+        )
+
+        self.__start_worker(
+            target=self.__run_calibration_task,
+            args=(bot, visual_confirmation),
+            name="flyff-mapper-calibration",
+        )
+
+    def __run_calibration_task(
+        self,
+        bot,
+        visual_confirmation=False,
+    ):
+        def report(message):
+            self.runtime_bus.publish_latest(
+                "mapper_status",
+                str(message),
+            )
+            self.runtime_bus.log(str(message), "msg_blue")
+            self.runtime_bus.heartbeat("calibration")
+
+        try:
+            from mapper import RotationCalibrator
+
+            calibrator = RotationCalibrator(
+                bot,
+                status_callback=report,
+                frame_callback=None,
+                visual_confirmation_callback=(
+                    self.runtime_bus.request_heading_confirmation
+                    if visual_confirmation
+                    else None
+                ),
+            )
+            self._active_mapper = calibrator
+            calibration_path = calibrator.run(manual=True)
+            result = {
+                "ok": True,
+                "message": (
+                    "Calibration complete. Saved to "
+                    f"{calibration_path}."
+                ),
+            }
+        except Exception as error:
+            result = {"ok": False, "error": str(error)}
+        finally:
+            self._active_mapper = None
+            try:
+                bot.stop_movement()
+            except Exception:
+                pass
+
+        self.runtime_bus.complete("calibration", result)
 
     def close(self):
+        self.runtime_bus.close()
         self.window.close()
 
     def __load_settings(self, bot):
-        show_frames = sg.user_settings_get_entry("-SHOW_FRAMES-", False)
+        show_frames = sg.user_settings_get_entry("-SHOW_FRAMES-", True)
         self.window["-SHOW_FRAMES-"].update(show_frames)
         self.window["-SHOW_MATCHES_TEXT-"].update(visible=show_frames)
         self.window["-SHOW_BOXES-"].update(visible=show_frames)
@@ -314,312 +749,572 @@ class Gui:
         self.window["-VISION_FRAME-"].update(visible=show_frames)
         bot.set_config(show_frames=show_frames)
 
-        show_matches_text = sg.user_settings_get_entry("-SHOW_MATCHES_TEXT-", False)
+        show_matches_text = sg.user_settings_get_entry(
+            "-SHOW_MATCHES_TEXT-", False
+        )
         self.window["-SHOW_MATCHES_TEXT-"].update(show_matches_text)
         bot.set_config(show_matches_text=show_matches_text)
 
-        show_mobs_pos_boxes = sg.user_settings_get_entry("-SHOW_BOXES-", False)
+        show_mobs_pos_boxes = sg.user_settings_get_entry(
+            "-SHOW_BOXES-", False
+        )
         self.window["-SHOW_BOXES-"].update(show_mobs_pos_boxes)
         bot.set_config(show_mobs_pos_boxes=show_mobs_pos_boxes)
 
-        show_mobs_pos_markers = sg.user_settings_get_entry("-SHOW_MARKERS-", True)
+        show_mobs_pos_markers = sg.user_settings_get_entry(
+            "-SHOW_MARKERS-", True
+        )
         self.window["-SHOW_MARKERS-"].update(show_mobs_pos_markers)
         bot.set_config(show_mobs_pos_markers=show_mobs_pos_markers)
 
-        mob_pos_match_threshold = sg.user_settings_get_entry("-MOB_POS_MATCH_THRESHOLD-", 0.7)
-        self.window["-MOB_POS_MATCH_THRESHOLD-"].update(mob_pos_match_threshold)
-        bot.set_config(mob_pos_match_threshold=mob_pos_match_threshold)
-
-        mob_still_alive_match_threshold = sg.user_settings_get_entry("-MOB_STILL_ALIVE_MATCH_THRESHOLD-", 0.7)
-        self.window["-MOB_STILL_ALIVE_MATCH_THRESHOLD-"].update(mob_still_alive_match_threshold)
-        bot.set_config(mob_still_alive_match_threshold=mob_still_alive_match_threshold)
-
-        mob_existence_match_threshold = sg.user_settings_get_entry("-MOB_EXISTENCE_MATCH_THRESHOLD-", 0.7)
-        self.window["-MOB_EXISTENCE_MATCH_THRESHOLD-"].update(mob_existence_match_threshold)
-        bot.set_config(mob_existence_match_threshold=mob_existence_match_threshold)
-
-        inventory_perin_converter_match_threshold = sg.user_settings_get_entry(
-            "-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-", 0.7
+        bot.set_config(
+            mob_pos_match_threshold=0.7,
+            mob_still_alive_match_threshold=0.7,
+            mob_existence_match_threshold=0.7,
+            inventory_perin_converter_match_threshold=0.7,
+            inventory_icons_match_threshold=0.7,
+            mobs_kill_goal=None,
+            fight_time_limit_sec=8,
+            delay_to_check_mob_still_alive_sec=0.25,
         )
-        self.window["-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-"].update(inventory_perin_converter_match_threshold)
-        bot.set_config(inventory_perin_converter_match_threshold=inventory_perin_converter_match_threshold)
 
-        inventory_icons_match_threshold = sg.user_settings_get_entry("-INVENTORY_ICONS_MATCH_THRESHOLD-", 0.7)
-        self.window["-INVENTORY_ICONS_MATCH_THRESHOLD-"].update(inventory_icons_match_threshold)
-        bot.set_config(inventory_icons_match_threshold=inventory_icons_match_threshold)
-
-        mobs_kill_goal = sg.user_settings_get_entry("-MOBS_KILL_GOAL-", "infinite")
-        self.window["-MOBS_KILL_GOAL-"].update(mobs_kill_goal)
-        bot.set_config(mobs_kill_goal=mobs_kill_goal if mobs_kill_goal != "infinite" else None)
-
-        fight_time_limit_sec = sg.user_settings_get_entry("-FIGHT_TIME_LIMIT_SEC-", "8")
-        self.window["-FIGHT_TIME_LIMIT_SEC-"].update(fight_time_limit_sec)
-        bot.set_config(fight_time_limit_sec=fight_time_limit_sec)
-
-        delay_to_check_mob_still_alive_sec = sg.user_settings_get_entry("-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-", "0.25")
-        self.window["-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-"].update(delay_to_check_mob_still_alive_sec)
-        bot.set_config(delay_to_check_mob_still_alive_sec=delay_to_check_mob_still_alive_sec)
-
-        convert_penya_to_perins_timer_min = sg.user_settings_get_entry("-CONVERT_PENYA_TO_PERINS_TIMER_MIN-", "30")
-        self.window["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"].update(convert_penya_to_perins_timer_min)
-        bot.set_config(convert_penya_to_perins_timer_min=convert_penya_to_perins_timer_min)
+        convert_timer = sg.user_settings_get_entry(
+            "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-", "30"
+        )
+        self.window["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"].update(
+            convert_timer
+        )
+        bot.set_config(convert_penya_to_perins_timer_min=convert_timer)
 
         all_mobs = bot.get_all_mobs()
-        selected_mobs_names = sg.user_settings_get_entry("saved_selected_mobs", [])
-        selected_mobs_names = [name for name in selected_mobs_names if name in all_mobs] # exist filter
-        selected_mobs_list = [all_mobs[key] for key in all_mobs if key in selected_mobs_names]
-        bot.set_config(selected_mobs=selected_mobs_list)
+        selected_names = sg.user_settings_get_entry(
+            "saved_selected_mobs", []
+        )
+        selected_names = [
+            name for name in selected_names if name in all_mobs
+        ]
+        selected = [
+            all_mobs[key]
+            for key in all_mobs
+            if key in selected_names
+        ]
+        bot.set_config(selected_mobs=selected)
 
     def __set_hotkeys(self):
         self.window.bind("<Alt_L><s>", "-STOP_BOT-")
 
     def __get_layout(self):
-        def Collapsible(layout, key, title="", collapsed=False):
-            """
-            User Defined Element
-            A "collapsable section" element. Like a container element that can be collapsed and brought back
-            :param layout:Tuple[List[sg.Element]]: The layout for the section
-            :param key:Any: Key used to make this section visible / invisible
-            :param title:str: Title to show next to arrow
-            :param collapsed:bool: If True, then the section begins in a collapsed state
-            :return:sg.Column: Column including the arrows, title and the layout that is pinned
-            """
-            arrows = (sg.SYMBOL_DOWN, sg.SYMBOL_UP)
-            return sg.Column(
-                [
-                    [
-                        sg.T((arrows[1] if collapsed else arrows[0]), enable_events=True, k=key + "-BUTTON-"),
-                        sg.T(title, enable_events=True, key=key + "-TITLE-"),
-                    ],
-                    [sg.pin(sg.Column(layout, key=key, visible=not collapsed, metadata=arrows))],
-                ],
-                pad=(0, 0),
-            )
-
         title = [sg.Text("Flyff FVF", font="Any 18")]
 
-        actions = [
-            sg.Frame(
-                "Actions:",
+        actions = sg.Frame(
+            "Actions:",
+            [
                 [
-                    [
-                        sg.Button("Attach Window", key="-ATTACH_WINDOW-"),
-                        sg.Button(
-                            "Start Training",
-                            disabled=True,
-                            key="-START_BOT-",
-                            tooltip=(
-                                "Train a new PPO model or resume the saved model."
-                            ),
-                        ),
-                        sg.Button(
-                            "Run Trained Agent",
-                            disabled=True,
-                            key="-RUN_AGENT-",
-                            tooltip="Load models/flyff_ppo.zip and run it deterministically.",
-                        ),
-                    ],
-                    [
-                        sg.Button("Stop (Alt+s)", disabled=True, key="-STOP_BOT-"),
-                        sg.Button("Exit"),
-                    ],
-                    [
-                        sg.Text("Attached window: ", font="Any 8", pad=((5, 0), (0, 0))),
-                        sg.Text("", font="Any 8", text_color="red", key="-ATTACHED_WINDOW-", pad=(0, 0)),
-                    ],
+                    sg.Button(
+                        "Attach Window",
+                        key="-ATTACH_WINDOW-",
+                        expand_x=True,
+                    )
                 ],
-                pad=((5, 15), (0, 5)),
-                size=(290, 105),
-            )
-        ]
-        mobs_config = [
-            sg.Frame(
-                "Mobs Configuration:",
                 [
-                    [
-                        sg.Button("Select Mobs", key="-SELECT_MOBS-"),
-                        sg.Button("Add Mob", key="-ADD_MOB-"),
-                        sg.Button("Delete Mob", key="-DELETE_MOB-"),
-                    ]
+                    sg.Button(
+                        "Start Training",
+                        disabled=True,
+                        key="-START_BOT-",
+                        expand_x=True,
+                    ),
+                    sg.Button(
+                        "Run Trained Agent",
+                        disabled=True,
+                        key="-RUN_AGENT-",
+                        expand_x=True,
+                    ),
                 ],
-                pad=((5, 15), (10, 5)),
-                size=(290, 55),
-            )
-        ]
+                [
+                    sg.Button(
+                        "Set Minimap Center",
+                        disabled=True,
+                        key="-SET_MINIMAP_ANCHOR-",
+                        expand_x=True,
+                    ),
+                    sg.Button(
+                        "Calibrate Mapper",
+                        disabled=True,
+                        key="-CALIBRATE_MAPPER-",
+                        expand_x=True,
+                    ),
+                ],
+                [
+                    sg.Button(
+                        "Debug Heading Calibration",
+                        disabled=True,
+                        key="-DEBUG_CALIBRATE_MAPPER-",
+                        expand_x=True,
+                    ),
+                ],
+                [
+                    sg.Button(
+                        "Map Area",
+                        disabled=True,
+                        key="-START_MAPPER-",
+                        expand_x=True,
+                    )
+                ],
+                [
+                    sg.Button(
+                        "Stop (Alt+s)",
+                        disabled=True,
+                        key="-STOP_BOT-",
+                        expand_x=True,
+                    ),
+                    sg.Button("Exit", expand_x=True),
+                ],
+                [sg.Text("Attached window:", font="Any 8")],
+                [
+                    sg.Text(
+                        "",
+                        font="Any 8",
+                        text_color="red",
+                        key="-ATTACHED_WINDOW-",
+                        size=(34, 2),
+                    )
+                ],
+            ],
+            expand_x=True,
+        )
 
-        bot_threshold_options = [
-            [sg.Text("Mob position Match Threshold:")],
+        mobs_config = sg.Frame(
+            "Mobs Configuration:",
             [
-                sg.Slider(
-                    (0.1, 0.9),
-                    0.7,
-                    0.05,
-                    enable_events=True,
-                    orientation="h",
-                    size=(20, 15),
-                    key="-MOB_POS_MATCH_THRESHOLD-",
-                )
-            ],
-            [sg.Text("Mob still alive match threshold:")],
-            [
-                sg.Slider(
-                    (0.1, 0.9),
-                    0.7,
-                    0.05,
-                    enable_events=True,
-                    orientation="h",
-                    size=(20, 15),
-                    key="-MOB_STILL_ALIVE_MATCH_THRESHOLD-",
-                ),
-            ],
-            [sg.Text("Mob existence match threshold:")],
-            [
-                sg.Slider(
-                    (0.1, 0.9),
-                    0.7,
-                    0.05,
-                    enable_events=True,
-                    orientation="h",
-                    size=(20, 15),
-                    key="-MOB_EXISTENCE_MATCH_THRESHOLD-",
-                ),
-            ],
-            [sg.Text("Inventory perin converter match threshold:")],
-            [
-                sg.Slider(
-                    (0.1, 0.9),
-                    0.7,
-                    0.05,
-                    enable_events=True,
-                    orientation="h",
-                    size=(20, 15),
-                    key="-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-",
-                ),
-            ],
-            [sg.Text("Inventory icons match threshold:")],
-            [
-                sg.Slider(
-                    (0.1, 0.9),
-                    0.7,
-                    0.05,
-                    enable_events=True,
-                    orientation="h",
-                    size=(20, 15),
-                    key="-INVENTORY_ICONS_MATCH_THRESHOLD-",
-                ),
-            ],
-        ]
-        bot_options = [
-            sg.Frame(
-                "Options:",
                 [
-                    [sg.Checkbox("Show bot's vision", False, enable_events=True, key="-SHOW_FRAMES-")],
-                    [
-                        sg.pin(
-                            sg.Checkbox(
-                                "Show matches text",
-                                False,
-                                visible=False,
-                                enable_events=True,
-                                key="-SHOW_MATCHES_TEXT-",
-                            )
-                        )
-                    ],
-                    [
-                        sg.pin(
-                            sg.Checkbox("Show mobs boxes", False, visible=False, enable_events=True, key="-SHOW_BOXES-")
-                        )
-                    ],
-                    [
-                        sg.pin(
-                            sg.Checkbox(
-                                "Show mobs markers", True, visible=False, enable_events=True, key="-SHOW_MARKERS-"
-                            )
-                        )
-                    ],
-                    [sg.HorizontalSeparator()],
-                    [
-                        Collapsible(
-                            bot_threshold_options, "-BOT_THRESHOLD_OPTIONS-", "Threshold Options", collapsed=True
-                        )
-                    ],
-                    [sg.HorizontalSeparator()],
-                    [
-                        sg.Text("Mobs kill goal:"),
-                        sg.InputText("infinite", size=(10, 1), enable_events=True, key="-MOBS_KILL_GOAL-"),
-                    ],
-                    [
-                        sg.Text("Fight Time Limit (s):"),
-                        sg.InputText("8", size=(10, 1), enable_events=True, key="-FIGHT_TIME_LIMIT_SEC-"),
-                    ],
-                    [sg.Text("Delay to check if mob is still alive (s):")],
-                    [
-                        sg.InputText(
-                            "0.25", size=(10, 1), enable_events=True, key="-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-"
-                        ),
-                    ],
-                    [sg.Text("Timer to convert penya to perins (m):")],
-                    [
-                        sg.InputText("30", size=(10, 1), enable_events=True, key="-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"),
-                    ],
-                ],
-                pad=((5, 15), (5, 5)),
-                expand_x=True,
-            )
-        ]
-        bot_status = [
-            sg.Frame(
-                "Status:",
-                [
-                    [sg.Text("Video FPS:", size=(15, 1), key="-VIDEO_FPS-")],
-                    [sg.Multiline(size=(35, 10), key="-ML-", autoscroll=True, expand_x=True)],
-                ],
-                pad=((5, 15), (5, 10)),
-                expand_x=True,
-            )
-        ]
-        main = sg.Column(
-            [
-                actions,
-                mobs_config,
-                bot_options,
-                bot_status,
+                    sg.Button("Select Mobs", key="-SELECT_MOBS-"),
+                    sg.Button("Add Mob", key="-ADD_MOB-"),
+                    sg.Button("Delete Mob", key="-DELETE_MOB-"),
+                ]
             ],
-            pad=(0, 0),
-            size=(300, 600),
+            expand_x=True,
+        )
+
+        options = sg.Frame(
+            "Options:",
+            [
+                [
+                    sg.Checkbox(
+                        "Show bot's vision",
+                        True,
+                        enable_events=True,
+                        key="-SHOW_FRAMES-",
+                    )
+                ],
+                [
+                    sg.pin(
+                        sg.Checkbox(
+                            "Show matches text",
+                            False,
+                            enable_events=True,
+                            key="-SHOW_MATCHES_TEXT-",
+                        )
+                    )
+                ],
+                [
+                    sg.pin(
+                        sg.Checkbox(
+                            "Show mobs boxes",
+                            False,
+                            enable_events=True,
+                            key="-SHOW_BOXES-",
+                        )
+                    )
+                ],
+                [
+                    sg.pin(
+                        sg.Checkbox(
+                            "Show mobs markers",
+                            True,
+                            enable_events=True,
+                            key="-SHOW_MARKERS-",
+                        )
+                    )
+                ],
+                [sg.HorizontalSeparator()],
+                [sg.Text("Timer to convert penya to perins (m):")],
+                [
+                    sg.InputText(
+                        "30",
+                        size=(10, 1),
+                        enable_events=True,
+                        key="-CONVERT_PENYA_TO_PERINS_TIMER_MIN-",
+                    )
+                ],
+            ],
+            expand_x=True,
+        )
+
+        status = sg.Frame(
+            "Status:",
+            [
+                [
+                    sg.Text(
+                        "Mode: Idle",
+                        key="-STATUS_MODE-",
+                        size=(18, 1),
+                    ),
+                    sg.Text("FPS: --", key="-VIDEO_FPS-", size=(10, 1)),
+                ],
+                [
+                    sg.Text(
+                        "Ready",
+                        key="-STATUS_MESSAGE-",
+                        size=(38, 3),
+                    )
+                ],
+                [
+                    sg.Button(
+                        "Show Log",
+                        key="-SHOW_LOG-",
+                        expand_x=True,
+                    )
+                ],
+                [
+                    sg.Multiline(
+                        size=(1, 1),
+                        key="-ML-",
+                        autoscroll=True,
+                        visible=False,
+                    )
+                ],
+            ],
+            expand_x=True,
+        )
+
+        controls = sg.Column(
+            [
+                [actions],
+                [mobs_config],
+                [options],
+                [status],
+            ],
+            size=(335, 820),
+            pad=((0, 8), (0, 0)),
             scrollable=True,
             vertical_scroll_only=True,
             expand_y=True,
             key="-MAIN_COLUMN-",
         )
 
-        video = sg.Column(
+        bot_vision = sg.Frame(
+            "Bot Vision:",
             [
                 [
-                    sg.pin(
-                        sg.Frame(
-                            "Bot's Vision:",
-                            [
-                                [
-                                    sg.Text("Image Resolution:"),
-                                    sg.Combo(
-                                        list(self.frame_resolutions.keys()),
-                                        default_value="400x300",
-                                        key="-DEBUG_IMG_WIDTH-",
-                                    ),
-                                ],
-                                [sg.Image(filename="", key="-DEBUG_IMAGE-")],
-                            ],
-                            visible=False,
-                            key="-VISION_FRAME-",
-                        )
+                    sg.Text("Image Resolution:"),
+                    sg.Combo(
+                        list(self.frame_resolutions.keys()),
+                        default_value="960x540",
+                        readonly=True,
+                        key="-DEBUG_IMG_WIDTH-",
+                    ),
+                ],
+                [
+                    sg.Image(
+                        filename="",
+                        key="-DEBUG_IMAGE-",
+                        size=(960, 540),
                     )
-                ]
+                ],
             ],
-            pad=(0, 0),
+            visible=True,
+            expand_x=True,
+            key="-VISION_FRAME-",
         )
 
-        return [title, [main, video]]
+        live_map = sg.Frame(
+            "Live Map:",
+            [
+                [
+                    sg.Text("Unknown", text_color="gray"),
+                    sg.Text("Explored", text_color="white"),
+                    sg.Text("Wall / obstacle", text_color="black"),
+                    sg.Text("Teleport", text_color="red"),
+                    sg.Text("Pang", text_color="cyan"),
+                    sg.Text("Player + heading", text_color="yellow"),
+                ],
+                [
+                    sg.Image(
+                        data=self.__make_live_map_placeholder(
+                            "No map yet — click Map Area to begin."
+                        ),
+                        key="-MAPPER_IMAGE-",
+                        size=(960, 245),
+                    )
+                ],
+            ],
+            expand_x=True,
+            key="-MAPPER_FRAME-CONTAINER-",
+        )
+
+        visuals = sg.Column(
+            [
+                [bot_vision],
+                [live_map],
+            ],
+            pad=(0, 0),
+            expand_x=True,
+            expand_y=True,
+        )
+
+        return [title, [controls, visuals]]
+
+    def __fit_image(self, image, target_width, target_height):
+        """Letterbox an image without changing its aspect ratio."""
+        if image is None or image.size == 0:
+            return image
+
+        height, width = image.shape[:2]
+        scale = min(
+            target_width / max(1, width),
+            target_height / max(1, height),
+        )
+        resized_width = max(1, int(round(width * scale)))
+        resized_height = max(1, int(round(height * scale)))
+        resized = cv.resize(
+            image,
+            (resized_width, resized_height),
+            interpolation=(
+                cv.INTER_AREA if scale < 1.0 else cv.INTER_LINEAR
+            ),
+        )
+
+        top = (target_height - resized_height) // 2
+        bottom = target_height - resized_height - top
+        left = (target_width - resized_width) // 2
+        right = target_width - resized_width - left
+
+        return cv.copyMakeBorder(
+            resized,
+            top,
+            bottom,
+            left,
+            right,
+            cv.BORDER_CONSTANT,
+            value=(20, 20, 20),
+        )
+
+    def __draw_heading_overlay(self, image):
+        """Draw the live minimap heading marker on Bot Vision."""
+        try:
+            if self._heading_overlay_detector is None:
+                from mapper import MinimapHeadingDetector
+                self._heading_overlay_detector = MinimapHeadingDetector()
+
+            reading = self._heading_overlay_detector.read_fast(image)
+            if reading is None:
+                return image
+
+            center_x, center_y = reading.center
+            angle = math.radians(reading.angle_deg)
+            length = 44
+            end_x = int(round(center_x + math.sin(angle) * length))
+            end_y = int(round(center_y - math.cos(angle) * length))
+
+            color = (0, 215, 255)
+            if reading.is_stale:
+                color = (0, 140, 255)
+
+            cv.circle(image, (center_x, center_y), 6, color, 2)
+            cv.arrowedLine(
+                image,
+                (center_x, center_y),
+                (end_x, end_y),
+                color,
+                3,
+                tipLength=0.28,
+            )
+            cv.putText(
+                image,
+                f"{reading.angle_deg:.0f} deg {reading.confidence:.2f}",
+                (max(4, center_x - 78), max(18, center_y - 18)),
+                cv.FONT_HERSHEY_SIMPLEX,
+                0.52,
+                color,
+                2,
+                cv.LINE_AA,
+            )
+        except Exception:
+            return image
+
+        return image
+
+    def __set_status(self, mode, message):
+        self._status_mode = mode
+        self._last_status_message = str(message)
+        if hasattr(self, "window"):
+            self.window["-STATUS_MODE-"].update(f"Mode: {mode}")
+            self.window["-STATUS_MESSAGE-"].update(
+                self._last_status_message[-240:]
+            )
+
+    def __show_log_window(self):
+        try:
+            log_text = self.window["-ML-"].get()
+        except Exception:
+            log_text = ""
+
+        log_window = sg.Window(
+            "Flyff FVF Log",
+            [
+                [
+                    sg.Multiline(
+                        log_text,
+                        size=(110, 35),
+                        disabled=True,
+                        autoscroll=True,
+                    )
+                ],
+                [sg.Button("Close")],
+            ],
+            modal=True,
+            resizable=True,
+            finalize=True,
+        )
+        while True:
+            event, _ = log_window.read()
+            if event in (sg.WIN_CLOSED, "Close"):
+                break
+        log_window.close()
+
+    def __make_live_map_placeholder(self, message):
+        import numpy as np
+
+        canvas = np.full((245, 960, 3), 24, dtype=np.uint8)
+        cv.rectangle(canvas, (1, 1), (958, 243), (70, 70, 70), 1)
+
+        title = "LIVE MAP"
+        cv.putText(
+            canvas,
+            title,
+            (40, 92),
+            cv.FONT_HERSHEY_SIMPLEX,
+            1.0,
+            (180, 180, 180),
+            2,
+            cv.LINE_AA,
+        )
+        cv.putText(
+            canvas,
+            message,
+            (40, 145),
+            cv.FONT_HERSHEY_SIMPLEX,
+            0.62,
+            (150, 150, 150),
+            1,
+            cv.LINE_AA,
+        )
+        return cv.imencode(".png", canvas)[1].tobytes()
+
+    def __clear_live_map(self, message):
+        if hasattr(self, "window"):
+            self.window["-MAPPER_IMAGE-"].update(
+                data=self.__make_live_map_placeholder(message)
+            )
+
+    def __confirm_heading_reading(
+        self,
+        frame,
+        angle_deg,
+        confidence,
+        context,
+    ):
+        """
+        Ask the user whether one detected heading is visually correct.
+
+        Returns:
+            True  -> accept
+            False -> reject and reacquire
+            None  -> stop calibration
+        """
+        preview = frame.copy()
+        try:
+            if self._heading_overlay_detector is None:
+                from mapper import MinimapHeadingDetector
+                self._heading_overlay_detector = MinimapHeadingDetector()
+
+            anchor = self._heading_overlay_detector._load_anchor(preview)
+            center = (
+                int(anchor["arrow_center_x"]),
+                int(anchor["arrow_center_y"]),
+            )
+            radians = math.radians(float(angle_deg))
+            endpoint = (
+                int(round(center[0] + math.sin(radians) * 70)),
+                int(round(center[1] - math.cos(radians) * 70)),
+            )
+            cv.circle(preview, center, 8, (0, 255, 255), 2)
+            cv.arrowedLine(
+                preview,
+                center,
+                endpoint,
+                (0, 255, 255),
+                4,
+                tipLength=0.25,
+            )
+            cv.putText(
+                preview,
+                f"{float(angle_deg):.1f} deg  conf {float(confidence):.2f}",
+                (20, 34),
+                cv.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 255, 255),
+                2,
+                cv.LINE_AA,
+            )
+        except Exception:
+            pass
+
+        preview = self.__fit_image(preview, 960, 540)
+        png = cv.imencode(".png", preview)[1].tobytes()
+
+        window = sg.Window(
+            "Verify Detected Heading",
+            [
+                [
+                    sg.Text(
+                        str(context),
+                        size=(100, 2),
+                    )
+                ],
+                [sg.Image(data=png)],
+                [
+                    sg.Text(
+                        "Does the yellow arrow match the character's actual "
+                        "heading?"
+                    )
+                ],
+                [
+                    sg.Button("Correct", key="-HEADING_CORRECT-"),
+                    sg.Button("Incorrect — Re-read", key="-HEADING_REJECT-"),
+                    sg.Button("Stop Calibration", key="-HEADING_STOP-"),
+                ],
+            ],
+            modal=True,
+            finalize=True,
+            keep_on_top=True,
+        )
+
+        result = None
+        while True:
+            event, _ = window.read()
+            if event == "-HEADING_CORRECT-":
+                result = True
+                break
+            if event == "-HEADING_REJECT-":
+                result = False
+                break
+            if event in (sg.WIN_CLOSED, "-HEADING_STOP-"):
+                result = None
+                break
+
+        window.close()
+        return result
 
     def __attach_window_popup(self):
         handlers = get_window_handlers()
