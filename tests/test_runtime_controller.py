@@ -53,6 +53,7 @@ def test_reattach_is_rejected_while_control_worker_is_active() -> None:
     with pytest.raises(RuntimeError, match="Cannot reattach"):
         controller.attach(123)
 
+    assert bot.release_calls == 0
     results = controller.shutdown(1.0)
     assert results[WorkerKind.CONTROL]
     assert bot.release_calls == 1

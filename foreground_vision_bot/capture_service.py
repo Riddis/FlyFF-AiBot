@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Callable
 from threading import Lock
 from time import monotonic
@@ -109,7 +110,9 @@ class CaptureService:
         token: CancellationToken,
     ) -> None:
         last_preview_at = 0.0
+        last_fps_at = 0.0
         previous_at = monotonic()
+        frame_times: deque[float] = deque(maxlen=30)
 
         try:
             while not token.cancelled:
@@ -125,7 +128,14 @@ class CaptureService:
 
                 elapsed = max(now - previous_at, 1e-6)
                 previous_at = now
-                self._bus.publish_latest("video_fps", round(1.0 / elapsed))
+                frame_times.append(elapsed)
+                if now - last_fps_at >= 0.5:
+                    average = sum(frame_times) / len(frame_times)
+                    self._bus.publish_latest(
+                        "video_fps",
+                        round(1.0 / average),
+                    )
+                    last_fps_at = now
                 self._bus.heartbeat("capture")
 
                 if (

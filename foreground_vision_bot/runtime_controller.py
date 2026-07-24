@@ -45,6 +45,7 @@ class RuntimeController:
             raise RuntimeError(
                 "Cannot reattach while a control task is active. Stop it first."
             )
+        self.bot.release_input()
         generation = self.capture.attach(window_handle)
         try:
             self.bot.prepare_window(window_handle, self.bus, self.capture)
