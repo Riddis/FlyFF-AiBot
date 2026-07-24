@@ -137,7 +137,7 @@ class Bot:
                         current_mob_info_index = 0
                     current_mob = self.config["selected_mobs"][current_mob_info_index]
                     matches = self.__get_mobs_position(current_mob, debug=True)
-                    self.__check_mob_existence(debug=True)
+                    self.__check_mob_existence(current_mob, debug=True)
                     self.__check_mob_still_alive(current_mob, debug=True)
                     if not matches:
                         current_mob_info_index += 1
@@ -201,8 +201,21 @@ class Bot:
         monsters_count = mobs_killed
         mob_pos = get_point_near_center(frame_center, points)
         self.mouse.move(to_point=mob_pos, duration=0.1)
-        if self.__check_mob_existence():
+
+        # Give the game a moment to update the target panel after hovering.
+        sleep(0.15)
+
+        # The existence check requires the currently selected mob so it can
+        # reuse that mob's name template in the target information panel.
+        mob_exists = self.__check_mob_existence(current_mob)
+        print(f"Farm-thread mob existence check: {mob_exists}")
+
+        if mob_exists:
+            print(f"Clicking mob at {mob_pos}")
             self.mouse.left_click()
+            sleep(0.15)
+            print("Left click sent")
+
             self.keyboard.hold_key(VKEY["F1"], press_time=0.06)
             self.mouse.move_outside_game(duration=0.2)
             fight_time = time()
@@ -311,30 +324,47 @@ class Bot:
         # print(f"No mob selected. mob_still_alive_match_threshold: {max_val}")
         return False
 
-    def __check_mob_existence(self, debug=False):
+    def __check_mob_existence(self, current_mob, debug=False):
         """
-        Check if the mob exists by checking if the mob life bar exists.
-        It's better to use mob life bar than mob type icon because mob life bar is bigger,
-        so it's faster to match.
+        Check whether the currently selected mob's name is visible
+        in the target information panel at the top of the screen.
         """
 
-        # frame_cute_area get the top of the screen to see if the mob life bar exists
-        _, _, _, passed_threshold, drawn_frame = CV.match_template(
-            frame=self.frame,
-            crop_area=(0, 50, 200, -200),
-            template=GeneralAssets.MOB_LIFE_BAR,
-            threshold=float(self.config["mob_existence_match_threshold"]),
-            frame_to_draw=self.debug_frame if debug else None,
-            text_to_draw="Mob exists" if debug and self.config["show_matches_text"] else None,
+        mob_name_template = cv.imread(
+            str(
+                Path(__file__).parent
+                / "assets"
+                / "names"
+                / f"{current_mob['name']}.png"
+            ),
+            cv.IMREAD_GRAYSCALE,
         )
+
+        if mob_name_template is None:
+            return False
+
+        max_val, _, _, passed_threshold, drawn_frame = CV.match_template(
+            frame=self.frame,
+
+            # Search the full width of the top 90 pixels.
+            crop_area=(0, 90, 0, 0),
+
+            template=mob_name_template,
+            threshold=float(
+                self.config["mob_existence_match_threshold"]
+            ),
+            frame_to_draw=self.debug_frame if debug else None,
+            text_to_draw=(
+                "Mob exists"
+                if debug and self.config["show_matches_text"]
+                else None
+            ),
+        )
+
         if debug:
             self.debug_frame = drawn_frame
 
-        if passed_threshold:
-            # print(f"Mob found! mob_existence_match_threshold: {max_val}")
-            return True
-        # print(f"No mob found! mob_existence_match_threshold: {max_val}")
-        return False
+        return passed_threshold
 
     def __check_inventory_open(self, debug=False):
         """

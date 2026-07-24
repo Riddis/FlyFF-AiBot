@@ -87,6 +87,64 @@ class ComputerVision:
         drawn_frame = frame_to_draw
         return max_val, max_loc_corrected, center_loc, passed_threshold, drawn_frame
 
+
+    @staticmethod
+    def group_overlapping_rectangles(rectangles, overlap_threshold=0.5):
+        """
+        Merge substantially overlapping rectangles.
+
+        Each rectangle is [x, y, width, height]. The return value is a
+        NumPy array compatible with the iteration used by match_template_multi.
+        """
+        if not rectangles:
+            return np.empty((0, 4), dtype=np.int32)
+
+        pending = [np.asarray(rect, dtype=np.float64) for rect in rectangles]
+        grouped = []
+
+        while pending:
+            cluster = [pending.pop(0)]
+            changed = True
+
+            while changed:
+                changed = False
+                cluster_box = np.mean(cluster, axis=0)
+                cluster_x1, cluster_y1, cluster_w, cluster_h = cluster_box
+                cluster_x2 = cluster_x1 + cluster_w
+                cluster_y2 = cluster_y1 + cluster_h
+                cluster_area = cluster_w * cluster_h
+                remaining = []
+
+                for candidate in pending:
+                    candidate_x1, candidate_y1, candidate_w, candidate_h = candidate
+                    candidate_x2 = candidate_x1 + candidate_w
+                    candidate_y2 = candidate_y1 + candidate_h
+
+                    intersection_w = max(
+                        0.0,
+                        min(cluster_x2, candidate_x2) - max(cluster_x1, candidate_x1),
+                    )
+                    intersection_h = max(
+                        0.0,
+                        min(cluster_y2, candidate_y2) - max(cluster_y1, candidate_y1),
+                    )
+                    intersection = intersection_w * intersection_h
+                    candidate_area = candidate_w * candidate_h
+                    smaller_area = min(cluster_area, candidate_area)
+                    overlap = intersection / smaller_area if smaller_area > 0 else 0.0
+
+                    if overlap >= overlap_threshold:
+                        cluster.append(candidate)
+                        changed = True
+                    else:
+                        remaining.append(candidate)
+
+                pending = remaining
+
+            grouped.append(np.rint(np.mean(cluster, axis=0)).astype(np.int32))
+
+        return np.asarray(grouped, dtype=np.int32)
+
     @staticmethod
     def match_template_multi(
         frame,
@@ -136,19 +194,22 @@ class ComputerVision:
         locations = list(zip(*locations[::-1]))
         # print(locations)
 
-        # Create a list of [x, y, w, h] rectangles
+        # Create a list of [x, y, w, h] rectangles.
         rectangles = []
         for loc in locations:
-            rect = [loc[0], loc[1], template_w + box_offset[0], template_h + box_offset[1]]
-            # Add every box to the list twice in order to retain single (non-overlapping) boxes
-            rectangles.append(rect)
+            rect = [
+                int(loc[0]),
+                int(loc[1]),
+                int(template_w + box_offset[0]),
+                int(template_h + box_offset[1]),
+            ]
             rectangles.append(rect)
 
-        # Overlapping rectangles get drawn. We can eliminate those redundant locations by using groupRectangles().
-        # The groupThreshold parameter should usually be 1. If you put it at 0 then no grouping is done.
-        # If you put it at 2 then an object needs at least 3 overlapping rectangles to appear
-        # eps 0.5 means: "Relative difference between sides of the rectangles to merge them into a group."
-        rectangles, _ = cv.groupRectangles(rectangles, groupThreshold=1, eps=0.5)
+        # OpenCV 5 no longer exposes cv.groupRectangles in some Python builds.
+        # Merge overlapping detections locally while preserving isolated matches.
+        rectangles = ComputerVision.group_overlapping_rectangles(
+            rectangles, overlap_threshold=0.5
+        )
         # print(rectangles)
 
         matches = []
