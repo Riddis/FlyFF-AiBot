@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import cast
 
-from capture_service import CaptureService
+from capture_service import CaptureService, FrameSource
 from libs.WindowCapture import WindowCapture
 from mapper import Mapper, RotationCalibrator
 from runtime_bus import RuntimeBus
@@ -24,7 +25,7 @@ class RuntimeController:
         self.capture = CaptureService(
             self.workers,
             bus,
-            WindowCapture,
+            lambda handle: cast(FrameSource, WindowCapture(handle)),
             preview_builder=bot.build_preview,
             preview_enabled=lambda: bool(bot.config["show_frames"]),
         )
