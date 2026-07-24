@@ -1,4 +1,5 @@
 import difflib
+from threading import Thread
 
 import cv2 as cv
 import PySimpleGUI as sg
@@ -32,6 +33,7 @@ class Gui:
             "1280x1024": (1280, 1024),
             "1366x768": (1366, 768),
         }
+        self._rl_task_running = False
         sg.theme(theme)
 
     def init(self):
@@ -59,20 +61,42 @@ class Gui:
                         game_window_name[:30] + "..." if len(game_window_name) > 30 else game_window_name
                     )
                     self.window["-ATTACHED_WINDOW-"].update(truncated_game_window_name)
-                    self.window["-START_BOT-"].update(disabled=False)
-                    self.window["-STOP_BOT-"].update(disabled=True)
+                    self.__set_rl_buttons(attached=True, running=False)
+
             if event == "-START_BOT-":
-                bot.start()
-                self.window["-START_BOT-"].update(disabled=True)
-                self.window["-STOP_BOT-"].update(disabled=False)
+                self.__start_rl_task(bot, mode="train")
+
+            if event == "-RUN_AGENT-":
+                self.__start_rl_task(bot, mode="agent")
+
+            if event == "-RL_TASK_FINISHED-":
+                self._rl_task_running = False
+                self.__set_rl_buttons(attached=True, running=False)
+
+                result = values[event]
+                if result.get("ok"):
+                    sg.cprint(
+                        result.get("message", "RL task completed."),
+                        c=("white", "green"),
+                    )
+                else:
+                    sg.cprint(
+                        f"RL task failed: {result.get('error', 'unknown error')}",
+                        c=("white", "red"),
+                    )
+
+            if event == "-RL_STATUS-":
+                sg.cprint(values[event], c=("white", "blue"))
+
             if event == "-STOP_BOT-":
                 bot.stop()
-                self.window["-START_BOT-"].update(disabled=False)
-                self.window["-STOP_BOT-"].update(disabled=True)
+                self._rl_task_running = False
+                self.__set_rl_buttons(attached=True, running=False)
 
             # BOT OPTIONS - Video options
             if event == "-SHOW_FRAMES-":
                 bot.set_config(show_frames=values["-SHOW_FRAMES-"])
+                sg.user_settings_set_entry("-SHOW_FRAMES-", values["-SHOW_FRAMES-"])
                 self.window["-SHOW_MATCHES_TEXT-"].update(visible=(values["-SHOW_FRAMES-"]))
                 self.window["-SHOW_BOXES-"].update(visible=(values["-SHOW_FRAMES-"]))
                 self.window["-SHOW_MARKERS-"].update(visible=(values["-SHOW_FRAMES-"]))
@@ -90,7 +114,7 @@ class Gui:
                 sg.user_settings_set_entry("-SHOW_MARKERS-", values["-SHOW_MARKERS-"])
 
             # BOT OPTIONS - Threshold options
-            if event.startswith("-BOT_THRESHOLD_OPTIONS-"):
+            if isinstance(event, str) and event.startswith("-BOT_THRESHOLD_OPTIONS-"):
                 self.window["-BOT_THRESHOLD_OPTIONS-"].update(
                     visible=not self.window["-BOT_THRESHOLD_OPTIONS-"].visible
                 )
@@ -193,8 +217,8 @@ class Gui:
                 self.__select_mobs_popup(bot, is_delete_form=True)
 
             # VIDEO - Bot's Vision
-            if values["-SHOW_FRAMES-"]:
-                img = values.get("debug_frame", None)
+            if event == "debug_frame" and values["-SHOW_FRAMES-"]:
+                img = values.get("debug_frame")
                 if img is not None:
                     resolution = values["-DEBUG_IMG_WIDTH-"]
                     w, h = self.frame_resolutions[resolution]
@@ -202,10 +226,94 @@ class Gui:
                     imgbytes = cv.imencode(".png", img)[1].tobytes()
                     self.window["-DEBUG_IMAGE-"].update(data=imgbytes)
 
+    def __set_rl_buttons(self, attached, running):
+        """Keep the RL action buttons in a consistent state."""
+        self.window["-START_BOT-"].update(
+            disabled=(not attached or running)
+        )
+        self.window["-RUN_AGENT-"].update(
+            disabled=(not attached or running)
+        )
+        self.window["-STOP_BOT-"].update(
+            disabled=(not attached or not running)
+        )
+
+    def __start_rl_task(self, bot, mode):
+        if self._rl_task_running:
+            sg.cprint("An RL task is already running.", c=("white", "red"))
+            return
+
+        if not bot.config.get("selected_mobs"):
+            sg.cprint(
+                "Select at least one mob before starting.",
+                c=("white", "red"),
+            )
+            return
+
+        self._rl_task_running = True
+        self.__set_rl_buttons(attached=True, running=True)
+
+        label = "training" if mode == "train" else "trained agent"
+        sg.cprint(f"Starting {label}...", c=("white", "blue"))
+
+        Thread(
+            target=self.__run_rl_task,
+            args=(bot, mode),
+            daemon=True,
+            name=f"flyff-rl-{mode}",
+        ).start()
+
+    def __run_rl_task(self, bot, mode):
+        def report(message):
+            self.window.write_event_value("-RL_STATUS-", message)
+
+        try:
+            from train import run_trained_agent, train_agent
+
+            if mode == "train":
+                model_path = train_agent(
+                    bot,
+                    status_callback=report,
+                )
+                result = {
+                    "ok": True,
+                    "message": f"Training finished. Model saved to {model_path}.",
+                }
+            elif mode == "agent":
+                run_trained_agent(
+                    bot,
+                    status_callback=report,
+                )
+                result = {
+                    "ok": True,
+                    "message": "Trained agent stopped.",
+                }
+            else:
+                raise ValueError(f"Unknown RL mode: {mode}")
+
+        except Exception as error:
+            result = {"ok": False, "error": str(error)}
+        finally:
+            try:
+                bot.stop_movement()
+            except Exception:
+                pass
+            bot.stop()
+
+        self.window.write_event_value("-RL_TASK_FINISHED-", result)
+
     def close(self):
         self.window.close()
 
     def __load_settings(self, bot):
+        show_frames = sg.user_settings_get_entry("-SHOW_FRAMES-", False)
+        self.window["-SHOW_FRAMES-"].update(show_frames)
+        self.window["-SHOW_MATCHES_TEXT-"].update(visible=show_frames)
+        self.window["-SHOW_BOXES-"].update(visible=show_frames)
+        self.window["-SHOW_MARKERS-"].update(visible=show_frames)
+        self.window["-VISION_FRAME-"].update(visible=show_frames)
+        bot.set_config(show_frames=show_frames)
+
         show_matches_text = sg.user_settings_get_entry("-SHOW_MATCHES_TEXT-", False)
         self.window["-SHOW_MATCHES_TEXT-"].update(show_matches_text)
         bot.set_config(show_matches_text=show_matches_text)
@@ -214,7 +322,7 @@ class Gui:
         self.window["-SHOW_BOXES-"].update(show_mobs_pos_boxes)
         bot.set_config(show_mobs_pos_boxes=show_mobs_pos_boxes)
 
-        show_mobs_pos_markers = sg.user_settings_get_entry("-SHOW_MARKERS-", False)
+        show_mobs_pos_markers = sg.user_settings_get_entry("-SHOW_MARKERS-", True)
         self.window["-SHOW_MARKERS-"].update(show_mobs_pos_markers)
         bot.set_config(show_mobs_pos_markers=show_mobs_pos_markers)
 
@@ -296,7 +404,22 @@ class Gui:
                 [
                     [
                         sg.Button("Attach Window", key="-ATTACH_WINDOW-"),
-                        sg.Button("Start", disabled=True, key="-START_BOT-"),
+                        sg.Button(
+                            "Start Training",
+                            disabled=True,
+                            key="-START_BOT-",
+                            tooltip=(
+                                "Train a new PPO model or resume the saved model."
+                            ),
+                        ),
+                        sg.Button(
+                            "Run Trained Agent",
+                            disabled=True,
+                            key="-RUN_AGENT-",
+                            tooltip="Load models/flyff_ppo.zip and run it deterministically.",
+                        ),
+                    ],
+                    [
                         sg.Button("Stop (Alt+s)", disabled=True, key="-STOP_BOT-"),
                         sg.Button("Exit"),
                     ],
@@ -306,7 +429,7 @@ class Gui:
                     ],
                 ],
                 pad=((5, 15), (0, 5)),
-                size=(290, 70),
+                size=(290, 105),
             )
         ]
         mobs_config = [
@@ -410,7 +533,7 @@ class Gui:
                     [
                         sg.pin(
                             sg.Checkbox(
-                                "Show mobs markers", False, visible=False, enable_events=True, key="-SHOW_MARKERS-"
+                                "Show mobs markers", True, visible=False, enable_events=True, key="-SHOW_MARKERS-"
                             )
                         )
                     ],
@@ -661,7 +784,7 @@ class Gui:
                 # height validation - only numbers
                 popup_window.Element(event).update(re.sub("[^0-9]","", values["-HEIGHT-"]))
                 pass
-            if "-ELEMENT-" in event:
+            if isinstance(event, str) and "-ELEMENT-" in event:
                 current_element = event.split("-")[2].lower()
 
                 for elem in element_buttons_layout:

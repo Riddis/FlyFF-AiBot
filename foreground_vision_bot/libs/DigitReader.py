@@ -13,6 +13,9 @@ class DigitReader:
     ) -> None:
         self.threshold = threshold
         self.templates = self._load_templates(digits_dir)
+        self.bracket_template = self._load_bracket_template(
+            digits_dir
+        )
 
     @staticmethod
     def _load_templates(digits_dir: Path) -> dict[str, np.ndarray]:
@@ -34,6 +37,24 @@ class DigitReader:
             templates[str(digit)] = template
 
         return templates
+
+    @staticmethod
+    def _load_bracket_template(
+        digits_dir: Path,
+    ) -> np.ndarray:
+        path = digits_dir / "bracket.png"
+
+        template = cv.imread(
+            str(path),
+            cv.IMREAD_GRAYSCALE,
+        )
+
+        if template is None:
+            raise FileNotFoundError(
+                f"Could not load bracket template: {path}"
+            )
+
+        return template
 
     def read_number(
         self,
@@ -88,14 +109,56 @@ class DigitReader:
         if not filtered:
             return None
 
+        bracket_x = self._find_bracket_x(gray)
+
+        if bracket_x is not None:
+            filtered = [
+                match
+                for match in filtered
+                if match[0] < bracket_x
+            ]
+
+        if not filtered:
+            return None
+
         filtered.sort(key=lambda match: match[0])
 
+        # Commas are ignored because there is no comma template.
+        # Example: "1,234 (+5)" becomes "1234".
         number_text = "".join(
             match[3]
             for match in filtered
         )
 
         return int(number_text)
+
+    def _find_bracket_x(
+        self,
+        gray: np.ndarray,
+    ) -> int | None:
+        template = self.bracket_template
+        template_h, template_w = template.shape[:2]
+
+        if (
+            gray.shape[0] < template_h
+            or gray.shape[1] < template_w
+        ):
+            return None
+
+        result = cv.matchTemplate(
+            gray,
+            template,
+            cv.TM_CCOEFF_NORMED,
+        )
+
+        locations = np.where(result >= self.threshold)
+
+        if locations[1].size == 0:
+            return None
+
+        # The first "(" starts the bonus section, such as "(+1)".
+        # Ignore all digit matches to its right.
+        return int(np.min(locations[1]))
 
     @staticmethod
     def _remove_overlapping_matches(
