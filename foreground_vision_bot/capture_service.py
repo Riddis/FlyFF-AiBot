@@ -21,6 +21,7 @@ class FrameSource(Protocol):
 
 FrameSourceFactory = Callable[[int], FrameSource]
 PreviewBuilder = Callable[[Frame], Frame]
+PreviewEnabled = Callable[[], bool]
 
 
 class CaptureService:
@@ -33,12 +34,14 @@ class CaptureService:
         source_factory: FrameSourceFactory,
         *,
         preview_builder: PreviewBuilder | None = None,
+        preview_enabled: PreviewEnabled | None = None,
         preview_fps: float = 12.0,
     ) -> None:
         self._manager = manager
         self._bus = bus
         self._source_factory = source_factory
         self._preview_builder = preview_builder
+        self._preview_enabled = preview_enabled or (lambda: True)
         self._preview_interval = 1.0 / max(1.0, preview_fps)
         self._lock = Lock()
         self._source: FrameSource | None = None
@@ -125,7 +128,10 @@ class CaptureService:
                 self._bus.publish_latest("video_fps", round(1.0 / elapsed))
                 self._bus.heartbeat("capture")
 
-                if now - last_preview_at >= self._preview_interval:
+                if (
+                    self._preview_enabled()
+                    and now - last_preview_at >= self._preview_interval
+                ):
                     preview = color.copy()
                     if self._preview_builder is not None:
                         preview = self._preview_builder(preview)

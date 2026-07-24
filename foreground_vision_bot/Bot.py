@@ -1,21 +1,23 @@
 from __future__ import annotations
 
-import collections
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from threading import Lock, Thread
-from time import monotonic, sleep, time
-from typing import Iterable
+from threading import Lock
+from time import time
+from typing import TYPE_CHECKING
 
 import cv2 as cv
 import numpy as np
-
 from assets.Assets import MobInfo
 from libs.ActionExecutor import ActionExecutor, BotAction
 from libs.ComputerVision import ComputerVision as CV
 from libs.DigitReader import DigitReader
 from libs.HumanKeyboard import HumanKeyboard
-from libs.WindowCapture import WindowCapture
+
+if TYPE_CHECKING:
+    from capture_service import CaptureService
+    from runtime_bus import RuntimeBus
 
 
 Point = tuple[int, int]
@@ -60,25 +62,14 @@ class Bot:
             "show_kill_counter_crop": False,
         }
 
-        self.gui_window = None
-        self.runtime_bus = None
-        self.wincap: WindowCapture | None = None
+        self.runtime_bus: RuntimeBus | None = None
+        self.capture_service: CaptureService | None = None
         self.keyboard: HumanKeyboard | None = None
         self.action_executor: ActionExecutor | None = None
 
-        self.frame: np.ndarray | None = None
-        self.debug_frame: np.ndarray | None = None
-
         self._frame_lock = Lock()
-        self._capture_thread: Thread | None = None
-        self._capture_running = False
         self._rl_enabled = False
-        self._last_capture_error_at = 0.0
         self._last_overlay_publish_at = 0.0
-        self._last_preview_publish_at = 0.0
-        self._last_fps_publish_at = 0.0
-        self._preview_interval = 1.0 / 12.0
-        self._fps_interval = 0.50
         self._latest_mob_points: list[Point] = []
         self._latest_mob_points_at = 0.0
 
@@ -91,34 +82,20 @@ class Bot:
         self._reload_mob_templates()
 
     # ------------------------------------------------------------------
-    # Lifecycle / GUI compatibility
+    # Lifecycle
     # ------------------------------------------------------------------
 
-    def setup(self, window_handler, gui_window=None) -> None:
-        # Attaching a new window must never leave the previous capture loop
-        # alive. This was a common source of duplicate frame producers.
-        self._stop_capture_thread(timeout=3.0)
-
-        self.gui_window = gui_window
-        self.runtime_bus = (
-            gui_window
-            if hasattr(gui_window, "publish_latest")
-            else None
-        )
-        self.wincap = WindowCapture(window_handler)
+    def prepare_window(
+        self,
+        window_handler: int,
+        runtime_bus: RuntimeBus,
+        capture_service: CaptureService,
+    ) -> None:
+        self.runtime_bus = runtime_bus
+        self.capture_service = capture_service
         self.keyboard = HumanKeyboard(window_handler)
         self.action_executor = ActionExecutor(self.keyboard)
-
-        self._capture_running = True
-        self._capture_thread = Thread(
-            target=self._frame_loop,
-            daemon=False,
-            name="flyff-frame-capture",
-        )
-        self._capture_thread.start()
-
         self._emit("msg_green", "RL bot is ready.")
-
 
     def start(self) -> None:
         """
@@ -141,18 +118,16 @@ class Bot:
 
     def close(self) -> None:
         self.stop()
-        self._stop_capture_thread(timeout=5.0)
-        self.gui_window = None
+        if self.capture_service is not None:
+            self.capture_service.stop(5.0)
+        self.release_input()
         self.runtime_bus = None
         cv.destroyAllWindows()
 
-    def _stop_capture_thread(self, timeout: float = 3.0) -> None:
-        self._capture_running = False
-        thread = self._capture_thread
-        if thread is not None and thread.is_alive():
-            thread.join(timeout=timeout)
-        self._capture_thread = None
-
+    def release_input(self) -> None:
+        self.stop_movement()
+        self.keyboard = None
+        self.action_executor = None
 
     def set_config(self, **options) -> None:
         reload_templates = False
@@ -174,10 +149,11 @@ class Bot:
     @property
     def is_ready(self) -> bool:
         return (
-            self.wincap is not None
+            self.capture_service is not None
+            and self.capture_service.active
             and self.keyboard is not None
             and self.action_executor is not None
-            and self.frame is not None
+            and self.get_frame() is not None
         )
 
     @property
@@ -209,42 +185,25 @@ class Bot:
                     frame=frame,
                     crop_area=(50, -50, 50, -50),
                     template=template.image,
-                    threshold=float(
-                        self.config["mob_pos_match_threshold"]
-                    ),
+                    threshold=float(self.config["mob_pos_match_threshold"]),
                     box_offset=(0, template.height_offset),
-                    frame_to_draw=(
-                        debug_frame
-                        if self.config["show_frames"]
-                        else None
-                    ),
-                    draw_rect=bool(
-                        self.config["show_mobs_pos_boxes"]
-                    ),
-                    draw_marker=bool(
-                        self.config["show_mobs_pos_markers"]
-                    ),
-                    draw_text=bool(
-                        self.config["show_matches_text"]
-                    ),
+                    frame_to_draw=(debug_frame if self.config["show_frames"] else None),
+                    draw_rect=bool(self.config["show_mobs_pos_boxes"]),
+                    draw_marker=bool(self.config["show_mobs_pos_markers"]),
+                    draw_text=bool(self.config["show_matches_text"]),
                 )
             except (cv.error, ValueError, TypeError) as error:
                 print(f"Mob template match failed: {error}")
                 continue
 
-            raw_points.extend(
-                (int(point[0]), int(point[1]))
-                for point in matches
-            )
+            raw_points.extend((int(point[0]), int(point[1])) for point in matches)
 
             if drawn_frame is not None:
                 debug_frame = drawn_frame
 
         points = self._deduplicate_points(
             raw_points,
-            max_distance=float(
-                self.config["mob_dedup_distance_px"]
-            ),
+            max_distance=float(self.config["mob_dedup_distance_px"]),
         )
 
         with self._frame_lock:
@@ -267,9 +226,7 @@ class Bot:
         if frame is None:
             return None
 
-        top, bottom, left, right = self.config[
-            "kill_counter_crop"
-        ]
+        top, bottom, left, right = self.config["kill_counter_crop"]
 
         height, width = frame.shape[:2]
         top = int(np.clip(top, 0, height))
@@ -304,9 +261,7 @@ class Bot:
         self._require_setup()
 
         if not self._rl_enabled:
-            raise RuntimeError(
-                "RL control is disabled. Call bot.start() first."
-            )
+            raise RuntimeError("RL control is disabled. Call bot.start() first.")
 
         assert self.action_executor is not None
         self.action_executor.execute(action, duration=duration)
@@ -338,79 +293,17 @@ class Bot:
     # Capture and detection internals
     # ------------------------------------------------------------------
 
-    def _frame_loop(self) -> None:
-        fps_samples = collections.deque(maxlen=30)
-        previous_time = monotonic()
-
-        while self._capture_running:
-            try:
-                assert self.wincap is not None
-                debug_frame, gray_frame = self.wincap.get_frame()
-
-                with self._frame_lock:
-                    self.debug_frame = debug_frame
-                    self.frame = gray_frame
-
-                now = monotonic()
-                frame_time = max(now - previous_time, 1e-6)
-                previous_time = now
-                fps_samples.append(frame_time)
-
-                bus = self.runtime_bus
-                if bus is not None:
-                    bus.heartbeat("capture")
-
-                if now - self._last_fps_publish_at >= self._fps_interval:
-                    average = sum(fps_samples) / max(1, len(fps_samples))
-                    fps = round(1.0 / average)
-                    self._emit("video_fps", fps)
-                    self._last_fps_publish_at = now
-
-                if (
-                    self.config["show_frames"]
-                    and now - self._last_preview_publish_at
-                    >= self._preview_interval
-                ):
-                    preview_frame = debug_frame.copy()
-                    self._draw_cached_mob_overlay(
-                        preview_frame,
-                        time(),
-                    )
-                    self._emit("debug_frame", preview_frame)
-                    self._last_preview_publish_at = now
-
-            except Exception as error:
-                now_wall = time()
-                if now_wall - self._last_capture_error_at >= 15.0:
-                    print(
-                        "Error capturing Flyff window. "
-                        f"Check that it is visible: {error}"
-                    )
-                    self._emit(
-                        "msg_red",
-                        "Error capturing the game window.",
-                    )
-                    self._last_capture_error_at = now_wall
-
-                sleep(0.25)
-
-
     def _frame_snapshot(
         self,
     ) -> tuple[np.ndarray | None, np.ndarray | None]:
-        with self._frame_lock:
-            frame = (
-                None
-                if self.frame is None
-                else self.frame.copy()
-            )
-            debug = (
-                None
-                if self.debug_frame is None
-                else self.debug_frame.copy()
-            )
+        if self.capture_service is not None:
+            debug, frame = self.capture_service.snapshot()
+            return frame, debug
+        return None, None
 
-        return frame, debug
+    def build_preview(self, frame: np.ndarray) -> np.ndarray:
+        self._draw_cached_mob_overlay(frame, time())
+        return frame
 
     def _reload_mob_templates(self) -> None:
         entries = self.config.get("selected_mobs") or []
@@ -435,12 +328,7 @@ class Bot:
             if not name or height_offset is None:
                 continue
 
-            image_path = (
-                Path(__file__).parent
-                / "assets"
-                / "names"
-                / f"{name}.png"
-            )
+            image_path = Path(__file__).parent / "assets" / "names" / f"{name}.png"
             image = cv.imread(
                 str(image_path),
                 cv.IMREAD_GRAYSCALE,
@@ -482,12 +370,8 @@ class Bot:
                 dy = point[1] - center_y
                 distance_squared = dx * dx + dy * dy
 
-                if (
-                    distance_squared <= max_distance_squared
-                    and (
-                        best_distance is None
-                        or distance_squared < best_distance
-                    )
+                if distance_squared <= max_distance_squared and (
+                    best_distance is None or distance_squared < best_distance
                 ):
                     best_group = group
                     best_distance = distance_squared
@@ -499,8 +383,8 @@ class Bot:
 
         return [
             (
-                int(round(sum(p[0] for p in group) / len(group))),
-                int(round(sum(p[1] for p in group) / len(group))),
+                round(sum(p[0] for p in group) / len(group)),
+                round(sum(p[1] for p in group) / len(group)),
             )
             for group in groups
         ]
@@ -639,14 +523,12 @@ class Bot:
 
     def _require_setup(self) -> None:
         if (
-            self.wincap is None
+            self.capture_service is None
+            or not self.capture_service.active
             or self.keyboard is None
             or self.action_executor is None
         ):
-            raise RuntimeError(
-                "Bot.setup(window_handler, gui_window) "
-                "must be called first."
-            )
+            raise RuntimeError("Attach the Flyff window before controlling the bot.")
 
     def _emit(self, event: str, value) -> None:
         bus = self.runtime_bus
@@ -660,12 +542,3 @@ class Bot:
             else:
                 bus.publish_latest(event, value)
             return
-
-        # Compatibility fallback for older launchers.
-        if self.gui_window is None:
-            return
-        try:
-            self.gui_window.write_event_value(event, value)
-        except Exception:
-            pass
-

@@ -1,12 +1,12 @@
 import difflib
 import math
-from threading import Lock, Thread
 from time import monotonic
 
 import cv2 as cv
 import PySimpleGUI as sg
 from utils.helpers import get_window_handlers, hex_variant
 from runtime_bus import RuntimeBus
+from runtime_controller import RuntimeController
 
 import re
 
@@ -38,15 +38,12 @@ class Gui:
             "1280x1024": (1280, 1024),
             "1366x768": (1366, 768),
         }
-        self._rl_task_running = False
-        self._mapper_task_running = False
-        self._active_mapper = None
+        self.controller = None
+        self._log_window = None
         self._heading_overlay_detector = None
         self._status_mode = "Idle"
         self._last_status_message = "Ready"
         self.runtime_bus = RuntimeBus(max_logs=1500)
-        self._worker_threads = set()
-        self._worker_lock = Lock()
         self._last_versions = {
             "debug_frame": 0,
             "map_frame": 0,
@@ -77,9 +74,11 @@ class Gui:
         return self.window
 
     def loop(self, bot):
+        self.controller = RuntimeController(bot, self.runtime_bus)
         self.__load_settings(bot)
         while True:
             event, values = self.window.read(timeout=50)
+            self.__service_log_window()
             self.__refresh_runtime(values)
 
             # ACTIONS - Button events
@@ -89,33 +88,62 @@ class Gui:
             if event == "-ATTACH_WINDOW-":
                 game_window_name, game_window_handler = self.__attach_window_popup()
                 if game_window_name and game_window_handler:
-                    bot.stop()
-                    bot.setup(game_window_handler, self.runtime_bus)
-                    truncated_game_window_name = (
-                        game_window_name[:30] + "..." if len(game_window_name) > 30 else game_window_name
-                    )
-                    self.window["-ATTACHED_WINDOW-"].update(truncated_game_window_name)
-                    self.__set_rl_buttons(attached=True, running=False)
+                    try:
+                        self.controller.attach(game_window_handler)
+                    except RuntimeError as error:
+                        self.runtime_bus.log(str(error), "msg_red")
+                    else:
+                        truncated_game_window_name = (
+                            game_window_name[:30] + "..."
+                            if len(game_window_name) > 30
+                            else game_window_name
+                        )
+                        self.window["-ATTACHED_WINDOW-"].update(
+                            truncated_game_window_name
+                        )
+                        self.__set_rl_buttons(attached=True, running=False)
 
             if event == "-START_BOT-":
-                self.__start_rl_task(bot, mode="train")
+                self.__start_control(
+                    lambda: self.controller.start_rl("train"),
+                    "Training",
+                    "Starting training...",
+                )
 
             if event == "-RUN_AGENT-":
-                self.__start_rl_task(bot, mode="agent")
+                self.__start_control(
+                    lambda: self.controller.start_rl("agent"),
+                    "Agent",
+                    "Starting trained agent...",
+                )
 
             if event == "-START_MAPPER-":
-                self.__start_mapper_task(bot)
+                self.__clear_live_map("Mapping is starting…")
+                self.__start_control(
+                    self.controller.start_mapper,
+                    "Mapping",
+                    "Starting autonomous mapper...",
+                )
 
             if event == "-SET_MINIMAP_ANCHOR-":
                 self.__set_minimap_anchor(bot)
 
             if event == "-CALIBRATE_MAPPER-":
-                self.__start_calibration_task(bot)
+                self.__clear_manual_calibration_artifacts()
+                self.__start_control(
+                    lambda: self.controller.start_calibration(
+                        visual_confirmation=False
+                    ),
+                    "Calibration",
+                    "Starting rotation calibration...",
+                )
 
             if event == "-DEBUG_CALIBRATE_MAPPER-":
-                self.__start_calibration_task(
-                    bot,
-                    visual_confirmation=True,
+                self.__clear_manual_calibration_artifacts()
+                self.__start_control(
+                    lambda: self.controller.start_calibration(visual_confirmation=True),
+                    "Calibration",
+                    "Starting visual-confirmation calibration...",
                 )
 
             if event == "-SHOW_LOG-":
@@ -123,9 +151,7 @@ class Gui:
 
             if event == "-STOP_BOT-":
                 self.__set_status("Idle", "Stopped")
-                if self._active_mapper is not None:
-                    self._active_mapper.stop()
-                bot.stop()
+                self.controller.stop_control()
                 self.runtime_bus.log(
                     "Stop requested. Waiting for the active worker to exit.",
                     "msg_blue",
@@ -135,7 +161,9 @@ class Gui:
             if event == "-SHOW_FRAMES-":
                 bot.set_config(show_frames=values["-SHOW_FRAMES-"])
                 sg.user_settings_set_entry("-SHOW_FRAMES-", values["-SHOW_FRAMES-"])
-                self.window["-SHOW_MATCHES_TEXT-"].update(visible=(values["-SHOW_FRAMES-"]))
+                self.window["-SHOW_MATCHES_TEXT-"].update(
+                    visible=(values["-SHOW_FRAMES-"])
+                )
                 self.window["-SHOW_BOXES-"].update(visible=(values["-SHOW_FRAMES-"]))
                 self.window["-SHOW_MARKERS-"].update(visible=(values["-SHOW_FRAMES-"]))
                 self.window["-VISION_FRAME-"].update(visible=(values["-SHOW_FRAMES-"]))
@@ -143,7 +171,9 @@ class Gui:
                 self.window["-MAIN_COLUMN-"].contents_changed()
             if event == "-SHOW_MATCHES_TEXT-":
                 bot.set_config(show_matches_text=values["-SHOW_MATCHES_TEXT-"])
-                sg.user_settings_set_entry("-SHOW_MATCHES_TEXT-", values["-SHOW_MATCHES_TEXT-"])
+                sg.user_settings_set_entry(
+                    "-SHOW_MATCHES_TEXT-", values["-SHOW_MATCHES_TEXT-"]
+                )
             if event == "-SHOW_BOXES-":
                 bot.set_config(show_mobs_pos_boxes=values["-SHOW_BOXES-"])
                 sg.user_settings_set_entry("-SHOW_BOXES-", values["-SHOW_BOXES-"])
@@ -164,27 +194,51 @@ class Gui:
                 self.window.refresh()  # Combined with contents_changed, will compute the new size of the element
                 self.window["-MAIN_COLUMN-"].contents_changed()
             if event == "-MOB_POS_MATCH_THRESHOLD-":
-                bot.set_config(mob_pos_match_threshold=values["-MOB_POS_MATCH_THRESHOLD-"])
-                sg.user_settings_set_entry("-MOB_POS_MATCH_THRESHOLD-", values["-MOB_POS_MATCH_THRESHOLD-"])
-            if event == "-MOB_STILL_ALIVE_MATCH_THRESHOLD-":
-                bot.set_config(mob_still_alive_match_threshold=values["-MOB_STILL_ALIVE_MATCH_THRESHOLD-"])
+                bot.set_config(
+                    mob_pos_match_threshold=values["-MOB_POS_MATCH_THRESHOLD-"]
+                )
                 sg.user_settings_set_entry(
-                    "-MOB_STILL_ALIVE_MATCH_THRESHOLD-", values["-MOB_STILL_ALIVE_MATCH_THRESHOLD-"]
+                    "-MOB_POS_MATCH_THRESHOLD-", values["-MOB_POS_MATCH_THRESHOLD-"]
+                )
+            if event == "-MOB_STILL_ALIVE_MATCH_THRESHOLD-":
+                bot.set_config(
+                    mob_still_alive_match_threshold=values[
+                        "-MOB_STILL_ALIVE_MATCH_THRESHOLD-"
+                    ]
+                )
+                sg.user_settings_set_entry(
+                    "-MOB_STILL_ALIVE_MATCH_THRESHOLD-",
+                    values["-MOB_STILL_ALIVE_MATCH_THRESHOLD-"],
                 )
             if event == "-MOB_EXISTENCE_MATCH_THRESHOLD-":
-                bot.set_config(mob_existence_match_threshold=values["-MOB_EXISTENCE_MATCH_THRESHOLD-"])
-                sg.user_settings_set_entry("-MOB_EXISTENCE_MATCH_THRESHOLD-", values["-MOB_EXISTENCE_MATCH_THRESHOLD-"])
+                bot.set_config(
+                    mob_existence_match_threshold=values[
+                        "-MOB_EXISTENCE_MATCH_THRESHOLD-"
+                    ]
+                )
+                sg.user_settings_set_entry(
+                    "-MOB_EXISTENCE_MATCH_THRESHOLD-",
+                    values["-MOB_EXISTENCE_MATCH_THRESHOLD-"],
+                )
             if event == "-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-":
                 bot.set_config(
-                    inventory_perin_converter_match_threshold=values["-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-"]
+                    inventory_perin_converter_match_threshold=values[
+                        "-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-"
+                    ]
                 )
                 sg.user_settings_set_entry(
-                    "-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-", values["-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-"]
+                    "-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-",
+                    values["-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-"],
                 )
             if event == "-INVENTORY_ICONS_MATCH_THRESHOLD-":
-                bot.set_config(inventory_icons_match_threshold=values["-INVENTORY_ICONS_MATCH_THRESHOLD-"])
+                bot.set_config(
+                    inventory_icons_match_threshold=values[
+                        "-INVENTORY_ICONS_MATCH_THRESHOLD-"
+                    ]
+                )
                 sg.user_settings_set_entry(
-                    "-INVENTORY_ICONS_MATCH_THRESHOLD-", values["-INVENTORY_ICONS_MATCH_THRESHOLD-"]
+                    "-INVENTORY_ICONS_MATCH_THRESHOLD-",
+                    values["-INVENTORY_ICONS_MATCH_THRESHOLD-"],
                 )
 
             # BOT OPTIONS - General options
@@ -197,7 +251,9 @@ class Gui:
                     try:
                         mobs_kill_goal = int(values["-MOBS_KILL_GOAL-"])
                         bot.set_config(mobs_kill_goal=mobs_kill_goal)
-                        sg.user_settings_set_entry("-MOBS_KILL_GOAL-", values["-MOBS_KILL_GOAL-"])
+                        sg.user_settings_set_entry(
+                            "-MOBS_KILL_GOAL-", values["-MOBS_KILL_GOAL-"]
+                        )
                     except ValueError:
                         sg.cprint("Invalid mobs kill goal")
                         self.window["-MOBS_KILL_GOAL-"].update("infinite")
@@ -207,7 +263,9 @@ class Gui:
                 try:
                     fight_time_limit_sec = int(values["-FIGHT_TIME_LIMIT_SEC-"])
                     bot.set_config(fight_time_limit_sec=fight_time_limit_sec)
-                    sg.user_settings_set_entry("-FIGHT_TIME_LIMIT_SEC-", values["-FIGHT_TIME_LIMIT_SEC-"])
+                    sg.user_settings_set_entry(
+                        "-FIGHT_TIME_LIMIT_SEC-", values["-FIGHT_TIME_LIMIT_SEC-"]
+                    )
                 except ValueError:
                     sg.cprint("Invalid fight time limit")
                     self.window["-FIGHT_TIME_LIMIT_SEC-"].update("8")
@@ -215,56 +273,64 @@ class Gui:
                     sg.user_settings_set_entry("-FIGHT_TIME_LIMIT_SEC-", "8")
             if event == "-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-":
                 try:
-                    delay_to_check_mob_still_alive_sec = float(values["-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-"])
-                    bot.set_config(delay_to_check_mob_still_alive_sec=delay_to_check_mob_still_alive_sec)
+                    delay_to_check_mob_still_alive_sec = float(
+                        values["-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-"]
+                    )
+                    bot.set_config(
+                        delay_to_check_mob_still_alive_sec=delay_to_check_mob_still_alive_sec
+                    )
                     sg.user_settings_set_entry(
-                        "-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-", values["-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-"]
+                        "-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-",
+                        values["-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-"],
                     )
                 except ValueError:
                     sg.cprint("Invalid delay to check if mob is still alive")
                     self.window["-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-"].update("0.25")
                     bot.set_config(delay_to_check_mob_still_alive_sec=0.25)
-                    sg.user_settings_set_entry("-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-", "0.25")
+                    sg.user_settings_set_entry(
+                        "-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-", "0.25"
+                    )
             if event == "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-":
                 try:
-                    convert_penya_to_perins_timer_min = float(values["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"])
-                    bot.set_config(convert_penya_to_perins_timer_min=convert_penya_to_perins_timer_min)
+                    convert_penya_to_perins_timer_min = float(
+                        values["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"]
+                    )
+                    bot.set_config(
+                        convert_penya_to_perins_timer_min=convert_penya_to_perins_timer_min
+                    )
                     sg.user_settings_set_entry(
-                        "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-", values["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"]
+                        "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-",
+                        values["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"],
                     )
                 except ValueError:
-                    sg.cprint("Invalid convert penya to perins timer, must be in minutes")
+                    sg.cprint(
+                        "Invalid convert penya to perins timer, must be in minutes"
+                    )
                     self.window["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"].update("30")
                     bot.set_config(convert_penya_to_perins_timer_min=30)
-                    sg.user_settings_set_entry("-CONVERT_PENYA_TO_PERINS_TIMER_MIN-", "30")
+                    sg.user_settings_set_entry(
+                        "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-", "30"
+                    )
 
             # MOBS - Mobs configuration
             if event == "-SELECT_MOBS-":
                 self.__select_mobs_popup(bot)
-            
+
             if event == "-ADD_MOB-":
                 self.__add_mob_popup()
 
             if event == "-DELETE_MOB-":
                 self.__select_mobs_popup(bot, is_delete_form=True)
 
-
-    def __start_worker(self, *, target, args, name):
-        def guarded_target():
-            try:
-                target(*args)
-            finally:
-                with self._worker_lock:
-                    self._worker_threads.discard(thread)
-
-        thread = Thread(
-            target=guarded_target,
-            daemon=False,
-            name=name,
-        )
-        with self._worker_lock:
-            self._worker_threads.add(thread)
-        thread.start()
+    def __start_control(self, command, mode, message):
+        try:
+            command()
+        except RuntimeError as error:
+            self.runtime_bus.log(str(error), "msg_red")
+            return
+        self.__set_status(mode, message)
+        self.__set_rl_buttons(attached=True, running=True)
+        self.runtime_bus.log(message, "msg_blue")
 
     def __refresh_runtime(self, values):
         now = monotonic()
@@ -277,8 +343,7 @@ class Gui:
         if (
             frame is not None
             and values.get("-SHOW_FRAMES-", False)
-            and now - self._last_preview_render_at
-            >= self._preview_render_interval
+            and now - self._last_preview_render_at >= self._preview_render_interval
         ):
             self._last_versions["debug_frame"] = version
             image = self.__draw_heading_overlay(frame.copy())
@@ -287,9 +352,7 @@ class Gui:
             image = self.__fit_image(image, width, height)
             encoded = cv.imencode(".jpg", image, [cv.IMWRITE_JPEG_QUALITY, 82])
             if encoded[0]:
-                self.window["-DEBUG_IMAGE-"].update(
-                    data=encoded[1].tobytes()
-                )
+                self.window["-DEBUG_IMAGE-"].update(data=encoded[1].tobytes())
             self._last_preview_render_at = now
 
         # Map is latest-only and deliberately slow.
@@ -305,9 +368,7 @@ class Gui:
             image = self.__fit_image(frame, 960, 245)
             encoded = cv.imencode(".png", image)
             if encoded[0]:
-                self.window["-MAPPER_IMAGE-"].update(
-                    data=encoded[1].tobytes()
-                )
+                self.window["-MAPPER_IMAGE-"].update(data=encoded[1].tobytes())
             self._last_map_render_at = now
 
         version, fps = self.runtime_bus.read_latest(
@@ -338,99 +399,66 @@ class Gui:
                     ("white", "black"),
                 )
                 sg.cprint(message, c=color)
+                if self._log_window is not None:
+                    self._log_window["-LOG-TEXT-"].print(message)
                 self._last_status_message = message
             self._last_log_render_at = now
 
         for completion in self.runtime_bus.drain_completions():
-            task = completion.worker_name
-            result = completion.result
-            if task == "rl":
-                self._rl_task_running = False
-            else:
-                self._mapper_task_running = False
-                self._active_mapper = None
-
+            if completion.worker_name.startswith("capture-"):
+                self.__set_rl_buttons(attached=False, running=False)
+                self.runtime_bus.log(
+                    "Capture stopped; attach the Flyff window again.",
+                    "msg_yellow",
+                )
+                continue
             self.__set_rl_buttons(attached=True, running=False)
-            if result.get("ok"):
-                self.runtime_bus.log(
-                    result.get("message", f"{task} finished."),
-                    "msg_green",
-                )
-            else:
-                self.runtime_bus.log(
-                    f"{task.title()} failed: "
-                    f"{result.get('error', 'unknown error')}",
-                    "msg_red",
-                )
+            self.runtime_bus.log(
+                f"{completion.worker_name} finished.",
+                "msg_green",
+            )
+
+        for failure in self.runtime_bus.drain_failures():
+            capture_failed = failure.worker_name.startswith("capture-")
+            self.__set_rl_buttons(
+                attached=not capture_failed,
+                running=False,
+            )
+            self.runtime_bus.log(
+                f"{failure.worker_name} failed in "
+                f"{failure.lifecycle_state} at "
+                f"{failure.failed_at.isoformat()} "
+                f"(cancelled={failure.cancellation_requested})\n"
+                f"{failure.traceback}",
+                "msg_red",
+            )
 
         request = self.runtime_bus.pop_confirmation()
         if request is not None:
-            request.result = self.__confirm_heading_reading(
+            result = self.__confirm_heading_reading(
                 request.frame,
                 request.angle_deg,
                 request.confidence,
                 request.context,
             )
-            request.completed.set()
+            self.runtime_bus.resolve_confirmation(request, result)
 
     def __shutdown(self, bot):
         self.__set_status("Stopping", "Stopping workers safely…")
-        if self._active_mapper is not None:
-            try:
-                self._active_mapper.stop()
-            except Exception:
-                pass
-        try:
-            bot.stop()
-        except Exception:
-            pass
-
-        deadline = monotonic() + 5.0
-        while monotonic() < deadline:
-            with self._worker_lock:
-                workers = [
-                    thread
-                    for thread in self._worker_threads
-                    if thread.is_alive()
-                ]
-            if not workers:
-                break
-            for thread in workers:
-                thread.join(timeout=0.10)
-            try:
-                self.window.refresh()
-            except Exception:
-                break
-
-        try:
-            bot.close()
-        except Exception:
-            pass
-        self.runtime_bus.close()
+        self.controller.shutdown(timeout=8.0)
 
     def __set_rl_buttons(self, attached, running):
         """Keep the RL action buttons in a consistent state."""
-        self.window["-START_BOT-"].update(
-            disabled=(not attached or running)
-        )
-        self.window["-RUN_AGENT-"].update(
-            disabled=(not attached or running)
-        )
-        self.window["-START_MAPPER-"].update(
-            disabled=(not attached or running)
-        )
-        self.window["-SET_MINIMAP_ANCHOR-"].update(
-            disabled=(not attached or running)
-        )
-        self.window["-CALIBRATE_MAPPER-"].update(
-            disabled=(not attached or running)
-        )
+        self.window["-START_BOT-"].update(disabled=(not attached or running))
+        self.window["-RUN_AGENT-"].update(disabled=(not attached or running))
+        self.window["-START_MAPPER-"].update(disabled=(not attached or running))
+        self.window["-SET_MINIMAP_ANCHOR-"].update(disabled=(not attached or running))
+        self.window["-CALIBRATE_MAPPER-"].update(disabled=(not attached or running))
         self.window["-DEBUG_CALIBRATE_MAPPER-"].update(
             disabled=(not attached or running)
         )
-        self.window["-STOP_BOT-"].update(
-            disabled=(not attached or not running)
-        )
+        self.window["-STOP_BOT-"].update(disabled=(not attached or not running))
+        self.window["-ATTACH_WINDOW-"].update(disabled=running)
 
     def __start_rl_task(self, bot, mode):
         if self._rl_task_running:
@@ -567,10 +595,9 @@ class Gui:
         self.runtime_bus.complete("mapper", result)
 
     def __set_minimap_anchor(self, bot):
-        if self._rl_task_running or self._mapper_task_running:
+        if self.controller.control_active:
             sg.cprint(
-                "Stop the active control task before setting the minimap "
-                "center.",
+                "Stop the active control task before setting the minimap center.",
                 c=("white", "red"),
             )
             return
@@ -720,10 +747,7 @@ class Gui:
             calibration_path = calibrator.run(manual=True)
             result = {
                 "ok": True,
-                "message": (
-                    "Calibration complete. Saved to "
-                    f"{calibration_path}."
-                ),
+                "message": (f"Calibration complete. Saved to {calibration_path}."),
             }
         except Exception as error:
             result = {"ok": False, "error": str(error)}
@@ -749,21 +773,15 @@ class Gui:
         self.window["-VISION_FRAME-"].update(visible=show_frames)
         bot.set_config(show_frames=show_frames)
 
-        show_matches_text = sg.user_settings_get_entry(
-            "-SHOW_MATCHES_TEXT-", False
-        )
+        show_matches_text = sg.user_settings_get_entry("-SHOW_MATCHES_TEXT-", False)
         self.window["-SHOW_MATCHES_TEXT-"].update(show_matches_text)
         bot.set_config(show_matches_text=show_matches_text)
 
-        show_mobs_pos_boxes = sg.user_settings_get_entry(
-            "-SHOW_BOXES-", False
-        )
+        show_mobs_pos_boxes = sg.user_settings_get_entry("-SHOW_BOXES-", False)
         self.window["-SHOW_BOXES-"].update(show_mobs_pos_boxes)
         bot.set_config(show_mobs_pos_boxes=show_mobs_pos_boxes)
 
-        show_mobs_pos_markers = sg.user_settings_get_entry(
-            "-SHOW_MARKERS-", True
-        )
+        show_mobs_pos_markers = sg.user_settings_get_entry("-SHOW_MARKERS-", True)
         self.window["-SHOW_MARKERS-"].update(show_mobs_pos_markers)
         bot.set_config(show_mobs_pos_markers=show_mobs_pos_markers)
 
@@ -781,23 +799,13 @@ class Gui:
         convert_timer = sg.user_settings_get_entry(
             "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-", "30"
         )
-        self.window["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"].update(
-            convert_timer
-        )
+        self.window["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"].update(convert_timer)
         bot.set_config(convert_penya_to_perins_timer_min=convert_timer)
 
         all_mobs = bot.get_all_mobs()
-        selected_names = sg.user_settings_get_entry(
-            "saved_selected_mobs", []
-        )
-        selected_names = [
-            name for name in selected_names if name in all_mobs
-        ]
-        selected = [
-            all_mobs[key]
-            for key in all_mobs
-            if key in selected_names
-        ]
+        selected_names = sg.user_settings_get_entry("saved_selected_mobs", [])
+        selected_names = [name for name in selected_names if name in all_mobs]
+        selected = [all_mobs[key] for key in all_mobs if key in selected_names]
         bot.set_config(selected_mobs=selected)
 
     def __set_hotkeys(self):
@@ -1079,9 +1087,7 @@ class Gui:
         resized = cv.resize(
             image,
             (resized_width, resized_height),
-            interpolation=(
-                cv.INTER_AREA if scale < 1.0 else cv.INTER_LINEAR
-            ),
+            interpolation=(cv.INTER_AREA if scale < 1.0 else cv.INTER_LINEAR),
         )
 
         top = (target_height - resized_height) // 2
@@ -1104,6 +1110,7 @@ class Gui:
         try:
             if self._heading_overlay_detector is None:
                 from mapper import MinimapHeadingDetector
+
                 self._heading_overlay_detector = MinimapHeadingDetector()
 
             reading = self._heading_overlay_detector.read_fast(image)
@@ -1149,22 +1156,24 @@ class Gui:
         self._last_status_message = str(message)
         if hasattr(self, "window"):
             self.window["-STATUS_MODE-"].update(f"Mode: {mode}")
-            self.window["-STATUS_MESSAGE-"].update(
-                self._last_status_message[-240:]
-            )
+            self.window["-STATUS_MESSAGE-"].update(self._last_status_message[-240:])
 
     def __show_log_window(self):
+        if self._log_window is not None:
+            self._log_window.bring_to_front()
+            return
         try:
             log_text = self.window["-ML-"].get()
         except Exception:
             log_text = ""
 
-        log_window = sg.Window(
+        self._log_window = sg.Window(
             "Flyff FVF Log",
             [
                 [
                     sg.Multiline(
                         log_text,
+                        key="-LOG-TEXT-",
                         size=(110, 35),
                         disabled=True,
                         autoscroll=True,
@@ -1172,15 +1181,17 @@ class Gui:
                 ],
                 [sg.Button("Close")],
             ],
-            modal=True,
             resizable=True,
             finalize=True,
         )
-        while True:
-            event, _ = log_window.read()
-            if event in (sg.WIN_CLOSED, "Close"):
-                break
-        log_window.close()
+
+    def __service_log_window(self):
+        if self._log_window is None:
+            return
+        event, _ = self._log_window.read(timeout=0)
+        if event in (sg.WIN_CLOSED, "Close"):
+            self._log_window.close()
+            self._log_window = None
 
     def __make_live_map_placeholder(self, message):
         import numpy as np
@@ -1236,6 +1247,7 @@ class Gui:
         try:
             if self._heading_overlay_detector is None:
                 from mapper import MinimapHeadingDetector
+
                 self._heading_overlay_detector = MinimapHeadingDetector()
 
             anchor = self._heading_overlay_detector._load_anchor(preview)
@@ -1285,8 +1297,7 @@ class Gui:
                 [sg.Image(data=png)],
                 [
                     sg.Text(
-                        "Does the yellow arrow match the character's actual "
-                        "heading?"
+                        "Does the yellow arrow match the character's actual heading?"
                     )
                 ],
                 [
@@ -1322,7 +1333,10 @@ class Gui:
             "Attach Window",
             [
                 [sg.Text("Please select the window to attach to:")],
-                [sg.DropDown(list(handlers.keys()), key="-DROP-"), sg.Button("Refresh")],
+                [
+                    sg.DropDown(list(handlers.keys()), key="-DROP-"),
+                    sg.Button("Refresh"),
+                ],
                 [sg.OK(), sg.Cancel()],
             ],
             size=(400, 100),
@@ -1338,24 +1352,40 @@ class Gui:
             if event == "OK":
                 popup_window.close()
                 return values["-DROP-"], handlers[values["-DROP-"]]
-            
+
     def __select_mobs_popup(self, bot, is_delete_form=False):
         all_mobs = bot.get_all_mobs()
-        selected_mobs_names = [mob["name"] for mob in bot.config["selected_mobs"] if mob["name"] in all_mobs]
+        selected_mobs_names = [
+            mob["name"]
+            for mob in bot.config["selected_mobs"]
+            if mob["name"] in all_mobs
+        ]
 
-        all_mobs_titles = [f"{name} - {params['element']} - {params['map_name']}" for (name, params) in dict.items(all_mobs)]
+        all_mobs_titles = [
+            f"{name} - {params['element']} - {params['map_name']}"
+            for (name, params) in dict.items(all_mobs)
+        ]
         selected_mobs_titles = [
-            f"{name} - {params['element']} - {params['map_name']}" for (name, params) in dict.items(all_mobs)
+            f"{name} - {params['element']} - {params['map_name']}"
+            for (name, params) in dict.items(all_mobs)
             if name in selected_mobs_names
         ]
-        if is_delete_form: selected_mobs_titles = []
+        if is_delete_form:
+            selected_mobs_titles = []
         last_highlighted_mob = None
 
         popup_window = sg.Window(
             "Select Mobs" if not is_delete_form else "Delete mobs",
             [
-                [sg.Text(f"Select the mobs to {'kill' if not is_delete_form else 'delete'}:")],
-                [sg.Text("Find: "), sg.Input(enable_events=True, expand_x=True, key="-MOBS_SEARCH-")],
+                [
+                    sg.Text(
+                        f"Select the mobs to {'kill' if not is_delete_form else 'delete'}:"
+                    )
+                ],
+                [
+                    sg.Text("Find: "),
+                    sg.Input(enable_events=True, expand_x=True, key="-MOBS_SEARCH-"),
+                ],
                 [
                     sg.Listbox(
                         values=all_mobs_titles,
@@ -1366,7 +1396,13 @@ class Gui:
                         key="-MOBS_LIST-",
                     )
                 ],
-                [sg.Button("Reset"), sg.Button("Save" if not is_delete_form else "Delete", button_color=None if not is_delete_form else "#ea4335")],
+                [
+                    sg.Button("Reset"),
+                    sg.Button(
+                        "Save" if not is_delete_form else "Delete",
+                        button_color=None if not is_delete_form else "#ea4335",
+                    ),
+                ],
             ],
         )
         listbox = popup_window["-MOBS_LIST-"]
@@ -1379,72 +1415,125 @@ class Gui:
 
             if values["-MOBS_SEARCH-"] != "":
                 search = values["-MOBS_SEARCH-"]
-                best_match = difflib.get_close_matches(search, all_mobs_titles, n=1, cutoff=0.0)
+                best_match = difflib.get_close_matches(
+                    search, all_mobs_titles, n=1, cutoff=0.0
+                )
                 if last_highlighted_mob is not None:
-                    listbox.Widget.itemconfigure(last_highlighted_mob, bg=listbox.BackgroundColor)
+                    listbox.Widget.itemconfigure(
+                        last_highlighted_mob, bg=listbox.BackgroundColor
+                    )
                     last_highlighted_mob = None
                 if len(best_match) > 0:
                     best_match_index = all_mobs_titles.index(best_match[0])
-                    listbox.Widget.itemconfigure(best_match_index, bg=hex_variant(listbox.BackgroundColor, -20))
+                    listbox.Widget.itemconfigure(
+                        best_match_index, bg=hex_variant(listbox.BackgroundColor, -20)
+                    )
                     listbox.update(scroll_to_index=best_match_index)
                     last_highlighted_mob = best_match_index
             else:
                 if last_highlighted_mob is not None:
-                    listbox.Widget.itemconfigure(last_highlighted_mob, bg=listbox.BackgroundColor)
+                    listbox.Widget.itemconfigure(
+                        last_highlighted_mob, bg=listbox.BackgroundColor
+                    )
                     last_highlighted_mob = None
 
             if event == "-MOBS_LIST-" and len(values["-MOBS_LIST-"]):
-                selected_mobs_indexes = [all_mobs_titles.index(mob) for mob in values["-MOBS_LIST-"]]
+                selected_mobs_indexes = [
+                    all_mobs_titles.index(mob) for mob in values["-MOBS_LIST-"]
+                ]
                 listbox.update(set_to_index=selected_mobs_indexes)
 
             if event == "Reset":
                 listbox.update(set_to_index=[])
             if event == "Save":
-                selected_mobs_indexes = [all_mobs_titles.index(mob) for mob in values["-MOBS_LIST-"]]
+                selected_mobs_indexes = [
+                    all_mobs_titles.index(mob) for mob in values["-MOBS_LIST-"]
+                ]
                 popup_window.close()
                 all_names = list(dict.keys(all_mobs))
                 selected_names = [all_names[i] for i in selected_mobs_indexes]
                 sg.user_settings_set_entry("saved_selected_mobs", selected_names)
-                bot.set_config(selected_mobs=[all_mobs[name] for name in selected_names])
+                bot.set_config(
+                    selected_mobs=[all_mobs[name] for name in selected_names]
+                )
                 return
             if event == "Delete":
                 from assets.Assets import MobInfo
-                deleted_mobs_names = [mob.split("-")[0].strip() for mob in values["-MOBS_LIST-"]]
+
+                deleted_mobs_names = [
+                    mob.split("-")[0].strip() for mob in values["-MOBS_LIST-"]
+                ]
                 popup_window.close()
                 # unselect deleted mobs if they were selected
-                bot.set_config(selected_mobs=[all_mobs[name] for name in selected_mobs_names if name not in deleted_mobs_names])
+                bot.set_config(
+                    selected_mobs=[
+                        all_mobs[name]
+                        for name in selected_mobs_names
+                        if name not in deleted_mobs_names
+                    ]
+                )
                 MobInfo.delete_mobs(deleted_mobs_names)
                 return
-    
+
     def __add_mob_popup(self):
-        from assets.Assets import mob_type_wind_path, mob_type_fire_path, mob_type_soil_path, mob_type_water_path, mob_type_electricity_path
+        from assets.Assets import (
+            mob_type_wind_path,
+            mob_type_fire_path,
+            mob_type_soil_path,
+            mob_type_water_path,
+            mob_type_electricity_path,
+        )
 
         element_buttons_layout = [
             sg.Text("Select mob element: "),
-            sg.Input(key="-ELEMENT-", visible=False), # hidden controlled input
+            sg.Input(key="-ELEMENT-", visible=False),  # hidden controlled input
             sg.Button("", image_source=mob_type_wind_path, key="-ELEMENT-WIND-"),
             sg.Button("", image_source=mob_type_fire_path, key="-ELEMENT-FIRE-"),
             sg.Button("", image_source=mob_type_soil_path, key="-ELEMENT-SOIL-"),
             sg.Button("", image_source=mob_type_water_path, key="-ELEMENT-WATER-"),
-            sg.Button("", image_source=mob_type_electricity_path, key="-ELEMENT-ELECTRICITY")
+            sg.Button(
+                "", image_source=mob_type_electricity_path, key="-ELEMENT-ELECTRICITY"
+            ),
         ]
 
         popup_window = sg.Window(
             "Add mob",
             [
-                [sg.Text("Enter mob name: "), sg.Input(key="-NAME-", size=(48,20))],
-                [sg.Text("Enter map name (location): "), sg.Input(key="-MAP-", size=(40,20))],
+                [sg.Text("Enter mob name: "), sg.Input(key="-NAME-", size=(48, 20))],
+                [
+                    sg.Text("Enter map name (location): "),
+                    sg.Input(key="-MAP-", size=(40, 20)),
+                ],
                 [
                     sg.Text("Choose an image file (mob name): "),
-                    sg.Input(key="-IMAGE-", change_submits=True, size=(25, 20), disabled=True, text_color="#000"),
-                    sg.FileBrowse(file_types=(("Image files", "*.png *.jpg *.jpeg"),))
+                    sg.Input(
+                        key="-IMAGE-",
+                        change_submits=True,
+                        size=(25, 20),
+                        disabled=True,
+                        text_color="#000",
+                    ),
+                    sg.FileBrowse(file_types=(("Image files", "*.png *.jpg *.jpeg"),)),
                 ],
-                [sg.Text("Enter height offset: "), sg.Input(key="-HEIGHT-", enable_events=True, size=(10,20)), sg.Text("(Number, usually in range from 40 to 100)", text_color="grey")],
+                [
+                    sg.Text("Enter height offset: "),
+                    sg.Input(key="-HEIGHT-", enable_events=True, size=(10, 20)),
+                    sg.Text(
+                        "(Number, usually in range from 40 to 100)", text_color="grey"
+                    ),
+                ],
                 element_buttons_layout,
-                [sg.Frame("", [[sg.Button("Reset"), sg.Button("Save")]], border_width=0, pad=((0, 0),(44, 0)))],
+                [
+                    sg.Frame(
+                        "",
+                        [[sg.Button("Reset"), sg.Button("Save")]],
+                        border_width=0,
+                        pad=((0, 0), (44, 0)),
+                    )
+                ],
             ],
             modal=True,
-            size=(500, 225)
+            size=(500, 225),
         )
 
         while True:
@@ -1455,7 +1544,8 @@ class Gui:
                 return
             if event == "Reset":
                 for elem in element_buttons_layout:
-                     if elem.Disabled: elem.update(disabled=False)
+                    if elem.Disabled:
+                        elem.update(disabled=False)
 
                 for value in values:
                     if value.startswith("-"):
@@ -1471,19 +1561,28 @@ class Gui:
 
                 if is_form_valid:
                     from assets.Assets import MobInfo
-                    MobInfo.add_new_mob(name=values["-NAME-"], map_name=values["-MAP-"], image_path=values["-IMAGE-"],
-                                        height_offset=int(values["-HEIGHT-"]), element=values["-ELEMENT-"])
+
+                    MobInfo.add_new_mob(
+                        name=values["-NAME-"],
+                        map_name=values["-MAP-"],
+                        image_path=values["-IMAGE-"],
+                        height_offset=int(values["-HEIGHT-"]),
+                        element=values["-ELEMENT-"],
+                    )
                     popup_window.close()
                     return
             if event == "-HEIGHT-":
                 # height validation - only numbers
-                popup_window.Element(event).update(re.sub("[^0-9]","", values["-HEIGHT-"]))
+                popup_window.Element(event).update(
+                    re.sub("[^0-9]", "", values["-HEIGHT-"])
+                )
                 pass
             if isinstance(event, str) and "-ELEMENT-" in event:
                 current_element = event.split("-")[2].lower()
 
                 for elem in element_buttons_layout:
-                     if elem.Disabled: elem.update(disabled=False)
+                    if elem.Disabled:
+                        elem.update(disabled=False)
 
                 popup_window.Element(event).update(disabled=True)
                 popup_window.Element("-ELEMENT-").update(current_element)
