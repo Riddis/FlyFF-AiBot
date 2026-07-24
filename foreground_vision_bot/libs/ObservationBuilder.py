@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from math import hypot
-from typing import Iterable, Sequence
 
 import numpy as np
-
 
 Point = tuple[float, float]
 
@@ -29,17 +28,14 @@ class ObservationConfig:
         if self.max_mobs < 1:
             raise ValueError("max_mobs must be at least one")
         if self.frame_width < 1 or self.frame_height < 1:
-            raise ValueError(
-                "frame_width and frame_height must be positive"
-            )
+            raise ValueError("frame_width and frame_height must be positive")
         if not (
-            0.0 < self.inner_radius_fraction
+            0.0
+            < self.inner_radius_fraction
             < self.middle_radius_fraction
             < self.outer_radius_fraction
         ):
-            raise ValueError(
-                "Density radii must satisfy 0 < inner < middle < outer."
-            )
+            raise ValueError("Density radii must satisfy 0 < inner < middle < outer.")
         if self.density_count_scale <= 0:
             raise ValueError("density_count_scale must be positive")
         if self.visible_count_scale <= 0:
@@ -170,8 +166,7 @@ class ObservationBuilder:
         observation = np.asarray(observation, dtype=np.float32)
         if observation.shape != (self.observation_size,):
             raise ValueError(
-                f"Expected shape {(self.observation_size,)}, "
-                f"got {observation.shape}"
+                f"Expected shape {(self.observation_size,)}, got {observation.shape}"
             )
 
         mob_value_count = self.config.max_mobs * self.VALUES_PER_MOB
@@ -214,9 +209,7 @@ class ObservationBuilder:
 
         for point in mob_positions:
             if len(point) != 2:
-                raise ValueError(
-                    f"Expected a two-value point, got {point!r}"
-                )
+                raise ValueError(f"Expected a two-value point, got {point!r}")
             mob_x = float(point[0])
             mob_y = float(point[1])
             dx = mob_x - player_x

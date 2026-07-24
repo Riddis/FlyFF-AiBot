@@ -19,9 +19,7 @@ class PangDetector:
         self.threshold = float(threshold)
         self.template = cv.imread(str(template_path), cv.IMREAD_GRAYSCALE)
         if self.template is None:
-            raise FileNotFoundError(
-                f"Missing Pang template: {template_path}"
-            )
+            raise FileNotFoundError(f"Missing Pang template: {template_path}")
 
     def detect(self, frame: np.ndarray) -> PangDetection:
         gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY) if frame.ndim == 3 else frame

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+import json
 from collections import deque
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-import json
 
 import cv2 as cv
 import numpy as np
-
 
 UNKNOWN, FREE, BLOCKED, FORBIDDEN = 0, 1, 2, 3
 
@@ -24,7 +23,7 @@ class Pose:
 class GridMetadata:
     version: int = 1
     created_at: str = field(
-        default_factory=lambda: datetime.now().isoformat()
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
     spawn: tuple[int, int] = (0, 0)
     pang_sightings: list[dict] = field(default_factory=list)
@@ -33,8 +32,8 @@ class GridMetadata:
 
 class OccupancyGrid:
     DIRECTIONS = (
-        (1, 0),   # east
-        (0, 1),   # north
+        (1, 0),  # east
+        (0, 1),  # north
         (-1, 0),  # west
         (0, -1),  # south
     )
@@ -75,14 +74,15 @@ class OccupancyGrid:
 
     def mark_blocked(self, x: int, y: int) -> None:
         gx, gy = self.world_to_cell(x, y)
-        if 0 <= gx < self.size and 0 <= gy < self.size:
-            if self.cells[gy, gx] != FORBIDDEN:
-                self.cells[gy, gx] = BLOCKED
+        if (
+            0 <= gx < self.size
+            and 0 <= gy < self.size
+            and self.cells[gy, gx] != FORBIDDEN
+        ):
+            self.cells[gy, gx] = BLOCKED
 
     def mark_forbidden(self, x: int, y: int, radius: int = 5) -> None:
-        self.metadata.teleport_zones.append(
-            {"x": x, "y": y, "radius": radius}
-        )
+        self.metadata.teleport_zones.append({"x": x, "y": y, "radius": radius})
         cx, cy = self.world_to_cell(x, y)
         for dy in range(-radius, radius + 1):
             for dx in range(-radius, radius + 1):
@@ -102,7 +102,7 @@ class OccupancyGrid:
                 "x": x,
                 "y": y,
                 "score": round(float(score), 4),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         )
 
@@ -123,9 +123,7 @@ class OccupancyGrid:
             frontiers.remove(start)
 
         queue = deque([start])
-        parents: dict[tuple[int, int], tuple[int, int] | None] = {
-            start: None
-        }
+        parents: dict[tuple[int, int], tuple[int, int] | None] = {start: None}
         target = None
 
         while queue:

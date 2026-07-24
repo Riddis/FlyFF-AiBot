@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import cv2 as cv
-import numpy as np
 
 
 class MinimapAnchorSetup:
@@ -14,9 +13,7 @@ class MinimapAnchorSetup:
 
     def __init__(self, bot) -> None:
         self.bot = bot
-        self.config_path = (
-            Path(__file__).resolve().parent / "minimap_anchor.json"
-        )
+        self.config_path = Path(__file__).resolve().parent / "minimap_anchor.json"
         self._selected: tuple[int, int] | None = None
         self._display_scale = 1.0
 
@@ -36,8 +33,8 @@ class MinimapAnchorSetup:
             maximum_display_height / height,
         )
 
-        display_width = int(round(width * self._display_scale))
-        display_height = int(round(height * self._display_scale))
+        display_width = round(width * self._display_scale)
+        display_height = round(height * self._display_scale)
 
         cv.namedWindow(self.WINDOW_NAME, cv.WINDOW_NORMAL)
         cv.resizeWindow(
@@ -129,10 +126,13 @@ class MinimapAnchorSetup:
                 cv.destroyWindow(self.WINDOW_NAME)
                 raise RuntimeError("Minimap anchor selection cancelled.")
 
-            if cv.getWindowProperty(
-                self.WINDOW_NAME,
-                cv.WND_PROP_VISIBLE,
-            ) < 1:
+            if (
+                cv.getWindowProperty(
+                    self.WINDOW_NAME,
+                    cv.WND_PROP_VISIBLE,
+                )
+                < 1
+            ):
                 raise RuntimeError("Minimap anchor selection cancelled.")
 
         cv.destroyWindow(self.WINDOW_NAME)
@@ -165,6 +165,6 @@ class MinimapAnchorSetup:
         if event != cv.EVENT_LBUTTONDOWN:
             return
 
-        frame_x = int(round(x / self._display_scale))
-        frame_y = int(round(y / self._display_scale))
+        frame_x = round(x / self._display_scale)
+        frame_y = round(y / self._display_scale)
         self._selected = (frame_x, frame_y)

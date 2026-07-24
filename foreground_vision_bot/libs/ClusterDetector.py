@@ -1,7 +1,6 @@
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from math import hypot
-from typing import Iterable, Sequence
-
 
 Point = tuple[int, int]
 
@@ -72,15 +71,10 @@ class ClusterDetector:
                     queue.append(neighbor_index)
                     component.append(neighbor_index)
 
-            component_points = tuple(
-                normalized_points[index]
-                for index in component
-            )
+            component_points = tuple(normalized_points[index] for index in component)
 
             if len(component_points) >= self.min_cluster_size:
-                clusters.append(
-                    self._build_cluster(component_points)
-                )
+                clusters.append(self._build_cluster(component_points))
 
         clusters.sort(
             key=lambda cluster: (
@@ -108,13 +102,9 @@ class ClusterDetector:
 
         for point in points:
             if len(point) != 2:
-                raise ValueError(
-                    f"Expected a two-value point, got: {point!r}"
-                )
+                raise ValueError(f"Expected a two-value point, got: {point!r}")
 
-            normalized.append(
-                (int(round(point[0])), int(round(point[1])))
-            )
+            normalized.append((round(point[0]), round(point[1])))
 
         return normalized
 
@@ -130,17 +120,12 @@ class ClusterDetector:
         cls,
         points: tuple[Point, ...],
     ) -> MobCluster:
-        center_x = round(
-            sum(point[0] for point in points) / len(points)
-        )
-        center_y = round(
-            sum(point[1] for point in points) / len(points)
-        )
+        center_x = round(sum(point[0] for point in points) / len(points))
+        center_y = round(sum(point[1] for point in points) / len(points))
         center = (center_x, center_y)
 
-        average_distance = (
-            sum(cls._distance(point, center) for point in points)
-            / len(points)
+        average_distance = sum(cls._distance(point, center) for point in points) / len(
+            points
         )
 
         return MobCluster(

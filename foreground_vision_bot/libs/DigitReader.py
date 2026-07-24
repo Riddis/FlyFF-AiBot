@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import cv2 as cv
 import numpy as np
@@ -13,9 +12,7 @@ class DigitReader:
     ) -> None:
         self.threshold = threshold
         self.templates = self._load_templates(digits_dir)
-        self.bracket_template = self._load_bracket_template(
-            digits_dir
-        )
+        self.bracket_template = self._load_bracket_template(digits_dir)
 
     @staticmethod
     def _load_templates(digits_dir: Path) -> dict[str, np.ndarray]:
@@ -30,9 +27,7 @@ class DigitReader:
             )
 
             if template is None:
-                raise FileNotFoundError(
-                    f"Could not load digit template: {path}"
-                )
+                raise FileNotFoundError(f"Could not load digit template: {path}")
 
             templates[str(digit)] = template
 
@@ -50,16 +45,14 @@ class DigitReader:
         )
 
         if template is None:
-            raise FileNotFoundError(
-                f"Could not load bracket template: {path}"
-            )
+            raise FileNotFoundError(f"Could not load bracket template: {path}")
 
         return template
 
     def read_number(
         self,
         image: np.ndarray,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Read a sequence of digits from an image.
 
@@ -78,10 +71,7 @@ class DigitReader:
         for digit, template in self.templates.items():
             template_h, template_w = template.shape[:2]
 
-            if (
-                gray.shape[0] < template_h
-                or gray.shape[1] < template_w
-            ):
+            if gray.shape[0] < template_h or gray.shape[1] < template_w:
                 continue
 
             result = cv.matchTemplate(
@@ -112,11 +102,7 @@ class DigitReader:
         bracket_x = self._find_bracket_x(gray)
 
         if bracket_x is not None:
-            filtered = [
-                match
-                for match in filtered
-                if match[0] < bracket_x
-            ]
+            filtered = [match for match in filtered if match[0] < bracket_x]
 
         if not filtered:
             return None
@@ -125,10 +111,7 @@ class DigitReader:
 
         # Commas are ignored because there is no comma template.
         # Example: "1,234 (+5)" becomes "1234".
-        number_text = "".join(
-            match[3]
-            for match in filtered
-        )
+        number_text = "".join(match[3] for match in filtered)
 
         return int(number_text)
 
@@ -139,10 +122,7 @@ class DigitReader:
         template = self.bracket_template
         template_h, template_w = template.shape[:2]
 
-        if (
-            gray.shape[0] < template_h
-            or gray.shape[1] < template_w
-        ):
+        if gray.shape[0] < template_h or gray.shape[1] < template_w:
             return None
 
         result = cv.matchTemplate(
@@ -191,23 +171,15 @@ class DigitReader:
                     - max(candidate_left, existing_left),
                 )
 
-                candidate_width = (
-                    candidate_right - candidate_left
-                )
-                existing_width = (
-                    existing_right - existing_left
-                )
+                candidate_width = candidate_right - candidate_left
+                existing_width = existing_right - existing_left
 
                 smaller_width = min(
                     candidate_width,
                     existing_width,
                 )
 
-                overlap_ratio = (
-                    intersection / smaller_width
-                    if smaller_width > 0
-                    else 0
-                )
+                overlap_ratio = intersection / smaller_width if smaller_width > 0 else 0
 
                 if overlap_ratio >= 0.5:
                     overlaps = True

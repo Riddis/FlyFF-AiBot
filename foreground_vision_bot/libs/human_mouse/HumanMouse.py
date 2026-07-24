@@ -1,7 +1,9 @@
+from random import randint, uniform
 from time import sleep
-from random import uniform, randint
-import win32api, win32con, win32gui
 
+import win32api
+import win32con
+import win32gui
 from libs.human_mouse.HumanCurve import HumanCurve
 
 
@@ -9,7 +11,7 @@ class HumanMouse:
     def __init__(self, hwnd, translator=None):
         """
         :param hwnd: int. Handle of the game window.
-        :param translator: Translator is a method that translates a point from 
+        :param translator: Translator is a method that translates a point from
                 the game window to the screen. It's provided by WindowCapture.
         """
 
@@ -36,7 +38,7 @@ class HumanMouse:
         from_point = win32api.GetCursorPos()
         human_curve = HumanCurve(from_point, to_point, targetPoints=25)
         for point in human_curve.points:
-            win32api.SetCursorPos((int(round(point[0])), int(round(point[1]))))
+            win32api.SetCursorPos((round(point[0]), round(point[1])))
             sleep(round(duration / len(human_curve.points), 3))
 
     def move_outside_game(self, duration=0.5, like_robot=False):
@@ -50,7 +52,7 @@ class HumanMouse:
 
     def left_click(self):
         """
-        Left click mouse at current mouse position. It uses a random time 
+        Left click mouse at current mouse position. It uses a random time
         to simulate a human click.
         """
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
@@ -87,7 +89,9 @@ class HumanMouse:
         self.right_click()
         self.right_click()
 
-    def drag_right_click(self, to_point, duration=0.5, translate=False, like_robot=False):
+    def drag_right_click(
+        self, to_point, duration=0.5, translate=False, like_robot=False
+    ):
         """
         Drag mouse from current mouse position to a given point, in a human way or like a robot.
         :param to_point: tuple (x, y)
@@ -104,7 +108,7 @@ class HumanMouse:
 
     def scroll(self, isUp=True, times=1):
         """
-        Scroll mouse wheel. 
+        Scroll mouse wheel.
         :param isUp: Bool. True for up, False for down.
         """
         for _ in range(times):
@@ -116,7 +120,7 @@ class HumanMouse:
 
     def __get_random_point_outside_game(self):
         """
-        Get a random point outside the game window, but next to the borders of 
+        Get a random point outside the game window, but next to the borders of
         the window to optimize the movements.
         """
         left, top, right, bottom = win32gui.GetWindowRect(self.hwnd)

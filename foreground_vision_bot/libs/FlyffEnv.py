@@ -1,17 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from math import hypot
 from time import monotonic, sleep
-from typing import Callable, Iterable, Sequence
+from typing import ClassVar
 
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
-
 from libs.ActionExecutor import ActionExecutor, BotAction
 from libs.ObservationBuilder import ObservationBuilder
-
 
 MobReader = Callable[[], Iterable[Sequence[int | float]]]
 KillReader = Callable[[], int | None]
@@ -50,7 +49,7 @@ class FlyffEnvConfig:
 
 
 class FlyffEnv(gym.Env):
-    metadata = {"render_modes": []}
+    metadata: ClassVar[dict[str, list[str]]] = {"render_modes": []}
 
     def __init__(
         self,
@@ -233,9 +232,7 @@ class FlyffEnv(gym.Env):
 
         now = monotonic()
         elapsed_seconds = max(now - step_started_at, 0.0)
-        components["time"] = (
-            -elapsed_seconds * self.config.time_penalty_per_second
-        )
+        components["time"] = -elapsed_seconds * self.config.time_penalty_per_second
 
         reward = float(sum(components.values()))
 
@@ -281,12 +278,8 @@ class FlyffEnv(gym.Env):
             "episode_eva_successes_live": self._episode_eva_successes,
             "episode_eva_misses_live": self._episode_eva_misses,
             "episode_eva_unknown_live": self._episode_eva_unknown,
-            "episode_zero_nearby_eva_casts_live": (
-                self._episode_zero_nearby_eva_casts
-            ),
-            "episode_invalid_eva_requests_live": (
-                self._episode_invalid_eva_requests
-            ),
+            "episode_zero_nearby_eva_casts_live": (self._episode_zero_nearby_eva_casts),
+            "episode_invalid_eva_requests_live": (self._episode_invalid_eva_requests),
             "episode_seconds_live": now - self._episode_started_at,
         }
 
@@ -343,7 +336,8 @@ class FlyffEnv(gym.Env):
                 hypot(
                     position[0] - stale[0],
                     position[1] - stale[1],
-                ) <= match_radius
+                )
+                <= match_radius
                 for stale in self._stale_mob_positions
             ):
                 continue
@@ -367,8 +361,8 @@ class FlyffEnv(gym.Env):
             for x, y in mobs_at_cast
             if hypot(x - player_x, y - player_y) <= radius
         ]
-        self._stale_mobs_until = (
-            monotonic() + max(self.config.despawn_filter_seconds, 0.0)
+        self._stale_mobs_until = monotonic() + max(
+            self.config.despawn_filter_seconds, 0.0
         )
 
     def _read_kill_sample(self) -> int | None:
@@ -425,9 +419,7 @@ class FlyffEnv(gym.Env):
             return 0.0
 
         multiplier = min(
-            1.0
-            + self.config.group_bonus_per_extra_kill
-            * max(kills - 1, 0),
+            1.0 + self.config.group_bonus_per_extra_kill * max(kills - 1, 0),
             self.config.group_multiplier_cap,
         )
         return float(kills * self.config.base_kill_reward * multiplier)
@@ -456,10 +448,7 @@ class FlyffEnv(gym.Env):
         middle_radius = diagonal * config.middle_radius_fraction
         outer_radius = diagonal * config.outer_radius_fraction
 
-        distances = [
-            hypot(x - player_x, y - player_y)
-            for x, y in mobs
-        ]
+        distances = [hypot(x - player_x, y - player_y) for x, y in mobs]
         inner = sum(distance <= inner_radius for distance in distances)
         middle = sum(distance <= middle_radius for distance in distances)
         outer = sum(distance <= outer_radius for distance in distances)
@@ -475,9 +464,7 @@ class FlyffEnv(gym.Env):
         self,
         mobs: list[tuple[float, float]],
     ) -> float:
-        inner, middle_cumulative, outer_cumulative = (
-            self._distance_counts(mobs)
-        )
+        inner, middle_cumulative, outer_cumulative = self._distance_counts(mobs)
         middle_shell = max(middle_cumulative - inner, 0)
         outer_shell = max(outer_cumulative - middle_cumulative, 0)
 

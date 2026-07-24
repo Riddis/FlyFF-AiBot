@@ -84,8 +84,8 @@ class MotionTracker:
         gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
         height, width = gray.shape[:2]
         roi = gray[
-            int(height * 0.14):int(height * 0.80),
-            int(width * 0.14):int(width * 0.86),
+            int(height * 0.14) : int(height * 0.80),
+            int(width * 0.14) : int(width * 0.86),
         ]
         roi = cv.GaussianBlur(roi, (5, 5), 0)
         return cv.resize(roi, (640, 360), interpolation=cv.INTER_AREA)

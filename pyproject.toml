@@ -1,0 +1,2 @@
+[tool.ruff.lint.per-file-ignores]
+"foreground_vision_bot/mapper/[A-Z]*.py" = ["N999"]

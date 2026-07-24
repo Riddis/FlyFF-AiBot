@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from time import sleep
-import math
-import json
 
 import cv2 as cv
 import numpy as np
@@ -35,6 +35,7 @@ def counterclockwise_delta(start: float, current: float) -> float:
 
 class MinimapHeadingDetector:
     VERSION = "5.4-fast-and-strict"
+
     @staticmethod
     def _as_bgr(frame: np.ndarray) -> np.ndarray:
         """Return a BGR image regardless of grayscale/BGRA capture format."""
@@ -90,9 +91,7 @@ class MinimapHeadingDetector:
         ]
         self._rotated_templates = self._load_rotated_templates()
         self._last_debug_payload: dict | None = None
-        self._anchor_path = (
-            Path(__file__).resolve().parent / "minimap_anchor.json"
-        )
+        self._anchor_path = Path(__file__).resolve().parent / "minimap_anchor.json"
         self._anchor_config: dict | None = None
 
         # Fast-tracker state. This is intentionally separate from strict
@@ -142,12 +141,7 @@ class MinimapHeadingDetector:
         x = int(self._anchor_config["arrow_center_x"])
         y = int(self._anchor_config["arrow_center_y"])
         half = int(self._anchor_config["crop_size"]) // 2
-        if (
-            x - half < 0
-            or y - half < 0
-            or x + half >= width
-            or y + half >= height
-        ):
+        if x - half < 0 or y - half < 0 or x + half >= width or y + half >= height:
             raise RuntimeError(
                 "Saved minimap arrow center is outside the current frame."
             )
@@ -180,10 +174,7 @@ class MinimapHeadingDetector:
 
         if measured is None:
             self._fast_misses += 1
-            if (
-                self._fast_angle is None
-                or self._fast_misses > max(0, hold_frames)
-            ):
+            if self._fast_angle is None or self._fast_misses > max(0, hold_frames):
                 return None
 
             self._fast_confidence *= 0.72
@@ -213,10 +204,7 @@ class MinimapHeadingDetector:
 
             # Reject a weak one-frame teleport in angle space, but allow fast
             # legitimate rotation when the visual match is strong.
-            if (
-                abs(delta) > maximum_frame_change
-                and measured.confidence < 0.78
-            ):
+            if abs(delta) > maximum_frame_change and measured.confidence < 0.78:
                 self._fast_misses = 1
                 self._fast_confidence *= 0.78
                 return HeadingReading(
@@ -230,18 +218,14 @@ class MinimapHeadingDetector:
 
             adaptive_smoothing = float(
                 np.clip(
-                    smoothing
-                    + 0.22 * (measured.confidence - 0.5),
+                    smoothing + 0.22 * (measured.confidence - 0.5),
                     0.35,
                     0.82,
                 )
             )
-            self._fast_angle = (
-                self._fast_angle + adaptive_smoothing * delta
-            ) % 360.0
+            self._fast_angle = (self._fast_angle + adaptive_smoothing * delta) % 360.0
             self._fast_confidence = (
-                0.62 * self._fast_confidence
-                + 0.38 * measured.confidence
+                0.62 * self._fast_confidence + 0.38 * measured.confidence
             )
 
         return HeadingReading(
@@ -298,7 +282,7 @@ class MinimapHeadingDetector:
                 readings.append(reading)
             sleep(max(0.0, delay))
 
-        minimum_valid = max(5, int(math.ceil(samples * 0.60)))
+        minimum_valid = max(5, math.ceil(samples * 0.60))
         if len(readings) < minimum_valid:
             self.save_debug("stable_too_few_valid_samples")
             return None
@@ -310,15 +294,13 @@ class MinimapHeadingDetector:
         center_angle = min(
             angles,
             key=lambda candidate: sum(
-                abs(signed_angle_delta(angle, candidate))
-                for angle in angles
+                abs(signed_angle_delta(angle, candidate)) for angle in angles
             ),
         )
 
         unwrapped = np.array(
             [
-                center_angle
-                + signed_angle_delta(angle, center_angle)
+                center_angle + signed_angle_delta(angle, center_angle)
                 for angle in angles
             ],
             dtype=np.float64,
@@ -333,7 +315,7 @@ class MinimapHeadingDetector:
         cluster_count = int(cluster_mask.sum())
         required_cluster = max(
             5,
-            int(math.ceil(len(readings) * 0.70)),
+            math.ceil(len(readings) * 0.70),
         )
         if cluster_count < required_cluster:
             self.save_debug("stable_no_dominant_cluster")
@@ -346,8 +328,7 @@ class MinimapHeadingDetector:
         ]
         filtered_unwrapped = np.array(
             [
-                center_angle
-                + signed_angle_delta(item.angle_deg, center_angle)
+                center_angle + signed_angle_delta(item.angle_deg, center_angle)
                 for item in filtered
             ],
             dtype=np.float64,
@@ -355,16 +336,12 @@ class MinimapHeadingDetector:
 
         final_unwrapped = float(np.median(filtered_unwrapped))
         angle = final_unwrapped % 360.0
-        spread = float(
-            np.max(np.abs(filtered_unwrapped - final_unwrapped))
-        )
+        spread = float(np.max(np.abs(filtered_unwrapped - final_unwrapped)))
         if spread > 6.0:
             self.save_debug("stable_cluster_too_wide")
             return None
 
-        median_confidence = float(
-            np.median([item.confidence for item in filtered])
-        )
+        median_confidence = float(np.median([item.confidence for item in filtered]))
         agreement = cluster_count / len(readings)
         confidence = float(
             np.clip(
@@ -412,8 +389,8 @@ class MinimapHeadingDetector:
         length = max(20, int(reading.radius * 0.45))
         radians = math.radians(reading.angle_deg)
         tip = (
-            int(round(x + math.sin(radians) * length)),
-            int(round(y - math.cos(radians) * length)),
+            round(x + math.sin(radians) * length),
+            round(y - math.cos(radians) * length),
         )
 
         cv.circle(output, (x, y), reading.radius, (0, 255, 255), 2)
@@ -446,7 +423,7 @@ class MinimapHeadingDetector:
         frame = self._as_bgr(frame)
         height, width = frame.shape[:2]
         x0 = int(width * 0.78)
-        roi = frame[0:int(height * 0.34), x0:width]
+        roi = frame[0 : int(height * 0.34), x0:width]
         if roi.size == 0:
             return None
 
@@ -468,12 +445,10 @@ class MinimapHeadingDetector:
         if circles is not None:
             candidates: list[tuple[int, int, int]] = []
             for cx, cy, radius in circles[0]:
-                global_x = int(round(cx)) + x0
-                global_y = int(round(cy))
+                global_x = round(cx) + x0
+                global_y = round(cy)
                 if global_x >= int(width * 0.84):
-                    candidates.append(
-                        (global_x, global_y, int(round(radius)))
-                    )
+                    candidates.append((global_x, global_y, round(radius)))
             if candidates:
                 expected_radius = min(width, height) * 0.087
                 expected_y = height * 0.105
@@ -487,9 +462,9 @@ class MinimapHeadingDetector:
 
         # Resolution-independent fallback matching the supplied client layout.
         return (
-            int(round(width * 0.934)),
-            int(round(height * 0.105)),
-            int(round(min(width, height) * 0.087)),
+            round(width * 0.934),
+            round(height * 0.105),
+            round(min(width, height) * 0.087),
         )
 
     @staticmethod
@@ -499,11 +474,7 @@ class MinimapHeadingDetector:
     ) -> bool:
         x, y, radius = circle
         height, width = frame.shape[:2]
-        return (
-            radius > 20
-            and radius <= x < width
-            and radius <= y < height
-        )
+        return radius > 20 and radius <= x < width and radius <= y < height
 
     @staticmethod
     def _center_component(
@@ -516,7 +487,7 @@ class MinimapHeadingDetector:
         Center normalization removes the need to test hundreds of x/y shifts
         for every candidate heading.
         """
-        count, labels, stats, centroids = cv.connectedComponentsWithStats(
+        count, labels, stats, _centroids = cv.connectedComponentsWithStats(
             (binary > 0).astype(np.uint8),
             connectivity=8,
         )
@@ -533,7 +504,7 @@ class MinimapHeadingDetector:
         y = int(stats[component_index, cv.CC_STAT_TOP])
         w = int(stats[component_index, cv.CC_STAT_WIDTH])
         h = int(stats[component_index, cv.CC_STAT_HEIGHT])
-        component = mask[y:y + h, x:x + w]
+        component = mask[y : y + h, x : x + w]
 
         canvas = np.zeros((canvas_size, canvas_size), dtype=np.uint8)
         px = (canvas_size - w) // 2
@@ -546,8 +517,8 @@ class MinimapHeadingDetector:
             resized = cv.resize(
                 component,
                 (
-                    max(1, int(round(w * scale))),
-                    max(1, int(round(h * scale))),
+                    max(1, round(w * scale)),
+                    max(1, round(h * scale)),
                 ),
                 interpolation=cv.INTER_NEAREST,
             )
@@ -556,7 +527,7 @@ class MinimapHeadingDetector:
             py = (canvas_size - h) // 2
             component = resized
 
-        canvas[py:py + h, px:px + w] = component
+        canvas[py : py + h, px : px + w] = component
         return canvas
 
     def _load_rotated_templates(
@@ -833,11 +804,7 @@ class MinimapHeadingDetector:
 
         # Use continuity only to break near-ties. It must never overpower a
         # substantially better visual match.
-        candidates = [
-            item
-            for item in raw_scores
-            if raw_best_score - item[0] <= 0.012
-        ]
+        candidates = [item for item in raw_scores if raw_best_score - item[0] <= 0.012]
         if self._last_arrow_angle is not None and len(candidates) > 1:
             nearby_candidates = [
                 item
@@ -847,7 +814,8 @@ class MinimapHeadingDetector:
                         item[1],
                         self._last_arrow_angle,
                     )
-                ) <= 24.0
+                )
+                <= 24.0
             ]
             selection_pool = nearby_candidates or candidates
             chosen_score, chosen_angle, chosen_template = min(
@@ -879,9 +847,7 @@ class MinimapHeadingDetector:
         margin = chosen_score - second_score
         confidence = float(
             np.clip(
-                0.10
-                + 0.82 * max(0.0, chosen_score)
-                + 0.65 * max(0.0, margin),
+                0.10 + 0.82 * max(0.0, chosen_score) + 0.65 * max(0.0, margin),
                 0.0,
                 1.0,
             )
@@ -926,11 +892,7 @@ class MinimapHeadingDetector:
                     self._last_arrow_angle,
                 )
             )
-            if (
-                jump > 120.0
-                and chosen_score < 0.62
-                and margin < 0.06
-            ):
+            if jump > 120.0 and chosen_score < 0.62 and margin < 0.06:
                 self.save_debug("ambiguous_large_jump")
                 return None
 
@@ -953,9 +915,9 @@ class MinimapHeadingDetector:
         if not payload:
             return None
 
-        from datetime import datetime
+        from datetime import datetime, timezone
 
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
         folder = self._debug_root / stamp
         folder.mkdir(parents=True, exist_ok=True)
 

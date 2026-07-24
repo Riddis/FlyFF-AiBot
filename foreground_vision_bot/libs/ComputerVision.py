@@ -53,7 +53,10 @@ class ComputerVision:
         result = cv.matchTemplate(frame, template, method)
         _, max_val, _, max_loc = cv.minMaxLoc(result)
         max_loc_corrected = (max_loc[0] + crop_area[2], max_loc[1] + crop_area[0])
-        center_loc = (max_loc_corrected[0] + template_w // 2, max_loc_corrected[1] + template_h // 2)
+        center_loc = (
+            max_loc_corrected[0] + template_w // 2,
+            max_loc_corrected[1] + template_h // 2,
+        )
         passed_threshold = max_val >= threshold
 
         if frame_to_draw is not None and passed_threshold:
@@ -61,19 +64,39 @@ class ComputerVision:
             line_type = cv.LINE_4
             top_left = max_loc_corrected
             bottom_right = (top_left[0] + template_w, top_left[1] + template_h)
-            cv.rectangle(frame_to_draw, top_left, bottom_right, color=line_color, lineType=line_type, thickness=2)
+            cv.rectangle(
+                frame_to_draw,
+                top_left,
+                bottom_right,
+                color=line_color,
+                lineType=line_type,
+                thickness=2,
+            )
 
             if text_to_draw:
                 font_face = cv.FONT_HERSHEY_DUPLEX
                 font_scale = 0.35
                 font_color = (0, 0, 0)
                 font_thickness = 1
-                (text_w, text_h), _ = cv.getTextSize(text_to_draw, font_face, font_scale, font_thickness)
+                (text_w, text_h), _ = cv.getTextSize(
+                    text_to_draw, font_face, font_scale, font_thickness
+                )
                 text_offset_x = (template_w - text_w) // 2
-                text_offset_y = text_h + 5 # 5px for some space between the text and the box
-                text_pos = (max_loc[0] + crop_area[2] + text_offset_x, max_loc[1] + template_h + crop_area[0] + text_offset_y)
+                text_offset_y = (
+                    text_h + 5
+                )  # 5px for some space between the text and the box
+                text_pos = (
+                    max_loc[0] + crop_area[2] + text_offset_x,
+                    max_loc[1] + template_h + crop_area[0] + text_offset_y,
+                )
                 text_bg_color = (255, 255, 255)
-                cv.rectangle(frame_to_draw, text_pos, (text_pos[0] + text_w, text_pos[1] - text_h), text_bg_color, -1)
+                cv.rectangle(
+                    frame_to_draw,
+                    text_pos,
+                    (text_pos[0] + text_w, text_pos[1] - text_h),
+                    text_bg_color,
+                    -1,
+                )
                 cv.putText(
                     frame_to_draw,
                     text_to_draw,
@@ -86,7 +109,6 @@ class ComputerVision:
 
         drawn_frame = frame_to_draw
         return max_val, max_loc_corrected, center_loc, passed_threshold, drawn_frame
-
 
     @staticmethod
     def group_overlapping_rectangles(rectangles, overlap_threshold=0.5):
@@ -215,7 +237,7 @@ class ComputerVision:
         matches = []
         if len(rectangles):
             # print('Found template')
-            for (x, y, w, h) in rectangles:
+            for x, y, w, h in rectangles:
                 # Determine the center position, initial point + half size + correction
                 center_x = x + (w // 2) + crop_area[2]
                 center_y = y + (h // 2) + crop_area[0]
@@ -233,7 +255,12 @@ class ComputerVision:
                     top_left = (x + crop_area[2], y + crop_area[0])
                     bottom_right = (x + w + crop_area[2], y + h + crop_area[0])
                     cv.rectangle(
-                        frame_to_draw, top_left, bottom_right, color=line_color, lineType=line_type, thickness=2
+                        frame_to_draw,
+                        top_left,
+                        bottom_right,
+                        color=line_color,
+                        lineType=line_type,
+                        thickness=2,
                     )
                 if draw_marker:
                     marker_color = (0, 0, 200)
@@ -252,10 +279,15 @@ class ComputerVision:
                     font_scale = 0.35
                     font_color = (0, 0, 0)
                     font_thickness = 1
-                    (text_w, text_h), _ = cv.getTextSize(text, font_face, font_scale, font_thickness)
+                    (text_w, text_h), _ = cv.getTextSize(
+                        text, font_face, font_scale, font_thickness
+                    )
                     text_offset_x = (w - text_w) // 2
                     text_offset_y = text_h + 5 if draw_rect else -h + text_h + 10
-                    text_pos = (x + crop_area[2] + text_offset_x, y + h + crop_area[0] + text_offset_y)
+                    text_pos = (
+                        x + crop_area[2] + text_offset_x,
+                        y + h + crop_area[0] + text_offset_y,
+                    )
                     cv.putText(
                         frame_to_draw,
                         text,

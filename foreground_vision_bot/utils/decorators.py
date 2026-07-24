@@ -1,6 +1,5 @@
 import functools
 import time
-from datetime import datetime, timedelta
 
 
 def measure_perf(func):
@@ -34,7 +33,7 @@ def debug(func):
     return wrapper_debug
 
 
-class throttle(object):
+class throttle:
     """
     Decorator that prevents a function from being called more than once every
     time period.
@@ -46,13 +45,13 @@ class throttle(object):
 
     def __init__(self):
         self.throttle_period = None
-        self.time_of_last_call = datetime.min
+        self.time_of_last_call = float("-inf")
 
     def __call__(self, fn):
         @functools.wraps(fn)
         def wrapper(_throttle_sec=0, *args, **kwargs):
-            self.throttle_period = timedelta(seconds=_throttle_sec)
-            now = datetime.now()
+            self.throttle_period = float(_throttle_sec)
+            now = time.monotonic()
             time_since_last_call = now - self.time_of_last_call
 
             if time_since_last_call > self.throttle_period:
