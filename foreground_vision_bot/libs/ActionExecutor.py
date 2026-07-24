@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import IntEnum
 
-from libs.HumanKeyboard import HumanKeyboard, VKEY
+from libs.HumanKeyboard import VKEY, HumanKeyboard
 
 
 class BotAction(IntEnum):
@@ -20,7 +20,7 @@ class MovementKeyMap:
     right: int
 
     @classmethod
-    def azerty(cls) -> "MovementKeyMap":
+    def azerty(cls) -> MovementKeyMap:
         return cls(
             forward=VKEY["z"],
             left=VKEY["q"],
@@ -28,7 +28,7 @@ class MovementKeyMap:
         )
 
     @classmethod
-    def qwerty(cls) -> "MovementKeyMap":
+    def qwerty(cls) -> MovementKeyMap:
         return cls(
             forward=VKEY["w"],
             left=VKEY["a"],
@@ -49,15 +49,10 @@ class ActionExecutor:
         self,
         keyboard: HumanKeyboard,
         eva_key: int = VKEY["F1"],
-        default_duration: float = 0.15,
         keymap: MovementKeyMap | None = None,
     ) -> None:
         self.keyboard = keyboard
         self.eva_key = int(eva_key)
-
-        # Retained for compatibility with existing Bot/FlyffEnv calls. Movement
-        # is now persistent, so execute() does not sleep for this duration.
-        self.default_duration = float(default_duration)
 
         self.keymap = keymap or MovementKeyMap.azerty()
         self._held_movement: tuple[int, ...] = ()
@@ -73,18 +68,11 @@ class ActionExecutor:
     def execute(
         self,
         action: int | BotAction,
-        duration: float | None = None,
     ) -> None:
-        # duration is accepted for compatibility but persistent movement does
-        # not use it.
-        del duration
-
         selected = BotAction(action)
 
         action_keys = {
-            BotAction.MOVE_FORWARD: (
-                self.keymap.forward,
-            ),
+            BotAction.MOVE_FORWARD: (self.keymap.forward,),
             BotAction.FORWARD_LEFT: (
                 self.keymap.forward,
                 self.keymap.left,

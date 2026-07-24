@@ -1,14 +1,13 @@
 import difflib
 import math
+import re
 from time import monotonic
 
 import cv2 as cv
 import PySimpleGUI as sg
-from utils.helpers import get_window_handlers, hex_variant
 from runtime_bus import RuntimeBus
 from runtime_controller import RuntimeController
-
-import re
+from utils.helpers import get_window_handlers, hex_variant
 
 
 class Gui:
@@ -460,140 +459,6 @@ class Gui:
         self.window["-STOP_BOT-"].update(disabled=(not attached or not running))
         self.window["-ATTACH_WINDOW-"].update(disabled=running)
 
-    def __start_rl_task(self, bot, mode):
-        if self._rl_task_running:
-            sg.cprint("An RL task is already running.", c=("white", "red"))
-            return
-
-        if not bot.config.get("selected_mobs"):
-            sg.cprint(
-                "Select at least one mob before starting.",
-                c=("white", "red"),
-            )
-            return
-
-        self._rl_task_running = True
-        self.__set_rl_buttons(attached=True, running=True)
-
-        label = "training" if mode == "train" else "trained agent"
-        self.__set_status(
-            "Training" if mode == "train" else "Agent",
-            f"Starting {label}...",
-        )
-        self.runtime_bus.log(f"Starting {label}...", "msg_blue")
-
-        self.__start_worker(
-            target=self.__run_rl_task,
-            args=(bot, mode),
-            name=f"flyff-rl-{mode}",
-        )
-
-    def __run_rl_task(self, bot, mode):
-        def report(message):
-            self.runtime_bus.publish_latest("rl_status", str(message))
-            self.runtime_bus.log(str(message), "msg_blue")
-            self.runtime_bus.heartbeat("rl")
-
-        try:
-            from train import run_trained_agent, train_agent
-
-            if mode == "train":
-                model_path = train_agent(
-                    bot,
-                    status_callback=report,
-                )
-                result = {
-                    "ok": True,
-                    "message": f"Training finished. Model saved to {model_path}.",
-                }
-            elif mode == "agent":
-                run_trained_agent(
-                    bot,
-                    status_callback=report,
-                )
-                result = {
-                    "ok": True,
-                    "message": "Trained agent stopped.",
-                }
-            else:
-                raise ValueError(f"Unknown RL mode: {mode}")
-
-        except Exception as error:
-            result = {"ok": False, "error": str(error)}
-        finally:
-            try:
-                bot.stop_movement()
-            except Exception:
-                pass
-            bot.stop()
-
-        self.runtime_bus.complete("rl", result)
-
-    def __start_mapper_task(self, bot):
-        if self._rl_task_running or self._mapper_task_running:
-            sg.cprint(
-                "Another control task is already running.",
-                c=("white", "red"),
-            )
-            return
-
-        if not bot.is_ready:
-            sg.cprint(
-                "Attach the Flyff window first.",
-                c=("white", "red"),
-            )
-            return
-
-        self._mapper_task_running = True
-        self.__set_rl_buttons(attached=True, running=True)
-        self.__set_status("Mapping", "Starting autonomous mapper...")
-        self.__clear_live_map("Mapping is starting…")
-        self.runtime_bus.log(
-            "Starting autonomous mapper...",
-            "msg_blue",
-        )
-
-        self.__start_worker(
-            target=self.__run_mapper_task,
-            args=(bot,),
-            name="flyff-mapper",
-        )
-
-    def __run_mapper_task(self, bot):
-        def report(message):
-            self.runtime_bus.publish_latest("mapper_status", str(message))
-            self.runtime_bus.log(str(message), "msg_blue")
-            self.runtime_bus.heartbeat("mapper")
-
-        def publish_map(frame):
-            self.runtime_bus.publish_latest("map_frame", frame)
-            self.runtime_bus.heartbeat("mapper")
-
-        try:
-            from mapper import Mapper
-
-            mapper = Mapper(
-                bot,
-                status_callback=report,
-                frame_callback=publish_map,
-            )
-            self._active_mapper = mapper
-            output_dir = mapper.run()
-            result = {
-                "ok": True,
-                "message": f"Mapper stopped. Map saved to {output_dir}.",
-            }
-        except Exception as error:
-            result = {"ok": False, "error": str(error)}
-        finally:
-            self._active_mapper = None
-            try:
-                bot.stop_movement()
-            except Exception:
-                pass
-
-        self.runtime_bus.complete("mapper", result)
-
     def __set_minimap_anchor(self, bot):
         if self.controller.control_active:
             sg.cprint(
@@ -623,7 +488,7 @@ class Gui:
                 f"Fixed minimap center saved to {output_path}.",
                 c=("white", "green"),
             )
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - GUI command boundary.
             sg.cprint(
                 f"Minimap-center setup failed: {error}",
                 c=("white", "red"),
@@ -636,8 +501,8 @@ class Gui:
         Preserve minimap_anchor.json because that is fixed UI geometry, but
         remove prior timing calibration and old heading-debug captures.
         """
-        from pathlib import Path
         import shutil
+        from pathlib import Path
 
         project_root = Path(__file__).resolve().parent
         calibration_files = [
@@ -671,94 +536,6 @@ class Gui:
                 "files to clear.",
                 c=("white", "blue"),
             )
-
-    def __start_calibration_task(
-        self,
-        bot,
-        visual_confirmation=False,
-    ):
-        if self._rl_task_running or self._mapper_task_running:
-            sg.cprint(
-                "Another control task is already running.",
-                c=("white", "red"),
-            )
-            return
-
-        if not bot.is_ready:
-            sg.cprint(
-                "Attach the Flyff window first.",
-                c=("white", "red"),
-            )
-            return
-
-        self._mapper_task_running = True
-        self.__set_rl_buttons(attached=True, running=True)
-        self.__clear_manual_calibration_artifacts()
-
-        self.__set_status(
-            "Calibration",
-            (
-                "Starting visual-confirmation calibration..."
-                if visual_confirmation
-                else "Starting rotation calibration..."
-            ),
-        )
-        self.__clear_live_map(
-            "No map yet — start Map Area to build the occupancy preview."
-        )
-        self.runtime_bus.log(
-            "Starting rotation calibration...",
-            "msg_blue",
-        )
-
-        self.__start_worker(
-            target=self.__run_calibration_task,
-            args=(bot, visual_confirmation),
-            name="flyff-mapper-calibration",
-        )
-
-    def __run_calibration_task(
-        self,
-        bot,
-        visual_confirmation=False,
-    ):
-        def report(message):
-            self.runtime_bus.publish_latest(
-                "mapper_status",
-                str(message),
-            )
-            self.runtime_bus.log(str(message), "msg_blue")
-            self.runtime_bus.heartbeat("calibration")
-
-        try:
-            from mapper import RotationCalibrator
-
-            calibrator = RotationCalibrator(
-                bot,
-                status_callback=report,
-                frame_callback=None,
-                visual_confirmation_callback=(
-                    self.runtime_bus.request_heading_confirmation
-                    if visual_confirmation
-                    else None
-                ),
-            )
-            self._active_mapper = calibrator
-            calibration_path = calibrator.run(manual=True)
-            result = {
-                "ok": True,
-                "message": (f"Calibration complete. Saved to {calibration_path}."),
-            }
-        except Exception as error:
-            result = {"ok": False, "error": str(error)}
-        finally:
-            self._active_mapper = None
-            try:
-                bot.stop_movement()
-            except Exception:
-                pass
-
-        self.runtime_bus.complete("calibration", result)
 
     def close(self):
         self.runtime_bus.close()
@@ -1082,8 +859,8 @@ class Gui:
             target_width / max(1, width),
             target_height / max(1, height),
         )
-        resized_width = max(1, int(round(width * scale)))
-        resized_height = max(1, int(round(height * scale)))
+        resized_width = max(1, round(width * scale))
+        resized_height = max(1, round(height * scale))
         resized = cv.resize(
             image,
             (resized_width, resized_height),
@@ -1120,8 +897,8 @@ class Gui:
             center_x, center_y = reading.center
             angle = math.radians(reading.angle_deg)
             length = 44
-            end_x = int(round(center_x + math.sin(angle) * length))
-            end_y = int(round(center_y - math.cos(angle) * length))
+            end_x = round(center_x + math.sin(angle) * length)
+            end_y = round(center_y - math.cos(angle) * length)
 
             color = (0, 215, 255)
             if reading.is_stale:
@@ -1146,7 +923,11 @@ class Gui:
                 2,
                 cv.LINE_AA,
             )
-        except Exception:
+        except Exception as error:  # noqa: BLE001 - optional overlay boundary.
+            self.runtime_bus.log(
+                f"Heading overlay failed: {error}",
+                "msg_red",
+            )
             return image
 
         return image
@@ -1162,10 +943,7 @@ class Gui:
         if self._log_window is not None:
             self._log_window.bring_to_front()
             return
-        try:
-            log_text = self.window["-ML-"].get()
-        except Exception:
-            log_text = ""
+        log_text = self.window["-ML-"].get()
 
         self._log_window = sg.Window(
             "Flyff FVF Log",
@@ -1257,8 +1035,8 @@ class Gui:
             )
             radians = math.radians(float(angle_deg))
             endpoint = (
-                int(round(center[0] + math.sin(radians) * 70)),
-                int(round(center[1] - math.cos(radians) * 70)),
+                round(center[0] + math.sin(radians) * 70),
+                round(center[1] - math.cos(radians) * 70),
             )
             cv.circle(preview, center, 8, (0, 255, 255), 2)
             cv.arrowedLine(
@@ -1279,8 +1057,11 @@ class Gui:
                 2,
                 cv.LINE_AA,
             )
-        except Exception:
-            pass
+        except Exception as error:  # noqa: BLE001 - diagnostic overlay boundary.
+            self.runtime_bus.log(
+                f"Heading confirmation overlay failed: {error}",
+                "msg_red",
+            )
 
         preview = self.__fit_image(preview, 960, 540)
         png = cv.imencode(".png", preview)[1].tobytes()
@@ -1477,11 +1258,11 @@ class Gui:
 
     def __add_mob_popup(self):
         from assets.Assets import (
-            mob_type_wind_path,
+            mob_type_electricity_path,
             mob_type_fire_path,
             mob_type_soil_path,
             mob_type_water_path,
-            mob_type_electricity_path,
+            mob_type_wind_path,
         )
 
         element_buttons_layout = [
@@ -1550,7 +1331,6 @@ class Gui:
                 for value in values:
                     if value.startswith("-"):
                         popup_window.Element(value).update("")
-                pass
             if event == "Save":
                 # form validation
                 is_form_valid = True
@@ -1576,7 +1356,6 @@ class Gui:
                 popup_window.Element(event).update(
                     re.sub("[^0-9]", "", values["-HEIGHT-"])
                 )
-                pass
             if isinstance(event, str) and "-ELEMENT-" in event:
                 current_element = event.split("-")[2].lower()
 

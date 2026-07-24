@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from time import sleep
-from typing import Iterable
 
 import win32api
 import win32con
-
 
 VKEY = {
     "backspace": 0x08,
@@ -77,8 +76,7 @@ class HumanKeyboard:
 
     The public API matches the RL ActionExecutor:
       - press_key(key, press_time=...)
-      - hold_key(key, press_time=...)
-      - hold_keys(keys, press_time=...)
+      - key_down(key) / key_up(key)
       - release_key(key)
       - release_keys(keys)
     """
@@ -115,42 +113,6 @@ class HumanKeyboard:
         sleep(duration)
         self.key_up(key)
         sleep(0.01)
-
-    def hold_key(
-        self,
-        key: int,
-        stop_when_w: bool = False,
-        press_time: float = 0.15,
-    ) -> None:
-        # stop_when_w remains accepted for compatibility with old code.
-        self.hold_keys(
-            [key],
-            press_time=press_time,
-            stop_when_w=stop_when_w,
-        )
-
-    def hold_keys(
-        self,
-        keys: Iterable[int],
-        press_time: float = 0.15,
-        stop_when_w: bool = False,
-    ) -> None:
-        del stop_when_w
-
-        unique_keys = tuple(dict.fromkeys(int(key) for key in keys))
-        duration = max(float(press_time), 0.015)
-
-        try:
-            for key in unique_keys:
-                self.key_down(key)
-
-            sleep(duration)
-        finally:
-            # Release in reverse order, similar to a real chord.
-            for key in reversed(unique_keys):
-                self.key_up(key)
-
-            sleep(0.01)
 
     def release_key(self, key: int) -> None:
         # Always emit KEYUP, even when our local state did not track it.

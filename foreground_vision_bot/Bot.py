@@ -256,7 +256,6 @@ class Bot:
     def execute_action(
         self,
         action: BotAction | int,
-        duration: float | None = None,
     ) -> None:
         self._require_setup()
 
@@ -264,7 +263,7 @@ class Bot:
             raise RuntimeError("RL control is disabled. Call bot.start() first.")
 
         assert self.action_executor is not None
-        self.action_executor.execute(action, duration=duration)
+        self.action_executor.execute(action)
 
     def stop_movement(self) -> None:
         if self.action_executor is not None:
