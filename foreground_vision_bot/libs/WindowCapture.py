@@ -15,7 +15,7 @@ class WindowCapture:
 
         self.hwnd = hwnd
         if not self.hwnd:
-            raise Exception("Window not found")
+            raise ValueError("Window not found")
 
         self.crop_l = crop_area[0]
         self.crop_t = crop_area[1]
@@ -27,31 +27,58 @@ class WindowCapture:
         self.offset_x = 0
         self.offset_y = 0
         self.__update_size_and_offset()
+        self._closed = False
+
+    def close(self):
+        """Prevent new capture operations; per-frame GDI handles are transient."""
+        self._closed = True
 
     def get_frame(self):
         """
-        Take a screenshot of the target window. Works with windows in background 
-        and foreground. Fullscreen or windowed. But doesn't work with minimized 
+        Take a screenshot of the target window. Works with windows in background
+        and foreground. Fullscreen or windowed. But doesn't work with minimized
         or windows outside the screen.
 
         :return: (numpy array, numpy array). The first array is the image in BGR format, 3 channels.
                 The second array is the image in grayscale format, 1 channel.
         """
 
-        wDC = win32gui.GetWindowDC(self.hwnd)
-        dcObj = win32ui.CreateDCFromHandle(wDC)
-        cDC = dcObj.CreateCompatibleDC()
-        dataBitMap = win32ui.CreateBitmap()
-        dataBitMap.CreateCompatibleBitmap(dcObj, self.w, self.h)
-        cDC.SelectObject(dataBitMap)
-        cDC.BitBlt((0, 0), (self.w, self.h), dcObj, (self.crop_l, self.crop_t), win32con.SRCCOPY)
-        signedIntsArray = dataBitMap.GetBitmapBits(True)
+        if self._closed:
+            raise RuntimeError("Window capture is closed.")
+
+        window_dc = 0
+        source_dc = None
+        compatible_dc = None
+        bitmap = None
+        try:
+            window_dc = win32gui.GetWindowDC(self.hwnd)
+            if not window_dc:
+                raise RuntimeError("Could not acquire the window device context.")
+            source_dc = win32ui.CreateDCFromHandle(window_dc)
+            compatible_dc = source_dc.CreateCompatibleDC()
+            bitmap = win32ui.CreateBitmap()
+            bitmap.CreateCompatibleBitmap(source_dc, self.w, self.h)
+            compatible_dc.SelectObject(bitmap)
+            compatible_dc.BitBlt(
+                (0, 0),
+                (self.w, self.h),
+                source_dc,
+                (self.crop_l, self.crop_t),
+                win32con.SRCCOPY,
+            )
+            signedIntsArray = bitmap.GetBitmapBits(True)
+        finally:
+            if source_dc is not None:
+                source_dc.DeleteDC()
+            if compatible_dc is not None:
+                compatible_dc.DeleteDC()
+            if window_dc:
+                win32gui.ReleaseDC(self.hwnd, window_dc)
+            if bitmap is not None:
+                win32gui.DeleteObject(bitmap.GetHandle())
+
         img = np.frombuffer(signedIntsArray, dtype=np.uint8)
         img.shape = (self.h, self.w, 4)
-        dcObj.DeleteDC()
-        cDC.DeleteDC()
-        win32gui.ReleaseDC(self.hwnd, wDC)
-        win32gui.DeleteObject(dataBitMap.GetHandle())
 
         # drop the alpha channel, or cv.matchTemplate() will throw an error like:
         #   error: (-215:Assertion failed) (depth == CV_8U || depth == CV_32F) && type == _templ.type()
