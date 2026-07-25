@@ -8,6 +8,7 @@ from libs.HumanKeyboard import VKEY, HumanKeyboard, KeyPressTiming
 from .RotationModel import (
     StateAwareRotationModel,
     TurnDirection,
+    TurnMemoryPolicy,
     TurnPulseResult,
     TurnTransition,
     TurnTransitionTracker,
@@ -22,6 +23,7 @@ class MappingController:
         keyboard: HumanKeyboard,
         *,
         neutral_after_seconds: float = 2.0,
+        turn_memory_policy: TurnMemoryPolicy | None = None,
         clock: Callable[[], float] = monotonic,
     ) -> None:
         self.keyboard: HumanKeyboard = keyboard
@@ -30,12 +32,26 @@ class MappingController:
         self.right_key: int = VKEY["d"]
         self._clock: Callable[[], float] = clock
         self._turn_state: TurnTransitionTracker = TurnTransitionTracker(
-            neutral_after_seconds
+            turn_memory_policy
+            if turn_memory_policy is not None
+            else neutral_after_seconds
         )
 
     @property
     def neutral_after_seconds(self) -> float:
         return self._turn_state.neutral_after_seconds
+
+    @property
+    def turn_memory_policy(self) -> TurnMemoryPolicy:
+        return self._turn_state.policy
+
+    def set_turn_memory_policy(
+        self,
+        policy: TurnMemoryPolicy,
+        *,
+        reset_history: bool = True,
+    ) -> None:
+        self._turn_state.set_policy(policy, reset_history=reset_history)
 
     @property
     def previous_turn_direction(self) -> TurnDirection | None:

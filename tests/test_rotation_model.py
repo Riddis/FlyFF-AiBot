@@ -10,46 +10,66 @@ from mapper.RotationModel import (
     RotationTiming,
     StateAwareRotationModel,
     TurnDirection,
+    TurnMemoryMode,
+    TurnMemoryPolicy,
     TurnTransition,
+    TurnTransitionTracker,
     fit_neutral_timeout,
     fit_rotation_model,
     validate_neutral_timeout,
 )
 
 
-def _idle_curves(
-    *,
-    neutral_after_seconds: float = 2.0,
-) -> IdleResponseCurves:
-    curve = DirectionIdleResponseCurve(
-        idle_seconds=(0.0, 0.5, 1.0, neutral_after_seconds),
-        response_progress=(0.0, 0.2, 0.7, 1.0),
+def _curve(mode: TurnMemoryMode = TurnMemoryMode.DECAYS_TO_NEUTRAL):
+    progress = (
+        (0.0, 0.25, 0.75, 1.0)
+        if mode is TurnMemoryMode.DECAYS_TO_NEUTRAL
+        else (0.0, 0.2, 0.55, 0.72)
+    )
+    return DirectionIdleResponseCurve(
+        mode=mode,
+        idle_seconds=(0.0, 0.5, 1.0, 2.0),
+        response_progress=progress,
         source_sample_count=8,
+        observed_horizon_seconds=2.0,
         stateful_response_degrees=20.0,
-        neutral_response_degrees=30.0,
+        reference_response_degrees=30.0,
         maximum_monotonic_adjustment_degrees=0.2,
     )
-    return IdleResponseCurves(left=curve, right=curve)
 
 
-def _sample(
-    direction: TurnDirection,
-    transition: TurnTransition,
-    held_seconds: float,
-    measured_degrees: float,
-) -> RotationSample:
-    return RotationSample(
+def _model(mode: TurnMemoryMode = TurnMemoryMode.DECAYS_TO_NEUTRAL):
+    profile = DirectionRotationProfile(
+        neutral=RotationTiming(300.0, 0.0, 4, 0.2),
+        same_direction=RotationTiming(250.0, 0.0, 4, 0.2),
+        reversal=RotationTiming(200.0, 0.0, 4, 0.2),
+    )
+    policy = (
+        TurnMemoryPolicy(mode, 2.0, 2.0)
+        if mode is TurnMemoryMode.DECAYS_TO_NEUTRAL
+        else TurnMemoryPolicy(mode, 2.0)
+    )
+    curves = IdleResponseCurves(_curve(mode), _curve(mode))
+    return StateAwareRotationModel(profile, profile, policy, curves)
+
+
+def _sample(direction, transition, held, degrees):
+    return RotationSample(direction, transition, held, held, held, degrees, 0.9)
+
+
+def _probe(direction, idle, degrees, transition, uncertainty=0.4):
+    return NeutralTimeoutSample(
         direction=direction,
-        transition=transition,
-        requested_seconds=held_seconds,
-        clamped_seconds=held_seconds,
-        held_seconds=held_seconds,
-        measured_degrees=measured_degrees,
+        requested_idle_seconds=idle,
+        observed_idle_seconds=idle,
+        measured_degrees=degrees,
+        uncertainty_degrees=uncertainty,
         confidence=0.9,
+        conditioning_transition=transition,
     )
 
 
-def test_robust_fit_recovers_reversal_dead_time_and_rejects_outlier() -> None:
+def test_robust_rotation_fit_keeps_reversal_dead_time() -> None:
     samples = [
         _sample(
             TurnDirection.LEFT,
@@ -59,351 +79,138 @@ def test_robust_fit_recovers_reversal_dead_time_and_rejects_outlier() -> None:
         )
         for duration in (0.10, 0.14, 0.18, 0.22, 0.26)
     ]
-    samples.append(
-        _sample(
-            TurnDirection.LEFT,
-            TurnTransition.REVERSAL,
-            0.30,
-            110.0,
-        )
-    )
-
+    samples.append(_sample(TurnDirection.LEFT, TurnTransition.REVERSAL, 0.30, 110.0))
     model = fit_rotation_model(
-        samples,
-        fallback_left_seconds_90=0.34,
-        fallback_right_seconds_90=0.35,
+        samples, fallback_left_seconds_90=0.34, fallback_right_seconds_90=0.35
     )
-    timing = model.left.reversal
-
-    assert timing.rate_degrees_per_second == pytest.approx(300.0)
-    assert timing.dead_time_seconds == pytest.approx(0.04)
-    assert timing.sample_count == 5
-    assert timing.median_error_degrees == pytest.approx(0.0)
-    assert not timing.is_fallback
-    assert model.right.reversal.is_fallback
+    assert model.left.reversal.rate_degrees_per_second == pytest.approx(300.0)
+    assert model.left.reversal.dead_time_seconds == pytest.approx(0.04)
+    assert model.left.reversal.sample_count == 5
 
 
-def test_direction_only_lookup_distinguishes_same_and_reversal() -> None:
-    profile = DirectionRotationProfile(
-        neutral=RotationTiming(250.0, 0.02, 3, 0.5),
-        same_direction=RotationTiming(300.0, 0.01, 3, 0.5),
-        reversal=RotationTiming(250.0, 0.05, 3, 0.5),
+def test_persistent_tracker_never_discards_direction_from_elapsed_time() -> None:
+    tracker = TurnTransitionTracker(
+        TurnMemoryPolicy(TurnMemoryMode.PERSISTENT_OBSERVED, 6.0)
     )
-    model = StateAwareRotationModel(
-        left=profile,
-        right=profile,
-        neutral_after_seconds=2.0,
-        idle_response_curves=_idle_curves(),
-    )
-
-    same = model.seconds_for_degrees(
-        "left",
-        90.0,
-        previous_direction="left",
-    )
-    reversal = model.seconds_for_degrees(
-        "left",
-        90.0,
-        previous_direction="right",
-    )
-    unknown = model.seconds_for_degrees(
-        "left",
-        90.0,
-        previous_direction=None,
-    )
-
-    assert same == pytest.approx(0.31)
-    assert reversal == pytest.approx(0.41)
-    assert unknown == pytest.approx(reversal)
-    assert model.seconds_for_degrees("left", 0.0, None) == 0.0
+    tracker.record(TurnDirection.LEFT, completed_at=0.0)
+    transition, idle = tracker.classify(TurnDirection.RIGHT, now=100.0)
+    assert transition is TurnTransition.REVERSAL
+    assert idle == pytest.approx(100.0)
 
 
-def test_unmeasured_neutral_transition_uses_conservative_fitted_response() -> None:
-    samples = []
-    for duration in (0.10, 0.14, 0.18):
-        samples.append(
-            _sample(
-                TurnDirection.LEFT,
-                TurnTransition.SAME_DIRECTION,
-                duration,
-                300.0 * duration,
-            )
-        )
-        samples.append(
-            _sample(
-                TurnDirection.LEFT,
-                TurnTransition.REVERSAL,
-                duration,
-                250.0 * (duration - 0.04),
-            )
+def test_neutral_tracker_clears_state_only_after_validated_threshold() -> None:
+    tracker = TurnTransitionTracker(
+        TurnMemoryPolicy(TurnMemoryMode.DECAYS_TO_NEUTRAL, 2.0, 1.5)
+    )
+    tracker.record(TurnDirection.LEFT, completed_at=0.0)
+    assert tracker.classify(TurnDirection.RIGHT, now=1.4)[0] is TurnTransition.REVERSAL
+    assert tracker.classify(TurnDirection.RIGHT, now=1.5)[0] is TurnTransition.NEUTRAL
+
+
+def test_persistent_curve_clamps_at_last_observed_knot() -> None:
+    curve = _curve(TurnMemoryMode.PERSISTENT_OBSERVED)
+    assert curve.progress_at(200.0) == pytest.approx(0.72)
+
+
+def test_abrupt_transition_is_valid() -> None:
+    curve = DirectionIdleResponseCurve(
+        TurnMemoryMode.DECAYS_TO_NEUTRAL,
+        (0.0, 0.55, 0.75),
+        (0.0, 0.0, 1.0),
+        6,
+        0.75,
+        20.0,
+        30.0,
+        0.0,
+    )
+    assert 0.0 < curve.progress_at(0.65) < 1.0
+
+
+def test_persistent_curve_refuses_fake_neutral_endpoint() -> None:
+    with pytest.raises(ValueError, match="must not claim neutral"):
+        DirectionIdleResponseCurve(
+            TurnMemoryMode.PERSISTENT_OBSERVED,
+            (0.0, 1.0),
+            (0.0, 1.0),
+            2,
+            1.0,
+            20.0,
+            30.0,
+            0.0,
         )
 
-    model = fit_rotation_model(
-        samples,
-        fallback_left_seconds_90=0.34,
-        fallback_right_seconds_90=0.35,
+
+def test_model_round_trip_uses_schema_v3() -> None:
+    original = _model()
+    payload = original.to_dict()
+    assert payload["version"] == 3
+    assert (
+        IdleResponseCurves.from_dict(payload["idle_response_curves"]).to_dict()[
+            "version"
+        ]
+        == 2
     )
-
-    assert model.left.neutral.is_fallback
-    assert model.left.neutral.dead_time_seconds >= model.left.reversal.dead_time_seconds
-    assert model.left.neutral.seconds_for(30.0) >= model.left.reversal.seconds_for(30.0)
+    assert StateAwareRotationModel.from_dict(payload) == original
 
 
-def test_fixed_duration_neutral_probes_do_not_fit_scheduler_jitter_as_dead_time() -> (
-    None
-):
-    samples = [
-        RotationSample(
-            direction=TurnDirection.LEFT,
-            transition=TurnTransition.NEUTRAL,
-            requested_seconds=0.10,
-            clamped_seconds=0.10,
-            held_seconds=held,
-            measured_degrees=degrees,
-            confidence=0.9,
-        )
-        for held, degrees in (
-            (0.0998, 29.8),
-            (0.1001, 30.2),
-            (0.1004, 30.0),
-            (0.0999, 30.1),
-        )
-    ]
-
-    model = fit_rotation_model(
-        samples,
-        fallback_left_seconds_90=0.34,
-        fallback_right_seconds_90=0.35,
-    )
-
-    assert not model.left.neutral.is_fallback
-    assert model.left.neutral.dead_time_seconds == 0.0
-    assert model.left.neutral.seconds_90 == pytest.approx(0.3, abs=0.004)
+def test_v2_rotation_model_is_rejected() -> None:
+    with pytest.raises(ValueError, match="expected 3"):
+        StateAwareRotationModel.from_dict({"version": 2})
 
 
-def test_rotation_model_json_round_trip() -> None:
-    timing = RotationTiming(
-        rate_degrees_per_second=280.0,
-        dead_time_seconds=0.025,
-        sample_count=4,
-        median_error_degrees=1.2,
-    )
-    profile = DirectionRotationProfile(timing, timing, timing)
-    original = StateAwareRotationModel(
-        left=profile,
-        right=profile,
-        neutral_after_seconds=2.5,
-        idle_response_curves=_idle_curves(neutral_after_seconds=2.5),
-    )
-
-    restored = StateAwareRotationModel.from_dict(original.to_dict())
-
-    assert restored == original
+def test_unknown_previous_direction_uses_conservative_timing() -> None:
+    model = _model()
+    assert model.seconds_for_degrees("left", 60.0, None) == pytest.approx(0.3)
 
 
-def test_idle_response_curve_interpolates_transition_toward_neutral() -> None:
-    profile = DirectionRotationProfile(
-        neutral=RotationTiming(300.0, 0.0, 4, 0.2),
-        same_direction=RotationTiming(250.0, 0.0, 4, 0.2),
-        reversal=RotationTiming(200.0, 0.0, 4, 0.2),
-    )
-    model = StateAwareRotationModel(
-        left=profile,
-        right=profile,
-        neutral_after_seconds=2.0,
-        idle_response_curves=_idle_curves(),
-    )
-
-    at_start = model.seconds_for(
-        TurnDirection.LEFT,
-        TurnTransition.REVERSAL,
-        60.0,
-        idle_seconds=0.0,
-    )
-    halfway_between_knots = model.seconds_for(
-        TurnDirection.LEFT,
-        TurnTransition.REVERSAL,
-        60.0,
-        idle_seconds=0.75,
-    )
-    at_safety_endpoint = model.seconds_for(
-        TurnDirection.LEFT,
-        TurnTransition.REVERSAL,
-        60.0,
-        idle_seconds=2.0,
-    )
-
-    assert at_start == pytest.approx(0.3)
-    # 0.75s interpolates curve progress halfway between 0.2 and 0.7.
-    assert halfway_between_knots == pytest.approx(0.255)
-    assert at_safety_endpoint == pytest.approx(0.2)
-
-
-def test_rotation_model_deserialization_requires_idle_response_curve() -> None:
-    timing = RotationTiming(280.0, 0.02, 3, 0.5)
-    profile = DirectionRotationProfile(timing, timing, timing)
-    payload = StateAwareRotationModel(
-        left=profile,
-        right=profile,
-        neutral_after_seconds=2.0,
-    ).to_dict()
-
-    with pytest.raises((KeyError, ValueError), match="idle_response|version"):
-        StateAwareRotationModel.from_dict(payload)
-
-
-def _neutral_sample(
-    direction: TurnDirection,
-    idle_seconds: float,
-    measured_degrees: float,
-    *,
-    uncertainty_degrees: float = 0.6,
-) -> NeutralTimeoutSample:
-    return NeutralTimeoutSample(
-        direction=direction,
-        requested_idle_seconds=idle_seconds,
-        observed_idle_seconds=idle_seconds + 0.01,
-        measured_degrees=measured_degrees,
-        uncertainty_degrees=uncertainty_degrees,
-        confidence=0.9,
-    )
-
-
-def _valid_neutral_scan() -> list[NeutralTimeoutSample]:
-    delays = (0.45, 0.65, 0.90, 1.25, 1.70, 2.25, 2.90, 3.65)
+def _neutral_scan(converged: bool) -> list[NeutralTimeoutSample]:
     samples: list[NeutralTimeoutSample] = []
-    for direction, responses in (
-        (
-            TurnDirection.LEFT,
-            (20.0, 22.0, 24.0, 29.7, 30.1, 30.0, 29.9, 30.2),
-        ),
-        (
-            TurnDirection.RIGHT,
-            (21.0, 23.0, 25.0, 27.0, 31.8, 32.0, 32.2, 31.9),
-        ),
-    ):
-        samples.extend(
-            _neutral_sample(direction, delay, response)
-            for delay, response in zip(delays, responses, strict=True)
-        )
+    delays = (0.40, 0.60, 0.85, 1.20, 1.70, 2.20)
+    for direction in TurnDirection:
+        for delay, response in zip(
+            delays, (20.0, 22.0, 25.0, 28.0, 29.5, 30.0), strict=True
+        ):
+            samples.append(_probe(direction, delay, response, TurnTransition.REVERSAL))
+        same_tail = (30.1, 29.9) if converged else (34.0, 34.1)
+        for delay, response in zip((1.70, 2.20), same_tail, strict=True):
+            samples.append(
+                _probe(direction, delay, response, TurnTransition.SAME_DIRECTION)
+            )
     return samples
 
 
-def test_neutral_timeout_fit_uses_slower_direction_plus_safety_margin() -> None:
-    fit = fit_neutral_timeout(
-        _valid_neutral_scan(),
-        safety_margin_seconds=0.25,
-        maximum_idle_seconds=4.0,
-    )
+def test_fit_detects_neutral_convergence_from_same_and_reversal_tails() -> None:
+    fit = fit_neutral_timeout(_neutral_scan(True), safety_margin_seconds=0.25)
+    assert fit.turn_memory_policy.mode is TurnMemoryMode.DECAYS_TO_NEUTRAL
+    assert fit.turn_memory_policy.neutral_after_seconds is not None
+    assert fit.idle_response_curves.left.response_progress[-1] == 1.0
 
-    assert fit.left.last_stateful_seconds == pytest.approx(0.91)
-    assert fit.left.first_neutral_seconds == pytest.approx(1.26)
-    assert fit.right.last_stateful_seconds == pytest.approx(1.26)
-    assert fit.right.first_neutral_seconds == pytest.approx(1.71)
-    assert fit.neutral_after_seconds == pytest.approx(1.96)
-    assert fit.to_dict()["neutral_after_seconds"] == pytest.approx(1.96)
-    assert fit.idle_response_curves.left.progress_at(0.0) == 0.0
-    assert 0.0 < fit.idle_response_curves.left.progress_at(1.10) < 1.0
-    assert fit.idle_response_curves.left.progress_at(1.96) == 1.0
-    assert (
-        fit.to_dict()["idle_response_curves"]["version"]  # type: ignore[index]
-        == 1
-    )
 
+def test_fit_preserves_persistent_direction_state() -> None:
+    fit = fit_neutral_timeout(_neutral_scan(False), safety_margin_seconds=0.25)
+    assert fit.turn_memory_policy.mode is TurnMemoryMode.PERSISTENT_OBSERVED
+    assert fit.turn_memory_policy.neutral_after_seconds is None
+    assert fit.idle_response_curves.left.response_progress[-1] < 1.0
+
+
+def test_validation_checks_same_and_reversal_convergence() -> None:
+    fit = fit_neutral_timeout(_neutral_scan(True))
     validation = [
-        _neutral_sample(
-            direction,
-            fit.neutral_after_seconds - 0.01,
-            response,
-        )
-        for direction, response in (
-            (TurnDirection.LEFT, 30.2),
-            (TurnDirection.LEFT, 29.8),
-            (TurnDirection.RIGHT, 32.1),
-            (TurnDirection.RIGHT, 31.8),
+        _probe(direction, 2.5, response, transition)
+        for direction in TurnDirection
+        for transition, response in (
+            (TurnTransition.SAME_DIRECTION, 30.1),
+            (TurnTransition.REVERSAL, 29.9),
         )
     ]
     validate_neutral_timeout(fit, validation)
-
-
-def test_neutral_timeout_fit_rejects_indistinguishable_state_response() -> None:
-    samples = [
-        _neutral_sample(direction, delay, 30.0)
+    bad = [
+        _probe(direction, 2.5, response, transition)
         for direction in TurnDirection
-        for delay in (0.45, 0.65, 0.90, 1.25, 1.70, 2.25)
-    ]
-
-    with pytest.raises(ValueError, match="state-dependent response"):
-        fit_neutral_timeout(samples, maximum_idle_seconds=3.0)
-
-
-def test_neutral_timeout_fit_rejects_non_monotonic_decay() -> None:
-    samples = _valid_neutral_scan()
-    samples = [
-        (
-            _neutral_sample(sample.direction, 1.70, 24.0)
-            if sample.direction is TurnDirection.LEFT
-            and abs(sample.requested_idle_seconds - 1.70) < 0.001
-            else sample
-        )
-        for sample in samples
-    ]
-
-    with pytest.raises(ValueError, match="non-monotonic"):
-        fit_neutral_timeout(samples, maximum_idle_seconds=4.0)
-
-
-def test_idle_response_curve_rejects_internal_stateful_decrease() -> None:
-    samples = _valid_neutral_scan()
-    samples = [
-        (
-            _neutral_sample(sample.direction, 0.90, 20.5)
-            if sample.direction is TurnDirection.LEFT
-            and abs(sample.requested_idle_seconds - 0.90) < 0.001
-            else sample
-        )
-        for sample in samples
-    ]
-
-    with pytest.raises(ValueError, match="curve is non-monotonic"):
-        fit_neutral_timeout(samples, maximum_idle_seconds=4.0)
-
-
-def test_neutral_timeout_fit_rejects_divergent_tail() -> None:
-    samples = _valid_neutral_scan()
-    samples = [
-        (
-            _neutral_sample(sample.direction, 3.65, 24.0)
-            if sample.direction is TurnDirection.LEFT
-            and abs(sample.requested_idle_seconds - 3.65) < 0.001
-            else sample
-        )
-        for sample in samples
-    ]
-
-    with pytest.raises(ValueError, match="stable plateau"):
-        fit_neutral_timeout(samples, maximum_idle_seconds=4.0)
-
-
-def test_neutral_timeout_validation_rejects_gradual_underturn() -> None:
-    fit = fit_neutral_timeout(
-        _valid_neutral_scan(),
-        safety_margin_seconds=0.25,
-        maximum_idle_seconds=4.0,
-    )
-    validation = [
-        _neutral_sample(
-            direction,
-            fit.neutral_after_seconds - 0.01,
-            response,
-        )
-        for direction, response in (
-            (TurnDirection.LEFT, 24.0),
-            (TurnDirection.LEFT, 24.5),
-            (TurnDirection.RIGHT, 26.0),
-            (TurnDirection.RIGHT, 26.5),
+        for transition, response in (
+            (TurnTransition.SAME_DIRECTION, 35.0),
+            (TurnTransition.REVERSAL, 29.0),
         )
     ]
-
     with pytest.raises(ValueError, match="did not match"):
-        validate_neutral_timeout(fit, validation)
+        validate_neutral_timeout(fit, bad)

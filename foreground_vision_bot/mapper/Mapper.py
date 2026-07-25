@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -13,6 +12,7 @@ from capture_service import FrameSample
 from libs.HumanKeyboard import HumanKeyboard, KeyPressTiming
 from worker_manager import CancellationToken
 
+from .CalibrationSchema import CalibrationSchemaError, MapperCalibration
 from .Explorer import Explorer, ExplorerDecision
 from .ForwardCalibration import ForwardMotionModel
 from .MapLogger import MapLogger
@@ -29,7 +29,7 @@ from .MotionTracker import (
 )
 from .OccupancyGrid import FREE, UNKNOWN, OccupancyGrid, PoseIntegration
 from .PangDetector import PangDetection, PangDetector
-from .RotationModel import IdleResponseCurves, StateAwareRotationModel
+from .RotationModel import StateAwareRotationModel
 from .TurnControl import ClosedLoopTurnController
 
 StatusCallback = Callable[[str], None]
@@ -40,6 +40,10 @@ class MapperBot(Protocol):
     keyboard: HumanKeyboard | None
 
     def get_frame_sample(self) -> FrameSample | None: ...
+
+
+def _mapper_calibration_error(message: str) -> RuntimeError:
+    return RuntimeError(message)
 
 
 @dataclass(frozen=True)
@@ -76,8 +80,6 @@ class _StepResult:
 class Mapper:
     """Accuracy-first autonomous mapper using measured heading and travel."""
 
-    CALIBRATION_VERSION = 8
-
     def __init__(
         self,
         bot: MapperBot,
@@ -97,7 +99,7 @@ class Mapper:
 
         self.controller = MappingController(
             bot.keyboard,
-            neutral_after_seconds=(self.config.rotation_model.neutral_after_seconds),
+            turn_memory_policy=self.config.rotation_model.turn_memory_policy,
         )
         self.heading_detector = MinimapHeadingDetector()
         self.tracker = MotionTracker(
@@ -848,113 +850,111 @@ class Mapper:
     @classmethod
     def _load_config(cls) -> MapperConfig:
         path = Path(__file__).resolve().parent / "calibration.json"
-        if not path.exists():
+        try:
+            calibration = MapperCalibration.load(path)
+        except FileNotFoundError as error:
             raise RuntimeError(
                 "No mapper calibration found. Run Calibrate Mapper first."
-            )
-        try:
-            loaded: object = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as error:
-            raise RuntimeError(
-                "Mapper calibration could not be read. Run Calibrate Mapper again."
             ) from error
-        if not isinstance(loaded, dict):
-            raise RuntimeError(  # noqa: TRY004 - user-facing config failure.
-                "Mapper calibration must contain a JSON object. "
+        except CalibrationSchemaError as error:
+            raise RuntimeError(
+                "Mapper calibration is outdated, incomplete, or inconsistent. "
                 "Run Calibrate Mapper again."
-            )
-        return cls._config_from_calibration(
-            cast(dict[str, object], loaded),
-        )
+            ) from error
+        return cls._config_from_validated_calibration(calibration)
 
     @classmethod
     def _config_from_calibration(
         cls,
         data: dict[str, object],
     ) -> MapperConfig:
-        version_value = data.get("version", 0)
-        version = (
-            version_value
-            if isinstance(version_value, int) and not isinstance(version_value, bool)
-            else 0
-        )
-        if version != cls.CALIBRATION_VERSION:
+        """Build runtime configuration from the historical minimal payload API."""
+        version = data.get("version")
+        if isinstance(version, bool) or not isinstance(version, int):
+            raise _mapper_calibration_error(
+                "Mapper calibration has no valid schema version."
+            )
+        if version != MapperCalibration.CURRENT_VERSION:
             raise RuntimeError(
-                "Mapper calibration is outdated or incomplete "
-                f"(found v{version}, need v{cls.CALIBRATION_VERSION}). "
+                "Mapper calibration is outdated "
+                f"(found v{version}, need v{MapperCalibration.CURRENT_VERSION}). "
                 "Run Calibrate Mapper again."
             )
 
-        rotation_data = data.get("rotation_model")
-        forward_data = data.get("forward_model")
-        neutral_fit_data = data.get("neutral_timeout_fit")
-        neutral_trials = data.get("neutral_timeout_trials")
-        if not isinstance(rotation_data, dict) or not isinstance(
-            forward_data,
-            dict,
-        ):
-            raise RuntimeError(  # noqa: TRY004 - user-facing config failure.
-                "Mapper calibration is missing rotation or forward measurements. "
-                "Run Calibrate Mapper again."
-            )
-        if (
-            not isinstance(neutral_fit_data, dict)
-            or not isinstance(neutral_trials, list)
-            or len(neutral_trials) < 4
-        ):
+        trials = data.get("neutral_timeout_trials")
+        if not isinstance(trials, list) or len(trials) < 4:
             raise RuntimeError(
                 "Mapper calibration is missing validated turn-memory timeout "
                 "evidence. Run Calibrate Mapper again."
             )
 
-        curve_data = neutral_fit_data.get("idle_response_curves")
+        fit_data = data.get("neutral_timeout_fit")
+        if not isinstance(fit_data, dict):
+            raise _mapper_calibration_error(
+                "Mapper calibration is missing turn-response decay curves. "
+                "Run Calibrate Mapper again."
+            )
+        fit = cast(dict[str, object], fit_data)
+        curve_data = fit.get("idle_response_curves")
         if not isinstance(curve_data, dict):
-            raise RuntimeError(  # noqa: TRY004 - user-facing config failure.
-                "Mapper calibration is missing validated turn-response decay "
-                "curves. Run Calibrate Mapper again."
+            raise _mapper_calibration_error(
+                "Mapper calibration is missing turn-response decay curves. "
+                "Run Calibrate Mapper again."
+            )
+
+        rotation_data = data.get("rotation_model")
+        if not isinstance(rotation_data, dict):
+            raise _mapper_calibration_error(
+                "Mapper calibration contains an invalid rotation model. "
+                "Run Calibrate Mapper again."
             )
         try:
             rotation_model = StateAwareRotationModel.from_dict(
                 cast(dict[str, object], rotation_data)
             )
-            forward_model = ForwardMotionModel.from_dict(
-                cast(dict[str, object], forward_data)
-            )
-            neutral_curves = IdleResponseCurves.from_dict(
-                cast(dict[str, object], curve_data)
-            )
         except (KeyError, OverflowError, TypeError, ValueError) as error:
             raise RuntimeError(
-                "Mapper calibration contains invalid rotation, turn-response, "
-                "or forward measurements. Run Calibrate Mapper again."
+                "Mapper calibration contains an invalid rotation model. "
+                "Run Calibrate Mapper again."
             ) from error
 
-        if rotation_model.idle_response_curves != neutral_curves:
+        fit_policy = fit.get("turn_memory_policy")
+        if not isinstance(fit_policy, dict) or (
+            rotation_model.turn_memory_policy.to_dict() != fit_policy
+        ):
+            raise RuntimeError(
+                "Mapper calibration contains an inconsistent turn-memory policy. "
+                "Run Calibrate Mapper again."
+            )
+
+        if (
+            rotation_model.idle_response_curves is None
+            or rotation_model.idle_response_curves.to_dict() != curve_data
+        ):
             raise RuntimeError(
                 "Mapper calibration contains inconsistent turn-response decay "
                 "curves. Run Calibrate Mapper again."
             )
 
-        fitted_timeout = neutral_fit_data.get("neutral_after_seconds")
-        if (
-            isinstance(fitted_timeout, bool)
-            or not isinstance(fitted_timeout, (int, float))
-            or abs(float(fitted_timeout) - rotation_model.neutral_after_seconds) > 0.001
-        ):
-            raise RuntimeError(
-                "Mapper calibration contains inconsistent turn-memory timing. "
+        forward_data = data.get("forward_model")
+        if not isinstance(forward_data, dict):
+            raise _mapper_calibration_error(
+                "Mapper calibration contains an invalid forward model. "
                 "Run Calibrate Mapper again."
             )
+        try:
+            forward_model = ForwardMotionModel.from_dict(
+                cast(dict[str, object], forward_data)
+            )
+        except (KeyError, OverflowError, TypeError, ValueError) as error:
+            raise RuntimeError(
+                "Mapper calibration contains an invalid forward model. "
+                "Run Calibrate Mapper again."
+            ) from error
 
         left_sign = data.get("left_heading_sign")
         right_sign = data.get("right_heading_sign")
-        if (
-            isinstance(left_sign, bool)
-            or not isinstance(left_sign, int)
-            or isinstance(right_sign, bool)
-            or not isinstance(right_sign, int)
-            or {left_sign, right_sign} != {-1, 1}
-        ):
+        if {left_sign, right_sign} != {-1, 1}:
             raise RuntimeError(
                 "Mapper calibration contains invalid left/right heading signs. "
                 "Run Calibrate Mapper again."
@@ -963,6 +963,17 @@ class Mapper:
         return MapperConfig(
             rotation_model=rotation_model,
             forward_model=forward_model,
-            left_heading_sign=left_sign,
-            right_heading_sign=right_sign,
+            left_heading_sign=cast(int, left_sign),
+            right_heading_sign=cast(int, right_sign),
+        )
+
+    @staticmethod
+    def _config_from_validated_calibration(
+        calibration: MapperCalibration,
+    ) -> MapperConfig:
+        return MapperConfig(
+            rotation_model=calibration.rotation_model,
+            forward_model=calibration.forward_model,
+            left_heading_sign=calibration.left_heading_sign,
+            right_heading_sign=calibration.right_heading_sign,
         )

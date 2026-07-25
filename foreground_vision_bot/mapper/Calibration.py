@@ -12,6 +12,7 @@ from time import monotonic, monotonic_ns
 from capture_service import FrameSample
 from worker_manager import CancellationToken, WorkerCancelled
 
+from .CalibrationSchema import MapperCalibration
 from .ForwardCalibration import (
     ForwardCalibrationTrial,
     ForwardMotionModel,
@@ -30,6 +31,7 @@ from .RotationModel import (
     RotationSample,
     StateAwareRotationModel,
     TurnDirection,
+    TurnMemoryMode,
     TurnPulseResult,
     TurnTransition,
     fit_neutral_timeout,
@@ -58,6 +60,8 @@ class TurnTrial:
 
 @dataclass(frozen=True)
 class CalibrationResult:
+    """Legacy serializable calibration payload kept for caller/test compatibility."""
+
     version: int
     created_at: str
     source: str
@@ -327,8 +331,9 @@ class RotationCalibrator:
             self._rotation_samples,
             fallback_left_seconds_90=refined_left_seconds_90,
             fallback_right_seconds_90=refined_right_seconds_90,
-            neutral_after_seconds=self.controller.neutral_after_seconds,
+            neutral_after_seconds=neutral_timeout_fit.neutral_after_seconds,
             idle_response_curves=neutral_timeout_fit.idle_response_curves,
+            turn_memory_policy=neutral_timeout_fit.turn_memory_policy,
         )
         self._failure_recovery = _HeadingRecoveryPlan(
             target_heading=original_heading,
@@ -358,8 +363,8 @@ class RotationCalibrator:
             manual=manual,
         )
 
-        result = CalibrationResult(
-            version=8,
+        result = MapperCalibration(
+            version=9,
             created_at=datetime.now(timezone.utc).isoformat(),
             source="vision_fitted_turn_state_rotation_and_forward",
             left_seconds_90=round(refined_left_seconds_90, 5),
@@ -376,9 +381,9 @@ class RotationCalibrator:
             neutral_timeout_fit=neutral_timeout_fit.to_dict(),
             transition_trials=transition_trials,
             refinement_trials=refinement_trials,
-            rotation_model=rotation_model.to_dict(),
+            rotation_model=rotation_model,
             forward_trials=[asdict(item) for item in forward_trials],
-            forward_model=forward_model.to_dict(),
+            forward_model=forward_model,
         )
 
         final_heading = self._stable_heading("Final calibration validation")
@@ -396,7 +401,7 @@ class RotationCalibrator:
 
         path = Path(__file__).resolve().parent / "calibration.json"
         self.cancellation.raise_if_cancelled()
-        self._atomic_write_json(path, asdict(result))
+        self._atomic_write_json(path, result.to_dict())
 
         self.status(
             "Validated mapper calibration saved: "
@@ -637,6 +642,27 @@ class RotationCalibrator:
         self._wait_or_cancel(wait_seconds)
         self.controller.reset_turn_history()
 
+    @classmethod
+    def _build_idle_probe_schedule(
+        cls,
+        acquisition_floor_seconds: float,
+    ) -> tuple[float, ...]:
+        floor = max(0.0, float(acquisition_floor_seconds))
+        early = [
+            floor + offset
+            for offset in (0.06, 0.18, 0.34)
+            if floor + offset < cls.NEUTRAL_PROBE_IDLE_SECONDS[0]
+        ]
+        return tuple(
+            sorted(
+                {
+                    round(value, 3)
+                    for value in (*early, *cls.NEUTRAL_PROBE_IDLE_SECONDS)
+                    if value <= cls.NEUTRAL_PROBE_MAXIMUM_SECONDS
+                }
+            )
+        )
+
     def _calibrate_neutral_timeout(
         self,
         *,
@@ -667,28 +693,56 @@ class RotationCalibrator:
         failure: Exception | None = None
 
         try:
+            acquisition_floor = max(self.settle_seconds, 0.28)
+            schedule = self._build_idle_probe_schedule(acquisition_floor)
+            tail_delays = set(schedule[-3:])
             for direction in TurnDirection:
-                for requested_idle_seconds in self.NEUTRAL_PROBE_IDLE_SECONDS:
-                    sample, record = self._measure_neutral_timeout_probe(
-                        direction=direction,
-                        requested_idle_seconds=requested_idle_seconds,
-                        target_pulse_seconds=min(
-                            0.18,
-                            max(0.055, seconds_90[direction] * 0.28),
-                        ),
-                        conditioning_pulse_seconds=min(
-                            0.14,
-                            max(
-                                0.040,
-                                seconds_90[direction.opposite] * 0.20,
-                            ),
-                        ),
-                        heading_sign=signs[direction],
-                        conditioning_heading_sign=signs[direction.opposite],
-                        phase="scan",
-                    )
-                    scan_samples.append(sample)
-                    records.append(record)
+                for requested_idle_seconds in schedule:
+                    modes = [TurnTransition.REVERSAL]
+                    if requested_idle_seconds in tail_delays:
+                        modes.append(TurnTransition.SAME_DIRECTION)
+                    for conditioning_transition in modes:
+                        conditioning_direction = (
+                            direction
+                            if conditioning_transition is TurnTransition.SAME_DIRECTION
+                            else direction.opposite
+                        )
+                        try:
+                            sample, record = self._measure_neutral_timeout_probe(
+                                direction=direction,
+                                conditioning_transition=conditioning_transition,
+                                requested_idle_seconds=requested_idle_seconds,
+                                target_pulse_seconds=min(
+                                    0.18, max(0.055, seconds_90[direction] * 0.28)
+                                ),
+                                conditioning_pulse_seconds=min(
+                                    0.14,
+                                    max(
+                                        0.040, seconds_90[conditioning_direction] * 0.20
+                                    ),
+                                ),
+                                heading_sign=signs[direction],
+                                conditioning_heading_sign=signs[conditioning_direction],
+                                phase="scan",
+                            )
+                        except RuntimeError as error:
+                            if "exceeded the requested" in str(
+                                error
+                            ) or "missed its requested idle" in str(error):
+                                records.append(
+                                    {
+                                        "phase": "scan",
+                                        "direction": direction.value,
+                                        "conditioning_transition": conditioning_transition.value,
+                                        "requested_idle_seconds": requested_idle_seconds,
+                                        "skipped": True,
+                                        "reason": str(error),
+                                    }
+                                )
+                                continue
+                            raise
+                        scan_samples.append(sample)
+                        records.append(record)
 
             try:
                 fit = fit_neutral_timeout(
@@ -703,61 +757,70 @@ class RotationCalibrator:
                     "calibration was preserved."
                 ) from error
 
-            self.status(
-                "Neutral timeout candidate: "
-                f"{fit.neutral_after_seconds:.3f}s including a "
-                f"{fit.safety_margin_seconds:.3f}s safety margin. "
-                "Validating twice in each direction."
+            mode = fit.turn_memory_policy.mode
+            if mode is TurnMemoryMode.DECAYS_TO_NEUTRAL:
+                self.status(
+                    "Turn memory converged to neutral by "
+                    f"{fit.neutral_after_seconds:.3f}s. Validating SAME and "
+                    "REVERSAL tails in both directions."
+                )
+            else:
+                self.status(
+                    "Turn memory remained direction-dependent through the "
+                    f"{fit.turn_memory_policy.observed_horizon_seconds:.3f}s "
+                    "observation horizon. Validating persistent mode."
+                )
+            validation_idle = (
+                fit.turn_memory_policy.neutral_after_seconds
+                or fit.turn_memory_policy.observed_horizon_seconds
             )
             for direction in TurnDirection:
-                for _ in range(self.NEUTRAL_PROBE_VALIDATION_REPEATS):
-                    sample, record = self._measure_neutral_timeout_probe(
-                        direction=direction,
-                        requested_idle_seconds=fit.neutral_after_seconds,
-                        target_pulse_seconds=min(
-                            0.18,
-                            max(0.055, seconds_90[direction] * 0.28),
-                        ),
-                        conditioning_pulse_seconds=min(
-                            0.14,
-                            max(
-                                0.040,
-                                seconds_90[direction.opposite] * 0.20,
-                            ),
-                        ),
-                        heading_sign=signs[direction],
-                        conditioning_heading_sign=signs[direction.opposite],
-                        phase="validation",
+                for conditioning_transition in (
+                    TurnTransition.SAME_DIRECTION,
+                    TurnTransition.REVERSAL,
+                ):
+                    conditioning_direction = (
+                        direction
+                        if conditioning_transition is TurnTransition.SAME_DIRECTION
+                        else direction.opposite
                     )
-                    validation_samples.append(sample)
-                    records.append(record)
+                    for _ in range(self.NEUTRAL_PROBE_VALIDATION_REPEATS):
+                        sample, record = self._measure_neutral_timeout_probe(
+                            direction=direction,
+                            conditioning_transition=conditioning_transition,
+                            requested_idle_seconds=validation_idle,
+                            target_pulse_seconds=min(
+                                0.18, max(0.055, seconds_90[direction] * 0.28)
+                            ),
+                            conditioning_pulse_seconds=min(
+                                0.14,
+                                max(0.040, seconds_90[conditioning_direction] * 0.20),
+                            ),
+                            heading_sign=signs[direction],
+                            conditioning_heading_sign=signs[conditioning_direction],
+                            phase="validation",
+                        )
+                        validation_samples.append(sample)
+                        records.append(record)
 
             try:
-                validate_neutral_timeout(
-                    fit,
-                    validation_samples,
-                    minimum_samples_per_direction=(
-                        self.NEUTRAL_PROBE_VALIDATION_REPEATS
-                    ),
-                    maximum_idle_overshoot_seconds=(
-                        self.NEUTRAL_PROBE_MAXIMUM_OVERSHOOT_SECONDS
-                    ),
-                )
+                validate_neutral_timeout(fit, validation_samples)
             except ValueError as error:
                 raise RuntimeError(
-                    "Turn-state neutral timeout failed its repeated "
-                    f"bidirectional validation: {error}. The previous "
-                    "calibration was preserved."
+                    "Turn-memory model failed repeated SAME/REVERSAL tail "
+                    f"validation: {error}. The previous calibration was preserved."
                 ) from error
 
             neutral_rotation_samples = [
                 sample.as_neutral_rotation_sample()
                 for sample in (*scan_samples, *validation_samples)
-                if sample.observed_idle_seconds >= fit.neutral_after_seconds - 0.01
+                if fit.turn_memory_policy.mode is TurnMemoryMode.DECAYS_TO_NEUTRAL
+                and sample.observed_idle_seconds >= fit.neutral_after_seconds - 0.01
             ]
             for direction in TurnDirection:
                 if (
-                    sum(
+                    fit.turn_memory_policy.mode is TurnMemoryMode.DECAYS_TO_NEUTRAL
+                    and sum(
                         sample.direction is direction
                         for sample in neutral_rotation_samples
                     )
@@ -770,15 +833,16 @@ class RotationCalibrator:
                     )
             self._rotation_samples.extend(neutral_rotation_samples)
 
-            self.controller.set_neutral_after_seconds(
-                fit.neutral_after_seconds,
+            self.controller.set_turn_memory_policy(
+                fit.turn_memory_policy,
                 reset_history=True,
             )
             self.status(
-                "Validated turn-state neutral timeout: "
-                f"{fit.neutral_after_seconds:.3f}s. This measured threshold "
-                "and its monotonic idle-response curves will be used for the "
-                "remaining calibration phases."
+                "Validated turn-memory model: "
+                f"{fit.turn_memory_policy.mode.value} through "
+                f"{fit.turn_memory_policy.observed_horizon_seconds:.3f}s. "
+                "Its measured idle-response curves will be used immediately "
+                "without runtime waiting."
             )
             return fit, records
         except Exception as error:
@@ -842,6 +906,7 @@ class RotationCalibrator:
         self,
         *,
         direction: TurnDirection,
+        conditioning_transition: TurnTransition = TurnTransition.REVERSAL,
         requested_idle_seconds: float,
         target_pulse_seconds: float,
         conditioning_pulse_seconds: float,
@@ -849,9 +914,14 @@ class RotationCalibrator:
         conditioning_heading_sign: int,
         phase: str,
     ) -> tuple[NeutralTimeoutSample, dict[str, object]]:
-        conditioning_direction = direction.opposite
+        conditioning_direction = (
+            direction
+            if conditioning_transition is TurnTransition.SAME_DIRECTION
+            else direction.opposite
+        )
         self.status(
-            f"Neutral-timeout {phase}: condition {conditioning_direction.value}, "
+            f"Turn-memory {phase}: condition {conditioning_direction.value} "
+            f"({conditioning_transition.value}), "
             f"then probe {direction.value} after "
             f"{requested_idle_seconds:.3f}s idle."
         )
@@ -961,6 +1031,7 @@ class RotationCalibrator:
             measured_degrees=float(directed_motion),
             uncertainty_degrees=float(uncertainty),
             confidence=float(confidence),
+            conditioning_transition=conditioning_transition,
             requested_seconds=pulse.requested_seconds,
             clamped_seconds=pulse.clamped_seconds,
             held_seconds=pulse.held_seconds,
@@ -969,7 +1040,7 @@ class RotationCalibrator:
             "phase": phase,
             "direction": direction.value,
             "conditioning_direction": conditioning_direction.value,
-            "conditioning_transition": conditioning_pulse.transition.value,
+            "conditioning_transition": conditioning_transition.value,
             "conditioning_requested_seconds": round(
                 conditioning_pulse.requested_seconds,
                 5,
