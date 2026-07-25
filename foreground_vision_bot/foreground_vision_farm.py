@@ -4,6 +4,9 @@ Farm approach: Using OpenCV it will track the name of the mob.
 Currently it's aiming to all lv 150 mobs in Neo Cascada, but it can be extended.
 """
 
+import traceback
+from pathlib import Path
+
 from Bot import Bot
 from Gui import Gui
 from utils.helpers import print_logo
@@ -15,8 +18,27 @@ bot = Bot()
 
 def main():
     gui.init()
-    gui.loop(bot)
-    gui.close()
+    try:
+        gui.loop(bot)
+    except Exception:  # noqa: BLE001 - persist the top-level GUI failure.
+        error_text = traceback.format_exc()
+        crash_log = Path(__file__).with_name("gui_crash.log")
+        crash_log.write_text(error_text, encoding="utf-8")
+        print(error_text)
+        try:
+            gui.show_error(
+                "The application encountered an unexpected error.\n\n"
+                f"{error_text}\n"
+                f"A copy was saved to:\n{crash_log}"
+            )
+        except Exception as popup_error:  # noqa: BLE001 - preserve original failure.
+            print(f"Could not display the visible error dialog: {popup_error}")
+    finally:
+        # A GUI exception must never strand non-daemon capture/control workers
+        # and keep the interpreter alive after the main window disappears.
+        if gui.controller is not None:
+            gui.controller.shutdown(timeout=8.0)
+        gui.close()
 
 
 if __name__ == "__main__":

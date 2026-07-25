@@ -21,6 +21,9 @@ class MapLogger:
         "pang_visible",
         "pang_score",
         "teleport_suspected",
+        "fast_heading",
+        "fast_heading_confidence",
+        "fast_heading_stale",
     )
 
     def __init__(self, path: Path) -> None:

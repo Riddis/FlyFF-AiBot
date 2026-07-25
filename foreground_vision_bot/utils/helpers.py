@@ -5,13 +5,13 @@ import win32gui
 from pyfiglet import Figlet
 
 
-def get_window_handlers():
-    hwnd_from_title = {}
+def get_window_handlers() -> dict[str, int]:
+    hwnd_from_title: dict[str, int] = {}
 
-    def winEnumHandler(hwnd, ctx):
-        if win32gui.IsWindowVisible(hwnd) and win32gui.GetWindowText(hwnd) != "":
-            hwnd_from_title[win32gui.GetWindowText(hwnd)] = hwnd
-            print(hex(hwnd), win32gui.GetWindowText(hwnd))
+    def winEnumHandler(hwnd: int, _context: object) -> None:
+        title = win32gui.GetWindowText(hwnd)
+        if win32gui.IsWindowVisible(hwnd) and title:
+            hwnd_from_title[title] = hwnd
 
     win32gui.EnumWindows(winEnumHandler, None)
     return hwnd_from_title

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,9 +70,11 @@ class Bot:
 
         self._frame_lock = Lock()
         self._rl_enabled = False
-        self._last_overlay_publish_at = 0.0
         self._latest_mob_points: list[Point] = []
         self._latest_mob_points_at = 0.0
+        self._preview_detection_interval = 0.25
+        self._heading_preview_detector = None
+        self._last_heading_error_at = 0.0
 
         self.digit_reader = DigitReader(
             digits_dir=Path(__file__).parent / "assets" / "digits",
@@ -172,25 +175,27 @@ class Bot:
         detections are merged because different templates or overlapping
         matches can report the same on-screen mob more than once.
         """
-        frame, debug_frame = self._frame_snapshot()
+        frame, _debug_frame = self._frame_snapshot()
 
         if frame is None:
             return []
 
+        points = self._detect_visible_mobs(frame)
+        self._cache_mob_points(points)
+        return points
+
+    def _detect_visible_mobs(self, frame: np.ndarray) -> list[Point]:
+        """Detect and deduplicate mob centers without drawing annotations."""
         raw_points: list[Point] = []
 
         for template in self._mob_templates:
             try:
-                matches, drawn_frame = CV.match_template_multi(
+                matches, _drawn_frame = CV.match_template_multi(
                     frame=frame,
                     crop_area=(50, -50, 50, -50),
                     template=template.image,
                     threshold=float(self.config["mob_pos_match_threshold"]),
                     box_offset=(0, template.height_offset),
-                    frame_to_draw=(debug_frame if self.config["show_frames"] else None),
-                    draw_rect=bool(self.config["show_mobs_pos_boxes"]),
-                    draw_marker=bool(self.config["show_mobs_pos_markers"]),
-                    draw_text=bool(self.config["show_matches_text"]),
                 )
             except (cv.error, ValueError, TypeError) as error:
                 print(f"Mob template match failed: {error}")
@@ -198,22 +203,15 @@ class Bot:
 
             raw_points.extend((int(point[0]), int(point[1])) for point in matches)
 
-            if drawn_frame is not None:
-                debug_frame = drawn_frame
-
-        points = self._deduplicate_points(
+        return self._deduplicate_points(
             raw_points,
             max_distance=float(self.config["mob_dedup_distance_px"]),
         )
 
+    def _cache_mob_points(self, points: list[Point]) -> None:
         with self._frame_lock:
             self._latest_mob_points = list(points)
             self._latest_mob_points_at = time()
-
-        if self.config["show_frames"] and debug_frame is not None:
-            self._publish_debug_frame(debug_frame, len(points))
-
-        return points
 
     def read_kill_count(self) -> int | None:
         """
@@ -301,7 +299,15 @@ class Bot:
         return None, None
 
     def build_preview(self, frame: np.ndarray) -> np.ndarray:
-        self._draw_cached_mob_overlay(frame, time())
+        now = time()
+        with self._frame_lock:
+            detected_at = self._latest_mob_points_at
+        if now - detected_at >= self._preview_detection_interval:
+            gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+            self._cache_mob_points(self._detect_visible_mobs(gray))
+
+        self._draw_cached_mob_overlay(frame, now)
+        self._draw_heading_overlay(frame, now)
         return frame
 
     def _reload_mob_templates(self) -> None:
@@ -393,132 +399,78 @@ class Bot:
         frame: np.ndarray,
         now: float,
     ) -> None:
-        """Draw a diagnostic overlay and the latest detected mob positions."""
+        """Draw only EVA-relevant green boxes around cached mob positions."""
         height, width = frame.shape[:2]
-
-        # This watermark proves that the displayed image is coming through this
-        # exact overlay function, independently of mob detection.
-        cv.rectangle(frame, (5, 5), (360, 72), (0, 0, 0), -1)
-        cv.putText(
-            frame,
-            "CV OVERLAY ACTIVE - v5",
-            (15, 32),
-            cv.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 255, 0),
-            2,
-            cv.LINE_AA,
-        )
-
-        # Permanent center marker to verify that OpenCV drawing survives the
-        # GUI resize/encoding path.
-        center = (width // 2, height // 2)
-        cv.drawMarker(
-            frame,
-            center,
-            (255, 255, 0),
-            markerType=cv.MARKER_CROSS,
-            markerSize=50,
-            thickness=4,
-            line_type=cv.LINE_AA,
-        )
 
         with self._frame_lock:
             points = list(self._latest_mob_points)
             detected_at = self._latest_mob_points_at
 
         age = now - detected_at if detected_at else float("inf")
-        cv.putText(
-            frame,
-            f"cached mobs={len(points)} age={age:.2f}s",
-            (15, 60),
-            cv.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            (0, 255, 255),
-            2,
-            cv.LINE_AA,
-        )
-
-        if age > 5.0:
+        if age > 1.0:
             return
 
-        for index, point in enumerate(points, start=1):
+        for point in points:
             try:
-                raw_x, raw_y = point
-                raw_x = int(raw_x)
-                raw_y = int(raw_y)
+                x, y = (int(point[0]), int(point[1]))
             except (TypeError, ValueError):
                 continue
 
-            # Template matching uses a 50 px crop on the left/top. Some CV
-            # implementations return crop-relative coordinates, so compensate
-            # when the point appears to be in cropped-frame coordinates.
-            x = raw_x
-            y = raw_y
-            if 0 <= raw_x < max(1, width - 100):
-                x = raw_x + 50
-            if 0 <= raw_y < max(1, height - 100):
-                y = raw_y + 50
-
-            # Always clip into the visible frame so malformed/out-of-range
-            # coordinates still produce a visible diagnostic marker.
             x = max(0, min(width - 1, x))
             y = max(0, min(height - 1, y))
 
-            cv.drawMarker(
-                frame,
-                (x, y),
-                (0, 0, 255),
-                markerType=cv.MARKER_CROSS,
-                markerSize=42,
-                thickness=4,
-                line_type=cv.LINE_AA,
-            )
-            cv.circle(frame, (x, y), 18, (0, 255, 255), 3, cv.LINE_AA)
             cv.rectangle(
                 frame,
                 (max(0, x - 24), max(0, y - 24)),
                 (min(width - 1, x + 24), min(height - 1, y + 24)),
-                (255, 0, 255),
+                (0, 255, 0),
                 2,
+                cv.LINE_4,
+            )
+
+    def _draw_heading_overlay(self, frame: np.ndarray, now: float) -> None:
+        """Draw the fast minimap heading from the preview worker."""
+        try:
+            if self._heading_preview_detector is None:
+                from mapper import MinimapHeadingDetector
+
+                self._heading_preview_detector = MinimapHeadingDetector()
+
+            reading = self._heading_preview_detector.read_fast(frame)
+            if reading is None:
+                return
+
+            center_x, center_y = reading.center
+            angle = math.radians(reading.angle_deg)
+            length = 44
+            endpoint = (
+                round(center_x + math.sin(angle) * length),
+                round(center_y - math.cos(angle) * length),
+            )
+            color = (0, 140, 255) if reading.is_stale else (0, 215, 255)
+            cv.circle(frame, (center_x, center_y), 6, color, 2)
+            cv.arrowedLine(
+                frame,
+                (center_x, center_y),
+                endpoint,
+                color,
+                3,
+                tipLength=0.28,
             )
             cv.putText(
                 frame,
-                f"{index}:{raw_x},{raw_y}",
-                (min(width - 1, x + 25), max(20, y - 12)),
+                f"{reading.angle_deg:.0f} deg {reading.confidence:.2f}",
+                (max(4, center_x - 78), max(18, center_y - 18)),
                 cv.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (0, 255, 0),
+                0.52,
+                color,
                 2,
                 cv.LINE_AA,
             )
-
-    def _overlay_enabled(self) -> bool:
-        """Return whether the preview expects detector annotations."""
-        return bool(
-            self.config.get("show_mobs_pos_boxes")
-            or self.config.get("show_mobs_pos_markers")
-            or self.config.get("show_matches_text")
-        )
-
-    def _publish_debug_frame(
-        self,
-        debug_frame: np.ndarray,
-        mob_count: int,
-    ) -> None:
-        self._last_overlay_publish_at = time()
-
-        cv.putText(
-            debug_frame,
-            f"Visible mobs: {mob_count}",
-            (20, 35),
-            cv.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0, 255, 0),
-            2,
-            cv.LINE_AA,
-        )
-        self._emit("debug_frame", debug_frame)
+        except Exception as error:  # noqa: BLE001 - optional preview boundary.
+            if now - self._last_heading_error_at >= 15.0:
+                self._emit("msg_red", f"Heading preview failed: {error}")
+                self._last_heading_error_at = now
 
     def _require_setup(self) -> None:
         if (

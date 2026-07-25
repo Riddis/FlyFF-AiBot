@@ -6,6 +6,7 @@ from typing import cast
 from capture_service import CaptureService, FrameSource
 from libs.WindowCapture import WindowCapture
 from mapper import Mapper, RotationCalibrator
+from preview_service import PreviewService
 from runtime_bus import RuntimeBus
 from worker_manager import (
     CancellationToken,
@@ -26,8 +27,13 @@ class RuntimeController:
             self.workers,
             bus,
             lambda handle: cast(FrameSource, WindowCapture(handle)),
-            preview_builder=bot.build_preview,
-            preview_enabled=lambda: bool(bot.config["show_frames"]),
+            preview_enabled=lambda: False,
+        )
+        self.preview = PreviewService(
+            self.workers,
+            bus,
+            self.capture,
+            bot.build_preview,
         )
 
     @property
@@ -47,10 +53,14 @@ class RuntimeController:
                 "Cannot reattach while a control task is active. Stop it first."
             )
         self.bot.release_input()
+        if not self.preview.stop(3.0):
+            raise RuntimeError("Previous preview worker did not stop.")
         generation = self.capture.attach(window_handle)
         try:
             self.bot.prepare_window(window_handle, self.bus, self.capture)
+            self.preview.start()
         except Exception:
+            self.preview.stop(3.0)
             self.capture.stop(5.0)
             raise
         return generation

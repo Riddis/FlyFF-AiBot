@@ -13,6 +13,7 @@ from runtime_bus import RuntimeBus, WorkerFailure
 
 class WorkerKind(Enum):
     CAPTURE = "capture"
+    PREVIEW = "preview"
     CONTROL = "control"
 
 
@@ -230,7 +231,11 @@ class WorkerManager:
 
         deadline = monotonic() + max(0.0, timeout)
         results: dict[WorkerKind, bool] = {}
-        for kind in (WorkerKind.CONTROL, WorkerKind.CAPTURE):
+        for kind in (
+            WorkerKind.CONTROL,
+            WorkerKind.PREVIEW,
+            WorkerKind.CAPTURE,
+        ):
             remaining = max(0.0, deadline - monotonic())
             results[kind] = self.join(kind, remaining)
         return results

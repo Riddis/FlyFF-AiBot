@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 from collections import deque
 from collections.abc import Callable
 from threading import Lock
@@ -37,6 +38,8 @@ class CaptureService:
         preview_builder: PreviewBuilder | None = None,
         preview_enabled: PreviewEnabled | None = None,
         preview_fps: float = 12.0,
+        retry_delay: float = 0.25,
+        error_log_interval: float = 15.0,
     ) -> None:
         self._manager = manager
         self._bus = bus
@@ -44,6 +47,8 @@ class CaptureService:
         self._preview_builder = preview_builder
         self._preview_enabled = preview_enabled or (lambda: True)
         self._preview_interval = 1.0 / max(1.0, preview_fps)
+        self._retry_delay = max(0.0, retry_delay)
+        self._error_log_interval = max(0.0, error_log_interval)
         self._lock = Lock()
         self._source: FrameSource | None = None
         self._color_frame: Frame | None = None
@@ -113,10 +118,34 @@ class CaptureService:
         last_fps_at = 0.0
         previous_at = monotonic()
         frame_times: deque[float] = deque(maxlen=30)
+        last_error_log_at: float | None = None
 
         try:
             while not token.cancelled:
-                color, gray = source.get_frame()
+                try:
+                    color, gray = source.get_frame()
+                except Exception:  # noqa: BLE001 - recover at the capture boundary.
+                    if token.cancelled:
+                        break
+
+                    now = monotonic()
+                    if (
+                        last_error_log_at is None
+                        or now - last_error_log_at >= self._error_log_interval
+                    ):
+                        self._bus.log(
+                            "Game capture failed; retrying while the window "
+                            f"remains attached.\n{traceback.format_exc()}",
+                            "msg_red",
+                        )
+                        last_error_log_at = now
+
+                    if token.wait(self._retry_delay):
+                        break
+                    previous_at = monotonic()
+                    frame_times.clear()
+                    continue
+
                 now = monotonic()
                 with self._lock:
                     if generation != self._generation:

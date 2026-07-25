@@ -89,8 +89,11 @@ class Gui:
                 if game_window_name and game_window_handler:
                     try:
                         self.controller.attach(game_window_handler)
-                    except RuntimeError as error:
-                        self.runtime_bus.log(str(error), "msg_red")
+                    except Exception as error:  # noqa: BLE001 - GUI command boundary.
+                        message = f"Could not attach to the Flyff window: {error}"
+                        self.__set_status("Attach failed", message)
+                        self.runtime_bus.log(message, "msg_red")
+                        self.show_error(message)
                     else:
                         truncated_game_window_name = (
                             game_window_name[:30] + "..."
@@ -345,11 +348,17 @@ class Gui:
             and now - self._last_preview_render_at >= self._preview_render_interval
         ):
             self._last_versions["debug_frame"] = version
-            image = self.__draw_heading_overlay(frame.copy())
+            # Preview analysis belongs to the capture/runtime side. Running
+            # heading template matching here blocks Tk's only event loop and
+            # makes Bot Vision plus every button appear frozen.
+            image = frame.copy()
             resolution = values.get("-DEBUG_IMG_WIDTH-", "960x540")
             width, height = self.frame_resolutions[resolution]
             image = self.__fit_image(image, width, height)
-            encoded = cv.imencode(".jpg", image, [cv.IMWRITE_JPEG_QUALITY, 82])
+            # Tk's PhotoImage accepts PNG bytes directly. JPEG bytes trigger
+            # PySimpleGUI's internal modal error dialog, which Tk can position
+            # far outside the visible desktop on multi-monitor setups.
+            encoded = cv.imencode(".png", image)
             if encoded[0]:
                 self.window["-DEBUG_IMAGE-"].update(data=encoded[1].tobytes())
             self._last_preview_render_at = now
@@ -411,6 +420,8 @@ class Gui:
                     "msg_yellow",
                 )
                 continue
+            if completion.worker_name == "preview":
+                continue
             self.__set_rl_buttons(attached=True, running=False)
             self.runtime_bus.log(
                 f"{completion.worker_name} finished.",
@@ -419,10 +430,12 @@ class Gui:
 
         for failure in self.runtime_bus.drain_failures():
             capture_failed = failure.worker_name.startswith("capture-")
-            self.__set_rl_buttons(
-                attached=not capture_failed,
-                running=False,
-            )
+            preview_failed = failure.worker_name == "preview"
+            if not preview_failed:
+                self.__set_rl_buttons(
+                    attached=not capture_failed,
+                    running=False,
+                )
             self.runtime_bus.log(
                 f"{failure.worker_name} failed in "
                 f"{failure.lifecycle_state} at "
@@ -540,6 +553,16 @@ class Gui:
     def close(self):
         self.runtime_bus.close()
         self.window.close()
+
+    def show_error(self, message: str) -> None:
+        """Display an error above the main window from the GUI thread."""
+        sg.popup_error(
+            str(message),
+            title="Flyff FVF Error",
+            keep_on_top=True,
+            modal=True,
+            location=(80, 80),
+        )
 
     def __load_settings(self, bot):
         show_frames = sg.user_settings_get_entry("-SHOW_FRAMES-", True)
@@ -882,56 +905,6 @@ class Gui:
             value=(20, 20, 20),
         )
 
-    def __draw_heading_overlay(self, image):
-        """Draw the live minimap heading marker on Bot Vision."""
-        try:
-            if self._heading_overlay_detector is None:
-                from mapper import MinimapHeadingDetector
-
-                self._heading_overlay_detector = MinimapHeadingDetector()
-
-            reading = self._heading_overlay_detector.read_fast(image)
-            if reading is None:
-                return image
-
-            center_x, center_y = reading.center
-            angle = math.radians(reading.angle_deg)
-            length = 44
-            end_x = round(center_x + math.sin(angle) * length)
-            end_y = round(center_y - math.cos(angle) * length)
-
-            color = (0, 215, 255)
-            if reading.is_stale:
-                color = (0, 140, 255)
-
-            cv.circle(image, (center_x, center_y), 6, color, 2)
-            cv.arrowedLine(
-                image,
-                (center_x, center_y),
-                (end_x, end_y),
-                color,
-                3,
-                tipLength=0.28,
-            )
-            cv.putText(
-                image,
-                f"{reading.angle_deg:.0f} deg {reading.confidence:.2f}",
-                (max(4, center_x - 78), max(18, center_y - 18)),
-                cv.FONT_HERSHEY_SIMPLEX,
-                0.52,
-                color,
-                2,
-                cv.LINE_AA,
-            )
-        except Exception as error:  # noqa: BLE001 - optional overlay boundary.
-            self.runtime_bus.log(
-                f"Heading overlay failed: {error}",
-                "msg_red",
-            )
-            return image
-
-        return image
-
     def __set_status(self, mode, message):
         self._status_mode = mode
         self._last_status_message = str(message)
@@ -1109,13 +1082,19 @@ class Gui:
         return result
 
     def __attach_window_popup(self):
-        handlers = get_window_handlers()
+        handlers = self.__flyff_window_handlers()
+        titles = list(handlers)
         popup_window = sg.Window(
             "Attach Window",
             [
                 [sg.Text("Please select the window to attach to:")],
                 [
-                    sg.DropDown(list(handlers.keys()), key="-DROP-"),
+                    sg.DropDown(
+                        titles,
+                        default_value=titles[0] if titles else "",
+                        readonly=True,
+                        key="-DROP-",
+                    ),
                     sg.Button("Refresh"),
                 ],
                 [sg.OK(), sg.Cancel()],
@@ -1125,14 +1104,32 @@ class Gui:
         while True:
             event, values = popup_window.read()
             if event == "Refresh":
-                handlers = get_window_handlers()
-                popup_window["-DROP-"].update(values=list(handlers.keys()))
+                handlers = self.__flyff_window_handlers()
+                titles = list(handlers)
+                popup_window["-DROP-"].update(
+                    values=titles,
+                    value=titles[0] if titles else "",
+                )
             if event in (sg.WIN_CLOSED, "Cancel"):
                 popup_window.close()
                 return None, None
             if event == "OK":
+                title = values.get("-DROP-", "")
+                if title not in handlers:
+                    self.show_error(
+                        "No Flyff window is selected. Open the game or click Refresh."
+                    )
+                    continue
                 popup_window.close()
-                return values["-DROP-"], handlers[values["-DROP-"]]
+                return title, handlers[title]
+
+    @staticmethod
+    def __flyff_window_handlers() -> dict[str, int]:
+        return {
+            title: handle
+            for title, handle in get_window_handlers().items()
+            if title.startswith("Spirit Of Madrigal")
+        }
 
     def __select_mobs_popup(self, bot, is_delete_form=False):
         all_mobs = bot.get_all_mobs()

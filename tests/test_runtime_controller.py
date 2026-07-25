@@ -33,6 +33,11 @@ class FakeBot:
         self.release_calls += 1
 
 
+class FailingPrepareBot(FakeBot):
+    def prepare_window(self, *_args) -> None:
+        raise ValueError("keyboard setup failed")
+
+
 def test_reattach_is_rejected_while_control_worker_is_active() -> None:
     bot = FakeBot()
     bus = RuntimeBus()
@@ -57,3 +62,29 @@ def test_reattach_is_rejected_while_control_worker_is_active() -> None:
     results = controller.shutdown(1.0)
     assert results[WorkerKind.CONTROL]
     assert bot.release_calls == 1
+
+
+def test_attach_failure_stops_the_capture_worker(monkeypatch) -> None:
+    bot = FailingPrepareBot()
+    bus = RuntimeBus()
+    controller = RuntimeController(bot, bus)
+
+    class FakeSource:
+        def __init__(self) -> None:
+            self.closed = Event()
+
+        def get_frame(self):
+            self.closed.wait(5.0)
+            raise RuntimeError("closed")
+
+        def close(self) -> None:
+            self.closed.set()
+
+    monkeypatch.setattr(
+        controller.capture, "_source_factory", lambda _handle: FakeSource()
+    )
+
+    with pytest.raises(ValueError, match="keyboard setup failed"):
+        controller.attach(123)
+
+    assert not controller.capture_active
