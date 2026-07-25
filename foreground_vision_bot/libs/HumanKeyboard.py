@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from time import sleep
+from dataclasses import dataclass
+from math import isfinite
+from time import monotonic, sleep
 
 import win32api
 import win32con
@@ -70,6 +72,16 @@ VKEY = {
 }
 
 
+@dataclass(frozen=True)
+class KeyPressTiming:
+    """Measured timing for one finite key press."""
+
+    requested_seconds: float
+    clamped_seconds: float
+    held_seconds: float
+    elapsed_seconds: float
+
+
 class HumanKeyboard:
     """
     Sends keyboard messages directly to a target window.
@@ -82,7 +94,7 @@ class HumanKeyboard:
     """
 
     def __init__(self, hwnd: int) -> None:
-        self.hwnd = hwnd
+        self.hwnd: int = hwnd
         self._pressed_keys: set[int] = set()
 
     def key_down(self, key: int) -> None:
@@ -107,21 +119,48 @@ class HumanKeyboard:
         self,
         key: int,
         press_time: float = 0.03,
-    ) -> None:
-        duration = max(float(press_time), 0.015)
-        self.key_down(key)
-        sleep(duration)
-        self.key_up(key)
+    ) -> KeyPressTiming:
+        requested = float(press_time)
+        if not isfinite(requested):
+            raise ValueError("press_time must be finite")
+        duration = max(requested, 0.015)
+        started_at = monotonic()
+        held_at: float | None = None
+
+        try:
+            self.key_down(key)
+            held_at = monotonic()
+            sleep(duration)
+        finally:
+            # A cancellation or KeyboardInterrupt during sleep must never
+            # leave the game receiving a held key.
+            if held_at is not None:
+                self.key_up(key)
+
+        released_at = monotonic()
+        assert held_at is not None
         sleep(0.01)
+        return KeyPressTiming(
+            requested_seconds=requested,
+            clamped_seconds=duration,
+            held_seconds=released_at - held_at,
+            elapsed_seconds=monotonic() - started_at,
+        )
 
     def release_key(self, key: int) -> None:
         # Always emit KEYUP, even when our local state did not track it.
         self.key_up(key)
 
     def release_keys(self, keys: Iterable[int]) -> None:
+        first_error: Exception | None = None
         for key in keys:
-            self.release_key(int(key))
+            try:
+                self.release_key(int(key))
+            except Exception as error:  # noqa: BLE001 - release every key first.
+                if first_error is None:
+                    first_error = error
+        if first_error is not None:
+            raise first_error
 
     def release_all(self) -> None:
-        for key in tuple(self._pressed_keys):
-            self.release_key(key)
+        self.release_keys(tuple(self._pressed_keys))

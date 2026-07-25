@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 from collections.abc import Callable
 from typing import cast
 
@@ -147,14 +148,40 @@ class RuntimeController:
         )
 
     def stop_control(self) -> bool:
-        self.bot.stop()
-        return self.workers.stop(WorkerKind.CONTROL)
+        # Cancel first so a release failure cannot prevent the worker from
+        # observing Stop. The registered hook emits unconditional mapper
+        # movement KEYUP messages immediately.
+        stopping = self.workers.stop(WorkerKind.CONTROL)
+        try:
+            self.bot.stop()
+        except Exception:  # noqa: BLE001 - keep the GUI stop path alive.
+            self.bus.log(
+                "Bot input cleanup reported an error after cancellation.\n"
+                f"{traceback.format_exc()}",
+                "msg_red",
+            )
+        return stopping
 
     def shutdown(self, timeout: float = 8.0) -> dict[WorkerKind, bool]:
-        self.bot.stop()
+        try:
+            self.bot.stop()
+        except Exception:  # noqa: BLE001 - shutdown must continue.
+            self.bus.log(
+                "Bot input cleanup reported an error during shutdown.\n"
+                f"{traceback.format_exc()}",
+                "msg_red",
+            )
         results = self.workers.shutdown(timeout)
-        self.bot.release_input()
-        self.bus.close()
+        try:
+            self.bot.release_input()
+        except Exception:  # noqa: BLE001 - close the runtime bus regardless.
+            self.bus.log(
+                "Final input release reported an error during shutdown.\n"
+                f"{traceback.format_exc()}",
+                "msg_red",
+            )
+        finally:
+            self.bus.close()
         return results
 
     def _reporter(self, status_key: str, worker: str):

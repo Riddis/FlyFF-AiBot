@@ -38,6 +38,12 @@ class FailingPrepareBot(FakeBot):
         raise ValueError("keyboard setup failed")
 
 
+class FailingStopBot(FakeBot):
+    def stop(self) -> None:
+        self.stop_calls += 1
+        raise RuntimeError("input release failed")
+
+
 def test_reattach_is_rejected_while_control_worker_is_active() -> None:
     bot = FakeBot()
     bus = RuntimeBus()
@@ -88,3 +94,27 @@ def test_attach_failure_stops_the_capture_worker(monkeypatch) -> None:
         controller.attach(123)
 
     assert not controller.capture_active
+
+
+def test_stop_failure_cannot_prevent_control_worker_cancellation() -> None:
+    bot = FailingStopBot()
+    bus = RuntimeBus()
+    controller = RuntimeController(bot, bus)
+    started = Event()
+
+    def control(token):
+        started.set()
+        token.event.wait(5.0)
+        token.raise_if_cancelled()
+
+    controller.workers.start(
+        name="mapper",
+        kind=WorkerKind.CONTROL,
+        target=control,
+        stop_hook=bot.stop_movement,
+    )
+    assert started.wait(1.0)
+
+    assert controller.stop_control()
+    assert controller.workers.join(WorkerKind.CONTROL, 1.0)
+    assert bot.stop_calls == 1

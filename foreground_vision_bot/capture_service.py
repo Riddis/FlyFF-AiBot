@@ -3,6 +3,7 @@ from __future__ import annotations
 import traceback
 from collections import deque
 from collections.abc import Callable
+from dataclasses import dataclass
 from threading import Lock
 from time import monotonic
 from typing import Protocol
@@ -13,6 +14,21 @@ from runtime_bus import RuntimeBus
 from worker_manager import CancellationToken, WorkerKind, WorkerManager
 
 Frame = NDArray[np.uint8]
+
+
+@dataclass(frozen=True)
+class FrameSample:
+    """One copied capture frame with monotonic freshness metadata."""
+
+    frame: Frame
+    generation: int
+    sequence: int
+    captured_at: float
+
+    @property
+    def identity(self) -> tuple[int, int]:
+        """Uniquely identify a frame across capture reattachments."""
+        return self.generation, self.sequence
 
 
 class FrameSource(Protocol):
@@ -54,6 +70,8 @@ class CaptureService:
         self._color_frame: Frame | None = None
         self._gray_frame: Frame | None = None
         self._generation = 0
+        self._frame_sequence = 0
+        self._captured_at: float | None = None
 
     @property
     def generation(self) -> int:
@@ -77,6 +95,8 @@ class CaptureService:
             self._source = source
             self._color_frame = None
             self._gray_frame = None
+            self._frame_sequence = 0
+            self._captured_at = None
 
         try:
             self._manager.start(
@@ -100,13 +120,36 @@ class CaptureService:
                 self._source = None
                 self._color_frame = None
                 self._gray_frame = None
+                self._frame_sequence = 0
+                self._captured_at = None
         return stopped
 
     def snapshot(self) -> tuple[Frame | None, Frame | None]:
+        """Return copied color/gray frames using the original public API."""
         with self._lock:
             color = None if self._color_frame is None else self._color_frame.copy()
             gray = None if self._gray_frame is None else self._gray_frame.copy()
         return color, gray
+
+    def sample(self, *, grayscale: bool = True) -> FrameSample | None:
+        """
+        Return one copied frame with capture generation, sequence and timestamp.
+
+        ``captured_at`` uses ``time.monotonic()`` and records when the capture
+        worker finished acquiring the frame. Consumers can therefore reject
+        duplicate or old frames without comparing image contents.
+        """
+        with self._lock:
+            source = self._gray_frame if grayscale else self._color_frame
+            captured_at = self._captured_at
+            if source is None or captured_at is None or self._frame_sequence <= 0:
+                return None
+            return FrameSample(
+                frame=source.copy(),
+                generation=self._generation,
+                sequence=self._frame_sequence,
+                captured_at=captured_at,
+            )
 
     def _run(
         self,
@@ -154,6 +197,8 @@ class CaptureService:
                         )
                     self._color_frame = color
                     self._gray_frame = gray
+                    self._frame_sequence += 1
+                    self._captured_at = now
 
                 elapsed = max(now - previous_at, 1e-6)
                 previous_at = now

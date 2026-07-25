@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import numpy as np
 from Bot import Bot
+from libs.HumanKeyboard import VKEY
 
 
 def _preview_bot() -> Bot:
@@ -47,3 +48,16 @@ def test_heading_preview_draws_arrow_from_fast_reading() -> None:
     bot._draw_heading_overlay(frame, now=10.0)
 
     assert np.any(frame[55:66, 55:110])
+
+
+def test_stop_movement_unconditionally_releases_mapper_keys() -> None:
+    bot = Bot.__new__(Bot)
+    released: list[tuple[int, ...]] = []
+    bot.action_executor = SimpleNamespace(stop_movement=lambda: None)
+    bot.keyboard = SimpleNamespace(
+        release_keys=lambda keys: released.append(tuple(keys))
+    )
+
+    bot.stop_movement()
+
+    assert released == [(VKEY["z"], VKEY["q"], VKEY["d"])]

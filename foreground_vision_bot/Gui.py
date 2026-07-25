@@ -137,7 +137,10 @@ class Gui:
                         visual_confirmation=False
                     ),
                     "Calibration",
-                    "Starting rotation calibration...",
+                    (
+                        "Starting mapper calibration. It includes six forward "
+                        "pulses; keep a clear, textured path ahead."
+                    ),
                 )
 
             if event == "-DEBUG_CALIBRATE_MAPPER-":
@@ -145,7 +148,10 @@ class Gui:
                 self.__start_control(
                     lambda: self.controller.start_calibration(visual_confirmation=True),
                     "Calibration",
-                    "Starting visual-confirmation calibration...",
+                    (
+                        "Starting visual mapper calibration. It includes six "
+                        "forward pulses; keep a clear, textured path ahead."
+                    ),
                 )
 
             if event == "-SHOW_LOG-":
@@ -511,26 +517,20 @@ class Gui:
         """
         Manual recalibration starts a new diagnostic session.
 
-        Preserve minimap_anchor.json because that is fixed UI geometry, but
-        remove prior timing calibration and old heading-debug captures.
+        Preserve minimap_anchor.json and the last valid calibration. The
+        calibrator replaces calibration.json only after a complete successful
+        run, so a cancelled or failed attempt must not remove the working
+        configuration.
         """
         import shutil
         from pathlib import Path
 
         project_root = Path(__file__).resolve().parent
-        calibration_files = [
-            project_root / "mapper" / "calibration.json",
-        ]
         debug_directories = [
             project_root / "debug" / "minimap_heading",
         ]
 
         removed = []
-        for file_path in calibration_files:
-            if file_path.exists():
-                file_path.unlink()
-                removed.append(str(file_path))
-
         for directory in debug_directories:
             if directory.exists():
                 shutil.rmtree(directory)
@@ -539,14 +539,14 @@ class Gui:
 
         if removed:
             sg.cprint(
-                "Manual recalibration cleared the previous calibration and "
-                "minimap-heading debug files.",
+                "Manual recalibration cleared old minimap-heading debug files; "
+                "the previous valid calibration is kept until this run succeeds.",
                 c=("white", "blue"),
             )
         else:
             sg.cprint(
-                "Manual recalibration started with no old calibration/debug "
-                "files to clear.",
+                "Manual recalibration started; the previous valid calibration "
+                "is kept until this run succeeds.",
                 c=("white", "blue"),
             )
 
@@ -995,6 +995,8 @@ class Gui:
             None  -> stop calibration
         """
         preview = frame.copy()
+        if preview.ndim == 2 or (preview.ndim == 3 and preview.shape[2] == 1):
+            preview = cv.cvtColor(preview, cv.COLOR_GRAY2BGR)
         try:
             if self._heading_overlay_detector is None:
                 from mapper import MinimapHeadingDetector

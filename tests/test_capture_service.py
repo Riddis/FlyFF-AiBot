@@ -54,6 +54,24 @@ def test_capture_publishes_snapshots_and_stops_cleanly() -> None:
     color, gray = service.snapshot()
     assert color is not None
     assert gray is not None
+
+    first_sample = service.sample()
+    assert first_sample is not None
+    assert first_sample.generation == 1
+    assert first_sample.sequence > 0
+    assert first_sample.captured_at <= monotonic()
+    first_sample.frame.fill(255)
+
+    assert _wait_until(
+        lambda: (
+            (sample := service.sample()) is not None
+            and sample.sequence > first_sample.sequence
+        )
+    )
+    latest_sample = service.sample()
+    assert latest_sample is not None
+    assert latest_sample.identity != first_sample.identity
+    assert not np.any(latest_sample.frame)
     assert service.stop(1.0)
     assert source.closed.is_set()
 

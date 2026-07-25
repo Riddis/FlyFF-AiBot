@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from mapper.OccupancyGrid import OccupancyGrid
+from .OccupancyGrid import UNKNOWN, OccupancyGrid
 
 
 @dataclass(frozen=True)
@@ -32,10 +32,10 @@ class Explorer:
             )
             return self._turn_or_forward(pose.heading_index, desired, "frontier path")
 
-        candidates = []
+        candidates: list[int] = []
         for direction, (dx, dy) in enumerate(grid.DIRECTIONS):
             value = grid.value(pose.x + dx, pose.y + dy)
-            if value == 0:
+            if value == UNKNOWN:
                 candidates.append(direction)
 
         if candidates:
@@ -49,8 +49,9 @@ class Explorer:
                 "unknown neighbor",
             )
 
-        # No local unknown cell and no reachable frontier. Turn to rescan.
-        return ExplorerDecision("TURN_RIGHT", "no reachable frontier")
+        # Turns alone cannot add occupancy evidence. Once the reachable
+        # component has no frontier, rotating forever cannot make progress.
+        return ExplorerDecision("STOP", "exploration complete: no reachable frontier")
 
     @staticmethod
     def _direction_index(dx: int, dy: int) -> int:

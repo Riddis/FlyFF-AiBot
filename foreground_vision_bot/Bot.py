@@ -14,10 +14,10 @@ from assets.Assets import MobInfo
 from libs.ActionExecutor import ActionExecutor, BotAction
 from libs.ComputerVision import ComputerVision as CV
 from libs.DigitReader import DigitReader
-from libs.HumanKeyboard import HumanKeyboard
+from libs.HumanKeyboard import VKEY, HumanKeyboard
 
 if TYPE_CHECKING:
-    from capture_service import CaptureService
+    from capture_service import CaptureService, FrameSample
     from runtime_bus import RuntimeBus
 
 
@@ -98,6 +98,10 @@ class Bot:
         self.capture_service = capture_service
         self.keyboard = HumanKeyboard(window_handler)
         self.action_executor = ActionExecutor(self.keyboard)
+        # Heading continuity belongs to one capture attachment. Reusing an
+        # old-window angle can make the fast jump guard pin Bot Vision after a
+        # reattach.
+        self._heading_preview_detector = None
         self._emit("msg_green", "RL bot is ready.")
 
     def start(self) -> None:
@@ -113,10 +117,7 @@ class Bot:
 
     def stop(self) -> None:
         self._rl_enabled = False
-
-        if self.action_executor is not None:
-            self.action_executor.stop_movement()
-
+        self.stop_movement()
         self._emit("msg_yellow", "RL control stopped.")
 
     def close(self) -> None:
@@ -128,9 +129,11 @@ class Bot:
         cv.destroyAllWindows()
 
     def release_input(self) -> None:
-        self.stop_movement()
-        self.keyboard = None
-        self.action_executor = None
+        try:
+            self.stop_movement()
+        finally:
+            self.keyboard = None
+            self.action_executor = None
 
     def set_config(self, **options) -> None:
         reload_templates = False
@@ -264,8 +267,31 @@ class Bot:
         self.action_executor.execute(action)
 
     def stop_movement(self) -> None:
+        first_error: Exception | None = None
         if self.action_executor is not None:
-            self.action_executor.stop_movement()
+            try:
+                self.action_executor.stop_movement()
+            except Exception as error:  # noqa: BLE001 - still release raw keys.
+                first_error = error
+
+        # Mapper/calibration pulses use the shared HumanKeyboard directly, so
+        # ActionExecutor's local held-key set cannot see them. Always emit
+        # KEYUP for the complete mapper movement keymap on an external Stop.
+        if self.keyboard is not None:
+            try:
+                self.keyboard.release_keys(
+                    (
+                        VKEY["z"],
+                        VKEY["q"],
+                        VKEY["d"],
+                    )
+                )
+            except Exception as error:  # noqa: BLE001 - report after all attempts.
+                if first_error is None:
+                    first_error = error
+
+        if first_error is not None:
+            raise first_error
 
     def get_frame_shape(self) -> tuple[int, int] | None:
         frame, _ = self._frame_snapshot()
@@ -280,6 +306,19 @@ class Bot:
         """Return a thread-safe copy of the latest grayscale frame."""
         frame, _ = self._frame_snapshot()
         return frame
+
+    def get_frame_sample(self) -> FrameSample | None:
+        """
+        Return the latest grayscale frame with capture freshness metadata.
+
+        Calibration and mapping can use the generation/sequence identity to
+        ensure that multi-frame vision reads do not count one capture more than
+        once. The existing ``get_frame()`` API remains unchanged for low-cost
+        consumers that do not need freshness guarantees.
+        """
+        if self.capture_service is None:
+            return None
+        return self.capture_service.sample(grayscale=True)
 
     def get_debug_frame(self) -> np.ndarray | None:
         """Return a thread-safe copy of the latest BGR frame."""

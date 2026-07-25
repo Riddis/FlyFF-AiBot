@@ -1,0 +1,53 @@
+timestamp,step,x,y,heading,action,reason,change_score,median_flow_px,tracked_points,collision,pang_visible,pang_score,teleport_suspected,fast_heading,fast_heading_confidence,fast_heading_stale
+2026-07-25T12:35:31.726+00:00,1,1,0,0,FORWARD,unknown neighbor,0.02565,18.653,183,False,False,0.3924,False,3.0,0.861,False
+2026-07-25T12:35:32.890+00:00,2,1,0,3,TURN_RIGHT,frontier path (about-face),0.03998,33.43,173,False,False,0.3924,False,52.569,0.864,False
+2026-07-25T12:35:34.177+00:00,3,1,0,2,TURN_RIGHT,frontier path,0.04367,27.909,148,False,False,0.3925,False,124.953,0.866,False
+2026-07-25T12:35:34.559+00:00,4,0,0,2,FORWARD,frontier path,0.02794,13.491,180,False,False,0.3925,False,165.943,0.863,False
+2026-07-25T12:35:35.807+00:00,5,0,0,1,TURN_RIGHT,frontier path (about-face),0.0333,36.0,159,False,False,0.3925,False,211.883,0.84,False
+2026-07-25T12:35:37.220+00:00,6,0,0,0,TURN_RIGHT,frontier path,0.0273,28.052,105,False,False,0.3978,False,295.592,0.846,False
+2026-07-25T12:35:37.620+00:00,7,1,0,0,FORWARD,frontier path,0.02268,20.515,127,False,False,0.3924,False,344.979,0.867,False
+2026-07-25T12:35:38.993+00:00,8,1,0,3,TURN_RIGHT,frontier path (about-face),0.03276,22.652,133,False,False,0.3924,False,32.753,0.871,False
+2026-07-25T12:35:40.350+00:00,9,1,0,2,TURN_RIGHT,frontier path,0.04104,30.396,157,False,False,0.3924,False,115.802,0.9,False
+2026-07-25T12:35:40.753+00:00,10,0,0,2,FORWARD,frontier path,0.03026,23.763,176,False,False,0.3924,False,145.921,0.875,False
+2026-07-25T12:35:42.170+00:00,11,0,0,1,TURN_RIGHT,frontier path (about-face),0.04125,53.462,129,False,False,0.3924,False,203.653,0.902,False
+2026-07-25T12:35:43.538+00:00,12,0,0,0,TURN_RIGHT,frontier path,0.02802,41.813,144,False,False,0.3924,False,286.236,0.912,False
+2026-07-25T12:35:43.936+00:00,13,1,0,0,FORWARD,frontier path,0.01902,9.29,133,False,False,0.4036,False,326.877,0.857,False
+2026-07-25T12:35:45.297+00:00,14,1,0,3,TURN_RIGHT,frontier path (about-face),0.02599,26.205,132,False,False,0.3924,False,18.055,0.896,False
+2026-07-25T12:35:46.584+00:00,15,1,0,2,TURN_RIGHT,frontier path,0.03923,23.187,128,False,False,0.3924,False,96.856,0.912,False
+2026-07-25T12:35:46.980+00:00,16,0,0,2,FORWARD,frontier path,0.02898,22.707,174,False,False,0.3925,False,126.287,0.905,False
+2026-07-25T12:35:48.392+00:00,17,0,0,1,TURN_RIGHT,frontier path (about-face),0.03795,29.511,162,False,False,0.3924,False,189.673,0.893,False
+2026-07-25T12:35:49.768+00:00,18,0,0,0,TURN_RIGHT,frontier path,0.02692,37.66,156,False,False,0.3924,False,276.285,0.888,False
+2026-07-25T12:35:50.173+00:00,19,1,0,0,FORWARD,frontier path,0.0245,31.781,145,False,False,0.3925,False,310.891,0.888,False
+2026-07-25T12:35:51.481+00:00,20,1,0,3,TURN_RIGHT,frontier path (about-face),0.03017,31.306,124,False,False,0.3923,False,6.863,0.875,False
+2026-07-25T12:35:52.856+00:00,21,1,0,2,TURN_RIGHT,frontier path,0.03828,32.498,104,False,False,0.3923,False,82.11,0.879,False
+2026-07-25T12:35:53.261+00:00,22,0,0,2,FORWARD,frontier path,0.0296,27.243,184,False,False,0.3924,False,123.918,0.866,False
+2026-07-25T12:35:54.712+00:00,23,0,0,1,TURN_RIGHT,frontier path (about-face),0.03532,45.092,158,False,False,0.4108,False,181.58,0.843,False
+2026-07-25T12:35:56.080+00:00,24,0,0,0,TURN_RIGHT,frontier path,0.02736,26.281,149,False,False,0.3928,False,258.325,0.822,False
+2026-07-25T12:35:56.481+00:00,25,1,0,0,FORWARD,frontier path,0.02163,32.489,122,False,False,0.3923,False,296.014,0.868,False
+2026-07-25T12:35:57.874+00:00,26,1,0,3,TURN_RIGHT,frontier path (about-face),0.02735,24.269,109,False,False,0.3924,False,347.797,0.858,False
+2026-07-25T12:35:59.254+00:00,27,1,0,2,TURN_RIGHT,frontier path,0.03386,33.082,134,False,False,0.3924,False,74.779,0.859,False
+2026-07-25T12:35:59.640+00:00,28,0,0,2,FORWARD,frontier path,0.02809,29.982,162,False,False,0.3918,False,114.886,0.874,False
+2026-07-25T12:36:01.043+00:00,29,0,0,1,TURN_RIGHT,frontier path (about-face),0.03819,34.669,131,False,False,0.4182,False,168.067,0.877,False
+2026-07-25T12:36:02.293+00:00,30,0,0,0,TURN_RIGHT,frontier path,0.02848,32.979,124,False,False,0.3929,False,253.863,0.903,False
+2026-07-25T12:36:02.696+00:00,31,1,0,0,FORWARD,frontier path,0.0204,27.671,132,False,False,0.3926,False,280.418,0.891,False
+2026-07-25T12:36:04.078+00:00,32,1,0,3,TURN_RIGHT,frontier path (about-face),0.02498,30.648,127,False,False,0.3924,False,334.983,0.882,False
+2026-07-25T12:36:05.437+00:00,33,1,0,2,TURN_RIGHT,frontier path,0.03582,36.362,119,False,False,0.3924,False,66.119,0.898,False
+2026-07-25T12:36:05.839+00:00,34,0,0,2,FORWARD,frontier path,0.03186,34.846,181,False,False,0.3924,False,101.933,0.915,False
+2026-07-25T12:36:07.212+00:00,35,0,0,1,TURN_RIGHT,frontier path (about-face),0.04171,43.178,110,False,False,0.3923,False,160.269,0.913,False
+2026-07-25T12:36:08.608+00:00,36,0,0,0,TURN_RIGHT,frontier path,0.0286,44.046,164,False,False,0.3925,False,242.165,0.929,False
+2026-07-25T12:36:09.010+00:00,37,1,0,0,FORWARD,frontier path,0.01946,13.705,124,False,False,0.3924,False,272.937,0.924,False
+2026-07-25T12:36:10.401+00:00,38,1,0,3,TURN_RIGHT,frontier path (about-face),0.02681,21.023,120,False,False,0.3925,False,327.341,0.92,False
+2026-07-25T12:36:11.800+00:00,39,1,0,2,TURN_RIGHT,frontier path,0.03701,28.153,128,False,False,0.3922,False,57.703,0.901,False
+2026-07-25T12:36:12.194+00:00,40,0,0,2,FORWARD,frontier path,0.02892,24.536,186,False,False,0.3967,False,94.072,0.906,False
+2026-07-25T12:36:13.585+00:00,41,0,0,1,TURN_RIGHT,frontier path (about-face),0.04262,35.631,131,False,False,0.3925,False,143.174,0.897,False
+2026-07-25T12:36:14.954+00:00,42,0,0,0,TURN_RIGHT,frontier path,0.03596,38.346,164,False,False,0.3924,False,228.148,0.89,False
+2026-07-25T12:36:15.340+00:00,43,1,0,0,FORWARD,frontier path,0.02371,23.691,132,False,False,0.3923,False,264.134,0.924,False
+2026-07-25T12:36:16.706+00:00,44,1,0,3,TURN_RIGHT,frontier path (about-face),0.02714,20.814,102,False,False,0.3913,False,319.848,0.909,False
+2026-07-25T12:36:18.084+00:00,45,1,0,2,TURN_RIGHT,frontier path,0.03517,30.632,112,False,False,0.3925,False,38.512,0.854,False
+2026-07-25T12:36:18.482+00:00,46,0,0,2,FORWARD,frontier path,0.02925,23.322,211,False,False,0.3924,False,79.799,0.824,False
+2026-07-25T12:36:19.846+00:00,47,0,0,1,TURN_RIGHT,frontier path (about-face),0.0454,30.03,147,False,False,0.3924,False,79.799,0.642,True
+2026-07-25T12:36:21.150+00:00,48,0,0,0,TURN_RIGHT,frontier path,0.04037,37.907,136,False,False,0.3925,False,206.699,0.814,False
+2026-07-25T12:36:21.555+00:00,49,1,0,0,FORWARD,frontier path,0.02402,19.36,170,False,False,0.3924,False,232.657,0.834,False
+2026-07-25T12:36:22.938+00:00,50,1,0,3,TURN_RIGHT,frontier path (about-face),0.02681,20.707,116,False,False,0.3925,False,298.869,0.845,False
+2026-07-25T12:36:24.255+00:00,51,1,0,2,TURN_RIGHT,frontier path,0.03016,15.32,150,False,False,0.3929,False,24.188,0.857,False
+2026-07-25T12:36:24.666+00:00,52,0,0,2,FORWARD,frontier path,0.0286,23.628,173,False,False,0.3921,False,51.5,0.848,False

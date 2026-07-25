@@ -1,6 +1,11 @@
 from mapper.Calibration import RotationCalibrator
 from mapper.Mapper import Mapper, MapperConfig
 from mapper.MinimapHeading import MinimapHeadingDetector
+from mapper.RotationModel import (
+    StateAwareRotationModel,
+    TurnDirection,
+    TurnTransition,
+)
 
 __all__ = [
     "FastHeadingState",
@@ -10,6 +15,9 @@ __all__ = [
     "MinimapAnchorSetup",
     "MinimapHeadingDetector",
     "RotationCalibrator",
+    "StateAwareRotationModel",
+    "TurnDirection",
+    "TurnTransition",
 ]
 
 from mapper.FastHeadingTracker import FastHeadingState, FastHeadingTracker
