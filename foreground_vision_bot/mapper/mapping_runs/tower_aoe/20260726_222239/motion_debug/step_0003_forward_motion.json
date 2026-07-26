@@ -1,0 +1,23 @@
+{
+  "change_score": 0.026216384123093683,
+  "directional_flow": {
+    "camera_model": "translation",
+    "confidence": 0.9167677749920284,
+    "detected_points": 299,
+    "dispersion_px": 8.169981002807617,
+    "expansion_coherence": 0.6240877921322742,
+    "inlier_ratio": 0.4578313253012048,
+    "magnitude_px": 16.338083267211914,
+    "moving_points": 166,
+    "moving_ratio": 0.6831275720164609,
+    "occupied_regions": 11,
+    "scene_dx_px": -5.874198913574219,
+    "scene_dy_px": 14.28619384765625,
+    "spatial_coverage": 0.9166666666666666,
+    "tracked_points": 166,
+    "translation_coherence": 0.8959977626800537,
+    "valid_tracks": 243
+  },
+  "teleport_likely": false,
+  "tracker_version": "1.1-multi-camera-flow"
+}

@@ -22,7 +22,10 @@ from .AdaptiveMotionModel import (
     TurnDirection,
 )
 from .AdaptiveMotionTracker import AdaptiveMotionTracker, MotionEstimate
-from .AdaptiveRunMotionBaseline import AdaptiveRunMotionBaseline
+from .AdaptiveRunMotionBaseline import (
+    AdaptiveRunMotionBaseline,
+    CameraObstructionEvidence,
+)
 from .AdaptiveTurnControl import (
     AdaptiveTurnController,
     AdaptiveTurnError,
@@ -32,7 +35,7 @@ from .Explorer import Explorer, ExplorerDecision
 from .MapCatalog import MapCatalog, MapProfile
 from .MapLogger import MapLogger
 from .MinimapHeading import HeadingReading, MinimapHeadingDetector, signed_angle_delta
-from .OccupancyGrid import FREE, UNKNOWN, OccupancyGrid, PoseIntegration
+from .OccupancyGrid import BLOCKED, FREE, UNKNOWN, OccupancyGrid, PoseIntegration
 from .PangDetector import PangDetection, PangDetector
 from .rl.ShadowPlanner import MapperShadowPlanner, ShadowDecision
 
@@ -75,6 +78,9 @@ class MapperConfig:
     save_every_steps: int = 5
     blocked_confirmations: int = 2
     forward_revalidation_attempts: int = 3
+    camera_recovery_wait_attempts: int = 2
+    camera_recovery_turn_attempts: int = 2
+    camera_recovery_wait_seconds: float = 0.18
     heading_search_attempts: int = 3
     heading_search_pulse_seconds: float = 0.040
 
@@ -114,8 +120,15 @@ class MapperConfig:
             raise ValueError("maximum_step_cells must not be below the minimum")
         if self.save_every_steps < 1 or self.blocked_confirmations < 1:
             raise ValueError("mapper counts must be positive")
-        if self.forward_revalidation_attempts < 0 or self.heading_search_attempts < 0:
+        if (
+            self.forward_revalidation_attempts < 0
+            or self.camera_recovery_wait_attempts < 0
+            or self.camera_recovery_turn_attempts < 0
+            or self.heading_search_attempts < 0
+        ):
             raise ValueError("mapper recovery counts cannot be negative")
+        if self.camera_recovery_wait_seconds < 0.0:
+            raise ValueError("camera recovery wait cannot be negative")
         if not 0.015 <= self.heading_search_pulse_seconds <= 0.10:
             raise ValueError("heading search pulse must be between 15 and 100 ms")
 
@@ -137,6 +150,24 @@ class _StepResult:
     recovery_reason: str | None = None
     recovery_can_retry_in_place: bool = False
     recovery_requires_spawn_reset: bool = False
+    camera_obscured: bool = False
+    camera_recovery_attempted: bool = False
+    camera_recovered: bool = False
+    camera_recovery_turns: int = 0
+    camera_recovery_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class _CameraRecoveryResult:
+    frame_sample: FrameSample
+    fast_heading: HeadingReading | None
+    strict_heading: HeadingReading
+    motion: MotionEstimate
+    assessment: ForwardAssessment
+    motion_debug_path: str | None
+    recovered: bool
+    turn_count: int
+    reason: str
 
 
 class AdaptiveMapper:
@@ -149,7 +180,7 @@ class AdaptiveMapper:
     still fails closed so map drift is not silently accumulated.
     """
 
-    VERSION = "1.9.1-frontier-escape-map-management-restored"
+    VERSION = "1.9.3-bounded-camera-obstruction-recovery"
 
     def __init__(
         self,
@@ -753,6 +784,11 @@ class AdaptiveMapper:
             held_seconds=timing.held_seconds,
             heading_index=travel_heading_index,
         )
+        camera_obscured = False
+        camera_recovery_attempted = False
+        camera_recovered = False
+        camera_recovery_turns = 0
+        camera_recovery_reason: str | None = None
         if assessment.outcome is AdaptiveForwardOutcome.UNCERTAIN:
             (
                 after,
@@ -760,6 +796,7 @@ class AdaptiveMapper:
                 motion,
                 assessment,
                 retry_debug_path,
+                camera_evidence,
             ) = self._revalidate_forward_observation(
                 step=step,
                 before=before,
@@ -768,8 +805,45 @@ class AdaptiveMapper:
                 initial_motion=motion,
                 initial_assessment=assessment,
                 heading_index=travel_heading_index,
+                heading_change_deg=heading_change,
             )
             motion_debug_path = retry_debug_path or motion_debug_path
+            if camera_evidence is not None and camera_evidence.likely_obscured:
+                camera_obscured = True
+                camera_recovery_attempted = True
+                recovery = self._recover_camera_obstruction(
+                    step=step,
+                    before=before,
+                    obstructed_after=after,
+                    timing=timing,
+                    heading_index=travel_heading_index,
+                    start_heading=start_heading,
+                    current_heading=strict_heading,
+                    evidence=camera_evidence,
+                )
+                after = recovery.frame_sample
+                fast_heading = recovery.fast_heading
+                strict_heading = recovery.strict_heading
+                motion = recovery.motion
+                assessment = recovery.assessment
+                motion_debug_path = (
+                    recovery.motion_debug_path or motion_debug_path
+                )
+                camera_recovered = recovery.recovered
+                camera_recovery_turns = recovery.turn_count
+                camera_recovery_reason = recovery.reason
+                heading_change = signed_angle_delta(
+                    strict_heading.angle_deg,
+                    start_heading,
+                )
+
+        camera_result_fields = {
+            "camera_obscured": camera_obscured,
+            "camera_recovery_attempted": camera_recovery_attempted,
+            "camera_recovered": camera_recovered,
+            "camera_recovery_turns": camera_recovery_turns,
+            "camera_recovery_reason": camera_recovery_reason,
+        }
 
         if assessment.outcome is AdaptiveForwardOutcome.BLOCKED:
             motion_debug_path = motion_debug_path or self._save_motion_debug(
@@ -794,6 +868,7 @@ class AdaptiveMapper:
                 pose_known=(self._position_known and self._heading_known),
                 stop_reason=stop_reason,
                 motion_debug_path=motion_debug_path,
+                **camera_result_fields,
             )
 
         heading_drift_mode = classify_forward_heading_drift(
@@ -828,6 +903,7 @@ class AdaptiveMapper:
                     "limit. Return manually to the known spawn before continuing."
                 ),
                 recovery_requires_spawn_reset=True,
+                **camera_result_fields,
             )
 
         if assessment.outcome is AdaptiveForwardOutcome.UNCERTAIN:
@@ -837,6 +913,18 @@ class AdaptiveMapper:
             self.motion_model.record_uncertain_forward()
             self._save_motion_model()
             self.grid.set_heading_degrees(strict_heading.angle_deg)
+            if camera_obscured:
+                unresolved_prefix = (
+                    "The mapper detected a camera obstruction and attempted "
+                    "bounded wait-and-turn recovery, but the original forward "
+                    "travel still could not be resolved. "
+                    f"Recovery result: {camera_recovery_reason}. "
+                )
+            else:
+                unresolved_prefix = (
+                    "Forward travel remained visually uncertain after fresh-frame "
+                    "revalidation, so the new position was not guessed. "
+                )
             return _StepResult(
                 frame_sample=after,
                 fast_heading=fast_heading,
@@ -849,12 +937,12 @@ class AdaptiveMapper:
                 pose_known=False,
                 motion_debug_path=motion_debug_path,
                 recovery_reason=(
-                    "Forward travel remained visually uncertain after fresh-frame "
-                    "revalidation, so the new position was not guessed. "
-                    f"Reason: {assessment.reason}. Return manually to the known "
+                    unresolved_prefix
+                    + f"Reason: {assessment.reason}. Return manually to the known "
                     "spawn, then resume the persistent map."
                 ),
                 recovery_requires_spawn_reset=True,
+                **camera_result_fields,
             )
 
         distance_cells = assessment.distance_cells
@@ -887,6 +975,7 @@ class AdaptiveMapper:
                 ),
                 recovery_requires_spawn_reset=True,
                 motion_debug_path=motion_debug_path,
+                **camera_result_fields,
             )
 
         self._blocked_observations.pop(target_cell, None)
@@ -928,6 +1017,7 @@ class AdaptiveMapper:
                     "before resuming."
                 ),
                 recovery_requires_spawn_reset=True,
+                **camera_result_fields,
             )
 
         self.motion_model.observe_forward(motion.directional_flow)
@@ -953,6 +1043,7 @@ class AdaptiveMapper:
             integration=integration,
             pose_known=(self._position_known and self._heading_known),
             motion_debug_path=motion_debug_path,
+            **camera_result_fields,
         )
 
     def _assess_forward_motion(
@@ -994,12 +1085,15 @@ class AdaptiveMapper:
         initial_motion: MotionEstimate,
         initial_assessment: ForwardAssessment,
         heading_index: int,
+        heading_change_deg: float,
+        detect_camera_obstruction: bool = True,
     ) -> tuple[
         FrameSample,
         HeadingReading | None,
         MotionEstimate,
         ForwardAssessment,
         str | None,
+        CameraObstructionEvidence | None,
     ]:
         """Retry vision only; never issue another movement command."""
         latest_after = after
@@ -1007,6 +1101,9 @@ class AdaptiveMapper:
         latest_assessment = initial_assessment
         latest_fast = self.heading_detector.read_fast(after.frame)
         debug_path: str | None = None
+        recheck_motions: list[MotionEstimate] = []
+        recheck_assessments: list[ForwardAssessment] = []
+        camera_evidence: CameraObstructionEvidence | None = None
 
         for attempt in range(1, self.config.forward_revalidation_attempts + 1):
             self.status_callback(
@@ -1027,6 +1124,8 @@ class AdaptiveMapper:
                 held_seconds=timing.held_seconds,
                 heading_index=heading_index,
             )
+            recheck_motions.append(candidate_motion)
+            recheck_assessments.append(candidate_assessment)
             debug_path = self._save_motion_debug(
                 step,
                 before,
@@ -1047,12 +1146,404 @@ class AdaptiveMapper:
                 )
                 break
 
+        ratio_only_uncertainty = bool(
+            len(recheck_assessments) >= 3
+            and all(
+                assessment.outcome is AdaptiveForwardOutcome.UNCERTAIN
+                and assessment.reason.startswith(
+                    "forward evidence failed: moving ratio "
+                )
+                and ";" not in assessment.reason
+                for assessment in recheck_assessments
+            )
+        )
+        if (
+            latest_assessment.outcome is AdaptiveForwardOutcome.UNCERTAIN
+            and ratio_only_uncertainty
+        ):
+            contact = self.run_motion_baseline.assess_stationary_contact_consensus(
+                recheck_motions,
+                heading_change_deg=heading_change_deg,
+                learned_forward_samples=self.motion_model.forward_samples,
+            )
+            if contact.likely_contact:
+                observed = max(
+                    0.0,
+                    float(latest_motion.directional_flow.magnitude_px),
+                )
+                expected = self.motion_model.forward_flow_px
+                ratio = (
+                    observed / expected
+                    if expected is not None and expected > 0.0
+                    else None
+                )
+                latest_assessment = ForwardAssessment(
+                    outcome=AdaptiveForwardOutcome.BLOCKED,
+                    reliable=True,
+                    distance_cells=0.0,
+                    confidence=contact.confidence,
+                    expected_flow_px=expected,
+                    observed_flow_px=observed,
+                    flow_ratio=ratio,
+                    reason=contact.reason or "stationary contact consensus",
+                )
+                self.status_callback(
+                    "Fresh-frame consensus resolved the forward step as blocked: "
+                    f"{latest_assessment.reason}. Prior pose remains trusted."
+                )
+
+        if (
+            latest_assessment.outcome is AdaptiveForwardOutcome.UNCERTAIN
+            and detect_camera_obstruction
+        ):
+            candidate_evidence = (
+                self.run_motion_baseline.assess_camera_obstruction_consensus(
+                    recheck_motions,
+                    heading_change_deg=heading_change_deg,
+                )
+            )
+            if candidate_evidence.likely_obscured:
+                camera_evidence = candidate_evidence
+                self.status_callback(
+                    "Fresh-frame consensus classified the observation as camera "
+                    f"obscured: {candidate_evidence.reason}. Movement remains "
+                    "unresolved; all keys are released before bounded recovery."
+                )
+
         return (
             latest_after,
             latest_fast,
             latest_motion,
             latest_assessment,
             debug_path,
+            camera_evidence,
+        )
+
+    def _recover_camera_obstruction(
+        self,
+        *,
+        step: int,
+        before: FrameSample,
+        obstructed_after: FrameSample,
+        timing: KeyPressTiming,
+        heading_index: int,
+        start_heading: float,
+        current_heading: HeadingReading,
+        evidence: CameraObstructionEvidence,
+    ) -> _CameraRecoveryResult:
+        """Clear a clipped camera without guessing the completed forward travel.
+
+        Recovery is deliberately reversible. The mapper first waits with all keys
+        released. If the view stays clipped it turns to an adjacent cardinal and
+        then returns to the exact pre-command heading. Only after that return does
+        it compare a fresh frame with the original pre-command frame. A MOVED or
+        BLOCKED result may continue through the normal odometry/contact path; an
+        unresolved result still crosses the manual spawn-reset boundary.
+        """
+
+        self.controller.stop()
+        self.status_callback(
+            "Camera obstruction detected after forward input; preserving the last "
+            "trusted map pose while bounded recovery reassesses the completed "
+            f"step. Evidence confidence {evidence.confidence:.2f}."
+        )
+
+        latest_after = obstructed_after
+        latest_fast = self.heading_detector.read_fast(obstructed_after.frame)
+        latest_heading = current_heading
+        latest_motion = self.tracker.compare(before.frame, obstructed_after.frame)
+        latest_assessment = self._assess_forward_motion(
+            latest_motion,
+            held_seconds=timing.held_seconds,
+            heading_index=heading_index,
+        )
+        latest_debug: str | None = None
+
+        for attempt in range(1, self.config.camera_recovery_wait_attempts + 1):
+            self.status_callback(
+                "Camera recovery wait "
+                f"{attempt}/{self.config.camera_recovery_wait_attempts}: all keys "
+                "released while waiting for nearby geometry to clear."
+            )
+            if self.cancellation.wait(self.config.camera_recovery_wait_seconds):
+                self.cancellation.raise_if_cancelled()
+            candidate = self._wait_for_frame_sample(
+                after_identity=latest_after.identity,
+                generation=before.generation,
+                not_before=monotonic(),
+            )
+            candidate_motion = self.tracker.compare(before.frame, candidate.frame)
+            candidate_assessment = self._assess_forward_motion(
+                candidate_motion,
+                held_seconds=timing.held_seconds,
+                heading_index=heading_index,
+            )
+            latest_debug = self._save_motion_debug(
+                step,
+                before,
+                candidate,
+                candidate_motion,
+                suffix=f"camera_wait_{attempt}",
+            )
+            latest_after = candidate
+            latest_fast = self.heading_detector.read_fast(candidate.frame)
+            latest_motion = candidate_motion
+            latest_assessment = candidate_assessment
+            if (
+                not candidate_motion.teleport_likely
+                and candidate_assessment.outcome
+                is not AdaptiveForwardOutcome.UNCERTAIN
+            ):
+                latest_heading = self._strict_heading(
+                    "Camera recovery heading confirmation",
+                    samples=11,
+                )
+                self._remember_heading(latest_heading)
+                self._forward_heading_settle_required = False
+                reason = (
+                    "camera cleared without a turn and the original forward "
+                    f"outcome resolved as {candidate_assessment.outcome.value}"
+                )
+                self.status_callback(
+                    "Camera obstruction cleared during the neutral wait; "
+                    f"forward outcome is {candidate_assessment.outcome.value}."
+                )
+                return _CameraRecoveryResult(
+                    frame_sample=candidate,
+                    fast_heading=latest_fast,
+                    strict_heading=latest_heading,
+                    motion=candidate_motion,
+                    assessment=self._assessment_with_recovery_reason(
+                        candidate_assessment,
+                        reason,
+                    ),
+                    motion_debug_path=latest_debug,
+                    recovered=True,
+                    turn_count=0,
+                    reason=reason,
+                )
+
+        turn_directions = self._camera_recovery_direction_indices(heading_index)
+        maximum_turns = min(
+            self.config.camera_recovery_turn_attempts,
+            len(turn_directions),
+        )
+        for attempt, escape_index in enumerate(
+            turn_directions[:maximum_turns],
+            start=1,
+        ):
+            direction_name = (
+                "left"
+                if escape_index == (heading_index + 1) % 4
+                else "right"
+            )
+            escape_heading = self.grid.heading_degrees_from_index(escape_index)
+            self.status_callback(
+                "Camera remained obstructed; performing reversible recovery turn "
+                f"{attempt}/{maximum_turns}: {direction_name} to "
+                f"{escape_heading:.1f}°, then back to {start_heading:.1f}°."
+            )
+            self._set_pose_reliability(
+                heading_known=False,
+                note=(
+                    "Camera recovery turn is in progress; position remains "
+                    "unresolved until the original forward step is reassessed."
+                ),
+            )
+            escape_turn = self.turner.turn_to_heading(
+                escape_heading,
+                label=f"Camera recovery escape {direction_name}",
+                initial_reading=latest_heading,
+            )
+            self.grid.set_heading_degrees(escape_turn.final_reading.angle_deg)
+            self._remember_heading(escape_turn.final_reading)
+            if self.cancellation.wait(self.config.turn_settle_seconds):
+                self.cancellation.raise_if_cancelled()
+            escape_sample = self._wait_for_frame_sample(not_before=monotonic())
+            escape_motion = self.tracker.compare(
+                latest_after.frame,
+                escape_sample.frame,
+            )
+            self._save_motion_debug(
+                step,
+                latest_after,
+                escape_sample,
+                escape_motion,
+                suffix=f"camera_escape_{attempt}",
+            )
+
+            return_turn = self.turner.turn_to_heading(
+                start_heading,
+                label=f"Camera recovery return {attempt}",
+                initial_reading=escape_turn.final_reading,
+            )
+            latest_heading = return_turn.final_reading
+            self.grid.set_heading_degrees(latest_heading.angle_deg)
+            self._remember_heading(latest_heading)
+            self.heading_detector.reset_fast()
+            if self.cancellation.wait(self.config.turn_settle_seconds):
+                self.cancellation.raise_if_cancelled()
+            candidate = self._wait_for_frame_sample(not_before=monotonic())
+            candidate_motion = self.tracker.compare(before.frame, candidate.frame)
+            candidate_assessment = self._assess_forward_motion(
+                candidate_motion,
+                held_seconds=timing.held_seconds,
+                heading_index=heading_index,
+            )
+            latest_debug = self._save_motion_debug(
+                step,
+                before,
+                candidate,
+                candidate_motion,
+                suffix=f"camera_recovery_{attempt}",
+            )
+            latest_after = candidate
+            latest_fast = self.heading_detector.read_fast(candidate.frame)
+            latest_motion = candidate_motion
+            latest_assessment = candidate_assessment
+
+            if candidate_assessment.outcome is AdaptiveForwardOutcome.UNCERTAIN:
+                (
+                    latest_after,
+                    latest_fast,
+                    latest_motion,
+                    latest_assessment,
+                    retry_debug,
+                    _ignored_camera_evidence,
+                ) = self._revalidate_forward_observation(
+                    step=step,
+                    before=before,
+                    after=candidate,
+                    timing=timing,
+                    initial_motion=candidate_motion,
+                    initial_assessment=candidate_assessment,
+                    heading_index=heading_index,
+                    heading_change_deg=signed_angle_delta(
+                        latest_heading.angle_deg,
+                        start_heading,
+                    ),
+                    detect_camera_obstruction=False,
+                )
+                latest_debug = retry_debug or latest_debug
+
+            if (
+                not latest_motion.teleport_likely
+                and latest_assessment.outcome
+                is not AdaptiveForwardOutcome.UNCERTAIN
+            ):
+                self._forward_heading_settle_required = False
+                self._set_pose_reliability(
+                    heading_known=True,
+                    note=(
+                        "Camera recovery returned to the original heading; "
+                        "position awaits the resolved forward outcome."
+                    ),
+                )
+                reason = (
+                    f"camera cleared after reversible {direction_name} turn and "
+                    "return; original forward outcome resolved as "
+                    f"{latest_assessment.outcome.value}"
+                )
+                self.status_callback(
+                    "Camera recovery succeeded after the reversible "
+                    f"{direction_name} turn; forward outcome is "
+                    f"{latest_assessment.outcome.value}."
+                )
+                return _CameraRecoveryResult(
+                    frame_sample=latest_after,
+                    fast_heading=latest_fast,
+                    strict_heading=latest_heading,
+                    motion=latest_motion,
+                    assessment=self._assessment_with_recovery_reason(
+                        latest_assessment,
+                        reason,
+                    ),
+                    motion_debug_path=latest_debug,
+                    recovered=True,
+                    turn_count=attempt * 2,
+                    reason=reason,
+                )
+
+            self.status_callback(
+                "Camera recovery returned to the original heading, but the "
+                "forward outcome remained unresolved; trying the other bounded "
+                "turn direction if available."
+            )
+
+        self.grid.set_heading_degrees(latest_heading.angle_deg)
+        self._remember_heading(latest_heading)
+        self._set_pose_reliability(
+            heading_known=True,
+            note=(
+                "Camera recovery ended at a known heading, but the completed "
+                "forward travel remains unresolved."
+            ),
+        )
+        reason = (
+            "camera remained unusable or the original forward outcome stayed "
+            f"uncertain after {maximum_turns} reversible recovery turn(s)"
+        )
+        return _CameraRecoveryResult(
+            frame_sample=latest_after,
+            fast_heading=latest_fast,
+            strict_heading=latest_heading,
+            motion=latest_motion,
+            assessment=latest_assessment,
+            motion_debug_path=latest_debug,
+            recovered=False,
+            turn_count=maximum_turns * 2,
+            reason=reason,
+        )
+
+    def _camera_recovery_direction_indices(
+        self,
+        heading_index: int,
+    ) -> tuple[int, int]:
+        """Prefer a side that is already known free, then unknown, then blocked."""
+
+        left = (int(heading_index) + 1) % 4
+        right = (int(heading_index) - 1) % 4
+
+        def score(candidate_index: int) -> tuple[int, int]:
+            dx, dy = self.grid.DIRECTIONS[candidate_index]
+            cell_x = self.grid.pose.x + dx
+            cell_y = self.grid.pose.y + dy
+            value = self.grid.value(cell_x, cell_y)
+            if value == FREE:
+                rank = 0
+            elif value == UNKNOWN:
+                rank = 1
+            elif value == BLOCKED:
+                rank = 3
+            else:
+                rank = 2
+            gx, gy = self.grid.world_to_cell(cell_x, cell_y)
+            visits = (
+                int(self.grid.visits[gy, gx])
+                if 0 <= gy < self.grid.size and 0 <= gx < self.grid.size
+                else 65535
+            )
+            return rank, visits
+
+        ordered = sorted((left, right), key=score)
+        return ordered[0], ordered[1]
+
+    @staticmethod
+    def _assessment_with_recovery_reason(
+        assessment: ForwardAssessment,
+        recovery_reason: str,
+    ) -> ForwardAssessment:
+        original = assessment.reason.strip() if assessment.reason else ""
+        reason = recovery_reason if not original else f"{recovery_reason}; {original}"
+        return ForwardAssessment(
+            outcome=assessment.outcome,
+            reliable=assessment.reliable,
+            distance_cells=assessment.distance_cells,
+            confidence=assessment.confidence,
+            expected_flow_px=assessment.expected_flow_px,
+            observed_flow_px=assessment.observed_flow_px,
+            flow_ratio=assessment.flow_ratio,
+            reason=reason,
         )
 
     def _save_motion_debug(
@@ -1362,6 +1853,11 @@ class AdaptiveMapper:
                         else ""
                     ),
                     "flow_camera_model": flow.camera_model if flow is not None else "",
+                    "camera_obscured": result.camera_obscured,
+                    "camera_recovery_attempted": result.camera_recovery_attempted,
+                    "camera_recovered": result.camera_recovered,
+                    "camera_recovery_turns": result.camera_recovery_turns,
+                    "camera_recovery_reason": result.camera_recovery_reason or "",
                     "motion_debug_path": result.motion_debug_path or "",
                     "motion_outcome": (
                         assessment.outcome.value if assessment is not None else "turn"
@@ -1448,6 +1944,9 @@ class AdaptiveMapper:
             if result.motion is not None
             else "n/a"
         )
+        if result.camera_obscured:
+            recovery_state = "recovered" if result.camera_recovered else "unresolved"
+            camera_text = f"obscured->{recovery_state}/{camera_text}"
         shadow_text = (
             f" rl_shadow={shadow.action}"
             if shadow.enabled and shadow.action

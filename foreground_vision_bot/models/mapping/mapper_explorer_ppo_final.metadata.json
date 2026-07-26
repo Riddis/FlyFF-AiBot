@@ -49,12 +49,12 @@
     "evaluation_frequency": 25000,
     "model_path": "models\\mapping\\mapper_explorer_ppo",
     "parallel_envs": 8,
-    "resume_from": "models\\mapping\\archive\\mapper_explorer_ppo_v18_100k.zip",
+    "resume_from": "models\\mapping\\archive\\mapper_explorer_ppo_v19_100k_warmstart.zip",
     "seed": 7,
     "tensorboard_dir": "training_logs\\mapping",
     "total_timesteps": 100000
   },
   "training_note": "v1.9 preserves bounded recovery, enters deterministic frontier escape after prolonged non-discovery, rewards shortest-path frontier progress and truncates only after a longer interval with no useful progress",
   "version": 4,
-  "warm_started_from": "models\\mapping\\archive\\mapper_explorer_ppo_v18_100k.zip"
+  "warm_started_from": "models\\mapping\\archive\\mapper_explorer_ppo_v19_100k_warmstart.zip"
 }
