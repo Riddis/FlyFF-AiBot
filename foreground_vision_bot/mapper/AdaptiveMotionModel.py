@@ -65,9 +65,11 @@ class AdaptiveMotionModel:
     MIN_FORWARD_FLOW_PX = 1.35
     STATIC_FLOW_PX = 1.10
     STATIC_CHANGE_SCORE = 0.018
-    MIN_TRACKED_POINTS = 8
-    MIN_INLIER_RATIO = 0.45
-    MIN_FLOW_CONFIDENCE = 0.35
+    MIN_VALID_TRACKS = 8
+    MIN_MOVING_POINTS = 6
+    MIN_MOVING_RATIO = 0.25
+    MIN_OCCUPIED_REGIONS = 2
+    MIN_FLOW_CONFIDENCE = 0.38
 
     def __post_init__(self) -> None:
         if self.version != 1:
@@ -254,13 +256,15 @@ class AdaptiveMotionModel:
         change_score: float,
         held_seconds: float,
     ) -> ForwardAssessment:
-        """Classify one nominal forward command without a pre-run calibration."""
+        """Classify one nominal forward command without camera calibration."""
         observed = max(0.0, float(flow.magnitude_px))
         expected = self.forward_flow_px
         ratio = observed / expected if expected is not None and expected > 0.0 else None
 
         if not math.isfinite(change_score) or not math.isfinite(held_seconds):
-            return self._uncertain(observed, expected, ratio, "invalid forward evidence")
+            return self._uncertain(
+                observed, expected, ratio, "invalid forward evidence"
+            )
         if not 0.03 <= held_seconds <= 0.50:
             return self._uncertain(
                 observed,
@@ -295,50 +299,54 @@ class AdaptiveMotionModel:
                 reason="two-frame view is effectively static after forward input",
             )
 
-        coherent = (
-            flow.tracked_points >= self.MIN_TRACKED_POINTS
-            and flow.inlier_ratio >= self.MIN_INLIER_RATIO
-            and flow.confidence >= self.MIN_FLOW_CONFIDENCE
-            and flow.dispersion_px <= max(3.0, observed * 0.90)
-        )
-        if not coherent:
+        # New tracker fields are camera-agnostic. The fallbacks preserve
+        # compatibility with motion objects created by the initial adaptive
+        # mapper and with older local tests.
+        valid_tracks = flow.valid_tracks or flow.tracked_points
+        moving_points = flow.moving_points or flow.tracked_points
+        moving_ratio = flow.moving_ratio
+        if moving_ratio <= 0.0 and valid_tracks > 0:
+            moving_ratio = moving_points / valid_tracks
+        occupied_regions = flow.occupied_regions
+        if occupied_regions == 0 and flow.tracked_points >= self.MIN_MOVING_POINTS:
+            occupied_regions = 2
+
+        failures: list[str] = []
+        if valid_tracks < self.MIN_VALID_TRACKS:
+            failures.append(
+                f"valid tracks {valid_tracks} < {self.MIN_VALID_TRACKS}"
+            )
+        if moving_points < self.MIN_MOVING_POINTS:
+            failures.append(
+                f"moving tracks {moving_points} < {self.MIN_MOVING_POINTS}"
+            )
+        if moving_ratio < self.MIN_MOVING_RATIO:
+            failures.append(
+                f"moving ratio {moving_ratio:.2f} < {self.MIN_MOVING_RATIO:.2f}"
+            )
+        if occupied_regions < self.MIN_OCCUPIED_REGIONS:
+            failures.append(
+                f"occupied regions {occupied_regions} < {self.MIN_OCCUPIED_REGIONS}"
+            )
+        if flow.confidence < self.MIN_FLOW_CONFIDENCE:
+            failures.append(
+                f"flow confidence {flow.confidence:.2f} "
+                f"< {self.MIN_FLOW_CONFIDENCE:.2f}"
+            )
+        if failures:
             return self._uncertain(
                 observed,
                 expected,
                 ratio,
-                "optical flow is not coherent enough to prove a complete step",
+                "forward evidence failed: " + "; ".join(failures),
             )
         if observed < self.MIN_FORWARD_FLOW_PX:
             return self._uncertain(
                 observed,
                 expected,
                 ratio,
-                "coherent flow is too small to prove a complete step",
+                "distributed flow is too small to prove a complete step",
             )
-
-        consistency = 0.70
-        # Scene texture changes optical-flow magnitude dramatically. During the
-        # first few successful steps the learned envelope is diagnostic only.
-        # Once established, reject only extreme shortfall/excess rather than
-        # pretending flow pixels are a metric distance ruler.
-        if ratio is not None and self.forward_samples >= 3:
-            lower = 0.20
-            upper = 4.00
-            if ratio < lower:
-                return self._uncertain(
-                    observed,
-                    expected,
-                    ratio,
-                    "forward flow is well below the learned response; partial travel is possible",
-                )
-            if ratio > upper:
-                return self._uncertain(
-                    observed,
-                    expected,
-                    ratio,
-                    "forward flow is well above the learned response",
-                )
-            consistency = math.exp(-abs(math.log(max(ratio, 1e-6))) / 1.20)
 
         duration_ratio = held_seconds / self.forward_seconds
         if not 0.70 <= duration_ratio <= 1.35:
@@ -349,14 +357,28 @@ class AdaptiveMotionModel:
                 "forward key hold differed too much from the nominal mapper pulse",
             )
 
+        # Flow magnitude changes sharply between a behind-character camera and
+        # a top-down camera. The learned magnitude is therefore diagnostic, not
+        # a hard distance ruler. A broad consistency term can improve confidence
+        # without rejecting a valid step after the user changes camera angle.
+        consistency = 0.75
+        if ratio is not None:
+            consistency = max(
+                0.35,
+                math.exp(-abs(math.log(max(ratio, 1e-6))) / 2.0),
+            )
+        camera_coherence = max(
+            flow.translation_coherence,
+            flow.expansion_coherence,
+        )
         confidence = float(
             max(
                 0.0,
                 min(
                     1.0,
-                    0.55 * flow.confidence
-                    + 0.25 * min(1.0, flow.inlier_ratio)
-                    + 0.20 * consistency,
+                    0.70 * flow.confidence
+                    + 0.15 * consistency
+                    + 0.15 * camera_coherence,
                 ),
             )
         )
@@ -369,7 +391,10 @@ class AdaptiveMotionModel:
             expected_flow_px=expected,
             observed_flow_px=observed,
             flow_ratio=ratio,
-            reason="coherent visual travel confirmed",
+            reason=(
+                "distributed visual travel confirmed "
+                f"({flow.camera_model} camera evidence)"
+            ),
         )
 
     def observe_forward(self, flow: DirectionalFlow) -> bool:
@@ -386,7 +411,7 @@ class AdaptiveMotionModel:
 
         current = float(self.forward_flow_px)
         ratio = observed / max(current, 1e-6)
-        if not 0.15 <= ratio <= 5.00:
+        if not 0.05 <= ratio <= 20.00:
             self.uncertain_forward_samples += 1
             return False
 
@@ -395,7 +420,11 @@ class AdaptiveMotionModel:
         # Large flow is often just richer nearby texture. Learn downward faster
         # than upward so one unusually large first observation does not make
         # ordinary later steps look like partial movement.
-        alpha = min(0.40, base_alpha * 1.35) if observed < current else max(0.06, base_alpha * 0.50)
+        alpha = (
+            min(0.40, base_alpha * 1.35)
+            if observed < current
+            else max(0.06, base_alpha * 0.50)
+        )
         residual = abs(observed - current)
         self.forward_flow_px = current * (1.0 - alpha) + observed * alpha
         deviation = self.forward_flow_deviation_px

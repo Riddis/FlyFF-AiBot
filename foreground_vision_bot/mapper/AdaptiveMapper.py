@@ -94,6 +94,7 @@ class _StepResult:
     pose_known: bool
     turn_result: AdaptiveTurnResult | None = None
     stop_reason: str | None = None
+    motion_debug_path: str | None = None
 
 
 class AdaptiveMapper:
@@ -106,7 +107,7 @@ class AdaptiveMapper:
     still fails closed so map drift is not silently accumulated.
     """
 
-    VERSION = "1.0-online-motion-learning"
+    VERSION = "1.1-multi-camera-forward-validation"
 
     def __init__(
         self,
@@ -230,7 +231,8 @@ class AdaptiveMapper:
         self.status_callback(
             "Adaptive mapper starts in 5 seconds. Enter the dungeon, stand at "
             "the known spawn, keep the camera fixed, and leave a clear path "
-            "ahead. No mapper calibration is required."
+            "ahead. Behind-character and top-down views are both supported, "
+            "but do not change view during a run. No mapper calibration is required."
         )
         self.status_callback(
             f"Adaptive mapper {self.VERSION}; heading detector "
@@ -268,7 +270,7 @@ class AdaptiveMapper:
 
             step += 1
             if decision.action == "FORWARD":
-                result = self._execute_forward()
+                result = self._execute_forward(step)
             else:
                 result = self._execute_turn(decision)
 
@@ -372,7 +374,7 @@ class AdaptiveMapper:
             turn_result=turn,
         )
 
-    def _execute_forward(self) -> _StepResult:
+    def _execute_forward(self, step: int) -> _StepResult:
         before = self._wait_for_frame_sample(not_before=monotonic())
         start_heading = self.grid.continuous_pose.heading_deg
         step_dx, step_dy = self.grid.DIRECTIONS[self.grid.pose.heading_index]
@@ -395,7 +397,15 @@ class AdaptiveMapper:
 
         fast_heading = self.heading_detector.read_fast(after.frame)
         motion = self.tracker.compare(before.frame, after.frame)
+        motion_debug_path = (
+            self._save_motion_debug(step, before, after, motion)
+            if step <= 3
+            else None
+        )
         if motion.teleport_likely:
+            motion_debug_path = motion_debug_path or self._save_motion_debug(
+                step, before, after, motion
+            )
             self.grid.add_suspected_transition(
                 from_x=self.grid.pose.x,
                 from_y=self.grid.pose.y,
@@ -414,6 +424,7 @@ class AdaptiveMapper:
                 distance_cells=None,
                 integration=None,
                 pose_known=False,
+                motion_debug_path=motion_debug_path,
                 stop_reason=(
                     "Probable teleport detected. Mapping stopped at the last "
                     f"confirmed pose ({self.grid.pose.x}, {self.grid.pose.y})."
@@ -431,6 +442,9 @@ class AdaptiveMapper:
         )
         heading_change = signed_angle_delta(strict_heading.angle_deg, start_heading)
         if abs(heading_change) > self.config.maximum_forward_heading_drift_degrees:
+            motion_debug_path = motion_debug_path or self._save_motion_debug(
+                step, before, after, motion
+            )
             self.grid.set_heading_degrees(strict_heading.angle_deg)
             return _StepResult(
                 frame_sample=after,
@@ -442,6 +456,7 @@ class AdaptiveMapper:
                 distance_cells=None,
                 integration=None,
                 pose_known=False,
+                motion_debug_path=motion_debug_path,
                 stop_reason=(
                     "Forward movement changed heading by "
                     f"{heading_change:+.1f}°. Pose integration was discarded "
@@ -473,9 +488,13 @@ class AdaptiveMapper:
                 integration=None,
                 pose_known=(self._position_known and self._heading_known),
                 stop_reason=stop_reason,
+                motion_debug_path=motion_debug_path,
             )
 
         if assessment.outcome is AdaptiveForwardOutcome.UNCERTAIN:
+            motion_debug_path = motion_debug_path or self._save_motion_debug(
+                step, before, after, motion
+            )
             self.motion_model.record_uncertain_forward()
             self._save_motion_model()
             self.grid.set_heading_degrees(strict_heading.angle_deg)
@@ -489,6 +508,7 @@ class AdaptiveMapper:
                 distance_cells=None,
                 integration=None,
                 pose_known=False,
+                motion_debug_path=motion_debug_path,
                 stop_reason=(
                     "Forward travel was visually uncertain, so mapping stopped "
                     "without guessing the new position. "
@@ -506,6 +526,9 @@ class AdaptiveMapper:
                 <= self.config.maximum_step_cells
             )
         ):
+            motion_debug_path = motion_debug_path or self._save_motion_debug(
+                step, before, after, motion
+            )
             self.grid.set_heading_degrees(strict_heading.angle_deg)
             return _StepResult(
                 frame_sample=after,
@@ -518,6 +541,7 @@ class AdaptiveMapper:
                 integration=None,
                 pose_known=False,
                 stop_reason="Adaptive forward distance failed its safety gate.",
+                motion_debug_path=motion_debug_path,
             )
 
         self._blocked_observations.pop(target_cell, None)
@@ -530,6 +554,9 @@ class AdaptiveMapper:
             maximum_distance_cells=self.config.maximum_step_cells,
         )
         if not integration.accepted:
+            motion_debug_path = motion_debug_path or self._save_motion_debug(
+                step, before, after, motion
+            )
             self.grid.set_heading_degrees(strict_heading.angle_deg)
             return _StepResult(
                 frame_sample=after,
@@ -541,6 +568,7 @@ class AdaptiveMapper:
                 distance_cells=distance_cells,
                 integration=integration,
                 pose_known=False,
+                motion_debug_path=motion_debug_path,
                 stop_reason=(
                     "Adaptive motion could not be integrated safely "
                     f"({integration.reason})."
@@ -565,7 +593,27 @@ class AdaptiveMapper:
             distance_cells=distance_cells,
             integration=integration,
             pose_known=(self._position_known and self._heading_known),
+            motion_debug_path=motion_debug_path,
         )
+
+    def _save_motion_debug(
+        self,
+        step: int,
+        before: FrameSample,
+        after: FrameSample,
+        motion: MotionEstimate,
+    ) -> str:
+        path = self.tracker.save_diagnostics(
+            self.output_dir / "motion_debug",
+            prefix=f"step_{step:04d}_forward",
+            before=before.frame,
+            after=after.frame,
+            estimate=motion,
+        )
+        try:
+            return str(path.relative_to(self.output_dir))
+        except ValueError:
+            return str(path)
 
     def _record_blocked_observation(
         self,
@@ -762,6 +810,34 @@ class AdaptiveMapper:
                     round(flow.inlier_ratio, 3) if flow is not None else ""
                 ),
                 "tracked_points": flow.tracked_points if flow is not None else "",
+                "flow_detected_points": (
+                    flow.detected_points if flow is not None else ""
+                ),
+                "flow_valid_tracks": flow.valid_tracks if flow is not None else "",
+                "flow_moving_points": (
+                    flow.moving_points if flow is not None else ""
+                ),
+                "flow_moving_ratio": (
+                    round(flow.moving_ratio, 3) if flow is not None else ""
+                ),
+                "flow_spatial_coverage": (
+                    round(flow.spatial_coverage, 3) if flow is not None else ""
+                ),
+                "flow_occupied_regions": (
+                    flow.occupied_regions if flow is not None else ""
+                ),
+                "flow_translation_coherence": (
+                    round(flow.translation_coherence, 3)
+                    if flow is not None
+                    else ""
+                ),
+                "flow_expansion_coherence": (
+                    round(flow.expansion_coherence, 3)
+                    if flow is not None
+                    else ""
+                ),
+                "flow_camera_model": flow.camera_model if flow is not None else "",
+                "motion_debug_path": result.motion_debug_path or "",
                 "motion_outcome": (
                     assessment.outcome.value if assessment is not None else "turn"
                 ),
@@ -836,11 +912,16 @@ class AdaptiveMapper:
             if result.strict_heading is not None
             else "unavailable"
         )
+        camera_text = (
+            result.motion.directional_flow.camera_model
+            if result.motion is not None
+            else "n/a"
+        )
         self.status_callback(
             f"map step={step} pose=({self.grid.continuous_pose.x:.2f},"
             f"{self.grid.continuous_pose.y:.2f}) "
             f"heading={self.grid.continuous_pose.heading_deg:.1f}° "
-            f"action={decision.action} motion={motion_text} "
+            f"action={decision.action} motion={motion_text} camera={camera_text} "
             f"strict_heading={strict_text} pose_known={result.pose_known} "
             f"pang={pang.visible}; {self.motion_model.summary()}"
         )

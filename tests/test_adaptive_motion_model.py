@@ -15,8 +15,11 @@ def flow(
     *,
     confidence: float = 0.8,
     tracked: int = 30,
-    inlier_ratio: float = 0.8,
-    dispersion: float = 0.8,
+    inlier_ratio: float = 0.2,
+    dispersion: float = 8.0,
+    camera_model: str = "translation",
+    translation: float = 0.85,
+    expansion: float = 0.15,
 ) -> DirectionalFlow:
     return DirectionalFlow(
         scene_dx_px=0.0,
@@ -26,6 +29,15 @@ def flow(
         tracked_points=tracked,
         inlier_ratio=inlier_ratio,
         confidence=confidence,
+        detected_points=max(40, tracked),
+        valid_tracks=tracked,
+        moving_points=tracked,
+        moving_ratio=0.80,
+        spatial_coverage=0.50,
+        occupied_regions=6,
+        translation_coherence=translation,
+        expansion_coherence=expansion,
+        camera_model=camera_model,
     )
 
 
@@ -85,14 +97,25 @@ def test_static_forward_is_blocked() -> None:
     assert assessment.reliable
 
 
-def test_learned_shortfall_is_uncertain() -> None:
+def test_camera_change_does_not_turn_flow_magnitude_into_a_hard_gate() -> None:
     model = AdaptiveMotionModel(forward_flow_px=10.0, forward_samples=4)
     assessment = model.assess_forward(
         flow(1.5),
         change_score=0.05,
         held_seconds=0.12,
     )
-    assert assessment.outcome is AdaptiveForwardOutcome.UNCERTAIN
+    assert assessment.outcome is AdaptiveForwardOutcome.MOVED
+
+
+def test_low_affine_support_can_still_pass_for_perspective_camera() -> None:
+    model = AdaptiveMotionModel()
+    assessment = model.assess_forward(
+        flow(20.0, inlier_ratio=0.20, camera_model="perspective-expansion",
+             translation=0.15, expansion=0.80),
+        change_score=0.025,
+        held_seconds=0.12,
+    )
+    assert assessment.outcome is AdaptiveForwardOutcome.MOVED
 
 
 def test_model_save_load_roundtrip(tmp_path: Path) -> None:
