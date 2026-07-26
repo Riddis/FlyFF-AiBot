@@ -7,6 +7,13 @@ from shutil import copy2
 from time import monotonic
 
 from mapper.rl.Policy import write_policy_metadata
+from project_paths import (
+    MAPPING_CHECKPOINTS_RELATIVE,
+    MAPPING_MODEL_RELATIVE,
+    MAPPING_TRAINING_LOGS_RELATIVE,
+    display_app_path,
+    resolve_app_path,
+)
 from mapper.rl.SimulatorCore import MapperSimulatorConfig
 from worker_manager import CancellationToken
 
@@ -19,9 +26,9 @@ class MapperRLTrainingConfig:
     evaluation_frequency: int = 25_000
     evaluation_episodes: int = 20
     seed: int = 7
-    model_path: str = "models/mapper_explorer_ppo"
-    checkpoint_dir: str = "models/mapper_checkpoints"
-    tensorboard_dir: str = "training_logs/mapper_rl"
+    model_path: str = str(MAPPING_MODEL_RELATIVE)
+    checkpoint_dir: str = str(MAPPING_CHECKPOINTS_RELATIVE)
+    tensorboard_dir: str = str(MAPPING_TRAINING_LOGS_RELATIVE)
 
     def __post_init__(self) -> None:
         if self.total_timesteps < 1:
@@ -65,21 +72,21 @@ def train_mapper_policy(
 
     from mapper.rl.GymEnv import MapperSimEnv
 
-    model_stem = _model_stem(Path(config.model_path))
+    model_stem = _model_stem(resolve_app_path(config.model_path))
     model_stem.parent.mkdir(parents=True, exist_ok=True)
     selected_model_zip = model_stem.with_suffix(".zip")
     final_model_stem = model_stem.with_name(f"{model_stem.name}_final")
     final_model_zip = final_model_stem.with_suffix(".zip")
-    best_model_dir = model_stem.parent / "mapper_best"
+    best_model_dir = model_stem.parent / "best"
     best_model_dir.mkdir(parents=True, exist_ok=True)
     best_model_zip = best_model_dir / "best_model.zip"
     # Prevent a cancelled/failed run from promoting a stale model from an older
     # reward contract.
     best_model_zip.unlink(missing_ok=True)
 
-    checkpoint_dir = Path(config.checkpoint_dir)
+    checkpoint_dir = resolve_app_path(config.checkpoint_dir)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    tensorboard_dir = Path(config.tensorboard_dir)
+    tensorboard_dir = resolve_app_path(config.tensorboard_dir)
     tensorboard_dir.mkdir(parents=True, exist_ok=True)
 
     def env_factory():
@@ -133,7 +140,7 @@ def train_mapper_policy(
             MaskableEvalCallback(
                 evaluation_env,
                 best_model_save_path=str(best_model_dir),
-                log_path=str(model_stem.parent / "mapper_eval"),
+                log_path=str(model_stem.parent / "evaluations"),
                 eval_freq=evaluation_frequency,
                 n_eval_episodes=config.evaluation_episodes,
                 deterministic=True,
@@ -182,7 +189,7 @@ def train_mapper_policy(
             "simulator": asdict(simulator_config),
             "live_mode": "shadow_only",
             "selected_checkpoint": selected_checkpoint,
-            "final_checkpoint": str(final_model_zip),
+            "final_checkpoint": display_app_path(final_model_zip),
             "training_note": (
                 "v1.8 bounds passive waiting, requires active recovery for heading/pose "
                 "loss, penalises unproductive recovery and promotes the best evaluation "
@@ -220,7 +227,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument(
         "--model-path",
-        default="models/mapper_explorer_ppo",
+        default=str(MAPPING_MODEL_RELATIVE),
     )
     return parser.parse_args()
 

@@ -77,8 +77,27 @@ class MapLogger:
         self.writer.writeheader()
         self.handle.flush()
 
+    @classmethod
+    def canonical_row(cls, row: dict[str, Any]) -> dict[str, Any]:
+        """Return one row in the exact persisted CSV schema order.
+
+        Mapper implementations evolved at different times and may omit fields
+        that are irrelevant to a particular runtime.  Canonicalising at the
+        boundary keeps legacy and adaptive mappers compatible with one shared
+        logger without allowing dictionary insertion order to drift from the
+        CSV header.
+        """
+
+        unknown = tuple(field for field in row if field not in cls.FIELDS)
+        if unknown:
+            raise ValueError(
+                "Mapper log row contains fields outside MapLogger.FIELDS: "
+                + ", ".join(unknown)
+            )
+        return {field: row.get(field, "") for field in cls.FIELDS}
+
     def write(self, row: dict[str, Any]) -> None:
-        self.writer.writerow(row)
+        self.writer.writerow(self.canonical_row(row))
         self.handle.flush()
 
     def close(self) -> None:

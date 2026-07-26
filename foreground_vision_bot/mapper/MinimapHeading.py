@@ -85,7 +85,7 @@ def counterclockwise_delta(start: float, current: float) -> float:
 
 
 class MinimapHeadingDetector:
-    VERSION = "7.0-calibrated-grayscale-geometry"
+    VERSION = "7.2-background-normalized-grayscale-geometry"
     STRICT_CONSENSUS_FLOOR_DEGREES = 1.0
     GEOMETRY_MINIMUM_VISIBLE_PIXELS = 24
     GEOMETRY_MINIMUM_BRIGHTNESS_MASS = 10.0
@@ -1036,6 +1036,105 @@ class MinimapHeadingDetector:
         mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel)
         return cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel)
 
+    def _geometry_evidence(self, gray: np.ndarray) -> np.ndarray | None:
+        """Isolate contrast-normalized arrow grayscale evidence for PCA.
+
+        Flyff's minimap field is usually black, but screenshots and synthetic
+        regression frames can carry a small non-zero background level. A fixed
+        absolute threshold can then classify the whole crop as arrow evidence
+        and make the covariance nearly isotropic. Estimate the background from
+        the crop border, retain the connected bright component nearest the
+        configured arrow centre, and pad it before measuring geometry.
+
+        This remains a geometry-only fast path: no template matching or contour
+        heading estimation is performed here.
+        """
+
+        if gray.ndim != 2 or gray.size == 0:
+            return None
+
+        source = gray.astype(np.float32, copy=False)
+        if min(source.shape) < 3:
+            return None
+
+        border = np.concatenate(
+            (
+                source[0, :],
+                source[-1, :],
+                source[1:-1, 0],
+                source[1:-1, -1],
+            )
+        )
+        background = float(np.median(border)) if border.size else 0.0
+        contrast = np.clip(source - background, 0.0, 255.0)
+        peak = float(contrast.max(initial=0.0))
+        if peak < 3.0:
+            return None
+
+        # Keep dim anti-aliased edge pixels while excluding a raised dark
+        # background. The relative term scales to both captured and test assets.
+        threshold = max(2.0, min(12.0, peak * 0.055))
+        candidate = (contrast >= threshold).astype(np.uint8)
+        count, labels, stats, centroids = cv.connectedComponentsWithStats(
+            candidate, connectivity=8
+        )
+        if count <= 1:
+            return None
+
+        center_x = (gray.shape[1] - 1) * 0.5
+        center_y = (gray.shape[0] - 1) * 0.5
+        best_index: int | None = None
+        best_score = -1.0
+        for index in range(1, count):
+            area = int(stats[index, cv.CC_STAT_AREA])
+            if area < 6:
+                continue
+            component_mask = labels == index
+            mass = float(contrast[component_mask].sum())
+            centroid_x, centroid_y = centroids[index]
+            distance = math.hypot(
+                float(centroid_x) - center_x,
+                float(centroid_y) - center_y,
+            )
+            # The arrow is centred by configuration. Prefer a bright central
+            # component over isolated UI/noise pixels near the crop edge.
+            score = mass / (1.0 + 0.18 * distance)
+            if score > best_score:
+                best_score = score
+                best_index = index
+
+        if best_index is None:
+            return None
+
+        component_mask = labels == best_index
+        visible_y, visible_x = np.nonzero(component_mask)
+        if visible_x.size < 6:
+            return None
+        x0 = int(visible_x.min())
+        x1 = int(visible_x.max()) + 1
+        y0 = int(visible_y.min())
+        y1 = int(visible_y.max()) + 1
+        component_gray = np.where(component_mask, contrast, 0.0)[y0:y1, x0:x1]
+        component_gray = np.clip(component_gray, 0.0, 255.0).astype(np.uint8)
+
+        padding = 4
+        height, width = component_gray.shape
+        canvas_size = max(
+            self._template_canvas_size,
+            height + 2 * padding,
+            width + 2 * padding,
+        )
+        if canvas_size % 2 == 0:
+            canvas_size += 1
+        canvas = np.zeros((canvas_size, canvas_size), dtype=np.uint8)
+        offset_y = (canvas_size - height) // 2
+        offset_x = (canvas_size - width) // 2
+        canvas[
+            offset_y : offset_y + height,
+            offset_x : offset_x + width,
+        ] = component_gray
+        return canvas
+
     @classmethod
     def _principal_axis_geometry(
         cls,
@@ -1609,7 +1708,12 @@ class MinimapHeadingDetector:
             return None
         crop_gray, observed = extracted
 
-        geometry = self._principal_axis_geometry(crop_gray)
+        geometry_evidence = self._geometry_evidence(crop_gray)
+        geometry = (
+            self._principal_axis_geometry(geometry_evidence)
+            if geometry_evidence is not None
+            else None
+        )
         geometry_angle = (
             self._calibrate_geometry_angle(geometry.raw_angle_deg)
             if self._geometry_is_valid(geometry) and geometry is not None

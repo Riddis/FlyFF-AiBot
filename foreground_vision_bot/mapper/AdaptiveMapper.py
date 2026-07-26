@@ -10,6 +10,7 @@ from typing import Protocol
 import numpy as np
 from capture_service import FrameSample
 from libs.HumanKeyboard import HumanKeyboard, KeyPressTiming
+from project_paths import MAPPING_MODELS_DIR
 from worker_manager import CancellationToken
 
 from .AdaptiveMappingController import AdaptiveMappingController
@@ -148,7 +149,7 @@ class AdaptiveMapper:
     still fails closed so map drift is not silently accumulated.
     """
 
-    VERSION = "1.8-bounded-recovery-and-best-checkpoint"
+    VERSION = "1.8.3-regression-cleanup"
 
     def __init__(
         self,
@@ -257,11 +258,7 @@ class AdaptiveMapper:
             / run_id
         )
         self.logger = MapLogger(self.output_dir / "mapping_steps.csv")
-        default_policy_path = (
-            Path(__file__).resolve().parents[1]
-            / "models"
-            / "mapper_explorer_ppo.zip"
-        )
+        default_policy_path = MAPPING_MODELS_DIR / "mapper_explorer_ppo.zip"
         self.shadow_planner = MapperShadowPlanner(
             enabled=rl_shadow_enabled,
             model_path=rl_policy_path or default_policy_path,
@@ -1289,142 +1286,144 @@ class AdaptiveMapper:
         )
 
         self.logger.write(
-            {
-                "timestamp": datetime.now(timezone.utc).isoformat(
-                    timespec="milliseconds"
-                ),
-                "map_name": self.map_profile.name,
-                "step": step,
-                "x": self.grid.pose.x,
-                "y": self.grid.pose.y,
-                "continuous_x": round(continuous.x, 4),
-                "continuous_y": round(continuous.y, 4),
-                "position_known": self._position_known,
-                "heading_known": self._heading_known,
-                "pose_known": result.pose_known,
-                "heading_index": self.grid.pose.heading_index,
-                "heading_deg": round(continuous.heading_deg, 3),
-                "action": decision.action,
-                "reason": decision.reason,
-                "rl_shadow_enabled": shadow.enabled,
-                "rl_shadow_action": shadow.action,
-                "rl_shadow_agrees": (
-                    shadow.enabled and shadow.action == decision.action
-                ),
-                "rl_shadow_status": shadow.status,
-                "frame_sequence": result.frame_sample.sequence,
-                "requested_seconds": (
-                    round(timing.requested_seconds, 5) if timing is not None else ""
-                ),
-                "held_seconds": (
-                    round(timing.held_seconds, 5) if timing is not None else ""
-                ),
-                "change_score": (
-                    round(motion.change_score, 5) if motion is not None else ""
-                ),
-                "flow_dx_px": round(flow.scene_dx_px, 3) if flow is not None else "",
-                "flow_dy_px": round(flow.scene_dy_px, 3) if flow is not None else "",
-                "median_flow_px": (
-                    round(flow.magnitude_px, 3) if flow is not None else ""
-                ),
-                "flow_dispersion_px": (
-                    round(flow.dispersion_px, 3) if flow is not None else ""
-                ),
-                "flow_confidence": (
-                    round(flow.confidence, 3) if flow is not None else ""
-                ),
-                "flow_inlier_ratio": (
-                    round(flow.inlier_ratio, 3) if flow is not None else ""
-                ),
-                "tracked_points": flow.tracked_points if flow is not None else "",
-                "flow_detected_points": (
-                    flow.detected_points if flow is not None else ""
-                ),
-                "flow_valid_tracks": flow.valid_tracks if flow is not None else "",
-                "flow_moving_points": (
-                    flow.moving_points if flow is not None else ""
-                ),
-                "flow_moving_ratio": (
-                    round(flow.moving_ratio, 3) if flow is not None else ""
-                ),
-                "flow_spatial_coverage": (
-                    round(flow.spatial_coverage, 3) if flow is not None else ""
-                ),
-                "flow_occupied_regions": (
-                    flow.occupied_regions if flow is not None else ""
-                ),
-                "flow_translation_coherence": (
-                    round(flow.translation_coherence, 3)
-                    if flow is not None
-                    else ""
-                ),
-                "flow_expansion_coherence": (
-                    round(flow.expansion_coherence, 3)
-                    if flow is not None
-                    else ""
-                ),
-                "flow_camera_model": flow.camera_model if flow is not None else "",
-                "motion_debug_path": result.motion_debug_path or "",
-                "motion_outcome": (
-                    assessment.outcome.value if assessment is not None else "turn"
-                ),
-                "distance_cells": (
-                    round(result.distance_cells, 4)
-                    if result.distance_cells is not None
-                    else ""
-                ),
-                "expected_flow_px": round(expected, 3) if expected is not None else "",
-                "observed_motion_px": (
-                    round(observed, 3) if observed is not None else ""
-                ),
-                "flow_residual_px": (
-                    round(residual, 3) if residual is not None else ""
-                ),
-                "maximum_flow_residual_px": "",
-                "flow_validation_reason": (
-                    assessment.reason if assessment is not None else ""
-                ),
-                "odometry_integrated": (
-                    result.integration.accepted
-                    if result.integration is not None
-                    else False
-                ),
-                "collision": (
-                    assessment is not None
-                    and assessment.outcome is AdaptiveForwardOutcome.BLOCKED
-                ),
-                "pang_visible": pang.visible,
-                "pang_score": round(pang.score, 4),
-                "teleport_suspected": (
-                    motion.teleport_likely if motion is not None else False
-                ),
-                "fast_heading": round(fast.angle_deg, 3) if fast is not None else "",
-                "fast_heading_confidence": (
-                    round(fast.confidence, 3) if fast is not None else ""
-                ),
-                "fast_heading_uncertainty": (
-                    round(fast.angular_uncertainty_deg, 3)
-                    if fast is not None and fast.angular_uncertainty_deg is not None
-                    else ""
-                ),
-                "fast_heading_stale": fast.is_stale if fast is not None else True,
-                "strict_heading": (
-                    round(strict.angle_deg, 3) if strict is not None else ""
-                ),
-                "strict_heading_confidence": (
-                    round(strict.confidence, 3) if strict is not None else ""
-                ),
-                "strict_heading_uncertainty": (
-                    round(strict.angular_uncertainty_deg, 3)
-                    if strict is not None and strict.angular_uncertainty_deg is not None
-                    else ""
-                ),
-                "recovery_reason": result.recovery_reason or "",
-                "recovery_requires_spawn_reset": (
-                    result.recovery_requires_spawn_reset
-                ),
-                "stop_reason": result.stop_reason or "",
-            }
+            MapLogger.canonical_row(
+                {
+                    "timestamp": datetime.now(timezone.utc).isoformat(
+                        timespec="milliseconds"
+                    ),
+                    "map_name": self.map_profile.name,
+                    "step": step,
+                    "x": self.grid.pose.x,
+                    "y": self.grid.pose.y,
+                    "continuous_x": round(continuous.x, 4),
+                    "continuous_y": round(continuous.y, 4),
+                    "position_known": self._position_known,
+                    "heading_known": self._heading_known,
+                    "pose_known": result.pose_known,
+                    "heading_index": self.grid.pose.heading_index,
+                    "heading_deg": round(continuous.heading_deg, 3),
+                    "action": decision.action,
+                    "reason": decision.reason,
+                    "rl_shadow_enabled": shadow.enabled,
+                    "rl_shadow_action": shadow.action,
+                    "rl_shadow_agrees": (
+                        shadow.enabled and shadow.action == decision.action
+                    ),
+                    "rl_shadow_status": shadow.status,
+                    "frame_sequence": result.frame_sample.sequence,
+                    "requested_seconds": (
+                        round(timing.requested_seconds, 5) if timing is not None else ""
+                    ),
+                    "held_seconds": (
+                        round(timing.held_seconds, 5) if timing is not None else ""
+                    ),
+                    "change_score": (
+                        round(motion.change_score, 5) if motion is not None else ""
+                    ),
+                    "flow_dx_px": round(flow.scene_dx_px, 3) if flow is not None else "",
+                    "flow_dy_px": round(flow.scene_dy_px, 3) if flow is not None else "",
+                    "median_flow_px": (
+                        round(flow.magnitude_px, 3) if flow is not None else ""
+                    ),
+                    "flow_dispersion_px": (
+                        round(flow.dispersion_px, 3) if flow is not None else ""
+                    ),
+                    "flow_confidence": (
+                        round(flow.confidence, 3) if flow is not None else ""
+                    ),
+                    "flow_inlier_ratio": (
+                        round(flow.inlier_ratio, 3) if flow is not None else ""
+                    ),
+                    "tracked_points": flow.tracked_points if flow is not None else "",
+                    "flow_detected_points": (
+                        flow.detected_points if flow is not None else ""
+                    ),
+                    "flow_valid_tracks": flow.valid_tracks if flow is not None else "",
+                    "flow_moving_points": (
+                        flow.moving_points if flow is not None else ""
+                    ),
+                    "flow_moving_ratio": (
+                        round(flow.moving_ratio, 3) if flow is not None else ""
+                    ),
+                    "flow_spatial_coverage": (
+                        round(flow.spatial_coverage, 3) if flow is not None else ""
+                    ),
+                    "flow_occupied_regions": (
+                        flow.occupied_regions if flow is not None else ""
+                    ),
+                    "flow_translation_coherence": (
+                        round(flow.translation_coherence, 3)
+                        if flow is not None
+                        else ""
+                    ),
+                    "flow_expansion_coherence": (
+                        round(flow.expansion_coherence, 3)
+                        if flow is not None
+                        else ""
+                    ),
+                    "flow_camera_model": flow.camera_model if flow is not None else "",
+                    "motion_debug_path": result.motion_debug_path or "",
+                    "motion_outcome": (
+                        assessment.outcome.value if assessment is not None else "turn"
+                    ),
+                    "distance_cells": (
+                        round(result.distance_cells, 4)
+                        if result.distance_cells is not None
+                        else ""
+                    ),
+                    "expected_flow_px": round(expected, 3) if expected is not None else "",
+                    "observed_motion_px": (
+                        round(observed, 3) if observed is not None else ""
+                    ),
+                    "flow_residual_px": (
+                        round(residual, 3) if residual is not None else ""
+                    ),
+                    "maximum_flow_residual_px": "",
+                    "flow_validation_reason": (
+                        assessment.reason if assessment is not None else ""
+                    ),
+                    "odometry_integrated": (
+                        result.integration.accepted
+                        if result.integration is not None
+                        else False
+                    ),
+                    "collision": (
+                        assessment is not None
+                        and assessment.outcome is AdaptiveForwardOutcome.BLOCKED
+                    ),
+                    "pang_visible": pang.visible,
+                    "pang_score": round(pang.score, 4),
+                    "teleport_suspected": (
+                        motion.teleport_likely if motion is not None else False
+                    ),
+                    "fast_heading": round(fast.angle_deg, 3) if fast is not None else "",
+                    "fast_heading_confidence": (
+                        round(fast.confidence, 3) if fast is not None else ""
+                    ),
+                    "fast_heading_uncertainty": (
+                        round(fast.angular_uncertainty_deg, 3)
+                        if fast is not None and fast.angular_uncertainty_deg is not None
+                        else ""
+                    ),
+                    "fast_heading_stale": fast.is_stale if fast is not None else True,
+                    "strict_heading": (
+                        round(strict.angle_deg, 3) if strict is not None else ""
+                    ),
+                    "strict_heading_confidence": (
+                        round(strict.confidence, 3) if strict is not None else ""
+                    ),
+                    "strict_heading_uncertainty": (
+                        round(strict.angular_uncertainty_deg, 3)
+                        if strict is not None and strict.angular_uncertainty_deg is not None
+                        else ""
+                    ),
+                    "recovery_reason": result.recovery_reason or "",
+                    "recovery_requires_spawn_reset": (
+                        result.recovery_requires_spawn_reset
+                    ),
+                    "stop_reason": result.stop_reason or "",
+                }
+            )
         )
 
     def _report_step(

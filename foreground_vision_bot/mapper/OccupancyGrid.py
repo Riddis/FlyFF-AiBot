@@ -71,7 +71,7 @@ class SuspectedTransition(TypedDict):
 
 @dataclass
 class GridMetadata:
-    version: int = 4
+    version: int = 3
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )

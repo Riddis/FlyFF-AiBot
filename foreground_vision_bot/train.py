@@ -10,6 +10,12 @@ from time import monotonic, sleep
 import numpy as np
 from libs.FlyffEnv import FlyffEnv, FlyffEnvConfig
 from libs.ObservationBuilder import ObservationBuilder, ObservationConfig
+from project_paths import (
+    FARMING_CHECKPOINTS_RELATIVE,
+    FARMING_MODEL_RELATIVE,
+    FARMING_TRAINING_LOGS_RELATIVE,
+    resolve_app_path,
+)
 from worker_manager import CancellationToken
 
 StatusCallback = Callable[[str], None]
@@ -22,9 +28,9 @@ class TrainingConfig:
     checkpoint_frequency: int = 10_000
     stats_interval_seconds: float = 10.0
 
-    model_path: str = "models/flyff_ppo"
-    checkpoint_dir: str = "models/checkpoints"
-    tensorboard_dir: str = "training_logs"
+    model_path: str = str(FARMING_MODEL_RELATIVE)
+    checkpoint_dir: str = str(FARMING_CHECKPOINTS_RELATIVE)
+    tensorboard_dir: str = str(FARMING_TRAINING_LOGS_RELATIVE)
 
     observation_delay: float = 0.05
     eva_cooldown_seconds: float = 2.0
@@ -153,13 +159,13 @@ def train_agent(
         _require_dependencies()
     )
 
-    model_path = Path(config.model_path)
+    model_path = resolve_app_path(config.model_path)
     model_path.parent.mkdir(parents=True, exist_ok=True)
 
-    checkpoint_dir = Path(config.checkpoint_dir)
+    checkpoint_dir = resolve_app_path(config.checkpoint_dir)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    tensorboard_dir = Path(config.tensorboard_dir)
+    tensorboard_dir = resolve_app_path(config.tensorboard_dir)
     tensorboard_dir.mkdir(parents=True, exist_ok=True)
 
     env = build_live_env(bot, config)
@@ -498,7 +504,7 @@ def run_trained_agent(
     cancellation = cancellation or CancellationToken()
     PPO, _, _, _, _ = _require_dependencies()
 
-    model_path = Path(config.model_path)
+    model_path = resolve_app_path(config.model_path)
     saved_model = model_path.with_suffix(".zip")
 
     if not saved_model.exists():

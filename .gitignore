@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest_tmp/
 .ruff_cache/
 
 # Runtime diagnostics and generated mapping output
@@ -19,10 +20,12 @@ mapper.zip
 # Persistent learned map data (keep locally; map_profiles.json is tracked)
 mapper/maps/
 
-# Mapper RL simulator outputs
-models/mapper_explorer_ppo.zip
-models/mapper_explorer_ppo.metadata.json
-models/mapper_best/
-models/mapper_eval/
-models/mapper_checkpoints/
-training_logs/mapper_rl/
+# RL model and TensorBoard output (folder layout remains tracked)
+models/farming/*
+!models/farming/.gitkeep
+models/mapping/*
+!models/mapping/.gitkeep
+training_logs/farming/*
+!training_logs/farming/.gitkeep
+training_logs/mapping/*
+!training_logs/mapping/.gitkeep

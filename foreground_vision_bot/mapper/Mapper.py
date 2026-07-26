@@ -734,117 +734,119 @@ class Mapper:
         continuous = self.grid.continuous_pose
 
         self.logger.write(
-            {
-                "timestamp": datetime.now(timezone.utc).isoformat(
-                    timespec="milliseconds"
-                ),
-                "step": step,
-                "x": self.grid.pose.x,
-                "y": self.grid.pose.y,
-                "continuous_x": round(continuous.x, 4),
-                "continuous_y": round(continuous.y, 4),
-                "position_known": self._position_known,
-                "heading_known": self._heading_known,
-                "pose_known": result.pose_known,
-                "heading_index": self.grid.pose.heading_index,
-                "heading_deg": round(continuous.heading_deg, 3),
-                "action": decision.action,
-                "reason": decision.reason,
-                "frame_sequence": result.frame_sample.sequence,
-                "requested_seconds": (
-                    round(timing.requested_seconds, 5) if timing is not None else ""
-                ),
-                "held_seconds": (
-                    round(timing.held_seconds, 5) if timing is not None else ""
-                ),
-                "change_score": (
-                    round(motion.change_score, 5) if motion is not None else ""
-                ),
-                "flow_dx_px": (round(flow.scene_dx_px, 3) if flow is not None else ""),
-                "flow_dy_px": (round(flow.scene_dy_px, 3) if flow is not None else ""),
-                "median_flow_px": (
-                    round(flow.magnitude_px, 3) if flow is not None else ""
-                ),
-                "flow_dispersion_px": (
-                    round(flow.dispersion_px, 3) if flow is not None else ""
-                ),
-                "flow_confidence": (
-                    round(flow.confidence, 3) if flow is not None else ""
-                ),
-                "flow_inlier_ratio": (
-                    round(flow.inlier_ratio, 3) if flow is not None else ""
-                ),
-                "tracked_points": flow.tracked_points if flow is not None else "",
-                "motion_outcome": distance.outcome.value
-                if distance is not None
-                else "",
-                "distance_cells": (
-                    round(result.distance_cells, 4)
-                    if result.distance_cells is not None
-                    else ""
-                ),
-                "expected_flow_px": (
-                    round(validation.expected_flow_px, 3)
-                    if validation is not None
-                    and validation.expected_flow_px is not None
-                    else ""
-                ),
-                "observed_motion_px": (
-                    round(validation.observed_motion_px, 3)
-                    if validation is not None
-                    and validation.observed_motion_px is not None
-                    else ""
-                ),
-                "flow_residual_px": (
-                    round(validation.residual_px, 3)
-                    if validation is not None and validation.residual_px is not None
-                    else ""
-                ),
-                "maximum_flow_residual_px": (
-                    round(validation.maximum_residual_px, 3)
-                    if validation is not None
-                    and validation.maximum_residual_px is not None
-                    else ""
-                ),
-                "flow_validation_reason": (
-                    validation.reason
-                    if validation is not None and validation.reason is not None
-                    else ""
-                ),
-                "odometry_integrated": (
-                    result.integration.accepted
-                    if result.integration is not None
-                    else False
-                ),
-                "collision": (motion.collision_likely if motion is not None else False),
-                "pang_visible": pang.visible,
-                "pang_score": round(pang.score, 4),
-                "teleport_suspected": (
-                    motion.teleport_likely if motion is not None else False
-                ),
-                "fast_heading": (round(fast.angle_deg, 3) if fast is not None else ""),
-                "fast_heading_confidence": (
-                    round(fast.confidence, 3) if fast is not None else ""
-                ),
-                "fast_heading_uncertainty": (
-                    round(fast.angular_uncertainty_deg, 3)
-                    if fast is not None and fast.angular_uncertainty_deg is not None
-                    else ""
-                ),
-                "fast_heading_stale": fast.is_stale if fast is not None else True,
-                "strict_heading": (
-                    round(strict.angle_deg, 3) if strict is not None else ""
-                ),
-                "strict_heading_confidence": (
-                    round(strict.confidence, 3) if strict is not None else ""
-                ),
-                "strict_heading_uncertainty": (
-                    round(strict.angular_uncertainty_deg, 3)
-                    if strict is not None and strict.angular_uncertainty_deg is not None
-                    else ""
-                ),
-                "stop_reason": result.stop_reason or "",
-            }
+            MapLogger.canonical_row(
+                {
+                    "timestamp": datetime.now(timezone.utc).isoformat(
+                        timespec="milliseconds"
+                    ),
+                    "step": step,
+                    "x": self.grid.pose.x,
+                    "y": self.grid.pose.y,
+                    "continuous_x": round(continuous.x, 4),
+                    "continuous_y": round(continuous.y, 4),
+                    "position_known": self._position_known,
+                    "heading_known": self._heading_known,
+                    "pose_known": result.pose_known,
+                    "heading_index": self.grid.pose.heading_index,
+                    "heading_deg": round(continuous.heading_deg, 3),
+                    "action": decision.action,
+                    "reason": decision.reason,
+                    "frame_sequence": result.frame_sample.sequence,
+                    "requested_seconds": (
+                        round(timing.requested_seconds, 5) if timing is not None else ""
+                    ),
+                    "held_seconds": (
+                        round(timing.held_seconds, 5) if timing is not None else ""
+                    ),
+                    "change_score": (
+                        round(motion.change_score, 5) if motion is not None else ""
+                    ),
+                    "flow_dx_px": (round(flow.scene_dx_px, 3) if flow is not None else ""),
+                    "flow_dy_px": (round(flow.scene_dy_px, 3) if flow is not None else ""),
+                    "median_flow_px": (
+                        round(flow.magnitude_px, 3) if flow is not None else ""
+                    ),
+                    "flow_dispersion_px": (
+                        round(flow.dispersion_px, 3) if flow is not None else ""
+                    ),
+                    "flow_confidence": (
+                        round(flow.confidence, 3) if flow is not None else ""
+                    ),
+                    "flow_inlier_ratio": (
+                        round(flow.inlier_ratio, 3) if flow is not None else ""
+                    ),
+                    "tracked_points": flow.tracked_points if flow is not None else "",
+                    "motion_outcome": distance.outcome.value
+                    if distance is not None
+                    else "",
+                    "distance_cells": (
+                        round(result.distance_cells, 4)
+                        if result.distance_cells is not None
+                        else ""
+                    ),
+                    "expected_flow_px": (
+                        round(validation.expected_flow_px, 3)
+                        if validation is not None
+                        and validation.expected_flow_px is not None
+                        else ""
+                    ),
+                    "observed_motion_px": (
+                        round(validation.observed_motion_px, 3)
+                        if validation is not None
+                        and validation.observed_motion_px is not None
+                        else ""
+                    ),
+                    "flow_residual_px": (
+                        round(validation.residual_px, 3)
+                        if validation is not None and validation.residual_px is not None
+                        else ""
+                    ),
+                    "maximum_flow_residual_px": (
+                        round(validation.maximum_residual_px, 3)
+                        if validation is not None
+                        and validation.maximum_residual_px is not None
+                        else ""
+                    ),
+                    "flow_validation_reason": (
+                        validation.reason
+                        if validation is not None and validation.reason is not None
+                        else ""
+                    ),
+                    "odometry_integrated": (
+                        result.integration.accepted
+                        if result.integration is not None
+                        else False
+                    ),
+                    "collision": (motion.collision_likely if motion is not None else False),
+                    "pang_visible": pang.visible,
+                    "pang_score": round(pang.score, 4),
+                    "teleport_suspected": (
+                        motion.teleport_likely if motion is not None else False
+                    ),
+                    "fast_heading": (round(fast.angle_deg, 3) if fast is not None else ""),
+                    "fast_heading_confidence": (
+                        round(fast.confidence, 3) if fast is not None else ""
+                    ),
+                    "fast_heading_uncertainty": (
+                        round(fast.angular_uncertainty_deg, 3)
+                        if fast is not None and fast.angular_uncertainty_deg is not None
+                        else ""
+                    ),
+                    "fast_heading_stale": fast.is_stale if fast is not None else True,
+                    "strict_heading": (
+                        round(strict.angle_deg, 3) if strict is not None else ""
+                    ),
+                    "strict_heading_confidence": (
+                        round(strict.confidence, 3) if strict is not None else ""
+                    ),
+                    "strict_heading_uncertainty": (
+                        round(strict.angular_uncertainty_deg, 3)
+                        if strict is not None and strict.angular_uncertainty_deg is not None
+                        else ""
+                    ),
+                    "stop_reason": result.stop_reason or "",
+                }
+            )
         )
 
     def _report_step(

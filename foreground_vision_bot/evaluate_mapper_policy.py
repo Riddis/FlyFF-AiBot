@@ -7,6 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
+from project_paths import MAPPING_MODEL_RELATIVE, resolve_app_path
+
 
 @dataclass(frozen=True)
 class EvaluationSummary:
@@ -47,6 +49,7 @@ def evaluate_policy(
     from mapper.rl.GymEnv import MapperSimEnv
     from mapper.rl.PolicyTypes import MapperAction
 
+    model_path = resolve_app_path(model_path)
     model = MaskablePPO.load(str(model_path))
     env = MapperSimEnv()
     coverages: list[float] = []
@@ -154,7 +157,7 @@ def main() -> None:
     parser.add_argument(
         "--model",
         type=Path,
-        default=Path("models/mapper_explorer_ppo.zip"),
+        default=MAPPING_MODEL_RELATIVE.with_suffix(".zip"),
     )
     parser.add_argument("--episodes", type=int, default=100)
     args = parser.parse_args()
