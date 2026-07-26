@@ -5,10 +5,13 @@ import os
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from math import isfinite
 from pathlib import Path
 from statistics import median
 from time import monotonic, monotonic_ns
 
+import cv2 as cv
+import numpy as np
 from capture_service import FrameSample
 from worker_manager import CancellationToken, WorkerCancelled
 
@@ -17,15 +20,18 @@ from .ForwardCalibration import (
     ForwardCalibrationTrial,
     ForwardMotionModel,
     fit_forward_motion_model,
+    forward_flow_coherence_error,
 )
 from .MappingController import MappingController
 from .MinimapHeading import (
     HeadingReading,
     MinimapHeadingDetector,
+    observed_heading_delta,
     signed_angle_delta,
 )
 from .MotionTracker import ForwardMotionOutcome, MotionTracker
 from .RotationModel import (
+    MAXIMUM_TOLERATED_REVERSAL_BACKLASH_DEGREES,
     NeutralTimeoutFit,
     NeutralTimeoutSample,
     RotationSample,
@@ -38,7 +44,11 @@ from .RotationModel import (
     fit_rotation_model,
     validate_neutral_timeout,
 )
-from .TurnControl import ClosedLoopTurnController, uniform_rotation_model
+from .TurnControl import (
+    ClosedLoopTurnController,
+    maximum_plausible_closed_loop_motion_degrees,
+    uniform_rotation_model,
+)
 
 
 @dataclass(frozen=True)
@@ -71,7 +81,7 @@ class CalibrationResult:
     right_heading_sign: int
     left_trials: list[dict[str, object]]
     right_trials: list[dict[str, object]]
-    neutral_after_seconds: float
+    neutral_after_seconds: float | None
     neutral_timeout_trials: list[dict[str, object]]
     neutral_timeout_fit: dict[str, object]
     transition_trials: list[dict[str, object]]
@@ -89,6 +99,38 @@ class _HeadingRecoveryPlan:
     left_sign: int
     right_sign: int
     rotation_model: StateAwareRotationModel | None = None
+
+
+class _ProbeMeasurementError(RuntimeError):
+    """One timed probe did not produce a trustworthy heading measurement."""
+
+
+class _ProbeHeadingConsensusError(_ProbeMeasurementError):
+    """One timed probe could not establish a required strict heading."""
+
+
+class _ProbeStartHeadingError(_ProbeHeadingConsensusError):
+    """A timed probe could not read its heading before issuing movement."""
+
+
+class _ProbeHeadingDeltaError(_ProbeMeasurementError):
+    """Two strict probe endpoints imply physically implausible rotation."""
+
+
+class _ProbeCaptureError(_ProbeMeasurementError):
+    """A timed probe could not capture its required fresh frame batch."""
+
+
+class _ProbeTimingError(_ProbeMeasurementError):
+    """A timed probe missed the requested physical idle-state window."""
+
+
+class _ProbeResponseError(_ProbeMeasurementError):
+    """A probe response could not be resolved within its measurement gates."""
+
+
+class _PersistentHeadingFailure(RuntimeError):
+    """Heading remained unreadable, so further calibrated movement is unsafe."""
 
 
 class RotationCalibrator:
@@ -112,24 +154,44 @@ class RotationCalibrator:
     MAXIMUM_HEADING_UNCERTAINTY_DEGREES = 3.0
     MAXIMUM_HEADING_AMBIGUITY = 0.70
     FORWARD_NOMINAL_SECONDS = 0.12
-    FORWARD_TRIAL_SECONDS = (0.075, 0.105, 0.135, 0.090, 0.150, 0.120)
-    NEUTRAL_PROBE_IDLE_SECONDS = (
+    # Three bracketed durations, each repeated at a different physical
+    # location and in reverse order. This keeps the existing six pulses while
+    # separating duration response from one-off scene texture.
+    FORWARD_TRIAL_SECONDS = (0.090, 0.120, 0.150, 0.150, 0.120, 0.090)
+    # Start with a replicated short/horizon experiment. Only a detector that
+    # actually converges at the horizon needs the intermediate decay scan.
+    # The observed game state remained direction-dependent at six seconds, so
+    # running every intermediate delay unconditionally added minutes without
+    # answering a different question.
+    NEUTRAL_PROBE_MINIMUM_SHORT_IDLE_SECONDS = 0.22
+    NEUTRAL_PROBE_REFINEMENT_IDLE_SECONDS = (
         0.95,
-        1.15,
-        1.35,
         1.70,
-        2.20,
         2.80,
-        3.50,
         4.30,
-        5.10,
-        6.00,
     )
+    NEUTRAL_PROBE_HORIZON_SECONDS = 6.00
+    NEUTRAL_PROBE_SCAN_REPEATS = 2
     NEUTRAL_PROBE_MAXIMUM_SECONDS = 6.25
     NEUTRAL_PROBE_SAFETY_MARGIN_SECONDS = 0.25
     NEUTRAL_PROBE_MAXIMUM_OVERSHOOT_SECONDS = 0.18
-    NEUTRAL_PROBE_MAXIMUM_UNCERTAINTY_DEGREES = 3.0
+    # A turn measurement subtracts two independently accepted headings. Each
+    # endpoint remains subject to the strict three-degree gate above, so the
+    # conservative uncertainty bound for their difference is the sum of both
+    # endpoint bounds, not the single-heading limit.
+    MAXIMUM_TURN_MEASUREMENT_UNCERTAINTY_DEGREES = (
+        2.0 * MAXIMUM_HEADING_UNCERTAINTY_DEGREES
+    )
     NEUTRAL_PROBE_VALIDATION_REPEATS = 2
+    PROBE_HEADING_FRAME_COUNT = 5
+    PROBE_FRAME_CAPTURE_LEAD_SECONDS = 0.10
+    TRANSITION_MATRIX_REPEATS = 2
+    PROBE_HEADING_ATTEMPTS = 3
+    MAXIMUM_CONSECUTIVE_PROBE_START_FAILURES = 3
+    COARSE_ATTEMPTS_PER_REQUIRED_TRIAL = 8
+    COARSE_MINIMUM_MAXIMUM_ATTEMPTS = 12
+    COARSE_MAXIMUM_IMPLAUSIBLE_READINGS = 3
+    MAXIMUM_PLAUSIBLE_SINGLE_PULSE_DELTA_DEGREES = 120.0
 
     def __init__(
         self,
@@ -157,7 +219,7 @@ class RotationCalibrator:
             # any state-specific rotation samples are collected.
             neutral_after_seconds=self.NEUTRAL_PROBE_MAXIMUM_SECONDS + 1.0,
         )
-        self.detector = MinimapHeadingDetector()
+        self.detector = MinimapHeadingDetector(automatic_debug=True)
         self.trials_per_direction = trials_per_direction
         self.initial_pulse_seconds = initial_pulse_seconds
         self.minimum_pulse_seconds = minimum_pulse_seconds
@@ -282,6 +344,25 @@ class RotationCalibrator:
             left_sign=left_sign,
             right_sign=right_sign,
         )
+        # Phase 3 is the first point at which SAME/REVERSAL timing has been
+        # measured at several durations. Use that evidence immediately for
+        # restore/refinement; falling back to one uniform coarse duration here
+        # recreated the exact direction-memory error this calibration measures.
+        provisional_rotation_model = fit_rotation_model(
+            self._rotation_samples,
+            fallback_left_seconds_90=coarse_left_seconds_90,
+            fallback_right_seconds_90=coarse_right_seconds_90,
+            idle_response_curves=neutral_timeout_fit.idle_response_curves,
+            turn_memory_policy=neutral_timeout_fit.turn_memory_policy,
+        )
+        self._failure_recovery = _HeadingRecoveryPlan(
+            target_heading=original_heading,
+            left_seconds_90=coarse_left_seconds_90,
+            right_seconds_90=coarse_right_seconds_90,
+            left_sign=left_sign,
+            right_sign=right_sign,
+            rotation_model=provisional_rotation_model,
+        )
 
         if manual:
             self.status(
@@ -313,6 +394,7 @@ class RotationCalibrator:
             left_sign=left_sign,
             right_sign=right_sign,
             label="Pre-demonstration restore",
+            rotation_model=provisional_rotation_model,
         )
 
         (
@@ -325,13 +407,13 @@ class RotationCalibrator:
             left_sign,
             right_sign,
             turns_each_direction=turns_each_direction,
+            rotation_model=provisional_rotation_model,
         )
 
         rotation_model = fit_rotation_model(
             self._rotation_samples,
             fallback_left_seconds_90=refined_left_seconds_90,
             fallback_right_seconds_90=refined_right_seconds_90,
-            neutral_after_seconds=neutral_timeout_fit.neutral_after_seconds,
             idle_response_curves=neutral_timeout_fit.idle_response_curves,
             turn_memory_policy=neutral_timeout_fit.turn_memory_policy,
         )
@@ -359,12 +441,12 @@ class RotationCalibrator:
         )
 
         forward_model, forward_trials = self._calibrate_forward_motion(
-            original_heading=original_heading,
+            original_heading=initial,
             manual=manual,
         )
 
         result = MapperCalibration(
-            version=9,
+            version=MapperCalibration.CURRENT_VERSION,
             created_at=datetime.now(timezone.utc).isoformat(),
             source="vision_fitted_turn_state_rotation_and_forward",
             left_seconds_90=round(refined_left_seconds_90, 5),
@@ -373,9 +455,10 @@ class RotationCalibrator:
             right_heading_sign=right_sign,
             left_trials=[asdict(item) for item in left_trials],
             right_trials=[asdict(item) for item in right_trials],
-            neutral_after_seconds=round(
-                neutral_timeout_fit.neutral_after_seconds,
-                6,
+            neutral_after_seconds=(
+                round(neutral_timeout_fit.neutral_after_seconds, 6)
+                if neutral_timeout_fit.neutral_after_seconds is not None
+                else None
             ),
             neutral_timeout_trials=neutral_timeout_trials,
             neutral_timeout_fit=neutral_timeout_fit.to_dict(),
@@ -387,15 +470,19 @@ class RotationCalibrator:
         )
 
         final_heading = self._stable_heading("Final calibration validation")
-        final_error = signed_angle_delta(
-            original_heading,
-            final_heading.angle_deg,
-        )
-        if not self._heading_target_satisfied(final_error, final_heading):
+        final_error = observed_heading_delta(final_heading, initial)
+        if not self._heading_delta_satisfied(
+            final_error,
+            before_reading=initial,
+            after_reading=final_heading,
+        ):
+            combined_uncertainty = self._reading_uncertainty(
+                initial
+            ) + self._reading_uncertainty(final_heading)
             raise RuntimeError(
                 "Final heading validation failed "
-                f"(error {final_error:+.1f}°, uncertainty "
-                f"{self._reading_uncertainty(final_heading):.1f}°). "
+                f"(error {final_error:+.1f}°, combined endpoint uncertainty "
+                f"{combined_uncertainty:.1f}°). "
                 "The previous calibration was preserved."
             )
 
@@ -422,6 +509,14 @@ class RotationCalibrator:
 
     def _best_effort_restore_after_failure(self, primary_error: Exception) -> None:
         plan = self._failure_recovery
+        if isinstance(primary_error, _PersistentHeadingFailure):
+            self._status_without_masking(
+                "Original-heading recovery was skipped because the minimap "
+                "heading remained unreadable; issuing a blind recovery turn "
+                "would be unsafe.",
+                primary_error,
+            )
+            return
         if (
             plan is None
             or isinstance(primary_error, WorkerCancelled)
@@ -445,6 +540,26 @@ class RotationCalibrator:
 
         previous_confirmation_callback = self.visual_confirmation_callback
         self.visual_confirmation_callback = None
+        try:
+            recovery_heading = self._noninteractive_heading(
+                "Failure recovery detector health check",
+                timeout=0.65,
+                samples=5,
+            )
+        except Exception as health_error:  # noqa: BLE001 - recovery must not move.
+            primary_error.add_note(
+                "Original-heading recovery was skipped because its single "
+                f"bounded detector health check failed: {health_error}"
+            )
+            self._status_without_masking(
+                "Calibration failed, and original-heading recovery was skipped "
+                "because one short detector health check could not establish "
+                "a safe heading.",
+                primary_error,
+            )
+            self.visual_confirmation_callback = previous_confirmation_callback
+            return
+
         self._status_without_masking(
             "Calibration failed after movement began. Attempting a bounded "
             "return to the heading recorded at the start.",
@@ -459,6 +574,8 @@ class RotationCalibrator:
                 right_sign=plan.right_sign,
                 label="Failure recovery heading restore",
                 rotation_model=plan.rotation_model,
+                initial_reading=recovery_heading,
+                noninteractive=True,
             )
         except Exception as restore_error:  # noqa: BLE001 - best-effort recovery.
             primary_error.add_note(
@@ -491,31 +608,50 @@ class RotationCalibrator:
         learned_sign = 0
         sign_votes: list[int] = []
         attempts = 0
-        maximum_attempts = 18
+        implausible_readings = 0
+        outlier_debug_folder: Path | None = None
+        maximum_attempts = max(
+            self.COARSE_MINIMUM_MAXIMUM_ATTEMPTS,
+            self.trials_per_direction * self.COARSE_ATTEMPTS_PER_REQUIRED_TRIAL,
+        )
 
         self.status(
             f"{direction.title()} calibration begins with "
             f"{pulse * 1000.0:.0f} ms bursts."
         )
-        self._prepare_neutral_transition(f"{direction.title()} coarse calibration")
+        self.controller.stop()
+        self.status(
+            f"{direction.title()} coarse calibration: movement is released. "
+            "No neutral delay is assumed before turn-memory has been measured; "
+            "early bursts establish the requested direction state."
+        )
 
         while len(trials) < self.trials_per_direction:
             self.cancellation.raise_if_cancelled()
-            attempts += 1
-            if attempts > maximum_attempts:
-                raise RuntimeError(
-                    f"Could not converge on a 45-degree {direction} turn."
+            if attempts >= maximum_attempts:
+                debug_folder = outlier_debug_folder or self.detector.save_debug(
+                    f"{direction}_coarse_nonconvergence"
                 )
+                debug_text = (
+                    f" Debug saved to: {debug_folder}"
+                    if debug_folder is not None
+                    else ""
+                )
+                raise RuntimeError(
+                    f"Could not converge on a 45-degree {direction} turn: "
+                    f"accepted {len(trials)}/{self.trials_per_direction} trials "
+                    f"after {attempts} bursts and discarded "
+                    f"{implausible_readings} implausible heading readings."
+                    f"{debug_text}"
+                )
+            attempts += 1
 
             before = self._stable_heading()
             pulse_result = self._turn_burst(direction, pulse)
             self._wait_or_cancel(max(self.settle_seconds, 0.55))
             after = self._stable_heading()
 
-            signed_change = signed_angle_delta(
-                after.angle_deg,
-                before.angle_deg,
-            )
+            signed_change = observed_heading_delta(after, before)
             magnitude = abs(signed_change)
             motion_uncertainty = self._reading_uncertainty(
                 before
@@ -525,6 +661,53 @@ class RotationCalibrator:
                 f"{direction.title()} burst {pulse * 1000.0:.1f} ms -> "
                 f"{signed_change:+.1f}°."
             )
+
+            # A settled coarse pulse cannot rotate more than 120 degrees while
+            # we are cautiously converging on 45 degrees. Such jumps are
+            # characteristic of the minimap arrow's opposite-orientation
+            # visual alias. Never let one of them vote on direction or alter
+            # the next pulse duration.
+            if self._single_pulse_delta_is_implausible(
+                signed_change,
+                motion_uncertainty,
+            ):
+                implausible_readings += 1
+                if outlier_debug_folder is None:
+                    outlier_debug_folder = self.detector.save_debug(
+                        f"{direction}_coarse_implausible_delta"
+                    )
+                debug_text = (
+                    f" Debug saved to: {outlier_debug_folder}."
+                    if outlier_debug_folder is not None
+                    else ""
+                )
+                self.status(
+                    f"Discarding implausible {direction} heading jump "
+                    f"({signed_change:+.1f}° with "
+                    f"{motion_uncertainty:.1f}° endpoint uncertainty); "
+                    f"retrying the unchanged {pulse * 1000.0:.1f} ms pulse."
+                    f"{debug_text}"
+                )
+                if implausible_readings > self.COARSE_MAXIMUM_IMPLAUSIBLE_READINGS:
+                    repeated_debug = self.detector.save_debug(
+                        f"{direction}_coarse_repeated_implausible_delta"
+                    )
+                    debug_folder = repeated_debug or outlier_debug_folder
+                    debug_text = (
+                        f" Debug saved to: {debug_folder}"
+                        if debug_folder is not None
+                        else ""
+                    )
+                    raise RuntimeError(
+                        f"Could not calibrate {direction}: the minimap heading "
+                        f"jumped by more than "
+                        f"{self.MAXIMUM_PLAUSIBLE_SINGLE_PULSE_DELTA_DEGREES:.0f} "
+                        f"degrees in "
+                        f"{self.COARSE_MAXIMUM_IMPLAUSIBLE_READINGS + 1} "
+                        "coarse measurements. No timing was learned from those "
+                        f"readings.{debug_text}"
+                    )
+                continue
 
             # No meaningful motion yet: increase cautiously.
             if magnitude <= max(1.5, motion_uncertainty):
@@ -578,6 +761,13 @@ class RotationCalibrator:
             # Accept a broad 30–60° window. Every accepted result is normalized
             # mathematically to the equivalent 45° duration.
             if 30.0 <= magnitude <= 60.0:
+                if pulse_result.transition is not TurnTransition.SAME_DIRECTION:
+                    self.status(
+                        f"Discarding otherwise usable {direction} burst because "
+                        f"it was {pulse_result.transition.value}; coarse timing "
+                        "is learned only after same-direction state is established."
+                    )
+                    continue
                 trial = TurnTrial(
                     direction=direction,
                     transition=pulse_result.transition.value,
@@ -632,9 +822,86 @@ class RotationCalibrator:
 
         return trials
 
+    @classmethod
+    def _single_pulse_delta_is_implausible(
+        cls,
+        signed_change: float,
+        motion_uncertainty: float,
+    ) -> bool:
+        """Identify non-finite or visually aliased single-pulse deltas."""
+        if not isfinite(signed_change) or not isfinite(motion_uncertainty):
+            return True
+        if motion_uncertainty < 0.0:
+            return True
+        return (
+            abs(signed_change) - motion_uncertainty
+            > cls.MAXIMUM_PLAUSIBLE_SINGLE_PULSE_DELTA_DEGREES
+        )
+
+    @classmethod
+    def _raise_for_implausible_probe_delta(
+        cls,
+        directed_motion: float,
+        motion_uncertainty: float,
+        *,
+        context: str,
+    ) -> None:
+        """Reject a cross-endpoint visual alias before fitting probe data."""
+        if (
+            not isfinite(directed_motion)
+            or not isfinite(motion_uncertainty)
+            or motion_uncertainty < 0.0
+        ):
+            raise _ProbeHeadingDeltaError(
+                f"{context}: the endpoint delta or its uncertainty was invalid."
+            )
+        if not cls._single_pulse_delta_is_implausible(
+            directed_motion,
+            motion_uncertainty,
+        ):
+            return
+        message = f"{context}: two strict endpoint headings implied "
+        message += f"{directed_motion:+.1f}° with "
+        message += f"{motion_uncertainty:.1f}° uncertainty. This exceeds the "
+        message += f"{cls.MAXIMUM_PLAUSIBLE_SINGLE_PULSE_DELTA_DEGREES:.0f}° "
+        message += "single-pulse bound and is probably the minimap arrow's "
+        message += "opposite-orientation visual alias."
+        raise _ProbeHeadingDeltaError(message)
+
+    def _advance_probe_start_failure_count(
+        self,
+        consecutive_failures: int,
+        *,
+        phase: str,
+        probe_description: str,
+    ) -> int:
+        """Abort a phase that can no longer reach its pre-movement heading gate."""
+        consecutive_failures += 1
+        if consecutive_failures < self.MAXIMUM_CONSECUTIVE_PROBE_START_FAILURES:
+            return consecutive_failures
+
+        debug_folder = self.detector.save_debug("repeated_probe_start_heading_failure")
+        debug_text = (
+            f" Debug saved to: {debug_folder}" if debug_folder is not None else ""
+        )
+        raise _PersistentHeadingFailure(
+            "The minimap heading could not be read before movement on "
+            f"{consecutive_failures} consecutive {phase} attempts "
+            f"(last probe: {probe_description}). The remaining phase was stopped "
+            f"before issuing more blind pulses.{debug_text}"
+        )
+
     def _prepare_neutral_transition(self, label: str) -> None:
         self.controller.stop()
         wait_seconds = self.controller.neutral_after_seconds
+        if wait_seconds is None:
+            self.status(
+                f"{label}: turn direction state remained persistent through "
+                f"the validated {self.controller.turn_memory_policy.observed_horizon_seconds:.2f}s "
+                "observation horizon. Preserving direction history and using "
+                "state-aware timing without an invented neutral wait."
+            )
+            return
         self.status(
             f"{label}: releasing movement and waiting "
             f"{wait_seconds:.2f}s for neutral turn state."
@@ -647,21 +914,69 @@ class RotationCalibrator:
         cls,
         acquisition_floor_seconds: float,
     ) -> tuple[float, ...]:
+        """Return the two delays needed to classify persistent vs decaying state."""
         floor = max(0.0, float(acquisition_floor_seconds))
-        early = [
-            floor + offset
-            for offset in (0.06, 0.18, 0.34)
-            if floor + offset < cls.NEUTRAL_PROBE_IDLE_SECONDS[0]
-        ]
-        return tuple(
-            sorted(
-                {
-                    round(value, 3)
-                    for value in (*early, *cls.NEUTRAL_PROBE_IDLE_SECONDS)
-                    if value <= cls.NEUTRAL_PROBE_MAXIMUM_SECONDS
-                }
-            )
+        short = max(
+            cls.NEUTRAL_PROBE_MINIMUM_SHORT_IDLE_SECONDS,
+            floor,
         )
+        if short >= cls.NEUTRAL_PROBE_HORIZON_SECONDS:
+            raise ValueError("turn-memory acquisition floor exceeds probe horizon")
+        return (
+            round(short, 3),
+            cls.NEUTRAL_PROBE_HORIZON_SECONDS,
+        )
+
+    @classmethod
+    def _build_turn_memory_probe_plan(
+        cls,
+        schedule: tuple[float, ...],
+        *,
+        repeats: int | None = None,
+    ) -> tuple[tuple[TurnDirection, TurnTransition, float, int], ...]:
+        """
+        Counterbalance direction, delay and transition for replicated probes.
+
+        Every delay receives both SAME and REVERSAL evidence in both
+        directions. Reversing each axis on alternate repeats prevents physical
+        path order from being perfectly correlated with one state.
+        """
+        if not schedule:
+            raise ValueError("turn-memory probe schedule cannot be empty")
+        repeat_count = cls.NEUTRAL_PROBE_SCAN_REPEATS if repeats is None else repeats
+        if repeat_count < 1:
+            raise ValueError("turn-memory probe repeats must be positive")
+
+        plan: list[tuple[TurnDirection, TurnTransition, float, int]] = []
+        base_directions = tuple(TurnDirection)
+        base_transitions = (
+            TurnTransition.REVERSAL,
+            TurnTransition.SAME_DIRECTION,
+        )
+        for repeat_index in range(1, repeat_count + 1):
+            directions = (
+                base_directions
+                if repeat_index % 2
+                else tuple(reversed(base_directions))
+            )
+            delays = schedule if repeat_index % 2 else tuple(reversed(schedule))
+            for delay_index, requested_idle_seconds in enumerate(delays):
+                transitions = (
+                    base_transitions
+                    if (repeat_index + delay_index) % 2
+                    else tuple(reversed(base_transitions))
+                )
+                for direction in directions:
+                    for transition in transitions:
+                        plan.append(
+                            (
+                                direction,
+                                transition,
+                                requested_idle_seconds,
+                                repeat_index,
+                            )
+                        )
+        return tuple(plan)
 
     def _calibrate_neutral_timeout(
         self,
@@ -691,88 +1006,205 @@ class RotationCalibrator:
         validation_samples: list[NeutralTimeoutSample] = []
         records: list[dict[str, object]] = []
         failure: Exception | None = None
+        phase_rotation_model: StateAwareRotationModel | None = None
+        consecutive_start_heading_failures = 0
 
         try:
-            acquisition_floor = max(self.settle_seconds, 0.28)
-            schedule = self._build_idle_probe_schedule(acquisition_floor)
-            tail_delays = set(schedule[-3:])
-            for direction in TurnDirection:
-                for requested_idle_seconds in schedule:
-                    modes = [TurnTransition.REVERSAL]
-                    if requested_idle_seconds in tail_delays:
-                        modes.append(TurnTransition.SAME_DIRECTION)
-                    for conditioning_transition in modes:
-                        conditioning_direction = (
-                            direction
-                            if conditioning_transition is TurnTransition.SAME_DIRECTION
-                            else direction.opposite
-                        )
+
+            def collect_scan_plan(
+                plan: tuple[
+                    tuple[TurnDirection, TurnTransition, float, int],
+                    ...,
+                ],
+                *,
+                phase: str,
+            ) -> None:
+                nonlocal consecutive_start_heading_failures
+                for (
+                    direction,
+                    conditioning_transition,
+                    requested_idle_seconds,
+                    repeat_index,
+                ) in plan:
+                    conditioning_direction = (
+                        direction
+                        if conditioning_transition is TurnTransition.SAME_DIRECTION
+                        else direction.opposite
+                    )
+                    for attempt in range(1, self.PROBE_HEADING_ATTEMPTS + 1):
                         try:
                             sample, record = self._measure_neutral_timeout_probe(
                                 direction=direction,
                                 conditioning_transition=conditioning_transition,
                                 requested_idle_seconds=requested_idle_seconds,
                                 target_pulse_seconds=min(
-                                    0.18, max(0.055, seconds_90[direction] * 0.28)
+                                    0.18,
+                                    max(0.055, seconds_90[direction] * 0.28),
                                 ),
                                 conditioning_pulse_seconds=min(
                                     0.14,
                                     max(
-                                        0.040, seconds_90[conditioning_direction] * 0.20
+                                        0.040,
+                                        seconds_90[conditioning_direction] * 0.20,
                                     ),
                                 ),
                                 heading_sign=signs[direction],
                                 conditioning_heading_sign=signs[conditioning_direction],
-                                phase="scan",
+                                phase=phase,
                             )
-                        except RuntimeError as error:
-                            if "exceeded the requested" in str(
-                                error
-                            ) or "missed its requested idle" in str(error):
-                                records.append(
-                                    {
-                                        "phase": "scan",
-                                        "direction": direction.value,
-                                        "conditioning_transition": conditioning_transition.value,
-                                        "requested_idle_seconds": requested_idle_seconds,
-                                        "skipped": True,
-                                        "reason": str(error),
-                                    }
+                        except _ProbeMeasurementError as error:
+                            self.controller.stop()
+                            rejection_reason = str(error)
+                            debug_text = ""
+                            if attempt == self.PROBE_HEADING_ATTEMPTS and isinstance(
+                                error, _ProbeHeadingDeltaError
+                            ):
+                                debug_folder = self.detector.save_debug(
+                                    f"{direction.value}_neutral_timeout_{phase}_implausible_delta"
+                                )
+                                if debug_folder is not None:
+                                    debug_text = f" Debug saved to: {debug_folder}"
+                                    rejection_reason += debug_text
+                            records.append(
+                                {
+                                    "phase": phase,
+                                    "direction": direction.value,
+                                    "conditioning_transition": (
+                                        conditioning_transition.value
+                                    ),
+                                    "requested_idle_seconds": (requested_idle_seconds),
+                                    "repeat": repeat_index,
+                                    "attempt": attempt,
+                                    "skipped": True,
+                                    "reason": rejection_reason,
+                                }
+                            )
+                            if isinstance(error, _ProbeStartHeadingError):
+                                consecutive_start_heading_failures = (
+                                    self._advance_probe_start_failure_count(
+                                        consecutive_start_heading_failures,
+                                        phase=f"Phase 2 {phase}",
+                                        probe_description=(
+                                            f"{direction.value} "
+                                            f"{conditioning_transition.value} "
+                                            f"at {requested_idle_seconds:.3f}s"
+                                        ),
+                                    )
+                                )
+                            else:
+                                consecutive_start_heading_failures = 0
+                            if attempt < self.PROBE_HEADING_ATTEMPTS:
+                                self.status(
+                                    f"Rejected {direction.value} "
+                                    f"{conditioning_transition.value} {phase} "
+                                    f"probe measurement: {error} "
+                                    "Reconditioning and retrying."
                                 )
                                 continue
-                            raise
-                        scan_samples.append(sample)
-                        records.append(record)
+                            self.status(
+                                f"Could not complete {direction.value} "
+                                f"{conditioning_transition.value} {phase} probe "
+                                f"at {requested_idle_seconds:.3f}s after "
+                                f"{self.PROBE_HEADING_ATTEMPTS} rejected heading "
+                                f"measurements.{debug_text}"
+                            )
+                            raise RuntimeError(
+                                "Turn-memory classification could not complete "
+                                "the required replicated cell "
+                                f"({direction.value} "
+                                f"{conditioning_transition.value}, "
+                                f"{requested_idle_seconds:.3f}s, repeat "
+                                f"{repeat_index}) after "
+                                f"{self.PROBE_HEADING_ATTEMPTS} attempts. "
+                                f"Last rejection: {rejection_reason}"
+                            ) from error
+                        else:
+                            consecutive_start_heading_failures = 0
+                            record["repeat"] = repeat_index
+                            scan_samples.append(sample)
+                            records.append(record)
+                            break
 
-            try:
-                fit = fit_neutral_timeout(
-                    scan_samples,
-                    safety_margin_seconds=(self.NEUTRAL_PROBE_SAFETY_MARGIN_SECONDS),
-                    maximum_idle_seconds=(self.NEUTRAL_PROBE_MAXIMUM_SECONDS),
+            def fit_scan() -> NeutralTimeoutFit:
+                try:
+                    return fit_neutral_timeout(
+                        scan_samples,
+                        safety_margin_seconds=(
+                            self.NEUTRAL_PROBE_SAFETY_MARGIN_SECONDS
+                        ),
+                        maximum_idle_seconds=(self.NEUTRAL_PROBE_MAXIMUM_SECONDS),
+                        maximum_sample_uncertainty_degrees=(
+                            self.MAXIMUM_TURN_MEASUREMENT_UNCERTAINTY_DEGREES
+                        ),
+                    )
+                except ValueError as error:
+                    raise RuntimeError(
+                        "Turn-state behavior could not be established from "
+                        f"the replicated bidirectional probes: {error}. The "
+                        "previous calibration was preserved."
+                    ) from error
+
+            # Five raw-geometry frames take roughly one tenth of a second at
+            # the verified capture rate. Start with one reachable short delay
+            # and the six-second horizon, each fully replicated.
+            acquisition_floor = self.PROBE_FRAME_CAPTURE_LEAD_SECONDS + 0.08
+            schedule = self._build_idle_probe_schedule(acquisition_floor)
+            collect_scan_plan(
+                self._build_turn_memory_probe_plan(schedule),
+                phase="classification",
+            )
+            fit = fit_scan()
+
+            if fit.turn_memory_policy.mode is TurnMemoryMode.DECAYS_TO_NEUTRAL:
+                # Only a genuinely converged long-horizon experiment needs the
+                # intermediate samples used to shape the decay curve.
+                refinement_delays = tuple(
+                    delay
+                    for delay in self.NEUTRAL_PROBE_REFINEMENT_IDLE_SECONDS
+                    if schedule[0] < delay < schedule[-1]
                 )
-            except ValueError as error:
-                raise RuntimeError(
-                    "Turn-state neutral timeout could not be established from "
-                    f"the bounded bidirectional scan: {error}. The previous "
-                    "calibration was preserved."
-                ) from error
+                refinement_plan = tuple(
+                    (direction, TurnTransition.REVERSAL, delay, repeat)
+                    for repeat in range(1, self.NEUTRAL_PROBE_SCAN_REPEATS + 1)
+                    for delay in (
+                        refinement_delays
+                        if repeat % 2
+                        else tuple(reversed(refinement_delays))
+                    )
+                    for direction in (
+                        tuple(TurnDirection)
+                        if repeat % 2
+                        else tuple(reversed(tuple(TurnDirection)))
+                    )
+                )
+                self.status(
+                    "The replicated horizon responses converged. Measuring "
+                    "only the intermediate reversal delays needed for a decay "
+                    "curve."
+                )
+                collect_scan_plan(refinement_plan, phase="decay_scan")
+                fit = fit_scan()
 
             mode = fit.turn_memory_policy.mode
             if mode is TurnMemoryMode.DECAYS_TO_NEUTRAL:
+                neutral_after_seconds = fit.neutral_after_seconds
+                assert neutral_after_seconds is not None
                 self.status(
                     "Turn memory converged to neutral by "
-                    f"{fit.neutral_after_seconds:.3f}s. Validating SAME and "
+                    f"{neutral_after_seconds:.3f}s. Validating SAME and "
                     "REVERSAL tails in both directions."
                 )
             else:
+                neutral_after_seconds = None
                 self.status(
                     "Turn memory remained direction-dependent through the "
                     f"{fit.turn_memory_policy.observed_horizon_seconds:.3f}s "
                     "observation horizon. Validating persistent mode."
                 )
             validation_idle = (
-                fit.turn_memory_policy.neutral_after_seconds
-                or fit.turn_memory_policy.observed_horizon_seconds
+                neutral_after_seconds
+                if neutral_after_seconds is not None
+                else fit.turn_memory_policy.observed_horizon_seconds
             )
             for direction in TurnDirection:
                 for conditioning_transition in (
@@ -784,24 +1216,101 @@ class RotationCalibrator:
                         if conditioning_transition is TurnTransition.SAME_DIRECTION
                         else direction.opposite
                     )
-                    for _ in range(self.NEUTRAL_PROBE_VALIDATION_REPEATS):
-                        sample, record = self._measure_neutral_timeout_probe(
-                            direction=direction,
-                            conditioning_transition=conditioning_transition,
-                            requested_idle_seconds=validation_idle,
-                            target_pulse_seconds=min(
-                                0.18, max(0.055, seconds_90[direction] * 0.28)
-                            ),
-                            conditioning_pulse_seconds=min(
-                                0.14,
-                                max(0.040, seconds_90[conditioning_direction] * 0.20),
-                            ),
-                            heading_sign=signs[direction],
-                            conditioning_heading_sign=signs[conditioning_direction],
-                            phase="validation",
-                        )
-                        validation_samples.append(sample)
-                        records.append(record)
+                    for repeat_index in range(
+                        1,
+                        self.NEUTRAL_PROBE_VALIDATION_REPEATS + 1,
+                    ):
+                        for attempt in range(1, self.PROBE_HEADING_ATTEMPTS + 1):
+                            try:
+                                sample, record = self._measure_neutral_timeout_probe(
+                                    direction=direction,
+                                    conditioning_transition=conditioning_transition,
+                                    requested_idle_seconds=validation_idle,
+                                    target_pulse_seconds=min(
+                                        0.18,
+                                        max(0.055, seconds_90[direction] * 0.28),
+                                    ),
+                                    conditioning_pulse_seconds=min(
+                                        0.14,
+                                        max(
+                                            0.040,
+                                            seconds_90[conditioning_direction] * 0.20,
+                                        ),
+                                    ),
+                                    heading_sign=signs[direction],
+                                    conditioning_heading_sign=signs[
+                                        conditioning_direction
+                                    ],
+                                    phase="validation",
+                                )
+                            except _ProbeMeasurementError as error:
+                                self.controller.stop()
+                                rejection_reason = str(error)
+                                if (
+                                    attempt == self.PROBE_HEADING_ATTEMPTS
+                                    and isinstance(error, _ProbeHeadingDeltaError)
+                                ):
+                                    debug_folder = self.detector.save_debug(
+                                        f"{direction.value}_neutral_timeout_validation_implausible_delta"
+                                    )
+                                    if debug_folder is not None:
+                                        rejection_reason += (
+                                            f" Debug saved to: {debug_folder}"
+                                        )
+                                records.append(
+                                    {
+                                        "phase": "validation",
+                                        "direction": direction.value,
+                                        "conditioning_transition": conditioning_transition.value,
+                                        "requested_idle_seconds": validation_idle,
+                                        "repeat": repeat_index,
+                                        "attempt": attempt,
+                                        "skipped": True,
+                                        "reason": rejection_reason,
+                                    }
+                                )
+                                if isinstance(error, _ProbeStartHeadingError):
+                                    consecutive_start_heading_failures = (
+                                        self._advance_probe_start_failure_count(
+                                            consecutive_start_heading_failures,
+                                            phase="Phase 2 validation",
+                                            probe_description=(
+                                                f"{direction.value} "
+                                                f"{conditioning_transition.value} "
+                                                f"repeat {repeat_index}"
+                                            ),
+                                        )
+                                    )
+                                else:
+                                    consecutive_start_heading_failures = 0
+                                if attempt < self.PROBE_HEADING_ATTEMPTS:
+                                    retry_message = f"Rejected {direction.value} "
+                                    retry_message += f"{conditioning_transition.value} "
+                                    retry_message += (
+                                        f"validation {repeat_index} heading "
+                                    )
+                                    retry_message += f"measurement: {error} "
+                                    retry_message += "Reconditioning and retrying."
+                                    self.status(retry_message)
+                                    continue
+                                failure_message = f"{direction.value.title()} "
+                                failure_message += f"{conditioning_transition.value} "
+                                failure_message += (
+                                    f"validation {repeat_index} could not produce "
+                                )
+                                failure_message += (
+                                    "a trustworthy heading measurement after "
+                                )
+                                failure_message += (
+                                    f"{self.PROBE_HEADING_ATTEMPTS} attempts. "
+                                )
+                                failure_message += f"Last rejection: {rejection_reason}"
+                                raise RuntimeError(failure_message) from error
+                            else:
+                                consecutive_start_heading_failures = 0
+                                validation_samples.append(sample)
+                                records.append(record)
+                                break
 
             try:
                 validate_neutral_timeout(fit, validation_samples)
@@ -815,7 +1324,8 @@ class RotationCalibrator:
                 sample.as_neutral_rotation_sample()
                 for sample in (*scan_samples, *validation_samples)
                 if fit.turn_memory_policy.mode is TurnMemoryMode.DECAYS_TO_NEUTRAL
-                and sample.observed_idle_seconds >= fit.neutral_after_seconds - 0.01
+                and neutral_after_seconds is not None
+                and sample.observed_idle_seconds >= neutral_after_seconds - 0.01
             ]
             for direction in TurnDirection:
                 if (
@@ -831,11 +1341,33 @@ class RotationCalibrator:
                         "three physically neutral timing samples. The previous "
                         "calibration was preserved."
                     )
-            self._rotation_samples.extend(neutral_rotation_samples)
+            state_rotation_samples = [
+                sample.as_state_rotation_sample()
+                for sample in (*scan_samples, *validation_samples)
+                if (
+                    fit.turn_memory_policy.mode is TurnMemoryMode.PERSISTENT_OBSERVED
+                    or sample.observed_idle_seconds
+                    <= fit.fit_for(sample.direction).last_stateful_seconds + 0.05
+                )
+            ]
+            self._rotation_samples.extend(
+                (*state_rotation_samples, *neutral_rotation_samples)
+            )
+            phase_rotation_model = fit_rotation_model(
+                self._rotation_samples,
+                fallback_left_seconds_90=left_seconds_90,
+                fallback_right_seconds_90=right_seconds_90,
+                idle_response_curves=fit.idle_response_curves,
+                turn_memory_policy=fit.turn_memory_policy,
+            )
 
             self.controller.set_turn_memory_policy(
                 fit.turn_memory_policy,
-                reset_history=True,
+                # The last successful validation pulse established real game
+                # state. Installing the fitted policy must not erase that
+                # physical direction history and pretend the next pulse is
+                # neutral.
+                reset_history=False,
             )
             self.status(
                 "Validated turn-memory model: "
@@ -879,6 +1411,13 @@ class RotationCalibrator:
                         "keys could not be confirmed released.",
                         failure,
                     )
+                elif isinstance(failure, _PersistentHeadingFailure):
+                    self._status_without_masking(
+                        "Neutral-timeout calibration stopped after repeated "
+                        "pre-movement heading failures. Movement keys are "
+                        "released; no blind recovery turn will be attempted.",
+                        failure,
+                    )
                 else:
                     self._status_without_masking(
                         "Neutral-timeout calibration failed; original-heading "
@@ -900,6 +1439,7 @@ class RotationCalibrator:
                     left_sign=left_sign,
                     right_sign=right_sign,
                     label="Post-neutral-timeout heading restore",
+                    rotation_model=phase_rotation_model,
                 )
 
     def _measure_neutral_timeout_probe(
@@ -921,39 +1461,54 @@ class RotationCalibrator:
         )
         self.status(
             f"Turn-memory {phase}: condition {conditioning_direction.value} "
-            f"({conditioning_transition.value}), "
-            f"then probe {direction.value} after "
+            f"with two pulses ({conditioning_transition.value}), then probe "
+            f"{direction.value} after "
             f"{requested_idle_seconds:.3f}s idle."
         )
-        conditioning_start = self._noninteractive_heading(
-            f"{direction.value} neutral-timeout {phase} conditioning start",
-            timeout=1.25,
-            samples=7,
-        )
-        conditioning_pulse = self._turn_burst(
+        try:
+            conditioning_start = self._noninteractive_heading(
+                f"{direction.value} neutral-timeout {phase} conditioning start",
+                timeout=1.25,
+                samples=7,
+            )
+        except _ProbeHeadingConsensusError as error:
+            raise _ProbeStartHeadingError(str(error)) from error
+        conditioning_prime, conditioning_pulse = self._establish_turn_state(
             conditioning_direction.value,
             conditioning_pulse_seconds,
         )
-        self._wait_or_cancel(max(self.settle_seconds, 0.28))
+        current_idle_seconds = self.controller.turn_idle_seconds
+        if current_idle_seconds is None:
+            raise _ProbeTimingError(
+                "Turn-state history disappeared during neutral-timeout probing."
+            )
+        capture_target_idle = max(
+            0.0,
+            requested_idle_seconds - self.PROBE_FRAME_CAPTURE_LEAD_SECONDS,
+        )
+        wait_before_capture = capture_target_idle - current_idle_seconds
+        if wait_before_capture > 0.0:
+            self._wait_or_cancel(wait_before_capture)
         before_frames = self._collect_probe_frames(
-            count=5,
+            count=self.PROBE_HEADING_FRAME_COUNT,
             not_before=monotonic(),
             timeout=0.80,
         )
 
         current_idle_seconds = self.controller.turn_idle_seconds
         if current_idle_seconds is None:
-            raise RuntimeError(
+            raise _ProbeTimingError(
                 "Turn-state history disappeared during neutral-timeout probing."
             )
         remaining_idle_seconds = requested_idle_seconds - current_idle_seconds
         if remaining_idle_seconds > 0.0:
             self._wait_or_cancel(remaining_idle_seconds)
         elif -remaining_idle_seconds > self.NEUTRAL_PROBE_MAXIMUM_OVERSHOOT_SECONDS:
-            raise RuntimeError(
-                "A strict heading read exceeded the requested neutral-timeout "
-                f"probe delay by {-remaining_idle_seconds:.3f}s. The scan was "
-                "discarded instead of using a mistimed state."
+            raise _ProbeTimingError(
+                "The pre-pulse frame batch exceeded the requested "
+                "neutral-timeout probe delay by "
+                f"{-remaining_idle_seconds:.3f}s. The scan was discarded "
+                "instead of using a mistimed state."
             )
 
         pulse = self._turn_burst(
@@ -962,7 +1517,7 @@ class RotationCalibrator:
         )
         observed_idle_seconds = pulse.idle_seconds
         if observed_idle_seconds is None:
-            raise RuntimeError(
+            raise _ProbeTimingError(
                 "Neutral-timeout probe did not report its observed idle delay."
             )
         idle_overshoot = observed_idle_seconds - requested_idle_seconds
@@ -970,7 +1525,7 @@ class RotationCalibrator:
             idle_overshoot < -0.01
             or idle_overshoot > self.NEUTRAL_PROBE_MAXIMUM_OVERSHOOT_SECONDS
         ):
-            raise RuntimeError(
+            raise _ProbeTimingError(
                 f"Neutral-timeout {phase} pulse missed its requested idle "
                 f"delay by {idle_overshoot:+.3f}s. The measurement was discarded."
             )
@@ -980,55 +1535,54 @@ class RotationCalibrator:
             f"{direction.value} neutral-timeout {phase} start",
         )
         conditioning_motion = (
-            signed_angle_delta(
-                before.angle_deg,
-                conditioning_start.angle_deg,
-            )
+            observed_heading_delta(before, conditioning_start)
             * conditioning_heading_sign
         )
         conditioning_uncertainty = self._reading_uncertainty(
             conditioning_start
         ) + self._reading_uncertainty(before)
-        if (
-            conditioning_uncertainty > self.NEUTRAL_PROBE_MAXIMUM_UNCERTAINTY_DEGREES
-            or not max(2.0, conditioning_uncertainty) < conditioning_motion <= 70.0
-        ):
-            raise RuntimeError(
-                f"{conditioning_direction.value.title()} conditioning pulse "
-                f"moved {conditioning_motion:+.1f}° with "
-                f"{conditioning_uncertainty:.1f}° uncertainty. It did not "
-                "establish a reliable in-game direction state."
+        conditioning_response, conditioning_response_resolved = (
+            self._validate_conditioning_response(
+                conditioning_direction,
+                conditioning_motion,
+                conditioning_uncertainty,
             )
+        )
 
         self._wait_or_cancel(max(self.settle_seconds, 0.48))
         after = self._noninteractive_heading(
             f"{direction.value} neutral-timeout {phase} result",
             timeout=1.75,
         )
-        signed_motion = signed_angle_delta(
-            after.angle_deg,
-            before.angle_deg,
-        )
+        signed_motion = observed_heading_delta(after, before)
         directed_motion = signed_motion * heading_sign
         uncertainty = self._reading_uncertainty(before) + self._reading_uncertainty(
             after
         )
         confidence = min(before.confidence, after.confidence)
-        if (
-            uncertainty > self.NEUTRAL_PROBE_MAXIMUM_UNCERTAINTY_DEGREES
-            or not max(2.0, uncertainty) < directed_motion <= 70.0
-        ):
-            raise RuntimeError(
+        self._raise_for_implausible_probe_delta(
+            directed_motion,
+            uncertainty,
+            context=f"{direction.value.title()} neutral-timeout {phase} probe",
+        )
+        try:
+            measured_response, response_resolved = self._normalize_turn_probe_response(
+                directed_motion,
+                uncertainty,
+                allow_bounded_opposite=(pulse.transition is TurnTransition.REVERSAL),
+            )
+        except ValueError as error:
+            raise _ProbeResponseError(
                 f"{direction.value.title()} neutral-timeout {phase} probe "
                 f"measured {directed_motion:+.1f}° with {uncertainty:.1f}° "
-                "uncertainty. The response was outside the reliable range."
-            )
+                f"uncertainty: {error}. The measurement was discarded."
+            ) from error
 
         sample = NeutralTimeoutSample(
             direction=direction,
             requested_idle_seconds=float(requested_idle_seconds),
             observed_idle_seconds=float(observed_idle_seconds),
-            measured_degrees=float(directed_motion),
+            measured_degrees=measured_response,
             uncertainty_degrees=float(uncertainty),
             confidence=float(confidence),
             conditioning_transition=conditioning_transition,
@@ -1041,6 +1595,23 @@ class RotationCalibrator:
             "direction": direction.value,
             "conditioning_direction": conditioning_direction.value,
             "conditioning_transition": conditioning_transition.value,
+            "conditioning_prime_transition": conditioning_prime.transition.value,
+            "conditioning_prime_requested_seconds": round(
+                conditioning_prime.requested_seconds,
+                5,
+            ),
+            "conditioning_prime_clamped_seconds": round(
+                conditioning_prime.clamped_seconds,
+                5,
+            ),
+            "conditioning_prime_held_seconds": round(
+                conditioning_prime.held_seconds,
+                5,
+            ),
+            "conditioning_prime_elapsed_seconds": round(
+                conditioning_prime.elapsed_seconds,
+                5,
+            ),
             "conditioning_requested_seconds": round(
                 conditioning_pulse.requested_seconds,
                 5,
@@ -1064,31 +1635,125 @@ class RotationCalibrator:
                 3,
             ),
             "conditioning_end_heading": round(before.angle_deg, 3),
+            "conditioning_start_motion_angle": self._optional_motion_angle(
+                conditioning_start
+            ),
+            "conditioning_end_motion_angle": self._optional_motion_angle(before),
             "conditioning_measured_degrees": round(
                 conditioning_motion,
                 3,
             ),
+            "conditioning_normalized_degrees": round(
+                conditioning_response,
+                3,
+            ),
+            "conditioning_response_resolved": conditioning_response_resolved,
             "conditioning_uncertainty_degrees": round(
                 conditioning_uncertainty,
                 3,
             ),
             "start_heading": round(before.angle_deg, 3),
             "end_heading": round(after.angle_deg, 3),
+            "start_motion_angle": self._optional_motion_angle(before),
+            "end_motion_angle": self._optional_motion_angle(after),
             "requested_seconds": round(pulse.requested_seconds, 5),
             "clamped_seconds": round(pulse.clamped_seconds, 5),
             "held_seconds": round(pulse.held_seconds, 5),
             "elapsed_seconds": round(pulse.elapsed_seconds, 5),
             "controller_transition": pulse.transition.value,
-            "measured_degrees": round(directed_motion, 3),
+            "raw_measured_degrees": round(directed_motion, 3),
+            "measured_degrees": round(measured_response, 3),
+            "response_resolved": response_resolved,
             "uncertainty_degrees": round(uncertainty, 3),
             "confidence": round(confidence, 3),
         }
-        self.status(
-            f"Neutral-timeout {phase} {direction.value}: "
-            f"idle {observed_idle_seconds:.3f}s -> "
-            f"{directed_motion:.1f}° (uncertainty {uncertainty:.1f}°)."
-        )
+        if response_resolved:
+            self.status(
+                f"Neutral-timeout {phase} {direction.value}: "
+                f"idle {observed_idle_seconds:.3f}s -> "
+                f"{measured_response:.1f}° "
+                f"(uncertainty {uncertainty:.1f}°)."
+            )
+        else:
+            self.status(
+                f"Neutral-timeout {phase} {direction.value}: "
+                f"idle {observed_idle_seconds:.3f}s produced no resolvable "
+                f"turn (raw {directed_motion:+.1f}°, uncertainty "
+                f"{uncertainty:.1f}°); recording a conservative 0° "
+                "suppressed response."
+            )
         return sample, record
+
+    @classmethod
+    def _normalize_turn_probe_response(
+        cls,
+        directed_motion: float,
+        uncertainty: float,
+        *,
+        allow_bounded_opposite: bool = False,
+    ) -> tuple[float, bool]:
+        """Retain a suppressed turn as data without accepting bad motion."""
+        directed_motion = float(directed_motion)
+        uncertainty = float(uncertainty)
+        if (
+            not isfinite(directed_motion)
+            or not isfinite(uncertainty)
+            or uncertainty < 0.0
+        ):
+            raise ValueError("the measured response was not finite")
+        if uncertainty > cls.MAXIMUM_TURN_MEASUREMENT_UNCERTAINTY_DEGREES:
+            raise ValueError(
+                "combined endpoint uncertainty exceeded the turn-probe limit"
+            )
+
+        resolution_floor = max(2.0, uncertainty)
+        if directed_motion < -resolution_floor:
+            if (
+                allow_bounded_opposite
+                and abs(directed_motion) <= MAXIMUM_TOLERATED_REVERSAL_BACKLASH_DEGREES
+            ):
+                return 0.0, False
+            raise ValueError(
+                "the pulse moved reliably opposite its requested direction"
+            )
+        if directed_motion > 70.0:
+            raise ValueError("the pulse exceeded the safe fitting range")
+        if directed_motion <= resolution_floor:
+            return 0.0, False
+        return directed_motion, True
+
+    def _validate_conditioning_response(
+        self,
+        direction: TurnDirection,
+        directed_motion: float,
+        uncertainty: float,
+    ) -> tuple[float, bool]:
+        """Accept suppressed conditioning while rejecting unsafe measurements."""
+        self._raise_for_implausible_probe_delta(
+            directed_motion,
+            uncertainty,
+            context=f"{direction.value.title()} conditioning sequence",
+        )
+        try:
+            response, resolved = self._normalize_turn_probe_response(
+                directed_motion,
+                uncertainty,
+                allow_bounded_opposite=True,
+            )
+        except ValueError as error:
+            raise _ProbeResponseError(
+                f"{direction.value.title()} conditioning sequence moved "
+                f"{directed_motion:+.1f}° with {uncertainty:.1f}° uncertainty: "
+                f"{error}. The requested turn state was discarded."
+            ) from error
+        if not resolved:
+            self.status(
+                f"{direction.value.title()} conditioning sequence produced no "
+                "resolvable rotation, but both key pulses completed and the "
+                "final pulse was same-direction; retaining the commanded turn "
+                "state."
+            )
+        return response, resolved
 
     def _measure_transition_matrix(
         self,
@@ -1109,191 +1774,322 @@ class RotationCalibrator:
         }
         records: list[dict[str, object]] = []
         duration_factors = (0.20, 0.32, 0.44)
+        consecutive_start_heading_failures = 0
 
-        for direction in TurnDirection:
-            for expected_transition in (
-                TurnTransition.SAME_DIRECTION,
-                TurnTransition.REVERSAL,
-            ):
-                for factor in duration_factors:
-                    conditioning_direction = (
-                        direction
-                        if expected_transition is TurnTransition.SAME_DIRECTION
-                        else direction.opposite
-                    )
-                    conditioning_seconds = min(
-                        0.12,
-                        max(0.030, seconds_90[conditioning_direction] * 0.18),
-                    )
-                    self.status(
-                        f"Preparing {direction.value} "
-                        f"{expected_transition.value} sample with a short "
-                        f"{conditioning_direction.value} conditioning pulse."
-                    )
-                    conditioning_start = self._noninteractive_heading(
-                        f"{direction.value} "
-                        f"{expected_transition.value} conditioning start",
-                        timeout=1.25,
-                        samples=7,
-                    )
-                    conditioning_pulse = self._turn_burst(
-                        conditioning_direction.value,
-                        conditioning_seconds,
-                    )
-                    self._wait_or_cancel(max(self.settle_seconds, 0.28))
-                    before_frames = self._collect_probe_frames(
-                        count=5,
-                        not_before=monotonic(),
-                        timeout=0.80,
-                    )
-                    observed_idle = self.controller.turn_idle_seconds
-                    if (
-                        observed_idle is None
-                        or observed_idle >= self.controller.neutral_after_seconds - 0.05
-                    ):
-                        raise RuntimeError(
-                            "The fitted turn-state window expired while "
-                            f"capturing {direction.value} "
-                            f"{expected_transition.value} pre-pulse frames."
+        plan: list[tuple[TurnDirection, TurnTransition, float, int]] = []
+        base_directions = tuple(TurnDirection)
+        base_transitions = (
+            TurnTransition.SAME_DIRECTION,
+            TurnTransition.REVERSAL,
+        )
+        for repeat_index in range(1, self.TRANSITION_MATRIX_REPEATS + 1):
+            directions = (
+                base_directions
+                if repeat_index % 2
+                else tuple(reversed(base_directions))
+            )
+            transitions = (
+                base_transitions
+                if repeat_index % 2
+                else tuple(reversed(base_transitions))
+            )
+            factors = (
+                duration_factors
+                if repeat_index % 2
+                else tuple(reversed(duration_factors))
+            )
+            for factor in factors:
+                for direction in directions:
+                    for expected_transition in transitions:
+                        plan.append(
+                            (
+                                direction,
+                                expected_transition,
+                                factor,
+                                repeat_index,
+                            )
                         )
 
-                    requested_seconds = min(
-                        self.maximum_pulse_seconds,
-                        max(
-                            self.minimum_pulse_seconds,
-                            seconds_90[direction] * factor,
-                        ),
+        for direction, expected_transition, factor, repeat_index in plan:
+            for attempt in range(1, self.PROBE_HEADING_ATTEMPTS + 1):
+                try:
+                    sample, record = self._measure_transition_probe(
+                        direction=direction,
+                        expected_transition=expected_transition,
+                        factor=factor,
+                        seconds_90=seconds_90,
+                        signs=signs,
                     )
-                    pulse = self._turn_burst(
-                        direction.value,
-                        requested_seconds,
+                except _ProbeMeasurementError as error:
+                    self.controller.stop()
+                    records.append(
+                        {
+                            "phase": "transition_matrix",
+                            "direction": direction.value,
+                            "transition": expected_transition.value,
+                            "factor_of_coarse_90": factor,
+                            "repeat": repeat_index,
+                            "attempt": attempt,
+                            "skipped": True,
+                            "reason": str(error),
+                        }
                     )
-                    if pulse.transition is not expected_transition:
-                        raise RuntimeError(
-                            "Turn transition changed before its measurement "
-                            f"(expected {expected_transition.value}, observed "
-                            f"{pulse.transition.value}). The calibration was "
-                            "discarded instead of fitting the wrong state."
+                    if isinstance(error, _ProbeStartHeadingError):
+                        consecutive_start_heading_failures = (
+                            self._advance_probe_start_failure_count(
+                                consecutive_start_heading_failures,
+                                phase="Phase 3",
+                                probe_description=(
+                                    f"{direction.value} "
+                                    f"{expected_transition.value} "
+                                    f"factor {factor:.2f}"
+                                ),
+                            )
                         )
-
-                    before = self._noninteractive_heading_from_frames(
-                        before_frames,
-                        f"{direction.value} {expected_transition.value} trial start",
-                    )
-                    conditioning_motion = (
-                        signed_angle_delta(
-                            before.angle_deg,
-                            conditioning_start.angle_deg,
+                    else:
+                        consecutive_start_heading_failures = 0
+                    if attempt < self.PROBE_HEADING_ATTEMPTS:
+                        self.status(
+                            f"Rejected {direction.value} "
+                            f"{expected_transition.value} Phase 3 "
+                            f"measurement: {error} Reconditioning and retrying."
                         )
-                        * signs[conditioning_direction]
-                    )
-                    conditioning_uncertainty = self._reading_uncertainty(
-                        conditioning_start
-                    ) + self._reading_uncertainty(before)
-                    if (
-                        conditioning_uncertainty
-                        > self.NEUTRAL_PROBE_MAXIMUM_UNCERTAINTY_DEGREES
-                        or not max(2.0, conditioning_uncertainty)
-                        < conditioning_motion
-                        <= 70.0
-                    ):
-                        raise RuntimeError(
-                            f"{conditioning_direction.value.title()} "
-                            f"conditioning pulse moved "
-                            f"{conditioning_motion:+.1f}° with "
-                            f"{conditioning_uncertainty:.1f}° uncertainty. "
-                            "The requested turn state was not established."
-                        )
-                    self._wait_or_cancel(max(self.settle_seconds, 0.48))
-                    after = self._noninteractive_heading(
-                        f"{direction.value} {expected_transition.value} trial result",
-                        timeout=1.75,
-                    )
-                    signed_motion = signed_angle_delta(
-                        after.angle_deg,
-                        before.angle_deg,
-                    )
-                    directed_motion = signed_motion * signs[direction]
-                    confidence = min(before.confidence, after.confidence)
-                    motion_uncertainty = self._reading_uncertainty(
-                        before
-                    ) + self._reading_uncertainty(after)
-                    if not max(2.0, motion_uncertainty) <= directed_motion <= 70.0:
-                        raise RuntimeError(
-                            f"{direction.value.title()} "
-                            f"{expected_transition.value} trial measured "
-                            f"{directed_motion:+.1f}°. The response was outside "
-                            "the safe fitting range."
-                        )
-
-                    sample = pulse.as_sample(
-                        measured_degrees=directed_motion,
-                        confidence=confidence,
-                    )
+                        continue
+                    raise RuntimeError(
+                        f"{direction.value.title()} "
+                        f"{expected_transition.value} Phase 3 sample "
+                        f"at factor {factor:.2f} could not produce a "
+                        "trustworthy measurement after "
+                        f"{self.PROBE_HEADING_ATTEMPTS} attempts. "
+                        f"Last rejection: {error}"
+                    ) from error
+                else:
+                    consecutive_start_heading_failures = 0
+                    record["repeat"] = repeat_index
                     self._rotation_samples.append(sample)
-                    record: dict[str, object] = {
-                        "direction": direction.value,
-                        "transition": expected_transition.value,
-                        "conditioning_direction": conditioning_direction.value,
-                        "conditioning_transition": (
-                            conditioning_pulse.transition.value
-                        ),
-                        "conditioning_start_heading": round(
-                            conditioning_start.angle_deg,
-                            3,
-                        ),
-                        "conditioning_end_heading": round(
-                            before.angle_deg,
-                            3,
-                        ),
-                        "conditioning_requested_seconds": round(
-                            conditioning_pulse.requested_seconds,
-                            5,
-                        ),
-                        "conditioning_clamped_seconds": round(
-                            conditioning_pulse.clamped_seconds,
-                            5,
-                        ),
-                        "conditioning_held_seconds": round(
-                            conditioning_pulse.held_seconds,
-                            5,
-                        ),
-                        "conditioning_elapsed_seconds": round(
-                            conditioning_pulse.elapsed_seconds,
-                            5,
-                        ),
-                        "conditioning_measured_degrees": round(
-                            conditioning_motion,
-                            3,
-                        ),
-                        "conditioning_uncertainty_degrees": round(
-                            conditioning_uncertainty,
-                            3,
-                        ),
-                        "factor_of_coarse_90": factor,
-                        "start_heading": round(before.angle_deg, 3),
-                        "end_heading": round(after.angle_deg, 3),
-                        "requested_seconds": round(pulse.requested_seconds, 5),
-                        "clamped_seconds": round(pulse.clamped_seconds, 5),
-                        "held_seconds": round(pulse.held_seconds, 5),
-                        "elapsed_seconds": round(pulse.elapsed_seconds, 5),
-                        "idle_seconds": (
-                            round(pulse.idle_seconds, 5)
-                            if pulse.idle_seconds is not None
-                            else None
-                        ),
-                        "measured_degrees": round(directed_motion, 3),
-                        "confidence": round(confidence, 3),
-                    }
                     records.append(record)
-                    self.status(
-                        f"Measured {direction.value} "
-                        f"{expected_transition.value}: "
-                        f"{pulse.held_seconds * 1000.0:.1f} ms -> "
-                        f"{directed_motion:.1f}°."
-                    )
+                    break
 
         return records
+
+    def _measure_transition_probe(
+        self,
+        *,
+        direction: TurnDirection,
+        expected_transition: TurnTransition,
+        factor: float,
+        seconds_90: dict[TurnDirection, float],
+        signs: dict[TurnDirection, int],
+    ) -> tuple[RotationSample, dict[str, object]]:
+        """Measure one Phase 3 cell behind the shared typed retry boundary."""
+        conditioning_direction = (
+            direction
+            if expected_transition is TurnTransition.SAME_DIRECTION
+            else direction.opposite
+        )
+        conditioning_seconds = min(
+            0.12,
+            max(0.030, seconds_90[conditioning_direction] * 0.18),
+        )
+        self.status(
+            f"Preparing {direction.value} {expected_transition.value} sample "
+            f"with a short two-pulse {conditioning_direction.value} "
+            "conditioning sequence."
+        )
+        try:
+            conditioning_start = self._noninteractive_heading(
+                f"{direction.value} {expected_transition.value} conditioning start",
+                timeout=1.25,
+                samples=7,
+            )
+        except _ProbeHeadingConsensusError as error:
+            raise _ProbeStartHeadingError(str(error)) from error
+
+        conditioning_prime, conditioning_pulse = self._establish_turn_state(
+            conditioning_direction.value,
+            conditioning_seconds,
+        )
+        before_frames = self._collect_probe_frames(
+            count=self.PROBE_HEADING_FRAME_COUNT,
+            not_before=monotonic(),
+            timeout=0.80,
+        )
+        observed_idle = self.controller.turn_idle_seconds
+        neutral_after_seconds = self.controller.neutral_after_seconds
+        if observed_idle is None:
+            raise _ProbeTimingError(
+                "Turn-state history disappeared while capturing "
+                f"{direction.value} {expected_transition.value} pre-pulse frames."
+            )
+        if (
+            neutral_after_seconds is not None
+            and observed_idle >= neutral_after_seconds - 0.05
+        ):
+            raise _ProbeTimingError(
+                "The fitted decaying turn-state window expired while capturing "
+                f"{direction.value} {expected_transition.value} pre-pulse frames."
+            )
+
+        requested_seconds = min(
+            self.maximum_pulse_seconds,
+            max(
+                self.minimum_pulse_seconds,
+                seconds_90[direction] * factor,
+            ),
+        )
+        pulse = self._turn_burst(direction.value, requested_seconds)
+        if pulse.transition is not expected_transition:
+            raise _ProbeTimingError(
+                "Turn transition changed before its measurement "
+                f"(expected {expected_transition.value}, observed "
+                f"{pulse.transition.value}). The sample was discarded instead "
+                "of fitting the wrong state."
+            )
+
+        before = self._noninteractive_heading_from_frames(
+            before_frames,
+            f"{direction.value} {expected_transition.value} trial start",
+        )
+        conditioning_motion = (
+            observed_heading_delta(before, conditioning_start)
+            * signs[conditioning_direction]
+        )
+        conditioning_uncertainty = self._reading_uncertainty(
+            conditioning_start
+        ) + self._reading_uncertainty(before)
+        conditioning_response, conditioning_response_resolved = (
+            self._validate_conditioning_response(
+                conditioning_direction,
+                conditioning_motion,
+                conditioning_uncertainty,
+            )
+        )
+        self._wait_or_cancel(max(self.settle_seconds, 0.48))
+        after = self._noninteractive_heading(
+            f"{direction.value} {expected_transition.value} trial result",
+            timeout=1.75,
+        )
+        signed_motion = observed_heading_delta(after, before)
+        directed_motion = signed_motion * signs[direction]
+        confidence = min(before.confidence, after.confidence)
+        motion_uncertainty = self._reading_uncertainty(
+            before
+        ) + self._reading_uncertainty(after)
+        self._raise_for_implausible_probe_delta(
+            directed_motion,
+            motion_uncertainty,
+            context=(f"{direction.value.title()} {expected_transition.value} trial"),
+        )
+        try:
+            measured_response, response_resolved = self._normalize_turn_probe_response(
+                directed_motion,
+                motion_uncertainty,
+                allow_bounded_opposite=(pulse.transition is TurnTransition.REVERSAL),
+            )
+        except ValueError as error:
+            raise _ProbeResponseError(
+                f"{direction.value.title()} {expected_transition.value} trial "
+                f"measured {directed_motion:+.1f} degrees with "
+                f"{motion_uncertainty:.1f} degrees uncertainty: {error}. "
+                "The measurement was discarded."
+            ) from error
+
+        sample = pulse.as_sample(
+            measured_degrees=measured_response,
+            confidence=confidence,
+        )
+        record: dict[str, object] = {
+            "direction": direction.value,
+            "transition": expected_transition.value,
+            "conditioning_direction": conditioning_direction.value,
+            "conditioning_prime_transition": conditioning_prime.transition.value,
+            "conditioning_prime_requested_seconds": round(
+                conditioning_prime.requested_seconds,
+                5,
+            ),
+            "conditioning_prime_clamped_seconds": round(
+                conditioning_prime.clamped_seconds,
+                5,
+            ),
+            "conditioning_prime_held_seconds": round(
+                conditioning_prime.held_seconds,
+                5,
+            ),
+            "conditioning_prime_elapsed_seconds": round(
+                conditioning_prime.elapsed_seconds,
+                5,
+            ),
+            "conditioning_transition": conditioning_pulse.transition.value,
+            "conditioning_start_heading": round(
+                conditioning_start.angle_deg,
+                3,
+            ),
+            "conditioning_end_heading": round(before.angle_deg, 3),
+            "conditioning_start_motion_angle": self._optional_motion_angle(
+                conditioning_start
+            ),
+            "conditioning_end_motion_angle": self._optional_motion_angle(before),
+            "conditioning_requested_seconds": round(
+                conditioning_pulse.requested_seconds,
+                5,
+            ),
+            "conditioning_clamped_seconds": round(
+                conditioning_pulse.clamped_seconds,
+                5,
+            ),
+            "conditioning_held_seconds": round(
+                conditioning_pulse.held_seconds,
+                5,
+            ),
+            "conditioning_elapsed_seconds": round(
+                conditioning_pulse.elapsed_seconds,
+                5,
+            ),
+            "conditioning_measured_degrees": round(
+                conditioning_motion,
+                3,
+            ),
+            "conditioning_normalized_degrees": round(
+                conditioning_response,
+                3,
+            ),
+            "conditioning_response_resolved": conditioning_response_resolved,
+            "conditioning_uncertainty_degrees": round(
+                conditioning_uncertainty,
+                3,
+            ),
+            "factor_of_coarse_90": factor,
+            "start_heading": round(before.angle_deg, 3),
+            "end_heading": round(after.angle_deg, 3),
+            "start_motion_angle": self._optional_motion_angle(before),
+            "end_motion_angle": self._optional_motion_angle(after),
+            "requested_seconds": round(pulse.requested_seconds, 5),
+            "clamped_seconds": round(pulse.clamped_seconds, 5),
+            "held_seconds": round(pulse.held_seconds, 5),
+            "elapsed_seconds": round(pulse.elapsed_seconds, 5),
+            "idle_seconds": (
+                round(pulse.idle_seconds, 5) if pulse.idle_seconds is not None else None
+            ),
+            "raw_measured_degrees": round(directed_motion, 3),
+            "measured_degrees": round(measured_response, 3),
+            "response_resolved": response_resolved,
+            "uncertainty_degrees": round(motion_uncertainty, 3),
+            "confidence": round(confidence, 3),
+        }
+        if response_resolved:
+            self.status(
+                f"Measured {direction.value} {expected_transition.value}: "
+                f"{pulse.held_seconds * 1000.0:.1f} ms -> "
+                f"{measured_response:.1f} degrees."
+            )
+        else:
+            self.status(
+                f"Measured {direction.value} {expected_transition.value}: "
+                f"{pulse.held_seconds * 1000.0:.1f} ms produced no resolvable "
+                "turn; recording a conservative zero-degree suppressed "
+                "response for the dead-time fit."
+            )
+        return sample, record
 
     def _noninteractive_heading(
         self,
@@ -1316,10 +2112,9 @@ class RotationCalibrator:
         )
         self.cancellation.raise_if_cancelled()
         if reading is None or reading.confidence < 0.52:
-            raise RuntimeError(
+            raise _ProbeHeadingConsensusError(
                 f"{context}: a fresh heading could not be measured before "
-                "the bounded non-interactive read expired. Calibration was "
-                "discarded."
+                "the bounded non-interactive read expired."
             )
         return reading
 
@@ -1331,10 +2126,10 @@ class RotationCalibrator:
         timeout: float,
     ) -> list[FrameSample]:
         """
-        Capture distinct post-settle frames without running CV in the idle window.
+        Capture distinct fresh frames without running CV in the idle window.
 
-        The frames are processed only after the target pulse begins, so template
-        matching time cannot silently lengthen a short neutral-timeout probe.
+        The frames are processed only after the target pulse begins, so detector
+        work cannot silently lengthen a short neutral-timeout probe.
         """
         deadline = monotonic() + max(0.1, timeout)
         samples: list[FrameSample] = []
@@ -1342,7 +2137,14 @@ class RotationCalibrator:
         generation: int | None = None
         while len(samples) < count and monotonic() < deadline:
             self.cancellation.raise_if_cancelled()
-            sample = self.bot.get_frame_sample()
+            try:
+                sample = self.bot.get_frame_sample()
+            except WorkerCancelled:
+                raise
+            except Exception as error:
+                raise _ProbeCaptureError(
+                    "The capture supplier failed during a timed probe frame batch."
+                ) from error
             if (
                 sample is not None
                 and sample.identity not in identities
@@ -1352,7 +2154,7 @@ class RotationCalibrator:
                 if generation is None:
                     generation = sample.generation
                 elif sample.generation != generation:
-                    raise RuntimeError(
+                    raise _ProbeCaptureError(
                         "Capture restarted during a neutral-timeout probe."
                     )
                 samples.append(sample)
@@ -1361,7 +2163,7 @@ class RotationCalibrator:
                 self.cancellation.raise_if_cancelled()
 
         if len(samples) != count:
-            raise RuntimeError(
+            raise _ProbeCaptureError(
                 f"Only {len(samples)}/{count} distinct frames were captured "
                 "inside the neutral-timeout probe window."
             )
@@ -1373,30 +2175,67 @@ class RotationCalibrator:
         context: str,
     ) -> HeadingReading:
         """Run strict heading consensus over an explicitly captured frame batch."""
-        frames = iter(sample.frame for sample in samples)
 
-        def supply_frame():
+        def acquire(batch: list[FrameSample]) -> HeadingReading | None:
+            frames = iter(sample.frame for sample in batch)
+
+            def supply_frame():
+                self.cancellation.raise_if_cancelled()
+                return next(frames, None)
+
             self.cancellation.raise_if_cancelled()
-            return next(frames, None)
+            return self.detector.read_strict(
+                supply_frame,
+                samples=len(batch),
+                delay=0.0,
+                fresh=True,
+                require_distinct_frames=False,
+                fresh_frame_timeout=0.80,
+                maximum_uncertainty_deg=self.MAXIMUM_HEADING_UNCERTAINTY_DEGREES,
+                maximum_ambiguity=self.MAXIMUM_HEADING_AMBIGUITY,
+            )
 
-        self.cancellation.raise_if_cancelled()
-        reading = self.detector.read_strict(
-            supply_frame,
-            samples=len(samples),
-            delay=0.0,
-            fresh=True,
-            require_distinct_frames=False,
-            fresh_frame_timeout=0.80,
-            maximum_uncertainty_deg=self.MAXIMUM_HEADING_UNCERTAINTY_DEGREES,
-            maximum_ambiguity=self.MAXIMUM_HEADING_AMBIGUITY,
-        )
+        reading = acquire(samples)
+        if reading is None and len(samples) > 5:
+            # A conditioning turn can still be settling at the beginning of
+            # the capture window. The final five frames are closest to target
+            # key-down, so accept them only if they independently satisfy the
+            # complete strict five-sample gate.
+            reading = acquire(samples[-5:])
+            if reading is not None:
+                self.status(
+                    f"{context}: the full saved batch was still settling; "
+                    "using its final five-frame strict consensus."
+                )
         self.cancellation.raise_if_cancelled()
         if reading is None or reading.confidence < 0.52:
-            raise RuntimeError(
+            raise _ProbeHeadingConsensusError(
                 f"{context}: the captured pre-pulse frames did not produce "
-                "a strict heading consensus. Calibration was discarded."
+                "a strict heading consensus."
             )
         return reading
+
+    def _establish_turn_state(
+        self,
+        direction: str,
+        seconds: float,
+    ) -> tuple[TurnPulseResult, TurnPulseResult]:
+        """
+        Prime a requested direction, then reinforce it with a known SAME pulse.
+
+        A first pulse after reversing can be completely suppressed by Flyff.
+        Repeating the requested conditioning direction gives the probe a
+        physically established state without pretending that an idle delay
+        neutralized it.
+        """
+        prime = self._turn_burst(direction, seconds)
+        reinforcing = self._turn_burst(direction, seconds)
+        if reinforcing.transition is not TurnTransition.SAME_DIRECTION:
+            raise RuntimeError(
+                "The repeated conditioning pulse was not classified as "
+                "same-direction. Turn-state history is inconsistent."
+            )
+        return prime, reinforcing
 
     def _turn_burst(
         self,
@@ -1423,6 +2262,34 @@ class RotationCalibrator:
         )
         return result
 
+    def _turn_degrees_burst(
+        self,
+        direction: str,
+        degrees: float,
+        rotation_model: StateAwareRotationModel,
+        *,
+        maximum_seconds: float,
+    ) -> TurnPulseResult:
+        """Issue one state-aware bounded turn and retain the normal safety log."""
+        self.cancellation.raise_if_cancelled()
+        result = self.controller.turn_degrees(
+            TurnDirection(direction),
+            degrees,
+            rotation_model,
+            maximum_seconds=maximum_seconds,
+        )
+        self.controller.stop()
+        self.cancellation.raise_if_cancelled()
+        self.status(
+            f"{direction.title()} {result.transition.value} pulse held for "
+            f"{result.held_seconds * 1000.0:.1f} ms "
+            f"(planned {degrees:.1f} degrees, requested "
+            f"{result.requested_seconds * 1000.0:.1f} ms, command elapsed "
+            f"{result.elapsed_seconds * 1000.0:.1f} ms); all movement keys "
+            "released."
+        )
+        return result
+
     def _turn_to_absolute_heading(
         self,
         *,
@@ -1433,18 +2300,33 @@ class RotationCalibrator:
         right_sign: int,
         label: str,
         rotation_model: StateAwareRotationModel | None = None,
+        initial_reading: HeadingReading | None = None,
+        noninteractive: bool = False,
     ) -> None:
         model = rotation_model or uniform_rotation_model(
             left_seconds_90=left_seconds_90,
             right_seconds_90=right_seconds_90,
-            neutral_after_seconds=self.controller.neutral_after_seconds,
+            turn_memory_policy=self.controller.turn_memory_policy,
         )
+        if noninteractive:
+
+            def read_heading(context: str) -> HeadingReading:
+                return self._noninteractive_heading(
+                    context,
+                    timeout=0.85,
+                    samples=7,
+                )
+
+            heading_reader = read_heading
+        else:
+            heading_reader = self._stable_heading
+
         turner = ClosedLoopTurnController(
             self.controller,
             model,
             left_heading_sign=left_sign,
             right_heading_sign=right_sign,
-            read_heading=self._stable_heading,
+            read_heading=heading_reader,
             cancellation=self.cancellation,
             status_callback=self.status,
             freshness_barrier=self._wait_for_freshness,
@@ -1452,7 +2334,11 @@ class RotationCalibrator:
             tolerance_degrees=self.TURN_TOLERANCE_DEGREES,
             maximum_uncertainty_degrees=(self.MAXIMUM_HEADING_UNCERTAINTY_DEGREES),
         )
-        _ = turner.turn_to_heading(target_heading, label=label)
+        _ = turner.turn_to_heading(
+            target_heading,
+            label=label,
+            initial_reading=initial_reading,
+        )
 
     def _wait_for_freshness(self, not_before: float) -> None:
         _ = self._wait_for_frame_sample(not_before=not_before)
@@ -1465,6 +2351,7 @@ class RotationCalibrator:
         right_sign: int,
         *,
         turns_each_direction: int,
+        rotation_model: StateAwareRotationModel,
     ) -> tuple[float, float, list[dict[str, object]]]:
         """
         Execute exact 90-degree target turns with minimap feedback.
@@ -1538,29 +2425,25 @@ class RotationCalibrator:
                     pulse_sign = signs[opposite]
                     error_degrees = abs(signed_to_target)
 
-                seconds_per_90 = durations[pulse_direction]
-                proposed = (
-                    seconds_per_90 * min(max(error_degrees, 3.0), 42.0) / 90.0 * 0.88
-                )
-                pulse_seconds = min(0.180, max(0.018, proposed))
+                planned_degrees = min(max(error_degrees, 3.0), 42.0) * 0.88
 
                 self.status(
                     f"  correction {correction}: remaining "
                     f"{signed_to_target:+.1f}°, "
-                    f"{pulse_direction} pulse {pulse_seconds * 1000.0:.0f} ms."
+                    f"{pulse_direction} pulse planned for "
+                    f"{planned_degrees:.1f}° using the fitted transition model."
                 )
 
-                pulse_result = self._turn_burst(
+                pulse_result = self._turn_degrees_burst(
                     pulse_direction,
-                    pulse_seconds,
+                    planned_degrees,
+                    rotation_model,
+                    maximum_seconds=0.180,
                 )
                 self._wait_or_cancel(max(self.settle_seconds, 0.48))
                 after = self._stable_heading()
 
-                signed_motion = signed_angle_delta(
-                    after.angle_deg,
-                    current.angle_deg,
-                )
+                signed_motion = observed_heading_delta(after, current)
                 directed_motion = signed_motion * pulse_sign
                 motion_uncertainty = self._reading_uncertainty(
                     current
@@ -1569,6 +2452,23 @@ class RotationCalibrator:
                     current.confidence,
                     after.confidence,
                 )
+                maximum_plausible_motion = maximum_plausible_closed_loop_motion_degrees(
+                    planned_degrees,
+                    pulse_result,
+                )
+                if abs(signed_motion) - motion_uncertainty > maximum_plausible_motion:
+                    debug_folder = self.detector.save_debug(
+                        f"{pulse_direction}_refinement_heading_alias"
+                    )
+                    raise RuntimeError(
+                        f"{pulse_direction.title()} refinement rejected a "
+                        f"{signed_motion:+.1f}-degree heading jump after a "
+                        f"{planned_degrees:.1f}-degree planned pulse; the "
+                        f"physically plausible bound was "
+                        f"{maximum_plausible_motion:.1f} degrees. The aliased "
+                        "reading was not adopted as current state. "
+                        f"Debug saved to: {debug_folder}"
+                    )
                 pulse_records.append(
                     {
                         "direction": pulse_direction,
@@ -1659,13 +2559,7 @@ class RotationCalibrator:
                 target,
                 final.angle_deg,
             )
-            measured = (
-                signed_angle_delta(
-                    final.angle_deg,
-                    start.angle_deg,
-                )
-                * sign
-            )
+            measured = observed_heading_delta(final, start) * sign
 
             if not self._heading_target_satisfied(final_error, final):
                 raise RuntimeError(
@@ -1743,7 +2637,7 @@ class RotationCalibrator:
     def _calibrate_forward_motion(
         self,
         *,
-        original_heading: float,
+        original_heading: HeadingReading,
         manual: bool,
     ) -> tuple[ForwardMotionModel, list[ForwardCalibrationTrial]]:
         """
@@ -1767,6 +2661,77 @@ class RotationCalibrator:
 
         tracker = MotionTracker()
         trials: list[ForwardCalibrationTrial] = []
+        diagnostic_records: list[dict[str, object]] = []
+        debug_folder = (
+            Path(__file__).resolve().parents[1]
+            / "debug"
+            / "forward_calibration"
+            / datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+        )
+        debug_folder.mkdir(parents=True, exist_ok=False)
+        self._write_forward_diagnostics(
+            debug_folder,
+            diagnostic_records,
+            requested_schedule=self.FORWARD_TRIAL_SECONDS,
+        )
+        try:
+            baseline_heading = self._stable_heading(
+                "Heading before forward calibration"
+            )
+        except WorkerCancelled:
+            self._write_forward_diagnostics(
+                debug_folder,
+                diagnostic_records,
+                requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                failure="Calibration cancelled before the forward heading baseline.",
+            )
+            raise
+        except Exception as error:
+            failure = (
+                "Could not establish a heading baseline before forward "
+                f"calibration: {type(error).__name__}: {error}"
+            )
+            self._write_forward_diagnostics(
+                debug_folder,
+                diagnostic_records,
+                requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                failure=failure,
+            )
+            raise RuntimeError(f"{failure} Debug saved to: {debug_folder}") from error
+        diagnostic_records.append(
+            {
+                "stage": "heading_baseline",
+                "angle_deg": baseline_heading.angle_deg,
+                "motion_angle_deg": baseline_heading.motion_angle_deg,
+                "uncertainty_deg": self._reading_uncertainty(baseline_heading),
+                "confidence": baseline_heading.confidence,
+            }
+        )
+        baseline_target_error = observed_heading_delta(
+            baseline_heading,
+            original_heading,
+        )
+        if not self._heading_delta_satisfied(
+            baseline_target_error,
+            before_reading=original_heading,
+            after_reading=baseline_heading,
+        ):
+            failure = (
+                "The heading restored before forward calibration did not match "
+                f"the original target ({baseline_target_error:+.3f} degrees)."
+            )
+            self._write_forward_diagnostics(
+                debug_folder,
+                diagnostic_records,
+                requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                failure=failure,
+            )
+            raise RuntimeError(f"{failure} Debug saved to: {debug_folder}")
+        self._write_forward_diagnostics(
+            debug_folder,
+            diagnostic_records,
+            requested_schedule=self.FORWARD_TRIAL_SECONDS,
+        )
         frame_width: int | None = None
         frame_height: int | None = None
 
@@ -1774,50 +2739,229 @@ class RotationCalibrator:
             self.FORWARD_TRIAL_SECONDS,
             start=1,
         ):
-            before = self._wait_for_frame_sample(not_before=monotonic())
+            try:
+                before = self._wait_for_frame_sample(not_before=monotonic())
+            except WorkerCancelled:
+                self._write_forward_diagnostics(
+                    debug_folder,
+                    diagnostic_records,
+                    requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                    failure=f"Calibration cancelled before forward trial {index}.",
+                )
+                raise
+            except Exception as error:
+                failure = (
+                    f"Could not capture the frame before forward trial {index}: "
+                    f"{type(error).__name__}: {error}"
+                )
+                self._write_forward_diagnostics(
+                    debug_folder,
+                    diagnostic_records,
+                    requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                    failure=failure,
+                )
+                raise RuntimeError(
+                    f"{failure} Debug saved to: {debug_folder}"
+                ) from error
             height, width = before.frame.shape[:2]
             if frame_width is None:
                 frame_width = width
                 frame_height = height
             elif (width, height) != (frame_width, frame_height):
+                self._write_forward_diagnostics(
+                    debug_folder,
+                    diagnostic_records,
+                    requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                    failure="Capture resolution changed during forward calibration.",
+                )
                 raise RuntimeError(
-                    "Capture resolution changed during forward calibration."
+                    "Capture resolution changed during forward calibration. "
+                    f"Debug saved to: {debug_folder}"
                 )
 
-            self.cancellation.raise_if_cancelled()
-            timing = self.controller.forward(requested_seconds)
-            self._wait_or_cancel(max(self.settle_seconds, 0.20))
-            after = self._wait_for_frame_sample(
-                after_identity=before.identity,
-                generation=before.generation,
-                not_before=monotonic(),
+            record: dict[str, object] = {
+                "trial": index,
+                "requested_seconds": float(requested_seconds),
+                "before_identity": before.identity,
+                "after_identity": None,
+                "capture_generation": before.generation,
+                "before_captured_at": before.captured_at,
+                "after_captured_at": None,
+                "frame_width": width,
+                "frame_height": height,
+                "outcome": "pending_command",
+            }
+            diagnostic_records.append(record)
+            self._write_forward_diagnostics(
+                debug_folder,
+                diagnostic_records,
+                requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                trial_index=index,
+                before_frame=before.frame,
             )
-            motion = tracker.compare(
-                before.frame,
-                after.frame,
-                commanded_forward=True,
+
+            self.cancellation.raise_if_cancelled()
+            try:
+                timing = self.controller.forward(requested_seconds)
+            except WorkerCancelled:
+                record["outcome"] = "cancelled_during_command"
+                self._write_forward_diagnostics(
+                    debug_folder,
+                    diagnostic_records,
+                    requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                    failure=f"Calibration cancelled during forward trial {index}.",
+                )
+                raise
+            except Exception as error:
+                record["outcome"] = "command_failed"
+                failure = (
+                    "Forward command failed before measurement: "
+                    f"{type(error).__name__}: {error}"
+                )
+                self._write_forward_diagnostics(
+                    debug_folder,
+                    diagnostic_records,
+                    requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                    failure=failure,
+                )
+                raise RuntimeError(
+                    f"{failure} Debug saved to: {debug_folder}"
+                ) from error
+            record.update(
+                {
+                    "clamped_seconds": timing.clamped_seconds,
+                    "held_seconds": timing.held_seconds,
+                    "command_elapsed_seconds": timing.elapsed_seconds,
+                    "outcome": "pending_capture",
+                }
+            )
+            self._write_forward_diagnostics(
+                debug_folder,
+                diagnostic_records,
+                requested_schedule=self.FORWARD_TRIAL_SECONDS,
+            )
+
+            try:
+                self._wait_or_cancel(max(self.settle_seconds, 0.20))
+                after = self._wait_for_frame_sample(
+                    after_identity=before.identity,
+                    generation=before.generation,
+                    not_before=monotonic(),
+                )
+                motion = tracker.compare(
+                    before.frame,
+                    after.frame,
+                    commanded_forward=True,
+                )
+            except WorkerCancelled:
+                record["outcome"] = "cancelled_during_measurement"
+                self._write_forward_diagnostics(
+                    debug_folder,
+                    diagnostic_records,
+                    requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                    failure=f"Calibration cancelled during forward trial {index}.",
+                )
+                raise
+            except Exception as error:
+                record["outcome"] = "measurement_failed"
+                failure = (
+                    "Forward measurement failed after the command: "
+                    f"{type(error).__name__}: {error}"
+                )
+                self._write_forward_diagnostics(
+                    debug_folder,
+                    diagnostic_records,
+                    requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                    failure=failure,
+                )
+                raise RuntimeError(
+                    f"{failure} Debug saved to: {debug_folder}"
+                ) from error
+            record.update(
+                {
+                    "after_identity": after.identity,
+                    "after_captured_at": after.captured_at,
+                    "change_score": motion.change_score,
+                    "flow_dx_px": motion.directional_flow.scene_dx_px,
+                    "flow_dy_px": motion.directional_flow.scene_dy_px,
+                    "flow_magnitude_px": motion.directional_flow.magnitude_px,
+                    "flow_dispersion_px": motion.directional_flow.dispersion_px,
+                    "tracked_points": motion.directional_flow.tracked_points,
+                    "flow_inlier_ratio": motion.directional_flow.inlier_ratio,
+                    "flow_confidence": motion.directional_flow.confidence,
+                    "teleport_likely": motion.teleport_likely,
+                    "collision_likely": motion.collision_likely,
+                    "outcome": motion.forward_distance.outcome.value,
+                }
+            )
+            self._write_forward_diagnostics(
+                debug_folder,
+                diagnostic_records,
+                requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                trial_index=index,
+                before_frame=before.frame,
+                after_frame=after.frame,
             )
 
             if motion.teleport_likely:
-                raise RuntimeError(
+                failure = (
                     "Scene discontinuity detected during forward calibration; "
                     "the measurements were discarded."
                 )
+                self._write_forward_diagnostics(
+                    debug_folder,
+                    diagnostic_records,
+                    requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                    failure=failure,
+                )
+                raise RuntimeError(f"{failure} Debug saved to: {debug_folder}")
 
             outcome = motion.forward_distance.outcome
+            coherence_error = forward_flow_coherence_error(
+                reference_flow_px=motion.directional_flow.magnitude_px,
+                dispersion_px=motion.directional_flow.dispersion_px,
+                inlier_ratio=motion.directional_flow.inlier_ratio,
+            )
+            if coherence_error is not None:
+                failure = (
+                    "Forward calibration produced an incoherent optical-flow "
+                    f"field on trial {index}: {coherence_error}. The previous "
+                    "calibration was preserved."
+                )
+                self._write_forward_diagnostics(
+                    debug_folder,
+                    diagnostic_records,
+                    requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                    failure=failure,
+                )
+                raise RuntimeError(f"{failure} Debug saved to: {debug_folder}")
             if outcome is ForwardMotionOutcome.BLOCKED:
-                raise RuntimeError(
+                failure = (
                     "Forward calibration encountered an obstacle. Move to a "
                     "clear textured path and run Calibrate Mapper again."
                 )
+                self._write_forward_diagnostics(
+                    debug_folder,
+                    diagnostic_records,
+                    requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                    failure=failure,
+                )
+                raise RuntimeError(f"{failure} Debug saved to: {debug_folder}")
             if outcome is not ForwardMotionOutcome.MOVED:
-                raise RuntimeError(
+                failure = (
                     "Forward travel could not be measured reliably "
                     f"(trial {index}, confidence "
                     f"{motion.forward_distance.confidence:.2f}, "
                     f"tracked points {motion.tracked_points}). "
                     "The previous calibration was preserved."
                 )
+                self._write_forward_diagnostics(
+                    debug_folder,
+                    diagnostic_records,
+                    requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                    failure=failure,
+                )
+                raise RuntimeError(f"{failure} Debug saved to: {debug_folder}")
 
             trial = ForwardCalibrationTrial(
                 requested_seconds=float(requested_seconds),
@@ -1825,6 +2969,8 @@ class RotationCalibrator:
                 distance_px=motion.forward_distance.distance_px,
                 confidence=motion.forward_distance.confidence,
                 tracked_points=motion.tracked_points,
+                dispersion_px=motion.directional_flow.dispersion_px,
+                inlier_ratio=motion.directional_flow.inlier_ratio,
             )
             trials.append(trial)
             self.status(
@@ -1836,30 +2982,136 @@ class RotationCalibrator:
 
         assert frame_width is not None
         assert frame_height is not None
-        model = fit_forward_motion_model(
-            trials,
-            nominal_seconds=self.FORWARD_NOMINAL_SECONDS,
-            frame_width=frame_width,
-            frame_height=frame_height,
-        )
+        try:
+            model = fit_forward_motion_model(
+                trials,
+                nominal_seconds=self.FORWARD_NOMINAL_SECONDS,
+                frame_width=frame_width,
+                frame_height=frame_height,
+            )
+        except ValueError as error:
+            self._write_forward_diagnostics(
+                debug_folder,
+                diagnostic_records,
+                requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                failure=str(error),
+            )
+            raise RuntimeError(
+                f"Forward calibration model was rejected: {error} "
+                f"Debug saved to: {debug_folder}"
+            ) from error
 
-        final_heading = self._stable_heading("Heading after forward calibration")
-        heading_error = signed_angle_delta(
-            original_heading,
-            final_heading.angle_deg,
+        try:
+            final_heading = self._stable_heading("Heading after forward calibration")
+        except WorkerCancelled:
+            self._write_forward_diagnostics(
+                debug_folder,
+                diagnostic_records,
+                requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                model=model,
+                failure="Calibration cancelled before the final heading check.",
+            )
+            raise
+        except Exception as error:
+            failure = (
+                "Could not verify heading after forward calibration: "
+                f"{type(error).__name__}: {error}"
+            )
+            self._write_forward_diagnostics(
+                debug_folder,
+                diagnostic_records,
+                requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                model=model,
+                failure=failure,
+            )
+            raise RuntimeError(f"{failure} Debug saved to: {debug_folder}") from error
+        diagnostic_records.append(
+            {
+                "stage": "heading_final",
+                "angle_deg": final_heading.angle_deg,
+                "motion_angle_deg": final_heading.motion_angle_deg,
+                "uncertainty_deg": self._reading_uncertainty(final_heading),
+                "confidence": final_heading.confidence,
+            }
         )
-        if not self._heading_target_satisfied(heading_error, final_heading):
+        heading_error = observed_heading_delta(final_heading, baseline_heading)
+        if not self._heading_delta_satisfied(
+            heading_error,
+            before_reading=baseline_heading,
+            after_reading=final_heading,
+        ):
+            combined_uncertainty = self._reading_uncertainty(
+                baseline_heading
+            ) + self._reading_uncertainty(final_heading)
+            self._write_forward_diagnostics(
+                debug_folder,
+                diagnostic_records,
+                requested_schedule=self.FORWARD_TRIAL_SECONDS,
+                model=model,
+                failure=(
+                    f"Heading changed by {heading_error:+.3f} degrees; "
+                    f"combined endpoint uncertainty was "
+                    f"{combined_uncertainty:.3f} degrees."
+                ),
+            )
             raise RuntimeError(
                 "Heading drifted during forward calibration "
-                f"({heading_error:+.1f}°); forward measurements were discarded."
+                f"({heading_error:+.1f}°, combined uncertainty "
+                f"{combined_uncertainty:.1f}°); forward measurements were "
+                "discarded. "
+                f"Debug saved to: {debug_folder}"
             )
 
+        self._write_forward_diagnostics(
+            debug_folder,
+            diagnostic_records,
+            requested_schedule=self.FORWARD_TRIAL_SECONDS,
+            model=model,
+        )
         self.status(
             "Forward calibration validated: "
             f"{model.pixels_per_cell:.2f}px per relative map cell, "
             f"RMSE {model.rmse_px:.2f}px, R² {model.r_squared:.2f}."
         )
         return model, trials
+
+    @classmethod
+    def _write_forward_diagnostics(
+        cls,
+        folder: Path,
+        records: list[dict[str, object]],
+        *,
+        requested_schedule: tuple[float, ...],
+        trial_index: int | None = None,
+        before_frame: np.ndarray | None = None,
+        after_frame: np.ndarray | None = None,
+        model: ForwardMotionModel | None = None,
+        failure: str | None = None,
+    ) -> None:
+        """Persist bounded Phase-4 evidence after every attempted pulse."""
+        folder.mkdir(parents=True, exist_ok=True)
+        if trial_index is not None:
+            if before_frame is not None:
+                _ = cv.imwrite(
+                    str(folder / f"trial_{trial_index:02d}_before.png"),
+                    before_frame,
+                )
+            if after_frame is not None:
+                _ = cv.imwrite(
+                    str(folder / f"trial_{trial_index:02d}_after.png"),
+                    after_frame,
+                )
+        cls._atomic_write_json(
+            folder / "session.json",
+            {
+                "estimator_version": MotionTracker.VERSION,
+                "requested_schedule_seconds": list(requested_schedule),
+                "completed": model is not None and failure is None,
+                "failure": failure,
+                "model": model.to_dict() if model is not None else None,
+                "trials": records,
+            },
+        )
 
     def _wait_for_frame_sample(
         self,
@@ -1895,10 +3147,30 @@ class RotationCalibrator:
             <= self.TURN_TOLERANCE_DEGREES
         )
 
+    def _heading_delta_satisfied(
+        self,
+        error_degrees: float,
+        *,
+        before_reading: HeadingReading,
+        after_reading: HeadingReading,
+    ) -> bool:
+        """Apply the three-degree bound to both independently read endpoints."""
+        return (
+            abs(error_degrees)
+            + self._reading_uncertainty(before_reading)
+            + self._reading_uncertainty(after_reading)
+            <= self.TURN_TOLERANCE_DEGREES
+        )
+
     @staticmethod
     def _reading_uncertainty(reading: HeadingReading) -> float:
         value = reading.angular_uncertainty_deg
         return float(value) if value is not None else 3.0
+
+    @staticmethod
+    def _optional_motion_angle(reading: HeadingReading) -> float | None:
+        value = reading.motion_angle_deg
+        return round(float(value), 3) if value is not None else None
 
     @staticmethod
     def _bounded_median(

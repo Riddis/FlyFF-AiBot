@@ -6,6 +6,11 @@ from enum import StrEnum
 import cv2 as cv
 import numpy as np
 
+from .ForwardCalibration import (
+    ForwardMotionModel,
+    ForwardObservationValidation,
+)
+
 
 @dataclass(frozen=True)
 class DirectionalFlow:
@@ -43,6 +48,7 @@ class ForwardDistanceEstimate:
     calibrated: bool
     reliable: bool
     outcome: ForwardMotionOutcome
+    validation: ForwardObservationValidation | None = None
 
 
 @dataclass(frozen=True)
@@ -59,21 +65,18 @@ class MotionEstimate:
 class MotionTracker:
     """Conservative visual motion, distance, and discontinuity estimator."""
 
+    VERSION = "2.0-model-validated-command-distance"
+
     def __init__(
         self,
         collision_change_threshold: float = 0.022,
         collision_flow_threshold: float = 1.3,
         teleport_change_threshold: float = 0.30,
         teleport_min_flow: float = 18.0,
-        forward_pixels_per_cell: float | None = None,
-        forward_baseline_flow_px: float = 0.0,
+        forward_model: ForwardMotionModel | None = None,
         minimum_motion_confidence: float = 0.55,
         forward_backward_error_px: float = 1.5,
     ) -> None:
-        if forward_pixels_per_cell is not None and forward_pixels_per_cell <= 0:
-            raise ValueError("forward_pixels_per_cell must be positive")
-        if forward_baseline_flow_px < 0:
-            raise ValueError("forward_baseline_flow_px cannot be negative")
         if not 0.0 <= minimum_motion_confidence <= 1.0:
             raise ValueError("minimum_motion_confidence must be between 0 and 1")
         if forward_backward_error_px <= 0:
@@ -82,24 +85,13 @@ class MotionTracker:
         self.collision_flow_threshold: float = collision_flow_threshold
         self.teleport_change_threshold: float = teleport_change_threshold
         self.teleport_min_flow: float = teleport_min_flow
-        self.forward_pixels_per_cell: float | None = forward_pixels_per_cell
-        self.forward_baseline_flow_px: float = float(forward_baseline_flow_px)
+        self.forward_model: ForwardMotionModel | None = forward_model
         self.minimum_motion_confidence: float = minimum_motion_confidence
         self.forward_backward_error_px: float = forward_backward_error_px
 
-    def set_forward_scale(
-        self,
-        pixels_per_cell: float | None,
-        *,
-        baseline_flow_px: float = 0.0,
-    ) -> None:
-        """Install or clear the scale learned by forward calibration."""
-        if pixels_per_cell is not None and pixels_per_cell <= 0:
-            raise ValueError("pixels_per_cell must be positive")
-        if baseline_flow_px < 0:
-            raise ValueError("baseline_flow_px cannot be negative")
-        self.forward_pixels_per_cell = pixels_per_cell
-        self.forward_baseline_flow_px = float(baseline_flow_px)
+    def set_forward_model(self, model: ForwardMotionModel | None) -> None:
+        """Install or clear the complete model required for safe odometry."""
+        self.forward_model = model
 
     def compare(
         self,
@@ -107,42 +99,67 @@ class MotionTracker:
         after: np.ndarray,
         *,
         commanded_forward: bool,
+        actual_forward_seconds: float | None = None,
     ) -> MotionEstimate:
         a = self._prepare(before)
         b = self._prepare(after)
         change = float(np.mean(cv.absdiff(a, b)) / 255.0)
         flow = self._estimate_flow(a, b)
+        baseline_flow_px = (
+            self.forward_model.baseline_flow_px
+            if self.forward_model is not None
+            else 0.0
+        )
         calibrated_motion_px = max(
             0.0,
-            flow.magnitude_px - self.forward_baseline_flow_px,
+            flow.magnitude_px - baseline_flow_px,
         )
         confident_motion = flow.confidence >= self.minimum_motion_confidence
         teleport = bool(
             change >= self.teleport_change_threshold
             and (flow.magnitude_px >= self.teleport_min_flow or flow.tracked_points < 8)
         )
+
+        calibrated = self.forward_model is not None
+        validation: ForwardObservationValidation | None = None
+        if commanded_forward and self.forward_model is not None:
+            validation = self.forward_model.validate_observation(
+                actual_seconds=actual_forward_seconds,
+                distance_px=flow.magnitude_px,
+                dispersion_px=flow.dispersion_px,
+                inlier_ratio=flow.inlier_ratio,
+            )
+
+        if self.forward_model is not None:
+            movement_detected = bool(validation is not None and validation.reliable)
+            blocked_candidate = bool(
+                validation is not None and validation.blocked_candidate
+            )
+        else:
+            movement_threshold = self.collision_flow_threshold
+            movement_detected = calibrated_motion_px >= movement_threshold
+            blocked_candidate = not movement_detected
+
         collision = bool(
             commanded_forward
             and not teleport
             and confident_motion
             and change < self.collision_change_threshold
-            and calibrated_motion_px < self.collision_flow_threshold
+            and blocked_candidate
         )
 
-        calibrated = self.forward_pixels_per_cell is not None
         distance_px = flow.magnitude_px if commanded_forward else 0.0
-        distance_cells = (
-            calibrated_motion_px / self.forward_pixels_per_cell
-            if commanded_forward and self.forward_pixels_per_cell is not None
-            else None
-        )
+        if validation is not None:
+            distance_cells = validation.distance_cells
+        else:
+            distance_cells = None
         if not commanded_forward:
             outcome = ForwardMotionOutcome.NOT_COMMANDED
         elif teleport or not confident_motion:
             outcome = ForwardMotionOutcome.UNAVAILABLE
         elif collision:
             outcome = ForwardMotionOutcome.BLOCKED
-        elif calibrated_motion_px >= self.collision_flow_threshold:
+        elif movement_detected:
             outcome = ForwardMotionOutcome.MOVED
         else:
             outcome = ForwardMotionOutcome.UNAVAILABLE
@@ -157,6 +174,7 @@ class MotionTracker:
                 and outcome is ForwardMotionOutcome.MOVED
             ),
             outcome=outcome,
+            validation=validation,
         )
         return MotionEstimate(
             change_score=change,
@@ -219,23 +237,22 @@ class MotionTracker:
         )
         valid_old = old_points[valid]
         valid_new = new_points[valid]
-        if len(valid_old) == 0:
+        if len(valid_old) < 3:
             return self._empty_flow()
 
         pre_ransac_count = len(valid_old)
-        inliers = np.ones(pre_ransac_count, dtype=bool)
-        if pre_ransac_count >= 3:
-            _, mask = cv.estimateAffinePartial2D(
-                valid_old,
-                valid_new,
-                method=cv.RANSAC,
-                ransacReprojThreshold=2.5,
-                maxIters=1000,
-                confidence=0.99,
-                refineIters=10,
-            )
-            if mask is not None and int(np.count_nonzero(mask)) >= 3:
-                inliers = mask.reshape(-1).astype(bool)
+        _, mask = cv.estimateAffinePartial2D(
+            valid_old,
+            valid_new,
+            method=cv.RANSAC,
+            ransacReprojThreshold=2.5,
+            maxIters=1000,
+            confidence=0.99,
+            refineIters=10,
+        )
+        if mask is None or int(np.count_nonzero(mask)) < 3:
+            return self._empty_flow()
+        inliers = mask.reshape(-1).astype(bool)
 
         valid_old = valid_old[inliers]
         valid_new = valid_new[inliers]

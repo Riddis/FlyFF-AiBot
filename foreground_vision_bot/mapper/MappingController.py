@@ -38,7 +38,7 @@ class MappingController:
         )
 
     @property
-    def neutral_after_seconds(self) -> float:
+    def neutral_after_seconds(self) -> float | None:
         return self._turn_state.neutral_after_seconds
 
     @property
@@ -51,6 +51,13 @@ class MappingController:
         *,
         reset_history: bool = True,
     ) -> None:
+        """
+        Install a policy without inventing a physical state transition.
+
+        Calibration passes ``reset_history=False`` after its final measured
+        probe so the controller retains the real last direction and completion
+        time. Reset only after an independently demonstrated neutral wait.
+        """
         self._turn_state.set_policy(policy, reset_history=reset_history)
 
     @property

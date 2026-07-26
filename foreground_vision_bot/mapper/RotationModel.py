@@ -8,6 +8,8 @@ from math import isfinite
 from statistics import median
 from typing import cast
 
+MAXIMUM_TOLERATED_REVERSAL_BACKLASH_DEGREES = 8.0
+
 
 class TurnDirection(StrEnum):
     LEFT = "left"
@@ -171,6 +173,8 @@ class TurnTransitionTracker:
         self,
         policy: TurnMemoryPolicy | float = 2.0,
     ) -> None:
+        if isinstance(policy, bool):
+            raise TypeError("turn-memory policy cannot be boolean")
         if isinstance(policy, (int, float)) and not isinstance(policy, bool):
             seconds = float(policy)
             policy = TurnMemoryPolicy(
@@ -178,6 +182,8 @@ class TurnTransitionTracker:
                 observed_horizon_seconds=seconds,
                 neutral_after_seconds=seconds,
             )
+        if not isinstance(policy, TurnMemoryPolicy):
+            raise TypeError("policy must be a TurnMemoryPolicy or timeout in seconds")
         self._policy = policy
         self._last_direction: TurnDirection | None = None
         self._last_completed_at: float | None = None
@@ -187,12 +193,9 @@ class TurnTransitionTracker:
         return self._policy
 
     @property
-    def neutral_after_seconds(self) -> float:
-        return (
-            self._policy.neutral_after_seconds
-            if self._policy.neutral_after_seconds is not None
-            else self._policy.observed_horizon_seconds
-        )
+    def neutral_after_seconds(self) -> float | None:
+        """Return a physical neutral threshold, never an observation horizon."""
+        return self._policy.neutral_after_seconds
 
     @property
     def last_direction(self) -> TurnDirection | None:
@@ -606,11 +609,9 @@ class StateAwareRotationModel:
         object.__setattr__(self, "idle_response_curves", idle_response_curves)
 
     @property
-    def neutral_after_seconds(self) -> float:
-        return (
-            self.turn_memory_policy.neutral_after_seconds
-            or self.turn_memory_policy.observed_horizon_seconds
-        )
+    def neutral_after_seconds(self) -> float | None:
+        """Return ``None`` when direction state remained persistent."""
+        return self.turn_memory_policy.neutral_after_seconds
 
     def profile_for(self, direction: TurnDirection) -> DirectionRotationProfile:
         return self.left if direction is TurnDirection.LEFT else self.right
@@ -635,9 +636,14 @@ class StateAwareRotationModel:
             or self.idle_response_curves is None
         ):
             return state_seconds
-        progress = self.idle_response_curves.curve_for(direction).progress_at(
-            float(idle_seconds)
-        )
+        curve = self.idle_response_curves.curve_for(direction)
+        if curve.mode is TurnMemoryMode.PERSISTENT_OBSERVED:
+            # Persistent evidence supports the discrete SAME/REVERSAL timing,
+            # not an unobserved neutral response. Keep that fitted state timing
+            # indefinitely instead of turning reversal noise into a runtime
+            # interpolation toward the synthetic neutral fallback.
+            return state_seconds
+        progress = curve.progress_at(float(idle_seconds))
         neutral_seconds = self.profile_for(direction).neutral.seconds_for(degrees)
         return state_seconds + progress * (neutral_seconds - state_seconds)
 
@@ -668,7 +674,7 @@ class StateAwareRotationModel:
         )
 
     def to_dict(self) -> dict[str, object]:
-        data = {
+        data: dict[str, object] = {
             "version": 3,
             "turn_memory_policy": self.turn_memory_policy.to_dict(),
             "left": self.left.to_dict(),
@@ -720,6 +726,19 @@ class NeutralTimeoutSample:
     clamped_seconds: float = 1.0
     held_seconds: float = 1.0
 
+    def as_state_rotation_sample(self) -> RotationSample:
+        """Reuse a SAME/REVERSAL timeout probe as timing evidence."""
+        return RotationSample(
+            self.direction,
+            self.conditioning_transition,
+            self.requested_seconds,
+            self.clamped_seconds,
+            self.held_seconds,
+            self.measured_degrees,
+            self.confidence,
+            self.observed_idle_seconds,
+        )
+
     def as_neutral_rotation_sample(self) -> RotationSample:
         return RotationSample(
             self.direction,
@@ -763,11 +782,9 @@ class NeutralTimeoutFit:
     idle_response_curves: IdleResponseCurves
 
     @property
-    def neutral_after_seconds(self) -> float:
-        return (
-            self.turn_memory_policy.neutral_after_seconds
-            or self.turn_memory_policy.observed_horizon_seconds
-        )
+    def neutral_after_seconds(self) -> float | None:
+        """Return only a demonstrated neutral threshold."""
+        return self.turn_memory_policy.neutral_after_seconds
 
     def fit_for(self, direction: TurnDirection) -> DirectionNeutralTimeoutFit:
         return self.left if direction is TurnDirection.LEFT else self.right
@@ -784,16 +801,29 @@ class NeutralTimeoutFit:
 
 
 def _isotonic(values: list[float]) -> list[float]:
-    out = values[:]
-    changed = True
-    while changed:
-        changed = False
-        for i in range(1, len(out)):
-            if out[i] < out[i - 1]:
-                avg = (out[i] + out[i - 1]) / 2.0
-                out[i - 1] = out[i] = avg
-                changed = True
-    return out
+    """Return the equal-weight nondecreasing least-squares fit in linear time."""
+    levels: list[float] = []
+    weights: list[int] = []
+
+    for value in values:
+        levels.append(float(value))
+        weights.append(1)
+
+        # Pool adjacent violating blocks. Unlike repeated pair averaging, this
+        # terminates after a bounded number of merges and creates exact flat
+        # blocks instead of chasing sub-ULP differences indefinitely.
+        while len(levels) >= 2 and levels[-2] > levels[-1]:
+            merged_weight = weights[-2] + weights[-1]
+            merged_level = (
+                levels[-2] * weights[-2] + levels[-1] * weights[-1]
+            ) / merged_weight
+            levels[-2:] = [merged_level]
+            weights[-2:] = [merged_weight]
+
+    fitted: list[float] = []
+    for level, weight in zip(levels, weights, strict=True):
+        fitted.extend([level] * weight)
+    return fitted
 
 
 def fit_neutral_timeout(
@@ -811,7 +841,18 @@ def fit_neutral_timeout(
     minimum_response_span_degrees: float = 3.0,
     minimum_monotonic_tolerance_degrees: float = 1.0,
 ) -> NeutralTimeoutFit:
-    del minimum_monotonic_tolerance_degrees
+    if neutral_tail_samples < 2:
+        raise ValueError("turn-memory classification needs two replicated tail samples")
+    if minimum_stateful_samples < 1:
+        raise ValueError("minimum_stateful_samples must be positive")
+    if (
+        not isfinite(minimum_monotonic_tolerance_degrees)
+        or minimum_monotonic_tolerance_degrees < 0.0
+    ):
+        raise ValueError(
+            "minimum_monotonic_tolerance_degrees must be finite and non-negative"
+        )
+
     valid = [
         s
         for s in samples
@@ -836,43 +877,112 @@ def fit_neutral_timeout(
         if len(reversal) < minimum_stateful_samples:
             raise ValueError(f"{direction.value} lacks state-dependent response")
         horizon = min(max(s.observed_idle_seconds for s in ds), maximum_idle_seconds)
-        same_tail = (
-            same[-neutral_tail_samples:] if len(same) >= neutral_tail_samples else []
-        )
-        rev_tail = (
-            reversal[-neutral_tail_samples:]
-            if len(reversal) >= neutral_tail_samples
-            else []
-        )
-        converged = False
-        same_terminal = (
-            float(median([s.measured_degrees for s in same_tail]))
-            if same_tail
-            else float("nan")
-        )
-        rev_terminal = (
-            float(median([s.measured_degrees for s in rev_tail]))
-            if rev_tail
-            else float(
-                median([s.measured_degrees for s in reversal[-neutral_tail_samples:]])
+        if len(same) < neutral_tail_samples or len(reversal) < neutral_tail_samples:
+            raise ValueError(
+                f"{direction.value} needs {neutral_tail_samples} replicated SAME "
+                "and REVERSAL tail samples before turn memory can be classified"
             )
+
+        same_tail = same[-neutral_tail_samples:]
+        rev_tail = reversal[-neutral_tail_samples:]
+        same_terminal = float(median([sample.measured_degrees for sample in same_tail]))
+        rev_terminal = float(median([sample.measured_degrees for sample in rev_tail]))
+        same_uncertainty = float(
+            median([sample.uncertainty_degrees for sample in same_tail])
         )
-        tolerance = minimum_neutral_tolerance_degrees
-        if same_tail and rev_tail:
-            tolerance = max(
-                tolerance,
-                median([s.uncertainty_degrees for s in same_tail])
-                + median([s.uncertainty_degrees for s in rev_tail]),
+        rev_uncertainty = float(
+            median([sample.uncertainty_degrees for sample in rev_tail])
+        )
+        same_spread = max(sample.measured_degrees for sample in same_tail) - min(
+            sample.measured_degrees for sample in same_tail
+        )
+        rev_spread = max(sample.measured_degrees for sample in rev_tail) - min(
+            sample.measured_degrees for sample in rev_tail
+        )
+        same_repeatability_limit = max(
+            maximum_neutral_tail_spread_degrees,
+            2.0 * max(sample.uncertainty_degrees for sample in same_tail),
+        )
+        rev_repeatability_limit = max(
+            maximum_neutral_tail_spread_degrees,
+            2.0 * max(sample.uncertainty_degrees for sample in rev_tail),
+        )
+        if (
+            same_spread > same_repeatability_limit
+            or rev_spread > rev_repeatability_limit
+        ):
+            raise ValueError(
+                f"{direction.value} replicated turn-memory tail was not "
+                "repeatable: SAME spread "
+                f"{same_spread:.2f} degrees (limit "
+                f"{same_repeatability_limit:.2f}), REVERSAL spread "
+                f"{rev_spread:.2f} degrees (limit "
+                f"{rev_repeatability_limit:.2f})"
             )
-            spread = max(
-                max(s.measured_degrees for s in same_tail + rev_tail)
-                - min(s.measured_degrees for s in same_tail + rev_tail),
+
+        tolerance = max(
+            minimum_neutral_tolerance_degrees,
+            same_uncertainty + rev_uncertainty,
+        )
+        terminal_gap = same_terminal - rev_terminal
+        combined_spread = max(
+            sample.measured_degrees for sample in same_tail + rev_tail
+        ) - min(sample.measured_degrees for sample in same_tail + rev_tail)
+        combined_repeatability_limit = max(
+            maximum_neutral_tail_spread_degrees,
+            same_repeatability_limit,
+            rev_repeatability_limit,
+            tolerance,
+        )
+        converged = (
+            abs(terminal_gap) <= tolerance
+            and combined_spread <= combined_repeatability_limit
+        )
+        if not converged:
+            required_gap = max(tolerance, minimum_response_span_degrees)
+            if terminal_gap < required_gap:
+                raise ValueError(
+                    f"{direction.value} replicated tail neither converged nor "
+                    "demonstrated a stable SAME-over-REVERSAL state gap "
+                    f"({terminal_gap:+.2f} degrees; required "
+                    f"{required_gap:.2f})"
+                )
+
+            persistent_times = sorted(
+                {
+                    0.0,
+                    horizon,
+                    *(
+                        min(sample.observed_idle_seconds, horizon)
+                        for sample in reversal
+                    ),
+                }
+            )
+            curves[direction] = DirectionIdleResponseCurve(
+                TurnMemoryMode.PERSISTENT_OBSERVED,
+                tuple(persistent_times),
+                tuple(0.0 for _ in persistent_times),
+                len(ds),
+                horizon,
+                rev_terminal,
+                same_terminal,
                 0.0,
             )
-            converged = (
-                abs(same_terminal - rev_terminal) <= tolerance
-                and spread <= maximum_neutral_tail_spread_degrees
+            fits[direction] = DirectionNeutralTimeoutFit(
+                TurnMemoryMode.PERSISTENT_OBSERVED,
+                horizon,
+                horizon,
+                None,
+                None,
+                tolerance,
+                max(same_uncertainty, rev_uncertainty),
+                len(reversal),
+                0,
+                same_terminal,
+                rev_terminal,
             )
+            continue
+
         stateful = float(
             median(
                 [
@@ -881,23 +991,12 @@ def fit_neutral_timeout(
                 ]
             )
         )
-        reference = (
-            (same_terminal + rev_terminal) / 2.0
-            if converged
-            else max(
-                same_terminal if isfinite(same_terminal) else stateful, rev_terminal
-            )
-        )
+        reference = (same_terminal + rev_terminal) / 2.0
         span = reference - stateful
         if span < minimum_response_span_degrees:
             raise ValueError(
                 f"{direction.value} probes did not establish a state-dependent response"
             )
-        mode = (
-            TurnMemoryMode.DECAYS_TO_NEUTRAL
-            if converged
-            else TurnMemoryMode.PERSISTENT_OBSERVED
-        )
         ordered_rev = sorted(reversal, key=lambda x: x.observed_idle_seconds)
         times = [0.0] + [min(s.observed_idle_seconds, horizon) for s in ordered_rev]
         raw = [0.0] + [
@@ -905,13 +1004,29 @@ def fit_neutral_timeout(
             for s in ordered_rev
         ]
         progress = _isotonic(raw)
-        if mode is TurnMemoryMode.DECAYS_TO_NEUTRAL:
-            progress[-1] = 1.0
-        elif progress[-1] >= 1.0:
-            progress[-1] = 0.999
+        progress[-1] = 1.0
+        maximum_monotonic_adjustment = max(
+            abs(fitted - observed) * span
+            for fitted, observed in zip(progress, raw, strict=True)
+        )
+        maximum_allowed_adjustment = max(
+            minimum_monotonic_tolerance_degrees,
+            float(median([s.uncertainty_degrees for s in ordered_rev])),
+            same_spread,
+            rev_spread,
+        )
+        if maximum_monotonic_adjustment > maximum_allowed_adjustment:
+            raise ValueError(
+                f"{direction.value} decay curve required a "
+                f"{maximum_monotonic_adjustment:.2f}-degree isotonic correction; "
+                "the scan is too non-monotonic for the "
+                f"{maximum_allowed_adjustment:.2f}-degree uncertainty/repeatability "
+                "bound"
+            )
+
         # coalesce duplicate times
-        compact_t = []
-        compact_p = []
+        compact_t: list[float] = []
+        compact_p: list[float] = []
         for t, pv in zip(times, progress, strict=True):
             if compact_t and abs(t - compact_t[-1]) < 1e-6:
                 compact_p[-1] = max(compact_p[-1], pv)
@@ -922,18 +1037,18 @@ def fit_neutral_timeout(
             compact_t.append(horizon)
             compact_p.append(compact_p[-1])
         curve = DirectionIdleResponseCurve(
-            mode,
+            TurnMemoryMode.DECAYS_TO_NEUTRAL,
             tuple(compact_t),
             tuple(compact_p),
             len(ds),
             horizon,
             stateful,
             reference,
-            0.0,
+            maximum_monotonic_adjustment,
         )
-        first_neutral = horizon + safety_margin_seconds if converged else None
+        first_neutral = horizon + safety_margin_seconds
         fits[direction] = DirectionNeutralTimeoutFit(
-            mode,
+            TurnMemoryMode.DECAYS_TO_NEUTRAL,
             horizon,
             max(
                 0.0,
@@ -942,9 +1057,9 @@ def fit_neutral_timeout(
                 ].observed_idle_seconds,
             ),
             first_neutral,
-            reference if converged else None,
+            reference,
             tolerance,
-            max(s.uncertainty_degrees for s in ds),
+            max(same_uncertainty, rev_uncertainty),
             len(reversal),
             len(same_tail) + len(rev_tail),
             same_terminal,
@@ -1015,17 +1130,90 @@ def validate_neutral_timeout(
         ]
         rev = [s for s in ds if s.conditioning_transition is TurnTransition.REVERSAL]
         fitted = fit.fit_for(direction)
-        if fitted.mode is TurnMemoryMode.DECAYS_TO_NEUTRAL and (
-            not same
-            or not rev
-            or abs(
-                median([s.measured_degrees for s in same])
-                - median([s.measured_degrees for s in rev])
+        if not same or not rev:
+            raise ValueError(
+                f"{direction.value} validation needs both same and reversal samples"
             )
-            > fitted.neutral_tolerance_degrees
+        same_spread = max(s.measured_degrees for s in same) - min(
+            s.measured_degrees for s in same
+        )
+        reversal_spread = max(s.measured_degrees for s in rev) - min(
+            s.measured_degrees for s in rev
+        )
+        same_repeatability_limit = max(
+            fitted.neutral_tolerance_degrees * 2.0,
+            2.0 * max(s.uncertainty_degrees for s in same),
+        )
+        reversal_repeatability_limit = max(
+            fitted.neutral_tolerance_degrees * 2.0,
+            2.0 * max(s.uncertainty_degrees for s in rev),
+        )
+        if (
+            len(same) >= 2
+            and same_spread > same_repeatability_limit
+            or len(rev) >= 2
+            and reversal_spread > reversal_repeatability_limit
         ):
             raise ValueError(
-                f"{direction.value} response at the fitted timeout did not match validated neutral response"
+                f"{direction.value} validation was not repeatable: SAME spread "
+                f"{same_spread:.2f} degrees (limit "
+                f"{same_repeatability_limit:.2f}), REVERSAL spread "
+                f"{reversal_spread:.2f} degrees (limit "
+                f"{reversal_repeatability_limit:.2f})"
+            )
+        same_response = float(median([s.measured_degrees for s in same]))
+        reversal_response = float(median([s.measured_degrees for s in rev]))
+        observed_gap = same_response - reversal_response
+        same_absolute_tolerance = max(
+            fitted.neutral_tolerance_degrees,
+            float(median([s.uncertainty_degrees for s in same]))
+            + fitted.neutral_uncertainty_degrees,
+        )
+        reversal_absolute_tolerance = max(
+            fitted.neutral_tolerance_degrees,
+            float(median([s.uncertainty_degrees for s in rev]))
+            + fitted.neutral_uncertainty_degrees,
+        )
+        if fitted.mode is TurnMemoryMode.DECAYS_TO_NEUTRAL:
+            neutral_response = fitted.neutral_response_degrees
+            if neutral_response is None:
+                raise ValueError(f"{direction.value} decay fit has no neutral response")
+            if (
+                abs(same_response - neutral_response) > same_absolute_tolerance
+                or abs(reversal_response - neutral_response)
+                > reversal_absolute_tolerance
+            ):
+                raise ValueError(
+                    f"{direction.value} validation responses did not match the "
+                    "fitted absolute neutral response"
+                )
+            if abs(observed_gap) > fitted.neutral_tolerance_degrees:
+                raise ValueError(
+                    f"{direction.value} response at the fitted timeout did not "
+                    "match validated neutral response"
+                )
+            continue
+
+        fitted_gap = (
+            fitted.terminal_same_response_degrees
+            - fitted.terminal_reversal_response_degrees
+        )
+        allowed_gap_error = max(
+            fitted.neutral_tolerance_degrees * 2.0,
+            abs(fitted_gap) * 0.50,
+        )
+        if (
+            abs(same_response - fitted.terminal_same_response_degrees)
+            > same_absolute_tolerance
+            or abs(reversal_response - fitted.terminal_reversal_response_degrees)
+            > reversal_absolute_tolerance
+            or abs(observed_gap) <= fitted.neutral_tolerance_degrees
+            or observed_gap * fitted_gap <= 0.0
+            or abs(observed_gap - fitted_gap) > allowed_gap_error
+        ):
+            raise ValueError(
+                f"{direction.value} persistent direction response was not "
+                "reproduced at the observed horizon"
             )
 
 
@@ -1046,7 +1234,10 @@ def _neutral_timeout_sample_is_valid(
         all(isfinite(v) for v in vals)
         and sample.requested_idle_seconds > 0
         and sample.observed_idle_seconds > 0
-        and sample.measured_degrees > 0
+        # A direction-change pulse can be completely suppressed by the
+        # in-game turn-memory effect. Zero is therefore valid evidence here,
+        # unlike an ordinary rotation-timing sample.
+        and sample.measured_degrees >= 0
         and sample.uncertainty_degrees >= 0
         and sample.confidence >= minimum_confidence
         and sample.requested_seconds > 0
@@ -1164,7 +1355,9 @@ def _sample_is_valid(
         all(isfinite(value) for value in values)
         and sample.clamped_seconds > 0.0
         and sample.held_seconds > 0.0
-        and 1.5 <= sample.measured_degrees <= 120.0
+        # Strict turn probes normalize motion hidden by heading uncertainty to
+        # exactly zero. That censored sample is evidence of input dead time.
+        and (sample.measured_degrees == 0.0 or 1.5 <= sample.measured_degrees <= 120.0)
         and sample.confidence >= minimum_confidence
     )
 
@@ -1181,7 +1374,8 @@ def _aggregate_timing(
     *,
     fallback_seconds_90: float,
 ) -> RotationTiming:
-    if not samples:
+    resolved_samples = [sample for sample in samples if sample.measured_degrees >= 1.5]
+    if not resolved_samples:
         return RotationTiming(
             rate_degrees_per_second=90.0 / fallback_seconds_90,
             dead_time_seconds=0.0,
@@ -1191,7 +1385,8 @@ def _aggregate_timing(
         )
 
     equivalent_seconds = [
-        sample.held_seconds * 90.0 / sample.measured_degrees for sample in samples
+        sample.held_seconds * 90.0 / sample.measured_degrees
+        for sample in resolved_samples
     ]
     center = float(median(equivalent_seconds))
     deviations = [abs(value - center) for value in equivalent_seconds]
@@ -1203,12 +1398,13 @@ def _aggregate_timing(
     seconds_90 = float(median(filtered or equivalent_seconds))
     rate = 90.0 / seconds_90
     errors = [
-        abs(sample.measured_degrees - rate * sample.held_seconds) for sample in samples
+        abs(sample.measured_degrees - rate * sample.held_seconds)
+        for sample in resolved_samples
     ]
     return RotationTiming(
         rate_degrees_per_second=rate,
         dead_time_seconds=0.0,
-        sample_count=len(samples),
+        sample_count=len(resolved_samples),
         median_error_degrees=float(median(errors)),
     )
 
@@ -1218,30 +1414,27 @@ def _fit_transition_timing(
     *,
     fallback: RotationTiming,
 ) -> RotationTiming:
-    if len(samples) < 2:
-        return RotationTiming(
-            rate_degrees_per_second=fallback.rate_degrees_per_second,
-            dead_time_seconds=fallback.dead_time_seconds,
-            sample_count=len(samples),
-            median_error_degrees=fallback.median_error_degrees,
-            is_fallback=True,
-        )
+    resolved_samples = [sample for sample in samples if sample.measured_degrees >= 1.5]
+    if len(samples) < 2 or len(resolved_samples) < 2:
+        return _suppression_aware_fallback(samples, fallback=fallback)
 
     # Distinct commanded durations identify an intentional multi-duration
     # experiment. Scheduler jitter in repeated fixed-duration probes must not
     # be mistaken for enough leverage to fit a dead-time intercept.
     distinct_durations = {round(sample.requested_seconds, 5) for sample in samples}
     if len(samples) < 3 or len(distinct_durations) < 3:
+        if len(resolved_samples) != len(samples):
+            return _suppression_aware_fallback(samples, fallback=fallback)
         seconds_90 = float(
             median(
                 sample.held_seconds * 90.0 / sample.measured_degrees
-                for sample in samples
+                for sample in resolved_samples
             )
         )
         rate = 90.0 / seconds_90
         errors = [
             abs(sample.measured_degrees - rate * sample.held_seconds)
-            for sample in samples
+            for sample in resolved_samples
         ]
         return RotationTiming(
             rate_degrees_per_second=rate,
@@ -1252,16 +1445,10 @@ def _fit_transition_timing(
 
     rate, intercept = _theil_sen(samples)
     if not isfinite(rate) or rate <= 0.0:
-        return RotationTiming(
-            rate_degrees_per_second=fallback.rate_degrees_per_second,
-            dead_time_seconds=fallback.dead_time_seconds,
-            sample_count=len(samples),
-            median_error_degrees=fallback.median_error_degrees,
-            is_fallback=True,
-        )
+        return _suppression_aware_fallback(samples, fallback=fallback)
 
     dead_time = max(0.0, -intercept / rate)
-    shortest = min(sample.held_seconds for sample in samples)
+    shortest = min(sample.held_seconds for sample in resolved_samples)
     dead_time = min(dead_time, shortest * 0.90)
 
     errors = [
@@ -1282,7 +1469,12 @@ def _fit_transition_timing(
         if isfinite(refined_rate) and refined_rate > 0.0:
             rate = refined_rate
             dead_time = max(0.0, -refined_intercept / rate)
-            shortest = min(sample.held_seconds for sample in inliers)
+            resolved_inliers = [
+                sample for sample in inliers if sample.measured_degrees >= 1.5
+            ]
+            if not resolved_inliers:
+                return _suppression_aware_fallback(samples, fallback=fallback)
+            shortest = min(sample.held_seconds for sample in resolved_inliers)
             dead_time = min(dead_time, shortest * 0.90)
             samples = inliers
             errors = [
@@ -1298,6 +1490,38 @@ def _fit_transition_timing(
         dead_time_seconds=dead_time,
         sample_count=len(samples),
         median_error_degrees=float(median(errors)),
+    )
+
+
+def _suppression_aware_fallback(
+    samples: list[RotationSample],
+    *,
+    fallback: RotationTiming,
+) -> RotationTiming:
+    """Preserve a conservative dead-time floor when a group is underidentified."""
+    suppressed_durations = [
+        sample.held_seconds for sample in samples if sample.measured_degrees == 0.0
+    ]
+    dead_time = max(
+        fallback.dead_time_seconds,
+        max(suppressed_durations, default=0.0),
+    )
+    errors = [
+        abs(
+            sample.measured_degrees
+            - fallback.rate_degrees_per_second
+            * max(0.0, sample.held_seconds - dead_time)
+        )
+        for sample in samples
+    ]
+    return RotationTiming(
+        rate_degrees_per_second=fallback.rate_degrees_per_second,
+        dead_time_seconds=dead_time,
+        sample_count=len(samples),
+        median_error_degrees=(
+            float(median(errors)) if errors else fallback.median_error_degrees
+        ),
+        is_fallback=True,
     )
 
 

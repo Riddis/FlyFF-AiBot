@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from math import isclose
 from pathlib import Path
 from typing import cast
 
-from .ForwardCalibration import ForwardMotionModel
+from .ForwardCalibration import (
+    ForwardCalibrationTrial,
+    ForwardMotionModel,
+    fit_forward_motion_model,
+)
 from .RotationModel import IdleResponseCurves, StateAwareRotationModel
 
 
@@ -17,7 +22,7 @@ class CalibrationSchemaError(ValueError):
 class MapperCalibration:
     """Validated mapper calibration artifact and its JSON schema boundary."""
 
-    CURRENT_VERSION = 9
+    CURRENT_VERSION = 10
 
     version: int
     created_at: str
@@ -28,7 +33,7 @@ class MapperCalibration:
     right_heading_sign: int
     left_trials: list[dict[str, object]]
     right_trials: list[dict[str, object]]
-    neutral_after_seconds: float
+    neutral_after_seconds: float | None
     neutral_timeout_trials: list[dict[str, object]]
     neutral_timeout_fit: dict[str, object]
     transition_trials: list[dict[str, object]]
@@ -55,6 +60,24 @@ class MapperCalibration:
             raise CalibrationSchemaError(
                 "validated turn-memory evidence requires at least four trials"
             )
+        try:
+            forward_trials = [
+                _forward_trial_from_record(record) for record in self.forward_trials
+            ]
+            refitted_forward = fit_forward_motion_model(
+                forward_trials,
+                nominal_seconds=self.forward_model.nominal_seconds,
+                frame_width=self.forward_model.frame_width,
+                frame_height=self.forward_model.frame_height,
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            raise CalibrationSchemaError(
+                "saved forward model lacks repeatable supporting trials"
+            ) from error
+        if not _forward_models_match(self.forward_model, refitted_forward):
+            raise CalibrationSchemaError(
+                "saved forward model does not match its supporting trials"
+            )
 
         curve_data = self.neutral_timeout_fit.get("idle_response_curves")
         if not isinstance(curve_data, dict):
@@ -79,6 +102,15 @@ class MapperCalibration:
             raise CalibrationSchemaError(
                 "rotation model and neutral-timeout fit contain different "
                 "turn-memory policies"
+            )
+        expected_neutral = self.rotation_model.turn_memory_policy.neutral_after_seconds
+        if (expected_neutral is None) != (self.neutral_after_seconds is None) or (
+            expected_neutral is not None
+            and self.neutral_after_seconds is not None
+            and abs(expected_neutral - self.neutral_after_seconds) > 1e-6
+        ):
+            raise CalibrationSchemaError(
+                "top-level neutral_after_seconds does not match the turn-memory policy"
             )
 
     @classmethod
@@ -127,7 +159,9 @@ class MapperCalibration:
                 right_heading_sign=_required_int(data, "right_heading_sign"),
                 left_trials=_required_record_list(data, "left_trials"),
                 right_trials=_required_record_list(data, "right_trials"),
-                neutral_after_seconds=_required_float(data, "neutral_after_seconds"),
+                neutral_after_seconds=_required_optional_float(
+                    data, "neutral_after_seconds"
+                ),
                 neutral_timeout_trials=_required_record_list(
                     data, "neutral_timeout_trials"
                 ),
@@ -194,6 +228,18 @@ def _required_float(data: dict[str, object], field: str) -> float:
     return float(value)
 
 
+def _required_optional_float(
+    data: dict[str, object],
+    field: str,
+) -> float | None:
+    value = _required_value(data, field)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise CalibrationSchemaError(f"{field} must be numeric or null")
+    return float(value)
+
+
 def _required_dict(data: dict[str, object], field: str) -> dict[str, object]:
     value = _required_value(data, field)
     if not isinstance(value, dict):
@@ -208,3 +254,44 @@ def _required_record_list(
     if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
         raise CalibrationSchemaError(f"{field} must be a list of objects")
     return [cast(dict[str, object], item) for item in value]
+
+
+def _forward_trial_from_record(
+    record: dict[str, object],
+) -> ForwardCalibrationTrial:
+    return ForwardCalibrationTrial(
+        requested_seconds=_required_float(record, "requested_seconds"),
+        actual_seconds=_required_float(record, "actual_seconds"),
+        distance_px=_required_float(record, "distance_px"),
+        confidence=_required_float(record, "confidence"),
+        tracked_points=_required_int(record, "tracked_points"),
+        dispersion_px=_required_float(record, "dispersion_px"),
+        inlier_ratio=_required_float(record, "inlier_ratio"),
+    )
+
+
+def _forward_models_match(
+    saved: ForwardMotionModel,
+    refitted: ForwardMotionModel,
+) -> bool:
+    return bool(
+        saved.version == refitted.version
+        and saved.sample_count == refitted.sample_count
+        and saved.frame_width == refitted.frame_width
+        and saved.frame_height == refitted.frame_height
+        and all(
+            isclose(saved_value, refitted_value, rel_tol=1e-6, abs_tol=1e-6)
+            for saved_value, refitted_value in (
+                (saved.nominal_seconds, refitted.nominal_seconds),
+                (
+                    saved.flow_rate_px_per_second,
+                    refitted.flow_rate_px_per_second,
+                ),
+                (saved.baseline_flow_px, refitted.baseline_flow_px),
+                (saved.dead_time_seconds, refitted.dead_time_seconds),
+                (saved.pixels_per_cell, refitted.pixels_per_cell),
+                (saved.rmse_px, refitted.rmse_px),
+                (saved.r_squared, refitted.r_squared),
+            )
+        )
+    )

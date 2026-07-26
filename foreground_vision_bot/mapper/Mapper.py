@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from time import monotonic
-from typing import Protocol, cast
+from typing import Protocol
 
 import numpy as np
 from capture_service import FrameSample
@@ -102,10 +102,7 @@ class Mapper:
             turn_memory_policy=self.config.rotation_model.turn_memory_policy,
         )
         self.heading_detector = MinimapHeadingDetector()
-        self.tracker = MotionTracker(
-            forward_pixels_per_cell=self.config.forward_model.pixels_per_cell,
-            forward_baseline_flow_px=(self.config.forward_model.baseline_flow_px),
-        )
+        self.tracker = MotionTracker(forward_model=self.config.forward_model)
         self.grid = OccupancyGrid()
         self._position_known = False
         self._heading_known = False
@@ -388,6 +385,7 @@ class Mapper:
             before.frame,
             after.frame,
             commanded_forward=True,
+            actual_forward_seconds=timing.held_seconds,
         )
 
         if motion.teleport_likely:
@@ -453,6 +451,12 @@ class Mapper:
         outcome = motion.forward_distance.outcome
         if outcome is ForwardMotionOutcome.UNAVAILABLE:
             self.grid.set_heading_degrees(strict_heading.angle_deg)
+            validation = motion.forward_distance.validation
+            validation_detail = (
+                f" Validation failed: {validation.reason}."
+                if validation is not None and validation.reason is not None
+                else ""
+            )
             return _StepResult(
                 frame_sample=after,
                 fast_heading=fast_heading,
@@ -465,7 +469,7 @@ class Mapper:
                 stop_reason=(
                     "Forward motion could not be measured. The character may "
                     "have moved, so mapping stopped immediately without "
-                    "guessing its new position."
+                    f"guessing its new position.{validation_detail}"
                 ),
             )
 
@@ -723,6 +727,7 @@ class Mapper:
         motion = result.motion
         flow = motion.directional_flow if motion is not None else None
         distance = motion.forward_distance if motion is not None else None
+        validation = distance.validation if distance is not None else None
         fast = result.fast_heading
         strict = result.strict_heading
         timing = result.key_timing
@@ -776,6 +781,34 @@ class Mapper:
                 "distance_cells": (
                     round(result.distance_cells, 4)
                     if result.distance_cells is not None
+                    else ""
+                ),
+                "expected_flow_px": (
+                    round(validation.expected_flow_px, 3)
+                    if validation is not None
+                    and validation.expected_flow_px is not None
+                    else ""
+                ),
+                "observed_motion_px": (
+                    round(validation.observed_motion_px, 3)
+                    if validation is not None
+                    and validation.observed_motion_px is not None
+                    else ""
+                ),
+                "flow_residual_px": (
+                    round(validation.residual_px, 3)
+                    if validation is not None and validation.residual_px is not None
+                    else ""
+                ),
+                "maximum_flow_residual_px": (
+                    round(validation.maximum_residual_px, 3)
+                    if validation is not None
+                    and validation.maximum_residual_px is not None
+                    else ""
+                ),
+                "flow_validation_reason": (
+                    validation.reason
+                    if validation is not None and validation.reason is not None
                     else ""
                 ),
                 "odometry_integrated": (
@@ -868,7 +901,7 @@ class Mapper:
         cls,
         data: dict[str, object],
     ) -> MapperConfig:
-        """Build runtime configuration from the historical minimal payload API."""
+        """Validate an in-memory payload through the one calibration schema."""
         version = data.get("version")
         if isinstance(version, bool) or not isinstance(version, int):
             raise _mapper_calibration_error(
@@ -880,92 +913,14 @@ class Mapper:
                 f"(found v{version}, need v{MapperCalibration.CURRENT_VERSION}). "
                 "Run Calibrate Mapper again."
             )
-
-        trials = data.get("neutral_timeout_trials")
-        if not isinstance(trials, list) or len(trials) < 4:
-            raise RuntimeError(
-                "Mapper calibration is missing validated turn-memory timeout "
-                "evidence. Run Calibrate Mapper again."
-            )
-
-        fit_data = data.get("neutral_timeout_fit")
-        if not isinstance(fit_data, dict):
-            raise _mapper_calibration_error(
-                "Mapper calibration is missing turn-response decay curves. "
-                "Run Calibrate Mapper again."
-            )
-        fit = cast(dict[str, object], fit_data)
-        curve_data = fit.get("idle_response_curves")
-        if not isinstance(curve_data, dict):
-            raise _mapper_calibration_error(
-                "Mapper calibration is missing turn-response decay curves. "
-                "Run Calibrate Mapper again."
-            )
-
-        rotation_data = data.get("rotation_model")
-        if not isinstance(rotation_data, dict):
-            raise _mapper_calibration_error(
-                "Mapper calibration contains an invalid rotation model. "
-                "Run Calibrate Mapper again."
-            )
         try:
-            rotation_model = StateAwareRotationModel.from_dict(
-                cast(dict[str, object], rotation_data)
-            )
-        except (KeyError, OverflowError, TypeError, ValueError) as error:
+            calibration = MapperCalibration.from_dict(data)
+        except CalibrationSchemaError as error:
             raise RuntimeError(
-                "Mapper calibration contains an invalid rotation model. "
-                "Run Calibrate Mapper again."
+                "Mapper calibration is incomplete or inconsistent: "
+                f"{error}. Run Calibrate Mapper again."
             ) from error
-
-        fit_policy = fit.get("turn_memory_policy")
-        if not isinstance(fit_policy, dict) or (
-            rotation_model.turn_memory_policy.to_dict() != fit_policy
-        ):
-            raise RuntimeError(
-                "Mapper calibration contains an inconsistent turn-memory policy. "
-                "Run Calibrate Mapper again."
-            )
-
-        if (
-            rotation_model.idle_response_curves is None
-            or rotation_model.idle_response_curves.to_dict() != curve_data
-        ):
-            raise RuntimeError(
-                "Mapper calibration contains inconsistent turn-response decay "
-                "curves. Run Calibrate Mapper again."
-            )
-
-        forward_data = data.get("forward_model")
-        if not isinstance(forward_data, dict):
-            raise _mapper_calibration_error(
-                "Mapper calibration contains an invalid forward model. "
-                "Run Calibrate Mapper again."
-            )
-        try:
-            forward_model = ForwardMotionModel.from_dict(
-                cast(dict[str, object], forward_data)
-            )
-        except (KeyError, OverflowError, TypeError, ValueError) as error:
-            raise RuntimeError(
-                "Mapper calibration contains an invalid forward model. "
-                "Run Calibrate Mapper again."
-            ) from error
-
-        left_sign = data.get("left_heading_sign")
-        right_sign = data.get("right_heading_sign")
-        if {left_sign, right_sign} != {-1, 1}:
-            raise RuntimeError(
-                "Mapper calibration contains invalid left/right heading signs. "
-                "Run Calibrate Mapper again."
-            )
-
-        return MapperConfig(
-            rotation_model=rotation_model,
-            forward_model=forward_model,
-            left_heading_sign=cast(int, left_sign),
-            right_heading_sign=cast(int, right_sign),
-        )
+        return cls._config_from_validated_calibration(calibration)
 
     @staticmethod
     def _config_from_validated_calibration(

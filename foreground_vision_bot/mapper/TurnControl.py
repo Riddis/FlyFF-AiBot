@@ -2,23 +2,34 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from math import isfinite
 from time import monotonic
 
 from worker_manager import CancellationToken
 
 from mapper.MappingController import MappingController
-from mapper.MinimapHeading import HeadingReading, signed_angle_delta
+from mapper.MinimapHeading import (
+    HeadingReading,
+    observed_heading_delta,
+    signed_angle_delta,
+)
 from mapper.RotationModel import (
+    MAXIMUM_TOLERATED_REVERSAL_BACKLASH_DEGREES,
     DirectionRotationProfile,
     RotationTiming,
     StateAwareRotationModel,
     TurnDirection,
+    TurnMemoryPolicy,
     TurnPulseResult,
+    TurnTransition,
 )
 
 HeadingReader = Callable[[str], HeadingReading]
 StatusCallback = Callable[[str], None]
 FreshnessBarrier = Callable[[float], None]
+
+MINIMUM_PLAUSIBLE_CLOSED_LOOP_MOTION_DEGREES = 45.0
+MAXIMUM_PLAUSIBLE_CLOSED_LOOP_MOTION_DEGREES = 90.0
 
 
 class TurnControlError(RuntimeError):
@@ -59,6 +70,9 @@ class ClosedLoopTurnController:
         maximum_step_degrees: float = 35.0,
         maximum_pulse_seconds: float = 0.18,
         maximum_corrections: int = 12,
+        maximum_reversal_backlash_degrees: float = (
+            MAXIMUM_TOLERATED_REVERSAL_BACKLASH_DEGREES
+        ),
     ) -> None:
         signs = {
             TurnDirection.LEFT: int(left_heading_sign),
@@ -74,6 +88,11 @@ class ClosedLoopTurnController:
             raise ValueError("maximum_pulse_seconds must be at least 15 ms")
         if maximum_corrections < 1:
             raise ValueError("maximum_corrections must be positive")
+        if (
+            maximum_reversal_backlash_degrees <= 0.0
+            or maximum_reversal_backlash_degrees > 15.0
+        ):
+            raise ValueError("maximum_reversal_backlash_degrees must be in (0, 15]")
 
         self.controller = controller
         self.rotation_model = rotation_model
@@ -88,12 +107,16 @@ class ClosedLoopTurnController:
         self.maximum_step_degrees = float(maximum_step_degrees)
         self.maximum_pulse_seconds = float(maximum_pulse_seconds)
         self.maximum_corrections = int(maximum_corrections)
+        self.maximum_reversal_backlash_degrees = float(
+            maximum_reversal_backlash_degrees
+        )
 
     def turn_to_heading(
         self,
         target_heading: float,
         *,
         label: str = "Heading turn",
+        initial_reading: HeadingReading | None = None,
     ) -> ClosedLoopTurnResult:
         target = float(target_heading) % 360.0
         pulses: list[TurnPulseResult] = []
@@ -101,7 +124,7 @@ class ClosedLoopTurnController:
         worsening_reads = 0
 
         try:
-            current = self.read_heading(f"{label}: initial heading")
+            current = initial_reading or self.read_heading(f"{label}: initial heading")
             for correction in range(self.maximum_corrections + 1):
                 self._raise_if_cancelled(label)
                 self._validate_reading(current, label)
@@ -157,20 +180,43 @@ class ClosedLoopTurnController:
                     f"{label}: correction {correction + 1} result"
                 )
                 self._validate_reading(after, label)
-                signed_motion = signed_angle_delta(
-                    after.angle_deg,
-                    current.angle_deg,
-                )
+                signed_motion = observed_heading_delta(after, current)
                 directed_motion = signed_motion * self.signs[direction]
                 motion_guard = max(
                     1.5,
                     self._uncertainty(current) + self._uncertainty(after),
                 )
-                if directed_motion < -motion_guard:
+                maximum_plausible_motion = maximum_plausible_closed_loop_motion_degrees(
+                    planned_degrees,
+                    pulse,
+                )
+                if abs(signed_motion) - motion_guard > maximum_plausible_motion:
                     raise TurnControlError(
-                        f"{label} aborted: {direction.value} pulse moved "
-                        f"opposite its calibrated sign ({signed_motion:+.1f}°)."
+                        f"{label} aborted: a pulse planned for "
+                        f"{planned_degrees:.1f} degrees appeared to move "
+                        f"{signed_motion:+.1f} degrees, beyond the physically "
+                        f"plausible {maximum_plausible_motion:.1f}-degree bound. "
+                        "The result is probably a minimap heading alias and "
+                        "was not adopted as the current heading."
                     )
+                if directed_motion < -motion_guard:
+                    if (
+                        pulse.transition is TurnTransition.REVERSAL
+                        and abs(directed_motion)
+                        <= self.maximum_reversal_backlash_degrees
+                    ):
+                        self.status(
+                            f"{label} observed {abs(directed_motion):.1f}° of "
+                            f"transient opposite motion on a {direction.value} "
+                            "reversal pulse; continuing with a bounded "
+                            "same-direction correction."
+                        )
+                    else:
+                        raise TurnControlError(
+                            f"{label} aborted: {direction.value} pulse moved "
+                            "opposite its calibrated sign "
+                            f"({signed_motion:+.1f}°)."
+                        )
 
                 if directed_motion < 0.75:
                     stalled_reads += 1
@@ -230,11 +276,43 @@ class ClosedLoopTurnController:
         return float(uncertainty) if uncertainty is not None else 3.0
 
 
+def maximum_plausible_closed_loop_motion_degrees(
+    planned_degrees: float,
+    pulse: TurnPulseResult,
+) -> float:
+    """
+    Bound observed motion using the command plan and actual key-hold timing.
+
+    Closed-loop corrections request at most a modest turn. A generous
+    two-times overshoot allowance plus ten degrees covers timing/model error,
+    while the hard 90-degree ceiling rejects the minimap arrow's common
+    120-180-degree visual aliases before they can become controller state.
+    """
+    planned = float(planned_degrees)
+    if not isfinite(planned) or planned <= 0.0:
+        raise ValueError("planned turn degrees must be finite and positive")
+
+    intended_hold = max(float(pulse.clamped_seconds), 0.015)
+    actual_hold = float(pulse.held_seconds)
+    if not isfinite(actual_hold) or actual_hold < 0.0:
+        raise ValueError("pulse hold duration must be finite and non-negative")
+    timing_scale = max(1.0, actual_hold / intended_hold)
+    timing_adjusted_plan = planned * timing_scale
+    return min(
+        MAXIMUM_PLAUSIBLE_CLOSED_LOOP_MOTION_DEGREES,
+        max(
+            MINIMUM_PLAUSIBLE_CLOSED_LOOP_MOTION_DEGREES,
+            timing_adjusted_plan * 2.0 + 10.0,
+        ),
+    )
+
+
 def uniform_rotation_model(
     *,
     left_seconds_90: float,
     right_seconds_90: float,
-    neutral_after_seconds: float = 2.0,
+    neutral_after_seconds: float | None = 2.0,
+    turn_memory_policy: TurnMemoryPolicy | None = None,
 ) -> StateAwareRotationModel:
     """Build a conservative state-neutral model for early calibration stages."""
 
@@ -254,8 +332,20 @@ def uniform_rotation_model(
             reversal=timing,
         )
 
+    left = profile(left_seconds_90)
+    right = profile(right_seconds_90)
+    if turn_memory_policy is not None:
+        return StateAwareRotationModel(
+            left=left,
+            right=right,
+            turn_memory_policy=turn_memory_policy,
+        )
+    if neutral_after_seconds is None:
+        raise ValueError(
+            "neutral_after_seconds is required without a turn-memory policy"
+        )
     return StateAwareRotationModel(
-        left=profile(left_seconds_90),
-        right=profile(right_seconds_90),
+        left=left,
+        right=right,
         neutral_after_seconds=neutral_after_seconds,
     )

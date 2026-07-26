@@ -4,7 +4,11 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
-from mapper.ForwardCalibration import ForwardMotionModel
+from mapper.CalibrationSchema import MapperCalibration
+from mapper.ForwardCalibration import (
+    ForwardCalibrationTrial,
+    fit_forward_motion_model,
+)
 from mapper.Mapper import Mapper, MapperConfig
 from mapper.MinimapHeading import HeadingReading
 from mapper.OccupancyGrid import BLOCKED, FREE, UNKNOWN, OccupancyGrid
@@ -53,9 +57,9 @@ def test_blocked_observation_preserves_known_free_target() -> None:
     assert mapper.grid.value(*target) == FREE
 
 
-def test_mapper_rejects_v8_calibration() -> None:
-    with pytest.raises(RuntimeError, match="found v8, need v9"):
-        Mapper._config_from_calibration({"version": 8})
+def test_mapper_rejects_v9_calibration() -> None:
+    with pytest.raises(RuntimeError, match="found v9, need v10"):
+        Mapper._config_from_calibration({"version": 9})
 
 
 def _complete_payload(mode: TurnMemoryMode) -> dict[str, object]:
@@ -76,9 +80,33 @@ def _complete_payload(mode: TurnMemoryMode) -> dict[str, object]:
     timing = RotationTiming(280.0, 0.02, 4, 0.5)
     profile = DirectionRotationProfile(timing, timing, timing)
     rotation = StateAwareRotationModel(profile, profile, policy, curves)
-    forward = ForwardMotionModel(1, 0.12, 80.0, 0.2, 0.01, 8.8, 0.4, 0.9, 6, 1502, 940)
+    forward_trials = [
+        ForwardCalibrationTrial(
+            requested_seconds=duration,
+            actual_seconds=duration,
+            distance_px=0.2 + 80.0 * duration,
+            confidence=0.9,
+            tracked_points=40,
+            dispersion_px=0.5,
+            inlier_ratio=0.9,
+        )
+        for duration in (0.09, 0.12, 0.15, 0.15, 0.12, 0.09)
+    ]
+    forward = fit_forward_motion_model(
+        forward_trials,
+        nominal_seconds=0.12,
+        frame_width=1502,
+        frame_height=940,
+    )
     return {
-        "version": 9,
+        "version": MapperCalibration.CURRENT_VERSION,
+        "created_at": "2026-07-25T00:00:00+00:00",
+        "source": "test",
+        "left_seconds_90": 0.30,
+        "right_seconds_90": 0.31,
+        "left_trials": [],
+        "right_trials": [],
+        "neutral_after_seconds": policy.neutral_after_seconds,
         "rotation_model": rotation.to_dict(),
         "forward_model": forward.to_dict(),
         "neutral_timeout_fit": {
@@ -86,6 +114,20 @@ def _complete_payload(mode: TurnMemoryMode) -> dict[str, object]:
             "idle_response_curves": curves.to_dict(),
         },
         "neutral_timeout_trials": [{}, {}, {}, {}],
+        "transition_trials": [],
+        "refinement_trials": [],
+        "forward_trials": [
+            {
+                "requested_seconds": trial.requested_seconds,
+                "actual_seconds": trial.actual_seconds,
+                "distance_px": trial.distance_px,
+                "confidence": trial.confidence,
+                "tracked_points": trial.tracked_points,
+                "dispersion_px": trial.dispersion_px,
+                "inlier_ratio": trial.inlier_ratio,
+            }
+            for trial in forward_trials
+        ],
         "left_heading_sign": -1,
         "right_heading_sign": 1,
     }
@@ -94,9 +136,13 @@ def _complete_payload(mode: TurnMemoryMode) -> dict[str, object]:
 @pytest.mark.parametrize(
     "mode", [TurnMemoryMode.DECAYS_TO_NEUTRAL, TurnMemoryMode.PERSISTENT_OBSERVED]
 )
-def test_mapper_accepts_complete_v9_calibration(mode: TurnMemoryMode) -> None:
-    config = Mapper._config_from_calibration(_complete_payload(mode))
+def test_mapper_accepts_complete_v10_calibration(mode: TurnMemoryMode) -> None:
+    payload = _complete_payload(mode)
+    config = Mapper._config_from_calibration(payload)
     assert config.rotation_model.turn_memory_policy.mode is mode
+    calibration = MapperCalibration.from_dict(payload)
+    expected_neutral = 2.0 if mode is TurnMemoryMode.DECAYS_TO_NEUTRAL else None
+    assert calibration.neutral_after_seconds == expected_neutral
 
 
 def test_mapper_rejects_inconsistent_policy() -> None:
@@ -106,7 +152,15 @@ def test_mapper_rejects_inconsistent_policy() -> None:
         "observed_horizon_seconds": 2.0,
         "neutral_after_seconds": 2.0,
     }
-    with pytest.raises(RuntimeError, match="inconsistent turn-memory policy"):
+    with pytest.raises(RuntimeError, match="different turn-memory policies"):
+        Mapper._config_from_calibration(payload)
+
+
+def test_mapper_rejects_forward_model_without_supporting_trials() -> None:
+    payload = _complete_payload(TurnMemoryMode.PERSISTENT_OBSERVED)
+    payload["forward_trials"] = []
+
+    with pytest.raises(RuntimeError, match="repeatable supporting trials"):
         Mapper._config_from_calibration(payload)
 
 

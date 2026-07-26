@@ -61,6 +61,7 @@ def test_persistent_controller_keeps_reversal_after_long_idle() -> None:
     clock.advance(100.0)
     result = controller.turn_right(0.05)
     assert result.transition is TurnTransition.REVERSAL
+    assert controller.neutral_after_seconds is None
 
 
 def test_controller_can_install_validated_policy_without_resetting_history() -> None:
