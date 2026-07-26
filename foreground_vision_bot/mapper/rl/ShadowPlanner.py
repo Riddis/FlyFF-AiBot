@@ -7,7 +7,7 @@ from pathlib import Path
 
 from mapper.OccupancyGrid import OccupancyGrid
 
-from .LiveObservation import LivePolicyMemory, build_live_observation
+from .LiveObservation import LivePolicyMemory, build_live_policy_input
 from .Policy import MapperRLPolicy
 
 
@@ -16,6 +16,7 @@ class ShadowDecision:
     action: str
     enabled: bool
     status: str
+    valid_actions: tuple[str, ...] = ()
 
 
 class MapperShadowPlanner:
@@ -46,9 +47,17 @@ class MapperShadowPlanner:
         if not self.enabled or self.policy is None:
             return ShadowDecision("", False, self.warning or "disabled")
         try:
-            observation = build_live_observation(grid, self.memory)
-            recommendation = self.policy.recommend(observation)
-            return ShadowDecision(recommendation.action.name, True, "ok")
+            policy_input = build_live_policy_input(grid, self.memory)
+            recommendation = self.policy.recommend(
+                policy_input.observation,
+                action_masks=policy_input.action_mask,
+            )
+            return ShadowDecision(
+                recommendation.action.name,
+                True,
+                "ok",
+                recommendation.valid_actions,
+            )
         except Exception as error:  # noqa: BLE001 - fail open to deterministic planner.
             self.warning = f"Mapper RL shadow recommendation failed: {error}"
             self.enabled = False
@@ -75,6 +84,7 @@ class MapperShadowPlanner:
             "actual_action": str(actual_action),
             "actual_reason": str(actual_reason),
             "shadow_action": recommendation.action,
+            "valid_actions": list(recommendation.valid_actions),
             "agrees": recommendation.action == actual_action,
             "outcome": str(outcome),
             "pose_known": bool(pose_known),

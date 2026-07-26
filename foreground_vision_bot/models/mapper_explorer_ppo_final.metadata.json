@@ -3,7 +3,7 @@
   "final_checkpoint": "models\\mapper_explorer_ppo_final.zip",
   "live_mode": "shadow_only",
   "observation_contract": "v1.8-bounded-recovery-state43",
-  "selected_checkpoint": "best_evaluation",
+  "selected_checkpoint": "final",
   "simulator": {
     "base_camera_obstruction_probability": 0.018,
     "completion_coverage": 0.6,

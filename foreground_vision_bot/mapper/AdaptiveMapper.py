@@ -148,7 +148,7 @@ class AdaptiveMapper:
     still fails closed so map drift is not silently accumulated.
     """
 
-    VERSION = "1.6-rl-curriculum-and-heading-settle"
+    VERSION = "1.8-bounded-recovery-and-best-checkpoint"
 
     def __init__(
         self,
@@ -402,6 +402,7 @@ class AdaptiveMapper:
                 motion=result.motion,
                 pose_known=result.pose_known,
                 heading_known=self._heading_known,
+                known_cell_count=self.grid.known_cell_count(),
             )
             shadow_outcome = (
                 result.forward_assessment.outcome.value

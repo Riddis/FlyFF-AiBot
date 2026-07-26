@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 
 import numpy as np
@@ -7,6 +8,7 @@ from numpy.typing import NDArray
 
 from mapper.OccupancyGrid import BLOCKED, FREE, UNKNOWN
 
+from .ActionMask import fallback_action, valid_action_names
 from .Observation import ObservationEncoder, PolicyContext
 from .PolicyTypes import MapperAction, MotionOutcome, ObservationQuality
 from .ProceduralDungeon import DungeonLayout, ProceduralDungeonGenerator
@@ -27,15 +29,27 @@ class MapperSimulatorConfig:
     new_free_reward: float = 1.25
     new_wall_reward: float = 0.25
     completion_reward: float = 20.0
+    successful_move_bonus: float = 0.05
     step_penalty: float = 0.010
-    turn_penalty: float = 0.020
-    wait_penalty: float = 0.020
+    turn_penalty: float = 0.030
+    consecutive_turn_penalty: float = 0.050
+    wait_penalty: float = 0.080
+    reacquire_penalty: float = 0.040
+    consecutive_wait_penalty: float = 0.120
+    unproductive_wait_penalty: float = 0.250
+    failed_recovery_penalty: float = 0.080
+    maximum_wait_streak: int = 2
     repeated_contact_penalty: float = 0.15
     maximum_contact_penalty_streak: int = 4
     invalid_observation_penalty: float = 0.35
+    invalid_action_penalty: float = 0.25
     successful_recovery_reward: float = 0.35
+    frontier_progress_reward: float = 0.08
+    frontier_regression_penalty: float = 0.03
     stagnation_grace_steps: int = 12
     stagnation_penalty: float = 0.030
+    stagnation_truncation_steps: int = 180
+    stagnation_truncation_penalty: float = 8.0
 
     def __post_init__(self) -> None:
         if self.max_steps < 10:
@@ -55,10 +69,34 @@ class MapperSimulatorConfig:
             raise ValueError("maximum obstruction duration must be positive")
         if self.maximum_contact_penalty_streak < 1:
             raise ValueError("maximum contact penalty streak must be positive")
+        if self.maximum_wait_streak < 1:
+            raise ValueError("maximum wait streak must be positive")
         if self.stagnation_grace_steps < 0:
             raise ValueError("stagnation grace steps cannot be negative")
-        if self.stagnation_penalty < 0.0:
-            raise ValueError("stagnation penalty cannot be negative")
+        if self.stagnation_truncation_steps <= self.stagnation_grace_steps:
+            raise ValueError(
+                "stagnation truncation must be greater than the stagnation grace"
+            )
+        non_negative = (
+            self.successful_move_bonus,
+            self.step_penalty,
+            self.turn_penalty,
+            self.consecutive_turn_penalty,
+            self.wait_penalty,
+            self.reacquire_penalty,
+            self.consecutive_wait_penalty,
+            self.unproductive_wait_penalty,
+            self.failed_recovery_penalty,
+            self.repeated_contact_penalty,
+            self.invalid_observation_penalty,
+            self.invalid_action_penalty,
+            self.frontier_progress_reward,
+            self.frontier_regression_penalty,
+            self.stagnation_penalty,
+            self.stagnation_truncation_penalty,
+        )
+        if any(value < 0.0 for value in non_negative):
+            raise ValueError("simulator penalties and bonuses cannot be negative")
 
 
 @dataclass(frozen=True)
@@ -100,11 +138,17 @@ class MapperSimulatorCore:
         self.last_outcome = MotionOutcome.NONE
         self.quality = ObservationQuality.VALID
         self.contact_streak = 0
+        self.turn_streak = 0
+        self.wait_streak = 0
+        self.maximum_wait_streak_seen = 0
         self.step_count = 0
         self.path: list[tuple[int, int]] = []
         self.discovered_free = 0
         self.discovered_walls = 0
         self.steps_since_discovery = 0
+        self._cached_policy_context: PolicyContext | None = None
+        self._cached_policy_key: tuple[object, ...] | None = None
+        self._map_revision = 0
 
     def reset(self, seed: int | None = None) -> dict[str, NDArray[np.float32]]:
         self.rng = np.random.default_rng(seed)
@@ -120,69 +164,104 @@ class MapperSimulatorCore:
         self.last_outcome = MotionOutcome.NONE
         self.quality = ObservationQuality.VALID
         self.contact_streak = 0
+        self.turn_streak = 0
+        self.wait_streak = 0
+        self.maximum_wait_streak_seen = 0
         self.step_count = 0
         self.path = []
         self.discovered_free = 0
         self.discovered_walls = 0
         self.steps_since_discovery = 0
+        self._cached_policy_context = None
+        self._cached_policy_key = None
+        self._map_revision = 0
         self._mark_free(self.position)
         return self.observation()
 
     def step(self, action: MapperAction | int) -> SimulatorStep:
         if self.layout is None:
             raise RuntimeError("reset must be called before step")
-        action = MapperAction(int(action))
+
+        requested_action = MapperAction(int(action))
+        context_before = self.policy_context()
+        mask_before = context_before.action_mask()
+        action_was_masked = not bool(mask_before[int(requested_action)])
+        executed_action = (
+            fallback_action(mask_before) if action_was_masked else requested_action
+        )
+        frontier_distance_before = context_before.frontier_distance
+        previous_turn_streak = self.turn_streak
+        previous_wait_streak = self.wait_streak
+        recovery_needed_before = self._recovery_needed()
+
         self.step_count += 1
-        self.last_action = action
+        self.last_action = executed_action
         reward = -self.config.step_penalty
+        if action_was_masked:
+            reward -= self.config.invalid_action_penalty
+
         newly_free = 0
         newly_blocked = 0
-        recovered = False
 
-        if action is MapperAction.FORWARD:
+        if executed_action is MapperAction.FORWARD:
+            self.turn_streak = 0
+            self.wait_streak = 0
             outcome, newly_free, newly_blocked = self._forward()
-            if outcome is MotionOutcome.INVALID_OBSERVATION:
+            if outcome is MotionOutcome.MOVED:
+                reward += self.config.successful_move_bonus
+            elif outcome is MotionOutcome.INVALID_OBSERVATION:
                 reward -= self.config.invalid_observation_penalty
             elif outcome in (MotionOutcome.BLOCKED, MotionOutcome.CONTACT_SLIDE):
                 reward -= self.config.repeated_contact_penalty * min(
                     self.config.maximum_contact_penalty_streak,
                     max(1, self.contact_streak),
                 )
-        elif action is MapperAction.TURN_LEFT:
+        elif executed_action is MapperAction.TURN_LEFT:
+            self.turn_streak = previous_turn_streak + 1
+            self.wait_streak = 0
             self.heading_index = (self.heading_index + 1) % 4
             self.last_outcome = MotionOutcome.TURNED
             self.contact_streak = 0
             reward -= self.config.turn_penalty
+            if previous_turn_streak > 0:
+                reward -= self.config.consecutive_turn_penalty * previous_turn_streak
             self._maybe_drop_heading(after_turn=True)
             self._turn_may_clear_camera()
-        elif action is MapperAction.TURN_RIGHT:
+        elif executed_action is MapperAction.TURN_RIGHT:
+            self.turn_streak = previous_turn_streak + 1
+            self.wait_streak = 0
             self.heading_index = (self.heading_index - 1) % 4
             self.last_outcome = MotionOutcome.TURNED
             self.contact_streak = 0
             reward -= self.config.turn_penalty
+            if previous_turn_streak > 0:
+                reward -= self.config.consecutive_turn_penalty * previous_turn_streak
             self._maybe_drop_heading(after_turn=True)
             self._turn_may_clear_camera()
-        elif action is MapperAction.WAIT:
+        elif executed_action is MapperAction.WAIT:
+            self.turn_streak = 0
+            self.wait_streak = previous_wait_streak + 1
+            self.maximum_wait_streak_seen = max(
+                self.maximum_wait_streak_seen,
+                self.wait_streak,
+            )
             reward -= self.config.wait_penalty
-            before = self.camera_obscured_remaining
+            if previous_wait_streak > 0:
+                reward -= self.config.consecutive_wait_penalty * previous_wait_streak
             self.camera_obscured_remaining = max(
                 0,
                 self.camera_obscured_remaining - 1,
             )
-            if before > 0 and self.camera_obscured_remaining == 0:
-                recovered = True
-            self.last_outcome = (
-                MotionOutcome.RECOVERED if recovered else MotionOutcome.NONE
-            )
-        elif action is MapperAction.REACQUIRE_HEADING:
-            reward -= self.config.wait_penalty
-            recovered = self._reacquire()
-            self.last_outcome = (
-                MotionOutcome.RECOVERED
-                if recovered
-                else MotionOutcome.INVALID_OBSERVATION
-            )
-        elif action is MapperAction.BACKTRACK:
+            self.last_outcome = MotionOutcome.NONE
+        elif executed_action is MapperAction.REACQUIRE_HEADING:
+            self.turn_streak = 0
+            self.wait_streak = 0
+            reward -= self.config.reacquire_penalty
+            self._reacquire()
+            self.last_outcome = MotionOutcome.INVALID_OBSERVATION
+        elif executed_action is MapperAction.BACKTRACK:
+            self.turn_streak = 0
+            self.wait_streak = 0
             outcome, newly_free = self._backtrack()
             self.last_outcome = outcome
             if outcome is MotionOutcome.INVALID_OBSERVATION:
@@ -190,8 +269,6 @@ class MapperSimulatorCore:
 
         reward += newly_free * self.config.new_free_reward
         reward += newly_blocked * self.config.new_wall_reward
-        if recovered:
-            reward += self.config.successful_recovery_reward
 
         if newly_free > 0 or newly_blocked > 0:
             self.steps_since_discovery = 0
@@ -199,16 +276,61 @@ class MapperSimulatorCore:
             self.steps_since_discovery += 1
             overdue = self.steps_since_discovery - self.config.stagnation_grace_steps
             if overdue > 0:
-                reward -= self.config.stagnation_penalty * min(5.0, 1.0 + overdue / 20.0)
+                reward -= self.config.stagnation_penalty * min(
+                    5.0,
+                    1.0 + overdue / 20.0,
+                )
 
-        self._advance_camera_state()
+        self._advance_camera_state(executed_action=executed_action)
         self._maybe_drop_heading(after_turn=False)
         self._update_quality()
-        terminated = self.coverage >= self.config.completion_coverage
-        if terminated:
+        recovery_succeeded = recovery_needed_before and (
+            self.camera_obscured_remaining == 0
+            and self.heading_available
+            and self.pose_known
+        )
+        if recovery_succeeded:
+            self.last_outcome = MotionOutcome.RECOVERED
+            self._update_quality()
+            reward += self.config.successful_recovery_reward
+        elif executed_action is MapperAction.WAIT:
+            reward -= self.config.unproductive_wait_penalty
+        elif executed_action is MapperAction.REACQUIRE_HEADING:
+            reward -= self.config.failed_recovery_penalty
+
+        self._invalidate_policy_cache()
+        context_after = self.policy_context()
+        frontier_distance_after = context_after.frontier_distance
+        if (
+            frontier_distance_before > 0
+            and frontier_distance_after > 0
+            and newly_free == 0
+            and newly_blocked == 0
+        ):
+            if frontier_distance_after < frontier_distance_before:
+                reward += self.config.frontier_progress_reward
+            elif frontier_distance_after > frontier_distance_before:
+                reward -= self.config.frontier_regression_penalty
+
+        completed = self.coverage >= self.config.completion_coverage
+        if completed:
             reward += self.config.completion_reward
-        truncated = self.step_count >= self.config.max_steps
-        observation = self.observation()
+        stagnation_truncated = (
+            not completed
+            and self.steps_since_discovery >= self.config.stagnation_truncation_steps
+        )
+        if stagnation_truncated:
+            reward -= self.config.stagnation_truncation_penalty
+        terminated = completed
+        truncated = (
+            not completed
+            and (
+                self.step_count >= self.config.max_steps
+                or stagnation_truncated
+            )
+        )
+        observation = self.observation(context=context_after)
+        mask_after = context_after.action_mask()
         return SimulatorStep(
             observation=observation,
             reward=float(reward),
@@ -216,6 +338,7 @@ class MapperSimulatorCore:
             truncated=truncated,
             info={
                 "coverage": self.coverage,
+                "completed": completed,
                 "known_cells": int(np.count_nonzero(self.known != UNKNOWN)),
                 "new_free": newly_free,
                 "new_blocked": newly_blocked,
@@ -224,7 +347,18 @@ class MapperSimulatorCore:
                 "camera_obscured": self.camera_obscured_remaining > 0,
                 "heading_available": self.heading_available,
                 "contact_streak": self.contact_streak,
+                "turn_streak": self.turn_streak,
+                "wait_streak": self.wait_streak,
+                "maximum_wait_streak_seen": self.maximum_wait_streak_seen,
                 "steps_since_discovery": self.steps_since_discovery,
+                "requested_action": requested_action.name,
+                "executed_action": executed_action.name,
+                "action_was_masked": action_was_masked,
+                "valid_actions": valid_action_names(mask_after),
+                "frontier_distance": frontier_distance_after,
+                "recovery_needed_before": recovery_needed_before,
+                "recovery_succeeded": recovery_succeeded,
+                "stagnation_truncated": stagnation_truncated,
             },
         )
 
@@ -235,39 +369,162 @@ class MapperSimulatorCore:
         known_free = int(np.count_nonzero(self.known == FREE))
         return min(1.0, known_free / self.layout.free_cell_count)
 
-    def observation(self) -> dict[str, NDArray[np.float32]]:
+    def policy_context(self) -> PolicyContext:
+        cache_key = self._policy_cache_key()
+        if (
+            self._cached_policy_context is not None
+            and self._cached_policy_key == cache_key
+        ):
+            return self._cached_policy_context
+        frontiers = self.frontier_cells()
+        path = self._nearest_frontier_path(frontiers)
+        direction, distance = self._frontier_guidance(frontiers, path)
+        self._cached_policy_context = PolicyContext(
+            heading_index=self.heading_index,
+            quality=self.quality,
+            last_outcome=self.last_outcome,
+            last_action=self.last_action,
+            pose_known=self.pose_known,
+            heading_available=self.heading_available,
+            camera_obscured=self.camera_obscured_remaining > 0,
+            contact_streak=self.contact_streak,
+            frontier_count=len(frontiers),
+            coverage=self.coverage,
+            progress_fraction=self.step_count / self.config.max_steps,
+            backtrack_available=bool(self.path),
+            turn_streak=self.turn_streak,
+            wait_streak=self.wait_streak,
+            maximum_wait_streak=self.config.maximum_wait_streak,
+            steps_since_discovery=self.steps_since_discovery,
+            frontier_relative_direction=direction,
+            frontier_distance=distance,
+        )
+        self._cached_policy_key = cache_key
+        return self._cached_policy_context
+
+    def _policy_cache_key(self) -> tuple[object, ...]:
+        return (
+            self.position,
+            self.heading_index,
+            self.camera_obscured_remaining,
+            self.heading_available,
+            self.pose_known,
+            self.last_action,
+            self.last_outcome,
+            self.quality,
+            self.contact_streak,
+            self.turn_streak,
+            self.wait_streak,
+            self.step_count,
+            len(self.path),
+            self.steps_since_discovery,
+            self._map_revision,
+        )
+
+    def observation(
+        self,
+        *,
+        context: PolicyContext | None = None,
+    ) -> dict[str, NDArray[np.float32]]:
         return ObservationEncoder.encode(
             self.known,
             self.visits,
             centre_x=self.position[0],
             centre_y=self.position[1],
-            context=PolicyContext(
-                heading_index=self.heading_index,
-                quality=self.quality,
-                last_outcome=self.last_outcome,
-                last_action=self.last_action,
-                pose_known=self.pose_known,
-                heading_available=self.heading_available,
-                camera_obscured=self.camera_obscured_remaining > 0,
-                contact_streak=self.contact_streak,
-                frontier_count=self.frontier_count(),
-                coverage=self.coverage,
-                progress_fraction=self.step_count / self.config.max_steps,
-                backtrack_available=bool(self.path),
-            ),
+            context=context or self.policy_context(),
         )
 
+    def action_masks(self) -> NDArray[np.bool_]:
+        """Method name required by sb3-contrib MaskablePPO."""
+
+        return self.policy_context().action_mask()
+
+    def _invalidate_policy_cache(self) -> None:
+        self._cached_policy_context = None
+        self._cached_policy_key = None
+
+    def frontier_cells(self) -> list[tuple[int, int]]:
+        frontiers: list[tuple[int, int]] = []
+        for y, x in np.argwhere(self.known == FREE):
+            point = (int(x), int(y))
+            if any(self._known_value(point[0] + dx, point[1] + dy) == UNKNOWN for dx, dy in self.DIRECTIONS):
+                frontiers.append(point)
+        return frontiers
+
     def frontier_count(self) -> int:
-        free = np.argwhere(self.known == FREE)
-        count = 0
-        for y, x in free:
+        return len(self.frontier_cells())
+
+    def nearest_frontier_path(self) -> list[tuple[int, int]]:
+        return self._nearest_frontier_path(self.frontier_cells())
+
+    def _nearest_frontier_path(
+        self,
+        frontiers: list[tuple[int, int]],
+    ) -> list[tuple[int, int]]:
+        start = self.position
+        frontier_set = set(frontiers)
+        if start in frontier_set:
+            return []
+        queue: deque[tuple[int, int]] = deque([start])
+        parents: dict[tuple[int, int], tuple[int, int] | None] = {start: None}
+        target: tuple[int, int] | None = None
+        while queue:
+            current = queue.popleft()
+            if current in frontier_set:
+                target = current
+                break
             for dx, dy in self.DIRECTIONS:
-                nx, ny = int(x + dx), int(y + dy)
-                if 0 <= nx < self.known.shape[1] and 0 <= ny < self.known.shape[0]:
-                    if self.known[ny, nx] == UNKNOWN:
-                        count += 1
-                        break
-        return count
+                nxt = (current[0] + dx, current[1] + dy)
+                if nxt in parents or self._known_value(*nxt) != FREE:
+                    continue
+                parents[nxt] = current
+                queue.append(nxt)
+        if target is None:
+            return []
+        path: list[tuple[int, int]] = []
+        cursor = target
+        while cursor != start:
+            path.append(cursor)
+            parent = parents[cursor]
+            if parent is None:
+                break
+            cursor = parent
+        path.reverse()
+        return path
+
+    def frontier_guidance(self) -> tuple[int | None, int]:
+        frontiers = self.frontier_cells()
+        return self._frontier_guidance(
+            frontiers,
+            self._nearest_frontier_path(frontiers),
+        )
+
+    def _frontier_guidance(
+        self,
+        frontiers: list[tuple[int, int]],
+        path: list[tuple[int, int]],
+    ) -> tuple[int | None, int]:
+        target: tuple[int, int] | None = path[0] if path else None
+        distance = len(path)
+        if target is None and self.position in set(frontiers):
+            for absolute_direction, (dx, dy) in enumerate(self.DIRECTIONS):
+                candidate = (self.position[0] + dx, self.position[1] + dy)
+                if self._known_value(*candidate) == UNKNOWN:
+                    target = candidate
+                    distance = 1
+                    break
+        if target is None:
+            return None, 0
+        dx = target[0] - self.position[0]
+        dy = target[1] - self.position[1]
+        try:
+            absolute_direction = self.DIRECTIONS.index(
+                (int(np.sign(dx)), int(np.sign(dy)))
+            )
+        except ValueError:
+            return None, distance
+        relative = (absolute_direction - self.heading_index) % 4
+        return relative, distance
 
     def _forward(self) -> tuple[MotionOutcome, int, int]:
         if self.camera_obscured_remaining > 0 or not self.heading_available:
@@ -351,12 +608,18 @@ class MapperSimulatorCore:
                 self.camera_obscured_remaining - 1,
             )
 
-    def _advance_camera_state(self) -> None:
+    def _advance_camera_state(self, *, executed_action: MapperAction) -> None:
         if self.camera_obscured_remaining > 0:
-            self.camera_obscured_remaining = max(
-                0,
-                self.camera_obscured_remaining - 1,
-            )
+            # WAIT and REACQUIRE already applied their explicit recovery effect.
+            # Other actions still consume time and may let transient clipping clear.
+            if executed_action not in (
+                MapperAction.WAIT,
+                MapperAction.REACQUIRE_HEADING,
+            ):
+                self.camera_obscured_remaining = max(
+                    0,
+                    self.camera_obscured_remaining - 1,
+                )
             return
         if self.rng.random() < self.config.base_camera_obstruction_probability:
             self._start_camera_obstruction()
@@ -380,6 +643,19 @@ class MapperSimulatorCore:
         if self.rng.random() < probability:
             self.heading_available = False
 
+    def _recovery_needed(self) -> bool:
+        return (
+            self.camera_obscured_remaining > 0
+            or not self.heading_available
+            or not self.pose_known
+            or self.quality
+            in (
+                ObservationQuality.CAMERA_OBSCURED,
+                ObservationQuality.HEADING_UNAVAILABLE,
+                ObservationQuality.UNRESOLVED,
+            )
+        )
+
     def _update_quality(self) -> None:
         if self.camera_obscured_remaining > 0:
             self.quality = ObservationQuality.CAMERA_OBSCURED
@@ -394,6 +670,11 @@ class MapperSimulatorCore:
             self.quality = ObservationQuality.UNRESOLVED
         else:
             self.quality = ObservationQuality.VALID
+
+    def _known_value(self, x: int, y: int) -> int:
+        if not (0 <= x < self.known.shape[1] and 0 <= y < self.known.shape[0]):
+            return BLOCKED
+        return int(self.known[y, x])
 
     def _is_free(self, position: tuple[int, int]) -> bool:
         if self.layout is None:
@@ -414,6 +695,7 @@ class MapperSimulatorCore:
             int(self.visits[y, x]) + 1,
         )
         self.discovered_free += new
+        self._map_revision += 1
         return new
 
     def _mark_blocked(self, position: tuple[int, int]) -> int:
@@ -424,4 +706,6 @@ class MapperSimulatorCore:
         if self.known[y, x] != FREE:
             self.known[y, x] = BLOCKED
         self.discovered_walls += new
+        if new:
+            self._map_revision += 1
         return new

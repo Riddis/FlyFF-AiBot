@@ -7,13 +7,14 @@ from numpy.typing import NDArray
 
 from mapper.OccupancyGrid import BLOCKED, FORBIDDEN, FREE, UNKNOWN
 
+from .ActionMask import ActionMaskContext, build_action_mask
 from .PolicyTypes import MapperAction, MotionOutcome, ObservationQuality
 
 
 LOCAL_RADIUS = 7
 LOCAL_SIZE = LOCAL_RADIUS * 2 + 1
 LOCAL_CHANNELS = 5
-STATE_SIZE = 30
+STATE_SIZE = 43
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,28 @@ class PolicyContext:
     coverage: float = 0.0
     progress_fraction: float = 0.0
     backtrack_available: bool = False
+    turn_streak: int = 0
+    wait_streak: int = 0
+    maximum_wait_streak: int = 2
+    steps_since_discovery: int = 0
+    frontier_relative_direction: int | None = None
+    frontier_distance: int = 0
+
+    def action_mask(self) -> NDArray[np.bool_]:
+        return build_action_mask(
+            ActionMaskContext(
+                quality=self.quality,
+                last_outcome=self.last_outcome,
+                last_action=self.last_action,
+                pose_known=self.pose_known,
+                heading_available=self.heading_available,
+                camera_obscured=self.camera_obscured,
+                backtrack_available=self.backtrack_available,
+                turn_streak=self.turn_streak,
+                wait_streak=self.wait_streak,
+                maximum_wait_streak=self.maximum_wait_streak,
+            )
+        )
 
 
 class ObservationEncoder:
@@ -79,7 +102,7 @@ class ObservationEncoder:
         offset += len(MotionOutcome)
         state[offset + int(context.last_action)] = 1.0
         offset += len(MapperAction)
-        state[offset : offset + 8] = np.asarray(
+        state[offset : offset + 10] = np.asarray(
             (
                 float(context.pose_known),
                 float(context.heading_available),
@@ -89,9 +112,25 @@ class ObservationEncoder:
                 min(1.0, max(0.0, context.coverage)),
                 min(1.0, max(0.0, context.progress_fraction)),
                 float(context.backtrack_available),
+                min(1.0, max(0.0, context.turn_streak / 2.0)),
+                min(1.0, max(0.0, context.steps_since_discovery / 30.0)),
             ),
             dtype=np.float32,
         )
+        offset += 10
+
+        if context.frontier_relative_direction is not None:
+            direction = int(context.frontier_relative_direction) % 4
+            state[offset + direction] = 1.0
+        offset += 4
+        state[offset] = min(1.0, max(0.0, context.frontier_distance / 30.0))
+        offset += 1
+
+        action_mask = context.action_mask().astype(np.float32)
+        state[offset : offset + len(MapperAction)] = action_mask
+        offset += len(MapperAction)
+        if offset != STATE_SIZE:
+            raise RuntimeError(f"policy state contract mismatch: {offset} != {STATE_SIZE}")
         return {"local_map": local_map, "state": state}
 
     @staticmethod

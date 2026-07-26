@@ -108,7 +108,7 @@ def test_reacquire_can_restore_camera_and_heading() -> None:
     assert result.reward > -0.1
 
 
-def test_invalid_forward_during_camera_obstruction_loses_pose_confidence() -> None:
+def test_invalid_forward_during_camera_obstruction_is_safely_masked() -> None:
     config = MapperSimulatorConfig(
         base_camera_obstruction_probability=0.0,
         heading_dropout_probability=0.0,
@@ -120,13 +120,17 @@ def test_invalid_forward_during_camera_obstruction_loses_pose_confidence() -> No
     )
     core.reset(seed=10)
     core.camera_obscured_remaining = 3
+    core.quality = ObservationQuality.CAMERA_OBSCURED
 
     result = core.step(MapperAction.FORWARD)
 
-    assert not core.pose_known
-    assert result.info["motion_outcome"] == MotionOutcome.INVALID_OBSERVATION.name
-    assert result.reward < -0.3
-
+    assert result.info["action_was_masked"]
+    assert result.info["requested_action"] == MapperAction.FORWARD.name
+    assert result.info["executed_action"] in {
+        MapperAction.REACQUIRE_HEADING.name,
+        MapperAction.WAIT.name,
+    }
+    assert core.pose_known
 
 def test_default_training_target_is_attainable_curriculum() -> None:
     config = MapperSimulatorConfig()
@@ -135,18 +139,13 @@ def test_default_training_target_is_attainable_curriculum() -> None:
     assert config.completion_coverage == 0.60
 
 
-def test_repeated_contact_penalty_is_capped() -> None:
+def test_confirmed_contact_masks_repeated_forward() -> None:
     config = MapperSimulatorConfig(
         base_camera_obstruction_probability=0.0,
         contact_camera_obstruction_probability=0.0,
         heading_dropout_probability=0.0,
         turn_heading_dropout_probability=0.0,
         wall_slide_probability=0.0,
-        step_penalty=0.0,
-        new_wall_reward=0.0,
-        repeated_contact_penalty=1.0,
-        maximum_contact_penalty_streak=2,
-        stagnation_grace_steps=100,
     )
     core = MapperSimulatorCore(
         config=config,
@@ -155,10 +154,13 @@ def test_repeated_contact_penalty_is_capped() -> None:
     core.reset(seed=20)
     core.heading_index = 3
 
-    rewards = [core.step(MapperAction.FORWARD).reward for _ in range(4)]
+    first = core.step(MapperAction.FORWARD)
+    second = core.step(MapperAction.FORWARD)
 
-    assert rewards == [-1.0, -2.0, -2.0, -2.0]
-
+    assert first.info["motion_outcome"] == MotionOutcome.BLOCKED.name
+    assert not first.info["action_was_masked"]
+    assert second.info["action_was_masked"]
+    assert second.info["executed_action"] != MapperAction.FORWARD.name
 
 def test_stagnation_penalty_only_starts_after_grace() -> None:
     config = MapperSimulatorConfig(
@@ -167,14 +169,20 @@ def test_stagnation_penalty_only_starts_after_grace() -> None:
         turn_heading_dropout_probability=0.0,
         step_penalty=0.0,
         wait_penalty=0.0,
+        consecutive_wait_penalty=0.0,
+        unproductive_wait_penalty=0.0,
+        maximum_wait_streak=10,
         stagnation_grace_steps=2,
         stagnation_penalty=0.5,
+        stagnation_truncation_steps=20,
     )
     core = MapperSimulatorCore(
         config=config,
         generator=FixedGenerator(corridor_layout()),
     )
     core.reset(seed=21)
+    core.camera_obscured_remaining = 10
+    core.quality = ObservationQuality.CAMERA_OBSCURED
 
     first = core.step(MapperAction.WAIT).reward
     second = core.step(MapperAction.WAIT).reward
@@ -183,3 +191,107 @@ def test_stagnation_penalty_only_starts_after_grace() -> None:
     assert first == 0.0
     assert second == 0.0
     assert third < 0.0
+
+
+def test_frontier_guidance_points_towards_nearest_known_frontier() -> None:
+    config = MapperSimulatorConfig(
+        base_camera_obstruction_probability=0.0,
+        heading_dropout_probability=0.0,
+        turn_heading_dropout_probability=0.0,
+    )
+    core = MapperSimulatorCore(
+        config=config,
+        generator=FixedGenerator(corridor_layout()),
+    )
+    core.reset(seed=30)
+    core.heading_index = 0  # east
+
+    direction, distance = core.frontier_guidance()
+
+    assert direction in {0, 1, 2, 3}
+    assert distance >= 1
+    assert core.action_masks().shape == (len(MapperAction),)
+
+
+def test_wait_budget_forces_active_recovery() -> None:
+    config = MapperSimulatorConfig(
+        base_camera_obstruction_probability=0.0,
+        heading_dropout_probability=0.0,
+        turn_heading_dropout_probability=0.0,
+        maximum_wait_streak=2,
+    )
+    core = MapperSimulatorCore(
+        config=config,
+        generator=FixedGenerator(corridor_layout()),
+    )
+    core.reset(seed=31)
+    core.camera_obscured_remaining = 4
+    core.quality = ObservationQuality.CAMERA_OBSCURED
+
+    first = core.step(MapperAction.WAIT)
+    second = core.step(MapperAction.WAIT)
+    third = core.step(MapperAction.WAIT)
+
+    assert first.info["executed_action"] == MapperAction.WAIT.name
+    assert second.info["executed_action"] == MapperAction.WAIT.name
+    assert third.info["action_was_masked"]
+    assert third.info["executed_action"] == MapperAction.REACQUIRE_HEADING.name
+    assert core.maximum_wait_streak_seen == 2
+
+
+def test_wait_reward_only_succeeds_when_observation_recovers() -> None:
+    config = MapperSimulatorConfig(
+        base_camera_obstruction_probability=0.0,
+        heading_dropout_probability=0.0,
+        turn_heading_dropout_probability=0.0,
+        wait_penalty=0.0,
+        consecutive_wait_penalty=0.0,
+        unproductive_wait_penalty=0.5,
+        successful_recovery_reward=0.25,
+    )
+    core = MapperSimulatorCore(
+        config=config,
+        generator=FixedGenerator(corridor_layout()),
+    )
+    core.reset(seed=32)
+    core.camera_obscured_remaining = 2
+    core.quality = ObservationQuality.CAMERA_OBSCURED
+
+    first = core.step(MapperAction.WAIT)
+    second = core.step(MapperAction.WAIT)
+
+    assert not first.info["recovery_succeeded"]
+    assert first.reward < 0.0
+    assert second.info["recovery_succeeded"]
+    assert second.info["motion_outcome"] == MotionOutcome.RECOVERED.name
+    assert second.reward > first.reward
+
+
+def test_stagnation_truncates_without_counting_as_completion() -> None:
+    config = MapperSimulatorConfig(
+        max_steps=100,
+        base_camera_obstruction_probability=0.0,
+        heading_dropout_probability=0.0,
+        turn_heading_dropout_probability=0.0,
+        maximum_wait_streak=10,
+        stagnation_grace_steps=0,
+        stagnation_penalty=0.0,
+        stagnation_truncation_steps=3,
+        stagnation_truncation_penalty=1.0,
+    )
+    core = MapperSimulatorCore(
+        config=config,
+        generator=FixedGenerator(corridor_layout()),
+    )
+    core.reset(seed=33)
+    core.camera_obscured_remaining = 10
+    core.quality = ObservationQuality.CAMERA_OBSCURED
+
+    result = core.step(MapperAction.WAIT)
+    result = core.step(MapperAction.WAIT)
+    result = core.step(MapperAction.WAIT)
+
+    assert not result.terminated
+    assert result.truncated
+    assert result.info["stagnation_truncated"]
+    assert not result.info["completed"]

@@ -1,17 +1,13 @@
 {
   "algorithm": "MaskablePPO",
-  "final_checkpoint": "models\\mapper_explorer_ppo_final.zip",
   "live_mode": "shadow_only",
-  "observation_contract": "v1.8-bounded-recovery-state43",
-  "selected_checkpoint": "best_evaluation",
+  "observation_contract": "v1.7-frontier-guidance-state43",
   "simulator": {
     "base_camera_obstruction_probability": 0.018,
     "completion_coverage": 0.6,
     "completion_reward": 20.0,
     "consecutive_turn_penalty": 0.05,
-    "consecutive_wait_penalty": 0.12,
     "contact_camera_obstruction_probability": 0.16,
-    "failed_recovery_penalty": 0.08,
     "frontier_progress_reward": 0.08,
     "frontier_regression_penalty": 0.03,
     "heading_dropout_probability": 0.025,
@@ -21,22 +17,17 @@
     "max_steps": 1200,
     "maximum_camera_obstruction_steps": 4,
     "maximum_contact_penalty_streak": 4,
-    "maximum_wait_streak": 2,
     "new_free_reward": 1.25,
     "new_wall_reward": 0.25,
-    "reacquire_penalty": 0.04,
     "repeated_contact_penalty": 0.15,
     "stagnation_grace_steps": 12,
     "stagnation_penalty": 0.03,
-    "stagnation_truncation_penalty": 8.0,
-    "stagnation_truncation_steps": 180,
     "step_penalty": 0.01,
     "successful_move_bonus": 0.05,
     "successful_recovery_reward": 0.35,
     "turn_heading_dropout_probability": 0.08,
     "turn_penalty": 0.03,
-    "unproductive_wait_penalty": 0.25,
-    "wait_penalty": 0.08,
+    "wait_penalty": 0.02,
     "wall_slide_probability": 0.3
   },
   "training": {
@@ -48,8 +39,8 @@
     "parallel_envs": 8,
     "seed": 7,
     "tensorboard_dir": "training_logs/mapper_rl",
-    "total_timesteps": 100000
+    "total_timesteps": 500000
   },
-  "training_note": "v1.8 bounds passive waiting, requires active recovery for heading/pose loss, penalises unproductive recovery and promotes the best evaluation checkpoint while preserving the final checkpoint",
-  "version": 3
+  "training_note": "v1.7 masks unsafe or pointless actions, prevents immediate turn reversal, exposes nearest-frontier guidance and adds frontier-progress plus consecutive-turn shaping",
+  "version": 2
 }

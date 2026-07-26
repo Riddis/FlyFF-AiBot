@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from shutil import copy2
 from time import monotonic
 
 from mapper.rl.Policy import write_policy_metadata
@@ -46,26 +47,36 @@ def train_mapper_policy(
     status = status_callback or (lambda message: print(message, flush=True))
 
     try:
-        from stable_baselines3 import PPO
+        from sb3_contrib import MaskablePPO
+        from sb3_contrib.common.maskable.callbacks import MaskableEvalCallback
         from stable_baselines3.common.callbacks import (
             BaseCallback,
             CallbackList,
             CheckpointCallback,
-            EvalCallback,
         )
         from stable_baselines3.common.env_util import make_vec_env
         from stable_baselines3.common.monitor import Monitor
     except ImportError as error:
         raise RuntimeError(
-            "Mapper simulator training requires Stable-Baselines3, Gymnasium and "
-            "TensorBoard. Install them with: pip install stable-baselines3 "
-            "gymnasium tensorboard"
+            "Mapper simulator training requires Stable-Baselines3, sb3-contrib, "
+            "Gymnasium and TensorBoard. Install them with: "
+            "pip install -r requirements_mapper_rl.txt"
         ) from error
 
     from mapper.rl.GymEnv import MapperSimEnv
 
-    model_path = Path(config.model_path)
-    model_path.parent.mkdir(parents=True, exist_ok=True)
+    model_stem = _model_stem(Path(config.model_path))
+    model_stem.parent.mkdir(parents=True, exist_ok=True)
+    selected_model_zip = model_stem.with_suffix(".zip")
+    final_model_stem = model_stem.with_name(f"{model_stem.name}_final")
+    final_model_zip = final_model_stem.with_suffix(".zip")
+    best_model_dir = model_stem.parent / "mapper_best"
+    best_model_dir.mkdir(parents=True, exist_ok=True)
+    best_model_zip = best_model_dir / "best_model.zip"
+    # Prevent a cancelled/failed run from promoting a stale model from an older
+    # reward contract.
+    best_model_zip.unlink(missing_ok=True)
+
     checkpoint_dir = Path(config.checkpoint_dir)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     tensorboard_dir = Path(config.tensorboard_dir)
@@ -119,10 +130,10 @@ def train_mapper_policy(
                 save_path=str(checkpoint_dir),
                 name_prefix="mapper_explorer",
             ),
-            EvalCallback(
+            MaskableEvalCallback(
                 evaluation_env,
-                best_model_save_path=str(model_path.parent / "mapper_best"),
-                log_path=str(model_path.parent / "mapper_eval"),
+                best_model_save_path=str(best_model_dir),
+                log_path=str(model_stem.parent / "mapper_eval"),
                 eval_freq=evaluation_frequency,
                 n_eval_episodes=config.evaluation_episodes,
                 deterministic=True,
@@ -134,7 +145,7 @@ def train_mapper_policy(
         "Starting mapper RL simulator training. The game window is not used. "
         f"Environments={config.parallel_envs}, timesteps={config.total_timesteps:,}."
     )
-    model = PPO(
+    model = MaskablePPO(
         "MultiInputPolicy",
         training_env,
         verbose=0,
@@ -149,33 +160,55 @@ def train_mapper_policy(
         clip_range=0.20,
         policy_kwargs={"net_arch": {"pi": [256, 128], "vf": [256, 128]}},
     )
+    selected_checkpoint = "final"
     try:
         model.learn(
             total_timesteps=config.total_timesteps,
             callback=callbacks,
             progress_bar=False,
         )
-        model.save(str(model_path))
-        write_policy_metadata(
-            model_path,
-            {
-                "version": 1,
-                "algorithm": "PPO",
-                "training": asdict(config),
-                "simulator": asdict(simulator_config),
-                "live_mode": "shadow_only",
-                "training_note": (
-                    "v1.6 uses a 60% exploration curriculum target, capped contact "
-                    "penalties and stagnation shaping before later full-map training"
-                ),
-            },
-        )
+        model.save(str(final_model_stem))
+        if best_model_zip.is_file():
+            copy2(best_model_zip, selected_model_zip)
+            selected_checkpoint = "best_evaluation"
+        else:
+            copy2(final_model_zip, selected_model_zip)
+
+        metadata = {
+            "version": 3,
+            "algorithm": "MaskablePPO",
+            "observation_contract": "v1.8-bounded-recovery-state43",
+            "training": asdict(config),
+            "simulator": asdict(simulator_config),
+            "live_mode": "shadow_only",
+            "selected_checkpoint": selected_checkpoint,
+            "final_checkpoint": str(final_model_zip),
+            "training_note": (
+                "v1.8 bounds passive waiting, requires active recovery for heading/pose "
+                "loss, penalises unproductive recovery and promotes the best evaluation "
+                "checkpoint while preserving the final checkpoint"
+            ),
+        }
+        write_policy_metadata(model_stem, metadata)
+        final_metadata = dict(metadata)
+        final_metadata["selected_checkpoint"] = "final"
+        write_policy_metadata(final_model_stem, final_metadata)
     finally:
         training_env.close()
         evaluation_env.close()
 
-    status(f"Mapper RL policy saved to {model_path.with_suffix('.zip')}.")
-    return model_path.with_suffix(".zip")
+    if selected_checkpoint == "best_evaluation":
+        status(
+            "Mapper RL best-evaluation policy promoted to "
+            f"{selected_model_zip}. Final checkpoint preserved at {final_model_zip}."
+        )
+    else:
+        status(f"Mapper RL policy saved to {selected_model_zip}.")
+    return selected_model_zip
+
+
+def _model_stem(path: Path) -> Path:
+    return path.with_suffix("") if path.suffix.lower() == ".zip" else path
 
 
 def _parse_args() -> argparse.Namespace:

@@ -60,3 +60,8 @@ class MapperSimEnv(gym.Env):
             result.truncated,
             result.info,
         )
+
+    def action_masks(self) -> np.ndarray:
+        """Return True for valid actions, as required by MaskablePPO."""
+
+        return self.core.action_masks()
