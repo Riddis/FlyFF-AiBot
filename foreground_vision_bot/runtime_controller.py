@@ -6,7 +6,7 @@ from typing import cast
 
 from capture_service import CaptureService, FrameSource
 from libs.WindowCapture import WindowCapture
-from mapper import Mapper, RotationCalibrator
+from mapper import Mapper
 from preview_service import PreviewService
 from runtime_bus import RuntimeBus
 from worker_manager import (
@@ -110,6 +110,10 @@ class RuntimeController:
         self._start_control("mapper", run)
 
     def start_calibration(self, *, visual_confirmation: bool) -> None:
+        # Legacy rollback path. Ordinary mapping no longer imports or requires
+        # the calibration stack.
+        from mapper import RotationCalibrator
+
         def run(token: CancellationToken):
             confirmation: Callable[..., bool | None] | None = None
             if visual_confirmation:

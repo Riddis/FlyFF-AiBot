@@ -1,0 +1,31 @@
+{
+  "size": 401,
+  "pose": {
+    "x": 0,
+    "y": 0,
+    "heading_index": 1
+  },
+  "continuous_pose": {
+    "x": 0.0,
+    "y": 0.0,
+    "heading_deg": 358.8458664903136
+  },
+  "metadata": {
+    "version": 3,
+    "created_at": "2026-07-26T14:18:51.585748+00:00",
+    "spawn": [
+      0,
+      0
+    ],
+    "pang_sightings": [],
+    "teleport_zones": [],
+    "suspected_transitions": [],
+    "position_known": false,
+    "heading_known": true,
+    "heading_uncertainty_deg": 1.2689004349697404,
+    "pose_known": false,
+    "pose_note": "Post-forward heading confirmed; position awaits visual validation.",
+    "pose_state_updated_at": "2026-07-26T14:18:57.520122+00:00",
+    "termination_reason": "Forward travel was visually uncertain, so mapping stopped without guessing the new position. Reason: optical flow is not coherent enough to prove a complete step."
+  }
+}

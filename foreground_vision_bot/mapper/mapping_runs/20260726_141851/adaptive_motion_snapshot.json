@@ -1,0 +1,14 @@
+{
+  "forward_flow_deviation_px": null,
+  "forward_flow_px": null,
+  "forward_samples": 0,
+  "forward_seconds": 0.12,
+  "left_seconds_per_degree": 0.00386,
+  "left_turn_samples": 0,
+  "rejected_turn_samples": 0,
+  "right_seconds_per_degree": 0.00382,
+  "right_turn_samples": 0,
+  "uncertain_forward_samples": 1,
+  "updated_at": "2026-07-26T14:18:57.576850+00:00",
+  "version": 1
+}

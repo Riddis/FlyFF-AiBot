@@ -124,7 +124,7 @@ class Gui:
                 self.__start_control(
                     self.controller.start_mapper,
                     "Mapping",
-                    "Starting autonomous mapper...",
+                    "Starting adaptive mapper (no calibration required)...",
                 )
 
             if event == "-SET_MINIMAP_ANCHOR-":
@@ -138,8 +138,8 @@ class Gui:
                     ),
                     "Calibration",
                     (
-                        "Starting mapper calibration. It includes six forward "
-                        "pulses; keep a clear, textured path ahead."
+                        "Starting legacy mapper calibration. The adaptive mapper "
+                        "does not require this; use it only for rollback testing."
                     ),
                 )
 
@@ -149,8 +149,8 @@ class Gui:
                     lambda: self.controller.start_calibration(visual_confirmation=True),
                     "Calibration",
                     (
-                        "Starting visual mapper calibration. It includes six "
-                        "forward pulses; keep a clear, textured path ahead."
+                        "Starting legacy visual calibration. The adaptive mapper "
+                        "does not require this; use it only for diagnostics."
                     ),
                 )
 
@@ -646,7 +646,7 @@ class Gui:
                         expand_x=True,
                     ),
                     sg.Button(
-                        "Calibrate Mapper",
+                        "Legacy Mapper Calibration",
                         disabled=True,
                         key="-CALIBRATE_MAPPER-",
                         expand_x=True,
@@ -654,7 +654,7 @@ class Gui:
                 ],
                 [
                     sg.Button(
-                        "Debug Heading Calibration",
+                        "Legacy Visual Calibration",
                         disabled=True,
                         key="-DEBUG_CALIBRATE_MAPPER-",
                         expand_x=True,
@@ -662,7 +662,7 @@ class Gui:
                 ],
                 [
                     sg.Button(
-                        "Map Area",
+                        "Map Area (Adaptive)",
                         disabled=True,
                         key="-START_MAPPER-",
                         expand_x=True,
