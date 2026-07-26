@@ -149,7 +149,7 @@ class AdaptiveMapper:
     still fails closed so map drift is not silently accumulated.
     """
 
-    VERSION = "1.8.3-regression-cleanup"
+    VERSION = "1.9.1-frontier-escape-map-management-restored"
 
     def __init__(
         self,

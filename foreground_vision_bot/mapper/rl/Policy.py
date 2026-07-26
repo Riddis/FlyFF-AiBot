@@ -20,7 +20,7 @@ class PolicyRecommendation:
 
 
 class MapperRLPolicy:
-    """Optional policy loader supporting v1.8 MaskablePPO and old PPO models."""
+    """Optional policy loader supporting v1.9/v1.8 MaskablePPO and old PPO models."""
 
     def __init__(
         self,
@@ -44,7 +44,7 @@ class MapperRLPolicy:
                 from sb3_contrib import MaskablePPO
             except ImportError as error:
                 raise RuntimeError(
-                    "Mapper RL v1.8 requires sb3-contrib. Install with: "
+                    "Mapper RL v1.9 requires sb3-contrib. Install with: "
                     "pip install -r requirements_mapper_rl.txt"
                 ) from error
             return cls(

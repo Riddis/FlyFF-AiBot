@@ -29,3 +29,6 @@ training_logs/farming/*
 !training_logs/farming/.gitkeep
 training_logs/mapping/*
 !training_logs/mapping/.gitkeep
+
+# One-time layout repair backups
+migration_backups/

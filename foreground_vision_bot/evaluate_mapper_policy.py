@@ -31,6 +31,10 @@ class EvaluationSummary:
     recovery_success_rate: float
     stagnation_truncation_rate: float
     mean_max_wait_streak: float
+    frontier_escape_rate: float
+    frontier_progress_rate: float
+    frontier_escape_success_rate: float
+    mean_max_no_progress_streak: float
 
 
 def evaluate_policy(
@@ -56,6 +60,7 @@ def evaluate_policy(
     rewards: list[float] = []
     steps: list[int] = []
     maximum_wait_streaks: list[int] = []
+    maximum_no_progress_streaks: list[int] = []
     completed = 0
     action_counts: Counter[str] = Counter()
     contact_steps = 0
@@ -65,6 +70,9 @@ def evaluate_policy(
     successful_recoveries = 0
     stagnation_truncations = 0
     total_steps = 0
+    frontier_escape_steps = 0
+    frontier_progress_steps = 0
+    frontier_escape_successes = 0
     try:
         for episode in range(episodes):
             observation, _info = env.reset(seed=seed + episode)
@@ -74,6 +82,7 @@ def evaluate_policy(
             truncated = False
             info: dict[str, object] = {}
             episode_max_wait_streak = 0
+            episode_max_no_progress_streak = 0
             while not (terminated or truncated):
                 action_mask = env.action_masks()
                 action, _state = model.predict(
@@ -106,6 +115,15 @@ def evaluate_policy(
                     episode_max_wait_streak,
                     int(info.get("maximum_wait_streak_seen", 0)),
                 )
+                frontier_escape_steps += int(bool(info.get("frontier_escape_step", False)))
+                frontier_progress_steps += int(bool(info.get("frontier_progress", False)))
+                frontier_escape_successes += int(
+                    bool(info.get("frontier_escape_succeeded", False))
+                )
+                episode_max_no_progress_streak = max(
+                    episode_max_no_progress_streak,
+                    int(info.get("maximum_no_progress_streak_seen", 0)),
+                )
                 total_reward += float(reward)
                 episode_steps += 1
             coverage = float(info.get("coverage", 0.0))
@@ -113,6 +131,7 @@ def evaluate_policy(
             rewards.append(total_reward)
             steps.append(episode_steps)
             maximum_wait_streaks.append(episode_max_wait_streak)
+            maximum_no_progress_streaks.append(episode_max_no_progress_streak)
             completed += int(bool(info.get("completed", terminated)))
             stagnation_truncations += int(
                 bool(info.get("stagnation_truncated", False))
@@ -149,6 +168,12 @@ def evaluate_policy(
         recovery_success_rate=(successful_recoveries / max(1, recovery_actions)),
         stagnation_truncation_rate=(stagnation_truncations / max(1, episodes)),
         mean_max_wait_streak=float(np.mean(maximum_wait_streaks)),
+        frontier_escape_rate=(frontier_escape_steps / denominator),
+        frontier_progress_rate=(frontier_progress_steps / denominator),
+        frontier_escape_success_rate=(
+            frontier_escape_successes / max(1, frontier_escape_steps)
+        ),
+        mean_max_no_progress_streak=float(np.mean(maximum_no_progress_streaks)),
     )
 
 
@@ -180,6 +205,10 @@ def main() -> None:
         f"recovery_success_rate={summary.recovery_success_rate:.3f} "
         f"stagnation_truncation_rate={summary.stagnation_truncation_rate:.3f} "
         f"mean_max_wait_streak={summary.mean_max_wait_streak:.2f} "
+        f"frontier_escape_rate={summary.frontier_escape_rate:.3f} "
+        f"frontier_progress_rate={summary.frontier_progress_rate:.3f} "
+        f"frontier_escape_success_rate={summary.frontier_escape_success_rate:.3f} "
+        f"mean_max_no_progress_streak={summary.mean_max_no_progress_streak:.1f} "
         f"actions={summary.action_counts}"
     )
 

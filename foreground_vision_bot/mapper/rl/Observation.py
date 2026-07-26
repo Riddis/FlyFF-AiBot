@@ -37,6 +37,7 @@ class PolicyContext:
     steps_since_discovery: int = 0
     frontier_relative_direction: int | None = None
     frontier_distance: int = 0
+    frontier_escape_steps: int = 30
 
     def action_mask(self) -> NDArray[np.bool_]:
         return build_action_mask(
@@ -51,6 +52,10 @@ class PolicyContext:
                 turn_streak=self.turn_streak,
                 wait_streak=self.wait_streak,
                 maximum_wait_streak=self.maximum_wait_streak,
+                steps_since_discovery=self.steps_since_discovery,
+                frontier_relative_direction=self.frontier_relative_direction,
+                frontier_distance=self.frontier_distance,
+                frontier_escape_steps=self.frontier_escape_steps,
             )
         )
 

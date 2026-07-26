@@ -44,11 +44,14 @@ class MapperSimulatorConfig:
     invalid_observation_penalty: float = 0.35
     invalid_action_penalty: float = 0.25
     successful_recovery_reward: float = 0.35
-    frontier_progress_reward: float = 0.08
-    frontier_regression_penalty: float = 0.03
+    frontier_progress_reward: float = 0.16
+    frontier_regression_penalty: float = 0.08
+    frontier_escape_steps: int = 30
+    frontier_escape_success_reward: float = 0.75
+    revisit_penalty: float = 0.04
     stagnation_grace_steps: int = 12
     stagnation_penalty: float = 0.030
-    stagnation_truncation_steps: int = 180
+    stagnation_truncation_steps: int = 360
     stagnation_truncation_penalty: float = 8.0
 
     def __post_init__(self) -> None:
@@ -71,6 +74,8 @@ class MapperSimulatorConfig:
             raise ValueError("maximum contact penalty streak must be positive")
         if self.maximum_wait_streak < 1:
             raise ValueError("maximum wait streak must be positive")
+        if self.frontier_escape_steps < 1:
+            raise ValueError("frontier escape steps must be positive")
         if self.stagnation_grace_steps < 0:
             raise ValueError("stagnation grace steps cannot be negative")
         if self.stagnation_truncation_steps <= self.stagnation_grace_steps:
@@ -92,6 +97,8 @@ class MapperSimulatorConfig:
             self.invalid_action_penalty,
             self.frontier_progress_reward,
             self.frontier_regression_penalty,
+            self.frontier_escape_success_reward,
+            self.revisit_penalty,
             self.stagnation_penalty,
             self.stagnation_truncation_penalty,
         )
@@ -146,6 +153,9 @@ class MapperSimulatorCore:
         self.discovered_free = 0
         self.discovered_walls = 0
         self.steps_since_discovery = 0
+        self.steps_since_progress = 0
+        self.maximum_no_progress_streak_seen = 0
+        self.frontier_escape_steps_taken = 0
         self._cached_policy_context: PolicyContext | None = None
         self._cached_policy_key: tuple[object, ...] | None = None
         self._map_revision = 0
@@ -172,6 +182,9 @@ class MapperSimulatorCore:
         self.discovered_free = 0
         self.discovered_walls = 0
         self.steps_since_discovery = 0
+        self.steps_since_progress = 0
+        self.maximum_no_progress_streak_seen = 0
+        self.frontier_escape_steps_taken = 0
         self._cached_policy_context = None
         self._cached_policy_key = None
         self._map_revision = 0
@@ -190,6 +203,11 @@ class MapperSimulatorCore:
             fallback_action(mask_before) if action_was_masked else requested_action
         )
         frontier_distance_before = context_before.frontier_distance
+        escape_active_before = (
+            context_before.steps_since_discovery >= self.config.frontier_escape_steps
+            and context_before.frontier_relative_direction is not None
+            and context_before.frontier_distance > 0
+        )
         previous_turn_streak = self.turn_streak
         previous_wait_streak = self.wait_streak
         recovery_needed_before = self._recovery_needed()
@@ -199,6 +217,8 @@ class MapperSimulatorCore:
         reward = -self.config.step_penalty
         if action_was_masked:
             reward -= self.config.invalid_action_penalty
+        if escape_active_before:
+            self.frontier_escape_steps_taken += 1
 
         newly_free = 0
         newly_blocked = 0
@@ -270,17 +290,6 @@ class MapperSimulatorCore:
         reward += newly_free * self.config.new_free_reward
         reward += newly_blocked * self.config.new_wall_reward
 
-        if newly_free > 0 or newly_blocked > 0:
-            self.steps_since_discovery = 0
-        else:
-            self.steps_since_discovery += 1
-            overdue = self.steps_since_discovery - self.config.stagnation_grace_steps
-            if overdue > 0:
-                reward -= self.config.stagnation_penalty * min(
-                    5.0,
-                    1.0 + overdue / 20.0,
-                )
-
         self._advance_camera_state(executed_action=executed_action)
         self._maybe_drop_heading(after_turn=False)
         self._update_quality()
@@ -301,23 +310,66 @@ class MapperSimulatorCore:
         self._invalidate_policy_cache()
         context_after = self.policy_context()
         frontier_distance_after = context_after.frontier_distance
-        if (
+        frontier_progress = bool(
             frontier_distance_before > 0
             and frontier_distance_after > 0
-            and newly_free == 0
-            and newly_blocked == 0
-        ):
-            if frontier_distance_after < frontier_distance_before:
+            and frontier_distance_after < frontier_distance_before
+        )
+        frontier_regression = bool(
+            frontier_distance_before > 0
+            and frontier_distance_after > frontier_distance_before
+        )
+        if newly_free == 0 and newly_blocked == 0:
+            if frontier_progress:
                 reward += self.config.frontier_progress_reward
-            elif frontier_distance_after > frontier_distance_before:
+            elif frontier_regression:
                 reward -= self.config.frontier_regression_penalty
+
+        if (
+            executed_action is MapperAction.FORWARD
+            and self.last_outcome is MotionOutcome.MOVED
+            and newly_free == 0
+            and not frontier_progress
+        ):
+            reward -= self.config.revisit_penalty
+
+        discovered = newly_free > 0 or newly_blocked > 0
+        if discovered:
+            self.steps_since_discovery = 0
+        else:
+            self.steps_since_discovery += 1
+
+        made_progress = discovered or frontier_progress or recovery_succeeded
+        if made_progress:
+            self.steps_since_progress = 0
+        else:
+            self.steps_since_progress += 1
+        self.maximum_no_progress_streak_seen = max(
+            self.maximum_no_progress_streak_seen,
+            self.steps_since_progress,
+        )
+
+        if escape_active_before and discovered:
+            reward += self.config.frontier_escape_success_reward
+
+        overdue = self.steps_since_progress - self.config.stagnation_grace_steps
+        if overdue > 0:
+            reward -= self.config.stagnation_penalty * min(
+                5.0,
+                1.0 + overdue / 20.0,
+            )
+
+        # steps_since_discovery and steps_since_progress changed after the first
+        # context rebuild, so refresh the observation/mask with the final state.
+        self._invalidate_policy_cache()
+        context_after = self.policy_context()
 
         completed = self.coverage >= self.config.completion_coverage
         if completed:
             reward += self.config.completion_reward
         stagnation_truncated = (
             not completed
-            and self.steps_since_discovery >= self.config.stagnation_truncation_steps
+            and self.steps_since_progress >= self.config.stagnation_truncation_steps
         )
         if stagnation_truncated:
             reward -= self.config.stagnation_truncation_penalty
@@ -331,6 +383,11 @@ class MapperSimulatorCore:
         )
         observation = self.observation(context=context_after)
         mask_after = context_after.action_mask()
+        escape_active_after = (
+            context_after.steps_since_discovery >= self.config.frontier_escape_steps
+            and context_after.frontier_relative_direction is not None
+            and context_after.frontier_distance > 0
+        )
         return SimulatorStep(
             observation=observation,
             reward=float(reward),
@@ -351,11 +408,17 @@ class MapperSimulatorCore:
                 "wait_streak": self.wait_streak,
                 "maximum_wait_streak_seen": self.maximum_wait_streak_seen,
                 "steps_since_discovery": self.steps_since_discovery,
+                "steps_since_progress": self.steps_since_progress,
+                "maximum_no_progress_streak_seen": self.maximum_no_progress_streak_seen,
                 "requested_action": requested_action.name,
                 "executed_action": executed_action.name,
                 "action_was_masked": action_was_masked,
                 "valid_actions": valid_action_names(mask_after),
-                "frontier_distance": frontier_distance_after,
+                "frontier_distance": context_after.frontier_distance,
+                "frontier_progress": frontier_progress,
+                "frontier_escape_active": escape_active_after,
+                "frontier_escape_step": escape_active_before,
+                "frontier_escape_succeeded": escape_active_before and discovered,
                 "recovery_needed_before": recovery_needed_before,
                 "recovery_succeeded": recovery_succeeded,
                 "stagnation_truncated": stagnation_truncated,
@@ -398,6 +461,7 @@ class MapperSimulatorCore:
             steps_since_discovery=self.steps_since_discovery,
             frontier_relative_direction=direction,
             frontier_distance=distance,
+            frontier_escape_steps=self.config.frontier_escape_steps,
         )
         self._cached_policy_key = cache_key
         return self._cached_policy_context
@@ -418,6 +482,7 @@ class MapperSimulatorCore:
             self.step_count,
             len(self.path),
             self.steps_since_discovery,
+            self.steps_since_progress,
             self._map_revision,
         )
 

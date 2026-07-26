@@ -1,8 +1,8 @@
 {
   "algorithm": "MaskablePPO",
-  "final_checkpoint": "models\\mapping\\mapper_explorer_ppo_final.zip",
+  "final_checkpoint": "models\\mapper_explorer_ppo_final.zip",
   "live_mode": "shadow_only",
-  "observation_contract": "v1.9-frontier-escape-state43",
+  "observation_contract": "v1.8-bounded-recovery-state43",
   "selected_checkpoint": "best_evaluation",
   "simulator": {
     "base_camera_obstruction_probability": 0.018,
@@ -12,10 +12,8 @@
     "consecutive_wait_penalty": 0.12,
     "contact_camera_obstruction_probability": 0.16,
     "failed_recovery_penalty": 0.08,
-    "frontier_escape_steps": 30,
-    "frontier_escape_success_reward": 0.75,
-    "frontier_progress_reward": 0.16,
-    "frontier_regression_penalty": 0.08,
+    "frontier_progress_reward": 0.08,
+    "frontier_regression_penalty": 0.03,
     "heading_dropout_probability": 0.025,
     "invalid_action_penalty": 0.25,
     "invalid_observation_penalty": 0.35,
@@ -28,11 +26,10 @@
     "new_wall_reward": 0.25,
     "reacquire_penalty": 0.04,
     "repeated_contact_penalty": 0.15,
-    "revisit_penalty": 0.04,
     "stagnation_grace_steps": 12,
     "stagnation_penalty": 0.03,
     "stagnation_truncation_penalty": 8.0,
-    "stagnation_truncation_steps": 360,
+    "stagnation_truncation_steps": 180,
     "step_penalty": 0.01,
     "successful_move_bonus": 0.05,
     "successful_recovery_reward": 0.35,
@@ -43,18 +40,16 @@
     "wall_slide_probability": 0.3
   },
   "training": {
-    "checkpoint_dir": "models\\mapping\\checkpoints",
+    "checkpoint_dir": "models/mapper_checkpoints",
     "checkpoint_frequency": 50000,
     "evaluation_episodes": 20,
     "evaluation_frequency": 25000,
-    "model_path": "models\\mapping\\mapper_explorer_ppo",
+    "model_path": "models/mapper_explorer_ppo",
     "parallel_envs": 8,
-    "resume_from": "models\\mapping\\archive\\mapper_explorer_ppo_v18_100k.zip",
     "seed": 7,
-    "tensorboard_dir": "training_logs\\mapping",
+    "tensorboard_dir": "training_logs/mapper_rl",
     "total_timesteps": 100000
   },
-  "training_note": "v1.9 preserves bounded recovery, enters deterministic frontier escape after prolonged non-discovery, rewards shortest-path frontier progress and truncates only after a longer interval with no useful progress",
-  "version": 4,
-  "warm_started_from": "models\\mapping\\archive\\mapper_explorer_ppo_v18_100k.zip"
+  "training_note": "v1.8 bounds passive waiting, requires active recovery for heading/pose loss, penalises unproductive recovery and promotes the best evaluation checkpoint while preserving the final checkpoint",
+  "version": 3
 }

@@ -6,6 +6,8 @@ from itertools import pairwise
 from pathlib import Path
 from time import monotonic, perf_counter, sleep
 
+TEST_APP_ROOT = Path(__file__).resolve().parents[1]
+
 import cv2 as cv
 import numpy as np
 import pytest
@@ -419,7 +421,7 @@ def test_local_refinement_centers_identical_score_ties_on_coarse_winner() -> Non
 
 def test_named_direction_assets_round_trip_to_their_anchor_headings() -> None:
     detector = MinimapHeadingDetector()
-    asset_root = Path(__file__).parents[1] / "foreground_vision_bot" / "assets" / "map"
+    asset_root = TEST_APP_ROOT / "assets" / "map"
     anchors = {
         "n": 0.0,
         "ne": 45.0,
@@ -467,8 +469,7 @@ def test_geometry_preserves_rotated_source_motion_and_bounded_absolute_angle(
 ) -> None:
     detector = MinimapHeadingDetector()
     source_path = (
-        Path(__file__).parents[1]
-        / "foreground_vision_bot"
+        TEST_APP_ROOT
         / "assets"
         / "map"
         / f"map_arrow_{name}.png"
@@ -579,8 +580,7 @@ def test_normal_geometry_read_does_not_run_template_or_contour(
 ) -> None:
     detector = MinimapHeadingDetector()
     source_path = (
-        Path(__file__).parents[1]
-        / "foreground_vision_bot"
+        TEST_APP_ROOT
         / "assets"
         / "map"
         / "map_arrow_n.png"
@@ -619,8 +619,7 @@ def test_normal_geometry_read_keeps_template_matching_out_of_fast_path() -> None
     detector = MinimapHeadingDetector()
     source = cv.imread(
         str(
-            Path(__file__).parents[1]
-            / "foreground_vision_bot"
+            TEST_APP_ROOT
             / "assets"
             / "map"
             / "map_arrow_n.png"
@@ -652,8 +651,7 @@ def test_template_and_contour_diagnostics_are_populated_only_when_saved(
     detector._debug_root = tmp_path
     source = cv.imread(
         str(
-            Path(__file__).parents[1]
-            / "foreground_vision_bot"
+            TEST_APP_ROOT
             / "assets"
             / "map"
             / "map_arrow_n.png"
@@ -716,8 +714,7 @@ def test_observed_heading_delta_prefers_equivariant_motion_angle() -> None:
 
 def test_saved_runtime_crop_geometry_is_monotonic_and_bounded() -> None:
     crop_path = (
-        Path(__file__).parents[1]
-        / "foreground_vision_bot"
+        TEST_APP_ROOT
         / "debug"
         / "minimap_heading"
         / "20260725_233122_779654"

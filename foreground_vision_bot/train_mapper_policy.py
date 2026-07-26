@@ -29,6 +29,7 @@ class MapperRLTrainingConfig:
     model_path: str = str(MAPPING_MODEL_RELATIVE)
     checkpoint_dir: str = str(MAPPING_CHECKPOINTS_RELATIVE)
     tensorboard_dir: str = str(MAPPING_TRAINING_LOGS_RELATIVE)
+    resume_from: str | None = None
 
     def __post_init__(self) -> None:
         if self.total_timesteps < 1:
@@ -152,21 +153,35 @@ def train_mapper_policy(
         "Starting mapper RL simulator training. The game window is not used. "
         f"Environments={config.parallel_envs}, timesteps={config.total_timesteps:,}."
     )
-    model = MaskablePPO(
-        "MultiInputPolicy",
-        training_env,
-        verbose=0,
-        tensorboard_log=str(tensorboard_dir),
-        seed=config.seed,
-        learning_rate=3e-4,
-        n_steps=512,
-        batch_size=256,
-        gamma=0.995,
-        gae_lambda=0.95,
-        ent_coef=0.015,
-        clip_range=0.20,
-        policy_kwargs={"net_arch": {"pi": [256, 128], "vf": [256, 128]}},
-    )
+    if config.resume_from:
+        resume_path = resolve_app_path(config.resume_from)
+        if not resume_path.is_file():
+            raise FileNotFoundError(f"Mapper resume model does not exist: {resume_path}")
+        status(f"Warm-starting mapper policy from {resume_path}.")
+        model = MaskablePPO.load(
+            str(resume_path),
+            env=training_env,
+            tensorboard_log=str(tensorboard_dir),
+        )
+        # Keep the trained weights and optimiser state, but report this v1.9 run
+        # from zero so --timesteps means additional training work.
+        model.num_timesteps = 0
+    else:
+        model = MaskablePPO(
+            "MultiInputPolicy",
+            training_env,
+            verbose=0,
+            tensorboard_log=str(tensorboard_dir),
+            seed=config.seed,
+            learning_rate=3e-4,
+            n_steps=512,
+            batch_size=256,
+            gamma=0.995,
+            gae_lambda=0.95,
+            ent_coef=0.015,
+            clip_range=0.20,
+            policy_kwargs={"net_arch": {"pi": [256, 128], "vf": [256, 128]}},
+        )
     selected_checkpoint = "final"
     try:
         model.learn(
@@ -182,18 +197,19 @@ def train_mapper_policy(
             copy2(final_model_zip, selected_model_zip)
 
         metadata = {
-            "version": 3,
+            "version": 4,
             "algorithm": "MaskablePPO",
-            "observation_contract": "v1.8-bounded-recovery-state43",
+            "observation_contract": "v1.9-frontier-escape-state43",
             "training": asdict(config),
             "simulator": asdict(simulator_config),
             "live_mode": "shadow_only",
             "selected_checkpoint": selected_checkpoint,
             "final_checkpoint": display_app_path(final_model_zip),
+            "warm_started_from": config.resume_from,
             "training_note": (
-                "v1.8 bounds passive waiting, requires active recovery for heading/pose "
-                "loss, penalises unproductive recovery and promotes the best evaluation "
-                "checkpoint while preserving the final checkpoint"
+                "v1.9 preserves bounded recovery, enters deterministic frontier escape "
+                "after prolonged non-discovery, rewards shortest-path frontier progress "
+                "and truncates only after a longer interval with no useful progress"
             ),
         }
         write_policy_metadata(model_stem, metadata)
@@ -229,6 +245,14 @@ def _parse_args() -> argparse.Namespace:
         "--model-path",
         default=str(MAPPING_MODEL_RELATIVE),
     )
+    parser.add_argument(
+        "--resume-from",
+        default=None,
+        help=(
+            "Optional compatible MaskablePPO checkpoint used as a warm start. "
+            "The v1.8 state43 model is compatible with v1.9."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -240,6 +264,7 @@ def main() -> None:
             parallel_envs=args.envs,
             seed=args.seed,
             model_path=args.model_path,
+            resume_from=args.resume_from,
         )
     )
 

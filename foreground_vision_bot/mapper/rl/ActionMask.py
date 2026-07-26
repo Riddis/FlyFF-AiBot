@@ -9,6 +9,7 @@ from .PolicyTypes import MapperAction, MotionOutcome, ObservationQuality
 
 
 MAXIMUM_WAIT_STREAK = 2
+DEFAULT_FRONTIER_ESCAPE_STEPS = 30
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,18 @@ class ActionMaskContext:
     turn_streak: int = 0
     wait_streak: int = 0
     maximum_wait_streak: int = MAXIMUM_WAIT_STREAK
+    steps_since_discovery: int = 0
+    frontier_relative_direction: int | None = None
+    frontier_distance: int = 0
+    frontier_escape_steps: int = DEFAULT_FRONTIER_ESCAPE_STEPS
+
+    @property
+    def frontier_escape_active(self) -> bool:
+        return bool(
+            self.frontier_relative_direction is not None
+            and self.frontier_distance > 0
+            and self.steps_since_discovery >= max(1, self.frontier_escape_steps)
+        )
 
 
 def build_action_mask(
@@ -32,10 +45,11 @@ def build_action_mask(
 ) -> NDArray[np.bool_]:
     """Return a boolean mask where True means the action is currently valid.
 
-    v1.8 separates passive camera waiting from active heading/pose recovery. WAIT
-    is available only for a genuine camera obstruction and only for a bounded
-    number of consecutive decisions. Heading loss, unknown pose and unresolved
-    observations must use REACQUIRE_HEADING instead of waiting forever.
+    Recovery remains safety-first. During ordinary navigation the policy keeps
+    the v1.8 freedom to move or turn. Once it has failed to discover anything
+    for a bounded interval, v1.9 enters *frontier escape*: only actions that
+    rotate toward or advance along the shortest known frontier route remain
+    valid. This prevents a learned local loop from consuming the whole episode.
     """
 
     mask = np.zeros(len(MapperAction), dtype=np.bool_)
@@ -56,8 +70,6 @@ def build_action_mask(
     recovery_needed = camera_recovery_needed or active_recovery_needed
 
     if recovery_needed:
-        # REACQUIRE_HEADING is the escape hatch for every invalid state and is
-        # mandatory once the passive wait budget has been exhausted.
         mask[MapperAction.REACQUIRE_HEADING] = True
 
         passive_wait_allowed = (
@@ -86,6 +98,9 @@ def build_action_mask(
         MotionOutcome.CONTACT_SLIDE,
     )
 
+    if context.frontier_escape_active:
+        return _frontier_escape_mask(context, contact=contact)
+
     if not contact:
         mask[MapperAction.FORWARD] = True
     if context.backtrack_available:
@@ -112,6 +127,57 @@ def build_action_mask(
         mask[MapperAction.TURN_RIGHT] = True
 
     return _ensure_nonempty(mask)
+
+
+def _frontier_escape_mask(
+    context: ActionMaskContext,
+    *,
+    contact: bool,
+) -> NDArray[np.bool_]:
+    """Constrain a stalled policy to the next shortest-path frontier action."""
+
+    mask = np.zeros(len(MapperAction), dtype=np.bool_)
+    relative = int(context.frontier_relative_direction or 0) % 4
+
+    if contact:
+        # The known route may just have been invalidated by a newly observed
+        # wall. Keep the directional turn when one exists, but retain backtrack
+        # as a guaranteed way out until the next context recomputation.
+        if context.backtrack_available:
+            mask[MapperAction.BACKTRACK] = True
+        if relative == 1:
+            mask[MapperAction.TURN_LEFT] = True
+        elif relative == 3:
+            mask[MapperAction.TURN_RIGHT] = True
+        else:
+            _enable_u_turn(mask, context)
+        return _ensure_nonempty(mask)
+
+    if relative == 0:
+        mask[MapperAction.FORWARD] = True
+    elif relative == 1:
+        mask[MapperAction.TURN_LEFT] = True
+    elif relative == 3:
+        mask[MapperAction.TURN_RIGHT] = True
+    else:
+        _enable_u_turn(mask, context)
+
+    return _ensure_nonempty(mask)
+
+
+def _enable_u_turn(
+    mask: NDArray[np.bool_],
+    context: ActionMaskContext,
+) -> None:
+    """Choose a stable U-turn direction without permitting left/right ping-pong."""
+
+    if context.last_action is MapperAction.TURN_LEFT and context.turn_streak > 0:
+        mask[MapperAction.TURN_LEFT] = True
+    elif context.last_action is MapperAction.TURN_RIGHT and context.turn_streak > 0:
+        mask[MapperAction.TURN_RIGHT] = True
+    else:
+        mask[MapperAction.TURN_LEFT] = True
+        mask[MapperAction.TURN_RIGHT] = True
 
 
 def valid_action_names(mask: NDArray[np.bool_]) -> tuple[str, ...]:

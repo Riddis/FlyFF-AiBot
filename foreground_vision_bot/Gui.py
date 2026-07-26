@@ -140,30 +140,6 @@ class Gui:
             if event == "-SET_MINIMAP_ANCHOR-":
                 self.__set_minimap_anchor(bot)
 
-            if event == "-CALIBRATE_MAPPER-":
-                self.__clear_manual_calibration_artifacts()
-                self.__start_control(
-                    lambda: self.controller.start_calibration(
-                        visual_confirmation=False
-                    ),
-                    "Calibration",
-                    (
-                        "Starting legacy mapper calibration. The adaptive mapper "
-                        "does not require this; use it only for rollback testing."
-                    ),
-                )
-
-            if event == "-DEBUG_CALIBRATE_MAPPER-":
-                self.__clear_manual_calibration_artifacts()
-                self.__start_control(
-                    lambda: self.controller.start_calibration(visual_confirmation=True),
-                    "Calibration",
-                    (
-                        "Starting legacy visual calibration. The adaptive mapper "
-                        "does not require this; use it only for diagnostics."
-                    ),
-                )
-
             if event == "-SHOW_LOG-":
                 self.__show_log_window()
 
@@ -564,13 +540,13 @@ class Gui:
         self.window["-RUN_AGENT-"].update(disabled=(not attached or running))
         self.window["-START_MAPPER-"].update(disabled=(not attached or running))
         self.window["-SET_MINIMAP_ANCHOR-"].update(disabled=(not attached or running))
-        self.window["-CALIBRATE_MAPPER-"].update(disabled=(not attached or running))
-        self.window["-DEBUG_CALIBRATE_MAPPER-"].update(
-            disabled=(not attached or running)
-        )
         self.window["-STOP_BOT-"].update(disabled=(not attached or not running))
         self.window["-ATTACH_WINDOW-"].update(disabled=running)
         self.window["-MAP-NAME-"].update(disabled=running)
+        self.window["-ADD_MAP-"].update(disabled=running)
+        self.window["-EDIT_MAP_MOBS-"].update(disabled=running)
+        self.window["-RESET_MAP-"].update(disabled=running)
+        self.window["-DELETE_MAP-"].update(disabled=running)
 
     def __set_minimap_anchor(self, bot):
         if self.controller.control_active:
@@ -974,20 +950,6 @@ class Gui:
                         "Set Minimap Center",
                         disabled=True,
                         key="-SET_MINIMAP_ANCHOR-",
-                        expand_x=True,
-                    ),
-                    sg.Button(
-                        "Legacy Mapper Calibration",
-                        disabled=True,
-                        key="-CALIBRATE_MAPPER-",
-                        expand_x=True,
-                    ),
-                ],
-                [
-                    sg.Button(
-                        "Legacy Visual Calibration",
-                        disabled=True,
-                        key="-DEBUG_CALIBRATE_MAPPER-",
                         expand_x=True,
                     ),
                 ],

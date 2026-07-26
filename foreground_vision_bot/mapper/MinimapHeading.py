@@ -85,7 +85,7 @@ def counterclockwise_delta(start: float, current: float) -> float:
 
 
 class MinimapHeadingDetector:
-    VERSION = "7.2-background-normalized-grayscale-geometry"
+    VERSION = "7.3-canonical-zero-grayscale-geometry"
     STRICT_CONSENSUS_FLOOR_DEGREES = 1.0
     GEOMETRY_MINIMUM_VISIBLE_PIXELS = 24
     GEOMETRY_MINIMUM_BRIGHTNESS_MASS = 10.0
@@ -1327,7 +1327,15 @@ class MinimapHeadingDetector:
         lower_raw, lower_heading = calibration[upper_index - 1]
         upper_raw, upper_heading = calibration[upper_index]
         fraction = (unwrapped - lower_raw) / (upper_raw - lower_raw)
-        return (lower_heading + fraction * (upper_heading - lower_heading)) % 360.0
+        calibrated = (
+            lower_heading + fraction * (upper_heading - lower_heading)
+        ) % 360.0
+        # Python's floating-point modulo can return 360.0 for a tiny negative
+        # interpolation residue at north. Keep the public angle contract in the
+        # half-open interval [0, 360) and make the north anchor exactly 0.0.
+        if calibrated >= 360.0 - 1e-9 or calibrated <= 1e-9:
+            return 0.0
+        return float(calibrated)
 
     def _templates_for_heading(self, heading: float) -> list[np.ndarray]:
         """
