@@ -126,3 +126,60 @@ def test_invalid_forward_during_camera_obstruction_loses_pose_confidence() -> No
     assert not core.pose_known
     assert result.info["motion_outcome"] == MotionOutcome.INVALID_OBSERVATION.name
     assert result.reward < -0.3
+
+
+def test_default_training_target_is_attainable_curriculum() -> None:
+    config = MapperSimulatorConfig()
+
+    assert config.max_steps == 1200
+    assert config.completion_coverage == 0.60
+
+
+def test_repeated_contact_penalty_is_capped() -> None:
+    config = MapperSimulatorConfig(
+        base_camera_obstruction_probability=0.0,
+        contact_camera_obstruction_probability=0.0,
+        heading_dropout_probability=0.0,
+        turn_heading_dropout_probability=0.0,
+        wall_slide_probability=0.0,
+        step_penalty=0.0,
+        new_wall_reward=0.0,
+        repeated_contact_penalty=1.0,
+        maximum_contact_penalty_streak=2,
+        stagnation_grace_steps=100,
+    )
+    core = MapperSimulatorCore(
+        config=config,
+        generator=FixedGenerator(corridor_layout()),
+    )
+    core.reset(seed=20)
+    core.heading_index = 3
+
+    rewards = [core.step(MapperAction.FORWARD).reward for _ in range(4)]
+
+    assert rewards == [-1.0, -2.0, -2.0, -2.0]
+
+
+def test_stagnation_penalty_only_starts_after_grace() -> None:
+    config = MapperSimulatorConfig(
+        base_camera_obstruction_probability=0.0,
+        heading_dropout_probability=0.0,
+        turn_heading_dropout_probability=0.0,
+        step_penalty=0.0,
+        wait_penalty=0.0,
+        stagnation_grace_steps=2,
+        stagnation_penalty=0.5,
+    )
+    core = MapperSimulatorCore(
+        config=config,
+        generator=FixedGenerator(corridor_layout()),
+    )
+    core.reset(seed=21)
+
+    first = core.step(MapperAction.WAIT).reward
+    second = core.step(MapperAction.WAIT).reward
+    third = core.step(MapperAction.WAIT).reward
+
+    assert first == 0.0
+    assert second == 0.0
+    assert third < 0.0

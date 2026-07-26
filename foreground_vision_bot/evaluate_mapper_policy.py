@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,6 +15,11 @@ class EvaluationSummary:
     mean_coverage: float
     mean_reward: float
     mean_steps: float
+    median_coverage: float
+    p90_coverage: float
+    action_counts: dict[str, int]
+    contact_rate: float
+    invalid_observation_rate: float
 
 
 def evaluate_policy(
@@ -29,6 +35,7 @@ def evaluate_policy(
             "Evaluation requires stable-baselines3 and gymnasium."
         ) from error
     from mapper.rl.GymEnv import MapperSimEnv
+    from mapper.rl.PolicyTypes import MapperAction
 
     model = PPO.load(str(model_path))
     env = MapperSimEnv()
@@ -36,6 +43,10 @@ def evaluate_policy(
     rewards: list[float] = []
     steps: list[int] = []
     completed = 0
+    action_counts: Counter[str] = Counter()
+    contact_steps = 0
+    invalid_steps = 0
+    total_steps = 0
     try:
         for episode in range(episodes):
             observation, _info = env.reset(seed=seed + episode)
@@ -46,8 +57,15 @@ def evaluate_policy(
             info: dict[str, object] = {}
             while not (terminated or truncated):
                 action, _state = model.predict(observation, deterministic=True)
+                action_value = int(action.item() if hasattr(action, "item") else action)
+                action_counts[MapperAction(action_value).name] += 1
                 observation, reward, terminated, truncated, info = env.step(
-                    int(action.item() if hasattr(action, "item") else action)
+                    action_value
+                )
+                total_steps += 1
+                contact_steps += int(info.get("quality") == "CONTACT")
+                invalid_steps += int(
+                    info.get("motion_outcome") == "INVALID_OBSERVATION"
                 )
                 total_reward += float(reward)
                 episode_steps += 1
@@ -65,6 +83,11 @@ def evaluate_policy(
         mean_coverage=float(np.mean(coverages)),
         mean_reward=float(np.mean(rewards)),
         mean_steps=float(np.mean(steps)),
+        median_coverage=float(np.median(coverages)),
+        p90_coverage=float(np.percentile(coverages, 90)),
+        action_counts=dict(sorted(action_counts.items())),
+        contact_rate=(contact_steps / max(1, total_steps)),
+        invalid_observation_rate=(invalid_steps / max(1, total_steps)),
     )
 
 
@@ -82,7 +105,12 @@ def main() -> None:
         f"episodes={summary.episodes} completed={summary.completed} "
         f"mean_coverage={summary.mean_coverage:.3f} "
         f"mean_reward={summary.mean_reward:.2f} "
-        f"mean_steps={summary.mean_steps:.1f}"
+        f"mean_steps={summary.mean_steps:.1f} "
+        f"median_coverage={summary.median_coverage:.3f} "
+        f"p90_coverage={summary.p90_coverage:.3f} "
+        f"contact_rate={summary.contact_rate:.3f} "
+        f"invalid_rate={summary.invalid_observation_rate:.3f} "
+        f"actions={summary.action_counts}"
     )
 
 

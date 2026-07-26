@@ -13,6 +13,7 @@ from libs.HumanKeyboard import HumanKeyboard, KeyPressTiming
 from worker_manager import CancellationToken
 
 from .AdaptiveMappingController import AdaptiveMappingController
+from .AdaptiveHeadingSafety import classify_forward_heading_drift
 from .AdaptiveMotionModel import (
     AdaptiveForwardOutcome,
     AdaptiveMotionModel,
@@ -62,6 +63,10 @@ class MapperConfig:
     maximum_heading_ambiguity: float = 0.85
     minimum_heading_confidence: float = 0.45
     maximum_forward_heading_drift_degrees: float = 8.0
+    maximum_recoverable_forward_heading_drift_degrees: float = 20.0
+    post_turn_heading_settle_attempts: int = 3
+    post_turn_heading_settle_seconds: float = 0.16
+    post_turn_heading_stability_degrees: float = 4.0
     minimum_step_cells: float = 0.75
     maximum_step_cells: float = 1.25
     minimum_odometry_confidence: float = 0.42
@@ -89,6 +94,19 @@ class MapperConfig:
             raise ValueError("heading confidence limit must be between 0 and 1")
         if not 0.0 <= self.minimum_odometry_confidence <= 1.0:
             raise ValueError("odometry confidence must be between 0 and 1")
+        if (
+            self.maximum_recoverable_forward_heading_drift_degrees
+            < self.maximum_forward_heading_drift_degrees
+        ):
+            raise ValueError(
+                "recoverable forward heading drift must not be below the nominal limit"
+            )
+        if self.post_turn_heading_settle_attempts < 1:
+            raise ValueError("post-turn heading settle attempts must be positive")
+        if self.post_turn_heading_settle_seconds < 0.0:
+            raise ValueError("post-turn heading settle time cannot be negative")
+        if self.post_turn_heading_stability_degrees <= 0.0:
+            raise ValueError("post-turn heading stability must be positive")
         if self.minimum_step_cells <= 0.0:
             raise ValueError("minimum_step_cells must be positive")
         if self.maximum_step_cells < self.minimum_step_cells:
@@ -130,7 +148,7 @@ class AdaptiveMapper:
     still fails closed so map drift is not silently accumulated.
     """
 
-    VERSION = "1.5-rl-simulator-shadow-foundation"
+    VERSION = "1.6-rl-curriculum-and-heading-settle"
 
     def __init__(
         self,
@@ -203,6 +221,7 @@ class AdaptiveMapper:
         self._blocked_observations: dict[tuple[int, int], int] = {}
         self._last_map_publish_at = 0.0
         self._map_publish_interval = 0.25
+        self._forward_heading_settle_required = False
         self._set_pose_reliability(
             position_known=False,
             heading_known=False,
@@ -356,8 +375,8 @@ class AdaptiveMapper:
                 reason = f"Mapper lost a reliable heading during {decision.action}: {error}"
                 if self._attempt_manual_recovery(
                     reason,
-                    can_retry_in_place=(decision.action != "FORWARD"),
-                    requires_spawn_reset=(decision.action == "FORWARD"),
+                    can_retry_in_place=self._position_known,
+                    requires_spawn_reset=not self._position_known,
                 ):
                     continue
                 self.grid.metadata.termination_reason = reason
@@ -464,6 +483,7 @@ class AdaptiveMapper:
         self._align_to_nearest_cardinal(initial_heading)
         self._blocked_observations.clear()
         self.run_motion_baseline.clear()
+        self._forward_heading_settle_required = False
         self.heading_detector.reset_fast()
         if manual:
             self.grid.metadata.manual_spawn_resets += 1
@@ -596,6 +616,7 @@ class AdaptiveMapper:
             heading_known=True,
             note="Position and post-turn heading confirmed.",
         )
+        self._forward_heading_settle_required = True
         if self.grid.pose.heading_index != target_index:
             raise AdaptiveTurnError(
                 "Validated adaptive turn did not resolve to the intended cardinal."
@@ -618,7 +639,46 @@ class AdaptiveMapper:
             turn_result=turn,
         )
 
+    def _settle_heading_before_forward(self) -> HeadingReading:
+        previous = self._strict_heading(
+            "Post-turn heading settle baseline",
+            samples=9,
+        )
+        self.grid.set_heading_degrees(previous.angle_deg)
+        self._remember_heading(previous)
+        for attempt in range(1, self.config.post_turn_heading_settle_attempts + 1):
+            if self.cancellation.wait(self.config.post_turn_heading_settle_seconds):
+                self.cancellation.raise_if_cancelled()
+            current = self._strict_heading(
+                f"Post-turn heading settle {attempt}",
+                samples=9,
+            )
+            drift = signed_angle_delta(current.angle_deg, previous.angle_deg)
+            self.grid.set_heading_degrees(current.angle_deg)
+            self._remember_heading(current)
+            if abs(drift) <= self.config.post_turn_heading_stability_degrees:
+                self._forward_heading_settle_required = False
+                if attempt > 1:
+                    self.status_callback(
+                        "Post-turn heading settled before forward movement at "
+                        f"{current.angle_deg:.1f}°."
+                    )
+                return current
+            self.status_callback(
+                "Post-turn heading was still settling "
+                f"({previous.angle_deg:.1f}° -> {current.angle_deg:.1f}°, "
+                f"{drift:+.1f}°); waiting before forward movement "
+                f"({attempt}/{self.config.post_turn_heading_settle_attempts})."
+            )
+            previous = current
+        raise HeadingAcquisitionError(
+            "Heading continued to drift after the completed turn. The character "
+            "has not moved forward, so recovery in place is safe."
+        )
+
     def _execute_forward(self, step: int) -> _StepResult:
+        if self._forward_heading_settle_required:
+            self._settle_heading_before_forward()
         before = self._wait_for_frame_sample(not_before=monotonic())
         start_heading = self.grid.continuous_pose.heading_deg
         travel_heading_index = self.grid.pose.heading_index
@@ -683,34 +743,12 @@ class AdaptiveMapper:
             samples=11,
         )
         self._remember_heading(strict_heading)
+        self._forward_heading_settle_required = False
         self._set_pose_reliability(
             heading_known=True,
             note="Post-forward heading confirmed; position awaits visual validation.",
         )
         heading_change = signed_angle_delta(strict_heading.angle_deg, start_heading)
-        if abs(heading_change) > self.config.maximum_forward_heading_drift_degrees:
-            motion_debug_path = motion_debug_path or self._save_motion_debug(
-                step, before, after, motion
-            )
-            self.grid.set_heading_degrees(strict_heading.angle_deg)
-            return _StepResult(
-                frame_sample=after,
-                fast_heading=fast_heading,
-                strict_heading=strict_heading,
-                motion=motion,
-                forward_assessment=None,
-                key_timing=timing,
-                distance_cells=None,
-                integration=None,
-                pose_known=False,
-                motion_debug_path=motion_debug_path,
-                recovery_reason=(
-                    "Forward movement changed heading by "
-                    f"{heading_change:+.1f}°. The new position is not trusted; "
-                    "return manually to the known spawn to continue safely."
-                ),
-                recovery_requires_spawn_reset=True,
-            )
 
         assessment = self._assess_forward_motion(
             motion,
@@ -758,6 +796,40 @@ class AdaptiveMapper:
                 pose_known=(self._position_known and self._heading_known),
                 stop_reason=stop_reason,
                 motion_debug_path=motion_debug_path,
+            )
+
+        heading_drift_mode = classify_forward_heading_drift(
+            heading_change,
+            nominal_limit=self.config.maximum_forward_heading_drift_degrees,
+            recoverable_limit=(
+                self.config.maximum_recoverable_forward_heading_drift_degrees
+            ),
+        )
+        if (
+            assessment.outcome is AdaptiveForwardOutcome.MOVED
+            and heading_drift_mode == "unsafe"
+        ):
+            motion_debug_path = motion_debug_path or self._save_motion_debug(
+                step, before, after, motion
+            )
+            self.grid.set_heading_degrees(strict_heading.angle_deg)
+            return _StepResult(
+                frame_sample=after,
+                fast_heading=fast_heading,
+                strict_heading=strict_heading,
+                motion=motion,
+                forward_assessment=assessment,
+                key_timing=timing,
+                distance_cells=assessment.distance_cells,
+                integration=None,
+                pose_known=False,
+                motion_debug_path=motion_debug_path,
+                recovery_reason=(
+                    "Forward travel changed heading by "
+                    f"{heading_change:+.1f}°, beyond the recoverable curved-step "
+                    "limit. Return manually to the known spawn before continuing."
+                ),
+                recovery_requires_spawn_reset=True,
             )
 
         if assessment.outcome is AdaptiveForwardOutcome.UNCERTAIN:
@@ -821,10 +893,18 @@ class AdaptiveMapper:
 
         self._blocked_observations.pop(target_cell, None)
         midpoint_heading = (start_heading + 0.5 * heading_change) % 360.0
+        integration_confidence = assessment.confidence
+        if heading_drift_mode == "recoverable":
+            integration_confidence *= 0.75
+            self.status_callback(
+                "Forward step included moderate heading drift "
+                f"({heading_change:+.1f}°); integrating along the midpoint heading "
+                "with reduced confidence instead of discarding the confirmed move."
+            )
         self.grid.set_heading_degrees(midpoint_heading)
         integration = self.grid.integrate_forward(
             distance_cells,
-            confidence=assessment.confidence,
+            confidence=integration_confidence,
             minimum_confidence=self.config.minimum_odometry_confidence,
             maximum_distance_cells=self.config.maximum_step_cells,
         )

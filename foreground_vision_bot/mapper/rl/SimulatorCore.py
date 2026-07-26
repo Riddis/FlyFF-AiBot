@@ -14,7 +14,7 @@ from .ProceduralDungeon import DungeonLayout, ProceduralDungeonGenerator
 
 @dataclass(frozen=True)
 class MapperSimulatorConfig:
-    max_steps: int = 900
+    max_steps: int = 1200
     base_camera_obstruction_probability: float = 0.018
     contact_camera_obstruction_probability: float = 0.16
     maximum_camera_obstruction_steps: int = 4
@@ -22,17 +22,20 @@ class MapperSimulatorConfig:
     turn_heading_dropout_probability: float = 0.08
     wall_slide_probability: float = 0.30
     lateral_slide_cell_probability: float = 0.12
-    completion_coverage: float = 0.97
+    completion_coverage: float = 0.60
 
-    new_free_reward: float = 1.0
-    new_wall_reward: float = 0.18
-    completion_reward: float = 8.0
-    step_penalty: float = 0.015
-    turn_penalty: float = 0.025
-    wait_penalty: float = 0.025
-    repeated_contact_penalty: float = 0.12
-    invalid_observation_penalty: float = 0.45
-    successful_recovery_reward: float = 0.30
+    new_free_reward: float = 1.25
+    new_wall_reward: float = 0.25
+    completion_reward: float = 20.0
+    step_penalty: float = 0.010
+    turn_penalty: float = 0.020
+    wait_penalty: float = 0.020
+    repeated_contact_penalty: float = 0.15
+    maximum_contact_penalty_streak: int = 4
+    invalid_observation_penalty: float = 0.35
+    successful_recovery_reward: float = 0.35
+    stagnation_grace_steps: int = 12
+    stagnation_penalty: float = 0.030
 
     def __post_init__(self) -> None:
         if self.max_steps < 10:
@@ -50,6 +53,12 @@ class MapperSimulatorConfig:
             raise ValueError("simulator probabilities must be between zero and one")
         if self.maximum_camera_obstruction_steps < 1:
             raise ValueError("maximum obstruction duration must be positive")
+        if self.maximum_contact_penalty_streak < 1:
+            raise ValueError("maximum contact penalty streak must be positive")
+        if self.stagnation_grace_steps < 0:
+            raise ValueError("stagnation grace steps cannot be negative")
+        if self.stagnation_penalty < 0.0:
+            raise ValueError("stagnation penalty cannot be negative")
 
 
 @dataclass(frozen=True)
@@ -95,6 +104,7 @@ class MapperSimulatorCore:
         self.path: list[tuple[int, int]] = []
         self.discovered_free = 0
         self.discovered_walls = 0
+        self.steps_since_discovery = 0
 
     def reset(self, seed: int | None = None) -> dict[str, NDArray[np.float32]]:
         self.rng = np.random.default_rng(seed)
@@ -114,6 +124,7 @@ class MapperSimulatorCore:
         self.path = []
         self.discovered_free = 0
         self.discovered_walls = 0
+        self.steps_since_discovery = 0
         self._mark_free(self.position)
         return self.observation()
 
@@ -133,9 +144,9 @@ class MapperSimulatorCore:
             if outcome is MotionOutcome.INVALID_OBSERVATION:
                 reward -= self.config.invalid_observation_penalty
             elif outcome in (MotionOutcome.BLOCKED, MotionOutcome.CONTACT_SLIDE):
-                reward -= self.config.repeated_contact_penalty * max(
-                    1,
-                    self.contact_streak,
+                reward -= self.config.repeated_contact_penalty * min(
+                    self.config.maximum_contact_penalty_streak,
+                    max(1, self.contact_streak),
                 )
         elif action is MapperAction.TURN_LEFT:
             self.heading_index = (self.heading_index + 1) % 4
@@ -182,6 +193,14 @@ class MapperSimulatorCore:
         if recovered:
             reward += self.config.successful_recovery_reward
 
+        if newly_free > 0 or newly_blocked > 0:
+            self.steps_since_discovery = 0
+        else:
+            self.steps_since_discovery += 1
+            overdue = self.steps_since_discovery - self.config.stagnation_grace_steps
+            if overdue > 0:
+                reward -= self.config.stagnation_penalty * min(5.0, 1.0 + overdue / 20.0)
+
         self._advance_camera_state()
         self._maybe_drop_heading(after_turn=False)
         self._update_quality()
@@ -205,6 +224,7 @@ class MapperSimulatorCore:
                 "camera_obscured": self.camera_obscured_remaining > 0,
                 "heading_available": self.heading_available,
                 "contact_streak": self.contact_streak,
+                "steps_since_discovery": self.steps_since_discovery,
             },
         )
 

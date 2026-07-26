@@ -3,22 +3,25 @@
   "live_mode": "shadow_only",
   "simulator": {
     "base_camera_obstruction_probability": 0.018,
-    "completion_coverage": 0.97,
-    "completion_reward": 8.0,
+    "completion_coverage": 0.6,
+    "completion_reward": 20.0,
     "contact_camera_obstruction_probability": 0.16,
     "heading_dropout_probability": 0.025,
-    "invalid_observation_penalty": 0.45,
+    "invalid_observation_penalty": 0.35,
     "lateral_slide_cell_probability": 0.12,
-    "max_steps": 900,
+    "max_steps": 1200,
     "maximum_camera_obstruction_steps": 4,
-    "new_free_reward": 1.0,
-    "new_wall_reward": 0.18,
-    "repeated_contact_penalty": 0.12,
-    "step_penalty": 0.015,
-    "successful_recovery_reward": 0.3,
+    "maximum_contact_penalty_streak": 4,
+    "new_free_reward": 1.25,
+    "new_wall_reward": 0.25,
+    "repeated_contact_penalty": 0.15,
+    "stagnation_grace_steps": 12,
+    "stagnation_penalty": 0.03,
+    "step_penalty": 0.01,
+    "successful_recovery_reward": 0.35,
     "turn_heading_dropout_probability": 0.08,
-    "turn_penalty": 0.025,
-    "wait_penalty": 0.025,
+    "turn_penalty": 0.02,
+    "wait_penalty": 0.02,
     "wall_slide_probability": 0.3
   },
   "training": {
@@ -32,5 +35,6 @@
     "tensorboard_dir": "training_logs/mapper_rl",
     "total_timesteps": 500000
   },
+  "training_note": "v1.6 uses a 60% exploration curriculum target, capped contact penalties and stagnation shaping before later full-map training",
   "version": 1
 }

@@ -164,6 +164,10 @@ def train_mapper_policy(
                 "training": asdict(config),
                 "simulator": asdict(simulator_config),
                 "live_mode": "shadow_only",
+                "training_note": (
+                    "v1.6 uses a 60% exploration curriculum target, capped contact "
+                    "penalties and stagnation shaping before later full-map training"
+                ),
             },
         )
     finally:
