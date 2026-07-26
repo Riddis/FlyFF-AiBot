@@ -71,7 +71,7 @@ class SuspectedTransition(TypedDict):
 
 @dataclass
 class GridMetadata:
-    version: int = 3
+    version: int = 4
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
@@ -88,6 +88,13 @@ class GridMetadata:
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
     termination_reason: str | None = None
+    map_name: str = "Unnamed Map"
+    run_count: int = 0
+    heading_recovery_successes: int = 0
+    manual_spawn_resets: int = 0
+    updated_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
 
 
 class OccupancyGrid:
@@ -128,6 +135,10 @@ class OccupancyGrid:
         if not (0 <= gx < self.size and 0 <= gy < self.size):
             return BLOCKED
         return int(self.cells[gy, gx])
+
+    def known_cell_count(self) -> int:
+        return int(np.count_nonzero(self.cells != UNKNOWN))
+
 
     def set_continuous_pose(
         self,
@@ -514,7 +525,7 @@ class OccupancyGrid:
         path.reverse()
         return path
 
-    def render(self, scale: int = 3, crop_radius: int = 65) -> np.ndarray:
+    def _render_full(self) -> np.ndarray:
         palette = np.array(
             [
                 [90, 90, 90],
@@ -524,7 +535,7 @@ class OccupancyGrid:
             ],
             dtype=np.uint8,
         )
-        image = palette[self.cells]
+        image = palette[self.cells].copy()
         px, py = self.world_to_cell(self.pose.x, self.pose.y)
         px = int(np.clip(px, 0, self.size - 1))
         py = int(np.clip(py, 0, self.size - 1))
@@ -547,7 +558,13 @@ class OccupancyGrid:
         else:
             cv.line(image, (px - 3, py - 3), (px + 3, py + 3), (255, 0, 255), 1)
             cv.line(image, (px - 3, py + 3), (px + 3, py - 3), (255, 0, 255), 1)
+        return image
 
+    def render(self, scale: int = 3, crop_radius: int = 65) -> np.ndarray:
+        image = self._render_full()
+        px, py = self.world_to_cell(self.pose.x, self.pose.y)
+        px = int(np.clip(px, 0, self.size - 1))
+        py = int(np.clip(py, 0, self.size - 1))
         x0 = max(0, px - crop_radius)
         x1 = min(self.size, px + crop_radius + 1)
         y0 = max(0, py - crop_radius)
@@ -559,8 +576,87 @@ class OccupancyGrid:
             interpolation=cv.INTER_NEAREST,
         )
 
+    def render_overview(self, scale: int = 5, margin: int = 8) -> np.ndarray:
+        """Render every explored cell, not just the area around the current pose."""
+        if scale < 1 or margin < 0:
+            raise ValueError("render scale must be positive and margin non-negative")
+        image = self._render_full()
+        known = np.argwhere(self.cells != UNKNOWN)
+        px, py = self.world_to_cell(self.pose.x, self.pose.y)
+        if known.size == 0:
+            min_y = max(0, py - margin)
+            max_y = min(self.size - 1, py + margin)
+            min_x = max(0, px - margin)
+            max_x = min(self.size - 1, px + margin)
+        else:
+            min_y = max(0, min(int(known[:, 0].min()), py) - margin)
+            max_y = min(self.size - 1, max(int(known[:, 0].max()), py) + margin)
+            min_x = max(0, min(int(known[:, 1].min()), px) - margin)
+            max_x = min(self.size - 1, max(int(known[:, 1].max()), px) + margin)
+        crop = image[min_y : max_y + 1, min_x : max_x + 1]
+        return cv.resize(
+            crop,
+            (max(1, crop.shape[1] * scale), max(1, crop.shape[0] * scale)),
+            interpolation=cv.INTER_NEAREST,
+        )
+
+    @classmethod
+    def load(cls, directory: Path) -> tuple["OccupancyGrid", str | None]:
+        """Load a persistent map, falling back to a new map on any corruption."""
+        state_path = directory / "map.json"
+        occupancy_path = directory / "occupancy.npy"
+        visits_path = directory / "visits.npy"
+        if not (state_path.is_file() and occupancy_path.is_file() and visits_path.is_file()):
+            return cls(), None
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            size = int(state["size"])
+            grid = cls(size=size)
+            cells = np.load(occupancy_path, allow_pickle=False)
+            visits = np.load(visits_path, allow_pickle=False)
+            expected_shape = (size, size)
+            if cells.shape != expected_shape or visits.shape != expected_shape:
+                raise ValueError("persistent map arrays do not match map size")
+            if not np.issubdtype(cells.dtype, np.integer):
+                raise ValueError("occupancy array is not integral")
+            if np.any((cells < UNKNOWN) | (cells > FORBIDDEN)):
+                raise ValueError("occupancy array contains invalid cell values")
+            grid.cells = cells.astype(np.uint8, copy=True)
+            grid.visits = visits.astype(np.uint16, copy=True)
+
+            pose_payload = state.get("pose", {})
+            grid.pose = Pose(
+                x=int(pose_payload.get("x", 0)),
+                y=int(pose_payload.get("y", 0)),
+                heading_index=int(pose_payload.get("heading_index", 0)) % 4,
+            )
+            continuous_payload = state.get("continuous_pose", {})
+            grid.continuous_pose = ContinuousPose(
+                x=float(continuous_payload.get("x", grid.pose.x)),
+                y=float(continuous_payload.get("y", grid.pose.y)),
+                heading_deg=float(
+                    continuous_payload.get(
+                        "heading_deg",
+                        grid.heading_degrees_from_index(grid.pose.heading_index),
+                    )
+                )
+                % 360.0,
+            )
+            metadata_payload = dict(state.get("metadata", {}))
+            if "spawn" in metadata_payload:
+                metadata_payload["spawn"] = tuple(metadata_payload["spawn"])
+            allowed = GridMetadata.__dataclass_fields__.keys()
+            metadata_payload = {
+                key: value for key, value in metadata_payload.items() if key in allowed
+            }
+            grid.metadata = GridMetadata(**metadata_payload)
+            return grid, None
+        except Exception as error:  # noqa: BLE001 - preserve mapper availability.
+            return cls(), f"Persistent map could not be loaded; starting clean: {error}"
+
     def save(self, directory: Path) -> None:
         directory.mkdir(parents=True, exist_ok=True)
+        self.metadata.updated_at = datetime.now(timezone.utc).isoformat()
         np.save(directory / "occupancy.npy", self.cells)
         np.save(directory / "visits.npy", self.visits)
         state = {
@@ -573,4 +669,4 @@ class OccupancyGrid:
             json.dumps(state, indent=2),
             encoding="utf-8",
         )
-        cv.imwrite(str(directory / "map_preview.png"), self.render())
+        cv.imwrite(str(directory / "map_preview.png"), self.render_overview())

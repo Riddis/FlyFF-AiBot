@@ -16,6 +16,7 @@ from .MinimapHeading import (
 )
 
 HeadingReader = Callable[[str, int], HeadingReading]
+HeadingRecovery = Callable[[TurnDirection, str, int], HeadingReading]
 StatusCallback = Callable[[str], None]
 ModelUpdateCallback = Callable[[], None]
 
@@ -49,6 +50,7 @@ class AdaptiveTurnController:
         *,
         read_heading: HeadingReader,
         cancellation: CancellationToken,
+        recover_heading: HeadingRecovery | None = None,
         status_callback: StatusCallback | None = None,
         model_update_callback: ModelUpdateCallback | None = None,
         neutral_wait_seconds: float = 0.75,
@@ -75,6 +77,7 @@ class AdaptiveTurnController:
         self.controller = controller
         self.model = model
         self.read_heading = read_heading
+        self.recover_heading = recover_heading
         self.cancellation = cancellation
         self.status = status_callback or (lambda _message: None)
         self.model_update_callback = model_update_callback
@@ -176,10 +179,18 @@ class AdaptiveTurnController:
 
                 if self.cancellation.wait(self.settle_seconds):
                     self.cancellation.raise_if_cancelled()
-                after = self.read_heading(
-                    f"{label}: correction {correction + 1} result",
-                    9,
-                )
+                result_label = f"{label}: correction {correction + 1} result"
+                try:
+                    after = self.read_heading(result_label, 9)
+                except Exception:
+                    self.cancellation.raise_if_cancelled()
+                    if self.recover_heading is None:
+                        raise
+                    self.status(
+                        f"{result_label} could not be read; trying bounded "
+                        "same-direction heading search pulses."
+                    )
+                    after = self.recover_heading(direction, result_label, 9)
                 self._validate_reading(after, label)
 
                 signed_motion = observed_heading_delta(after, current)

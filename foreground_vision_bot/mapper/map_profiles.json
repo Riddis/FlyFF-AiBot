@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "default_map": "Tower AoE",
+  "maps": [
+    {
+      "name": "Tower AoE",
+      "slug": "tower_aoe",
+      "mobs": [
+        "Captain Asterius",
+        "Captain Dantalian"
+      ]
+    }
+  ]
+}

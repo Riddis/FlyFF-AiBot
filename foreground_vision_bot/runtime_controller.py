@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import traceback
+
+import cv2 as cv
 from collections.abc import Callable
 from typing import cast
 
@@ -92,7 +94,7 @@ class RuntimeController:
 
         self._start_control(f"rl-{mode}", run)
 
-    def start_mapper(self) -> None:
+    def start_mapper(self, map_name: str) -> None:
         def run(token: CancellationToken):
             mapper = Mapper(
                 self.bot,
@@ -104,10 +106,30 @@ class RuntimeController:
                     "map_frame", frame
                 ),
                 cancellation=token,
+                map_name=map_name,
+                recovery_callback=lambda selected_map, reason, can_retry, needs_spawn: (
+                    self.bus.request_mapper_recovery(
+                        map_name=selected_map,
+                        reason=reason,
+                        can_retry_in_place=can_retry,
+                        requires_spawn_reset=needs_spawn,
+                        cancellation_event=token.event,
+                    )
+                ),
             )
             return mapper.run()
 
         self._start_control("mapper", run)
+
+    def publish_map_preview(self, map_name: str) -> bool:
+        from mapper.MapCatalog import MapCatalog
+
+        preview_path = MapCatalog().preview_path(map_name)
+        image = cv.imread(str(preview_path), cv.IMREAD_COLOR)
+        if image is None:
+            return False
+        self.bus.publish_latest("map_frame", image)
+        return True
 
     def start_calibration(self, *, visual_confirmation: bool) -> None:
         # Legacy rollback path. Ordinary mapping no longer imports or requires

@@ -8,6 +8,7 @@ from typing import Any
 class MapLogger:
     FIELDS = (
         "timestamp",
+        "map_name",
         "step",
         "x",
         "y",
@@ -60,6 +61,8 @@ class MapLogger:
         "strict_heading",
         "strict_heading_confidence",
         "strict_heading_uncertainty",
+        "recovery_reason",
+        "recovery_requires_spawn_reset",
         "stop_reason",
     )
 

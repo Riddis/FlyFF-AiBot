@@ -15,6 +15,8 @@ __all__ = [
     "FastHeadingTracker",
     "Mapper",
     "MapperConfig",
+    "MapCatalog",
+    "MapProfile",
     "MinimapAnchorSetup",
     "MinimapHeadingDetector",
     "RotationCalibrator",
@@ -40,6 +42,10 @@ def __getattr__(name: str) -> Any:
             "FastHeadingState": FastHeadingState,
             "FastHeadingTracker": FastHeadingTracker,
         }[name]
+    if name in {"MapCatalog", "MapProfile"}:
+        from mapper.MapCatalog import MapCatalog, MapProfile
+
+        return {"MapCatalog": MapCatalog, "MapProfile": MapProfile}[name]
     if name == "MinimapAnchorSetup":
         from mapper.MinimapAnchorSetup import MinimapAnchorSetup
 

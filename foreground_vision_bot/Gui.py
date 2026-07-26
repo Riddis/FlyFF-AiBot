@@ -5,6 +5,7 @@ from time import monotonic
 
 import cv2 as cv
 import PySimpleGUI as sg
+from mapper.MapCatalog import MapCatalog
 from runtime_bus import RuntimeBus
 from runtime_controller import RuntimeController
 from utils.helpers import get_window_handlers, hex_variant
@@ -43,6 +44,9 @@ class Gui:
         self._status_mode = "Idle"
         self._last_status_message = "Ready"
         self.runtime_bus = RuntimeBus(max_logs=1500)
+        self.map_catalog = MapCatalog()
+        self.map_names = list(self.map_catalog.names())
+        self._selected_map_name = self.map_catalog.default_name
         self._last_versions = {
             "debug_frame": 0,
             "map_frame": 0,
@@ -120,11 +124,12 @@ class Gui:
                 )
 
             if event == "-START_MAPPER-":
-                self.__clear_live_map("Mapping is starting…")
+                selected_map = values.get("-MAP-NAME-", self._selected_map_name)
+                self.__apply_map_selection(bot, selected_map, publish_preview=False)
                 self.__start_control(
-                    self.controller.start_mapper,
+                    lambda: self.controller.start_mapper(self._selected_map_name),
                     "Mapping",
-                    "Starting adaptive mapper (no calibration required)...",
+                    f"Starting adaptive mapper for {self._selected_map_name}...",
                 )
 
             if event == "-SET_MINIMAP_ANCHOR-":
@@ -320,6 +325,32 @@ class Gui:
                         "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-", "30"
                     )
 
+            if event == "-MAP-NAME-":
+                if self.controller.control_active:
+                    self.window["-MAP-NAME-"].update(self._selected_map_name)
+                    self.runtime_bus.log(
+                        "Stop the active control task before changing maps.",
+                        "msg_red",
+                    )
+                else:
+                    self.__apply_map_selection(
+                        bot,
+                        values.get("-MAP-NAME-"),
+                        publish_preview=True,
+                    )
+
+            if event == "-ADD_MAP-":
+                self.__add_map_popup(bot)
+
+            if event == "-EDIT_MAP_MOBS-":
+                self.__edit_map_mobs_popup(bot)
+
+            if event == "-RESET_MAP-":
+                self.__reset_selected_map(bot)
+
+            if event == "-DELETE_MAP-":
+                self.__delete_selected_map(bot)
+
             # MOBS - Mobs configuration
             if event == "-SELECT_MOBS-":
                 self.__select_mobs_popup(bot)
@@ -461,6 +492,57 @@ class Gui:
             )
             self.runtime_bus.resolve_confirmation(request, result)
 
+        recovery = self.runtime_bus.pop_mapper_recovery()
+        if recovery is not None:
+            result = self.__confirm_mapper_recovery(recovery)
+            self.runtime_bus.resolve_mapper_recovery(recovery, result)
+
+    def __confirm_mapper_recovery(self, request):
+        instructions = [
+            sg.Text(
+                f"Map: {request.map_name}",
+                font="Any 12 bold",
+            ),
+            sg.Text(
+                str(request.reason),
+                size=(88, 5),
+                text_color="yellow",
+            ),
+            sg.HorizontalSeparator(),
+            sg.Text(
+                "The mapper released all movement keys and saved the persistent "
+                "map. Do not choose Retry In Place if you moved the character. "
+                "For a full reset, manually leave/re-enter or teleport to the "
+                "known spawn, keep the camera fixed, then choose Returned to Spawn.",
+                size=(88, 6),
+            ),
+        ]
+        buttons = []
+        if request.can_retry_in_place:
+            buttons.append(sg.Button("Retry In Place", key="retry"))
+        buttons.append(sg.Button("Returned to Spawn", key="spawn"))
+        buttons.append(sg.Button("Stop Mapping", key="stop"))
+
+        window = sg.Window(
+            "Mapper Recovery",
+            [[item] for item in instructions] + [buttons],
+            modal=True,
+            keep_on_top=True,
+            finalize=True,
+            location=(80, 80),
+        )
+        try:
+            while True:
+                event, _values = window.read()
+                if event in (sg.WIN_CLOSED, "stop"):
+                    return "stop"
+                if event == "retry" and request.can_retry_in_place:
+                    return "retry"
+                if event == "spawn":
+                    return "spawn"
+        finally:
+            window.close()
+
     def __shutdown(self, bot):
         self.__set_status("Stopping", "Stopping workers safely…")
         self.controller.shutdown(timeout=8.0)
@@ -477,6 +559,7 @@ class Gui:
         )
         self.window["-STOP_BOT-"].update(disabled=(not attached or not running))
         self.window["-ATTACH_WINDOW-"].update(disabled=running)
+        self.window["-MAP-NAME-"].update(disabled=running)
 
     def __set_minimap_anchor(self, bot):
         if self.controller.control_active:
@@ -602,11 +685,242 @@ class Gui:
         self.window["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"].update(convert_timer)
         bot.set_config(convert_penya_to_perins_timer_min=convert_timer)
 
+        saved_map = sg.user_settings_get_entry(
+            "saved_map_name",
+            self.map_catalog.default_name,
+        )
+        if saved_map not in self.map_names:
+            saved_map = self.map_catalog.default_name
+        self.__apply_map_selection(bot, saved_map, publish_preview=True)
+
+    def __apply_map_selection(self, bot, map_name, *, publish_preview):
+        try:
+            profile = self.map_catalog.get(map_name)
+        except (ValueError, TypeError) as error:
+            self.runtime_bus.log(str(error), "msg_red")
+            return
+
+        self._selected_map_name = profile.name
+        sg.user_settings_set_entry("saved_map_name", profile.name)
+        if hasattr(self, "window"):
+            self.window["-MAP-NAME-"].update(profile.name)
+
         all_mobs = bot.get_all_mobs()
-        selected_names = sg.user_settings_get_entry("saved_selected_mobs", [])
-        selected_names = [name for name in selected_names if name in all_mobs]
-        selected = [all_mobs[key] for key in all_mobs if key in selected_names]
-        bot.set_config(selected_mobs=selected)
+        allowed_names = [name for name in profile.mobs if name in all_mobs]
+        settings_key = f"saved_selected_mobs::{profile.slug}"
+        selected_names = sg.user_settings_get_entry(settings_key, None)
+        if selected_names is None:
+            selected_names = list(allowed_names)
+        selected_names = [name for name in selected_names if name in allowed_names]
+        bot.set_config(selected_mobs=[all_mobs[name] for name in selected_names])
+        sg.user_settings_set_entry(settings_key, selected_names)
+        sg.user_settings_set_entry("saved_selected_mobs", selected_names)
+
+        mob_text = ", ".join(allowed_names) if allowed_names else "No registered mobs"
+        if hasattr(self, "window"):
+            self.window["-MAP-MOBS-"].update(f"Mobs: {mob_text}")
+
+        if publish_preview and self.controller is not None:
+            if not self.controller.publish_map_preview(profile.name):
+                self.__clear_live_map(
+                    f"{profile.name}: no saved map yet — mapping will create it."
+                )
+
+    def __reload_map_catalog(self, *, selected_name=None):
+        self.map_catalog = MapCatalog()
+        self.map_names = list(self.map_catalog.names())
+        selected = selected_name
+        if selected not in self.map_names:
+            selected = self.map_catalog.default_name
+        self._selected_map_name = selected
+        if hasattr(self, "window"):
+            self.window["-MAP-NAME-"].update(
+                values=self.map_names,
+                value=selected,
+            )
+        return selected
+
+    def __map_management_available(self):
+        if self.controller is not None and self.controller.control_active:
+            self.runtime_bus.log(
+                "Stop the active control task before changing map profiles.",
+                "msg_red",
+            )
+            return False
+        return True
+
+    def __add_map_popup(self, bot):
+        if not self.__map_management_available():
+            return
+
+        registered_mobs = sorted(bot.get_all_mobs())
+        popup = sg.Window(
+            "Add Map",
+            [
+                [sg.Text("Map name:"), sg.Input(key="-NEW-MAP-NAME-", expand_x=True)],
+                [sg.Text("Mobs available on this map:")],
+                [
+                    sg.Listbox(
+                        values=registered_mobs,
+                        select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE,
+                        size=(48, min(12, max(4, len(registered_mobs)))),
+                        key="-NEW-MAP-MOBS-",
+                    )
+                ],
+                [sg.Button("Create"), sg.Button("Cancel")],
+            ],
+            modal=True,
+            finalize=True,
+        )
+        try:
+            while True:
+                event, values = popup.read()
+                if event in (sg.WIN_CLOSED, "Cancel"):
+                    return
+                if event != "Create":
+                    continue
+                try:
+                    profile = self.map_catalog.create_map(
+                        values.get("-NEW-MAP-NAME-", ""),
+                        mobs=values.get("-NEW-MAP-MOBS-", []),
+                    )
+                except (OSError, ValueError) as error:
+                    self.show_error(str(error))
+                    continue
+                self.__reload_map_catalog(selected_name=profile.name)
+                self.__apply_map_selection(
+                    bot,
+                    profile.name,
+                    publish_preview=True,
+                )
+                self.runtime_bus.log(
+                    f"Created map profile '{profile.name}'.",
+                    "msg_green",
+                )
+                return
+        finally:
+            popup.close()
+
+    def __edit_map_mobs_popup(self, bot):
+        if not self.__map_management_available():
+            return
+        profile = self.map_catalog.get(self._selected_map_name)
+        registered_mobs = sorted(bot.get_all_mobs())
+        popup = sg.Window(
+            "Edit Map Mobs",
+            [
+                [sg.Text(f"Mobs available on '{profile.name}':")],
+                [
+                    sg.Listbox(
+                        values=registered_mobs,
+                        default_values=[
+                            name for name in profile.mobs if name in registered_mobs
+                        ],
+                        select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE,
+                        size=(48, min(12, max(4, len(registered_mobs)))),
+                        key="-EDIT-MAP-MOBS-",
+                    )
+                ],
+                [sg.Button("Save"), sg.Button("Cancel")],
+            ],
+            modal=True,
+            finalize=True,
+        )
+        try:
+            event, values = popup.read()
+            if event != "Save":
+                return
+            try:
+                self.map_catalog.update_mobs(
+                    profile.name,
+                    values.get("-EDIT-MAP-MOBS-", []),
+                )
+            except (OSError, ValueError) as error:
+                self.show_error(f"Could not update map mobs: {error}")
+                return
+        finally:
+            popup.close()
+
+        self.__reload_map_catalog(selected_name=profile.name)
+        self.__apply_map_selection(bot, profile.name, publish_preview=False)
+        self.runtime_bus.log(
+            f"Updated available mobs for '{profile.name}'.",
+            "msg_green",
+        )
+
+    def __reset_selected_map(self, bot):
+        if not self.__map_management_available():
+            return
+        name = self._selected_map_name
+        answer = sg.popup_yes_no(
+            f"Reset all persistent mapping progress for '{name}'?\n\n"
+            "The named map and its mob list will remain. Diagnostic run folders "
+            "will be kept. This cannot be undone.",
+            title="Reset Map Progress",
+            keep_on_top=True,
+        )
+        if answer != "Yes":
+            return
+        try:
+            self.map_catalog.reset_map(name)
+        except (OSError, ValueError) as error:
+            self.show_error(f"Could not reset map: {error}")
+            return
+        self.__clear_live_map(f"{name}: map progress reset — next run starts empty.")
+        self.__apply_map_selection(bot, name, publish_preview=False)
+        self.runtime_bus.log(
+            f"Reset persistent mapping progress for '{name}'.",
+            "msg_green",
+        )
+
+    def __delete_selected_map(self, bot):
+        if not self.__map_management_available():
+            return
+        name = self._selected_map_name
+        if len(self.map_names) <= 1:
+            self.show_error("At least one map profile must remain.")
+            return
+
+        popup = sg.Window(
+            "Delete Map",
+            [
+                [sg.Text(f"Delete map profile '{name}' and its persistent map?")],
+                [
+                    sg.Checkbox(
+                        "Also delete diagnostic mapping-run history",
+                        default=False,
+                        key="-DELETE-MAP-RUNS-",
+                    )
+                ],
+                [
+                    sg.Button(
+                        "Delete",
+                        button_color=("white", "#a83232"),
+                    ),
+                    sg.Button("Cancel"),
+                ],
+            ],
+            modal=True,
+            finalize=True,
+        )
+        try:
+            event, values = popup.read()
+            if event != "Delete":
+                return
+            try:
+                selected = self.map_catalog.delete_map(
+                    name,
+                    delete_run_history=bool(values.get("-DELETE-MAP-RUNS-", False)),
+                )
+            except (OSError, ValueError) as error:
+                self.show_error(f"Could not delete map: {error}")
+                return
+        finally:
+            popup.close()
+
+        selected = self.__reload_map_catalog(selected_name=selected)
+        self.__apply_map_selection(bot, selected, publish_preview=True)
+        self.runtime_bus.log(f"Deleted map profile '{name}'.", "msg_green")
 
     def __set_hotkeys(self):
         self.window.bind("<Alt_L><s>", "-STOP_BOT-")
@@ -686,6 +1000,43 @@ class Gui:
                         key="-ATTACHED_WINDOW-",
                         size=(34, 2),
                     )
+                ],
+            ],
+            expand_x=True,
+        )
+
+        map_config = sg.Frame(
+            "Map:",
+            [
+                [
+                    sg.Text("Selected map:"),
+                    sg.Combo(
+                        self.map_names,
+                        default_value=self._selected_map_name,
+                        readonly=True,
+                        enable_events=True,
+                        key="-MAP-NAME-",
+                        expand_x=True,
+                    ),
+                ],
+                [
+                    sg.Text(
+                        "Mobs: --",
+                        key="-MAP-MOBS-",
+                        size=(38, 2),
+                    )
+                ],
+                [
+                    sg.Button("Add Map", key="-ADD_MAP-"),
+                    sg.Button("Edit Map Mobs", key="-EDIT_MAP_MOBS-"),
+                ],
+                [
+                    sg.Button("Reset Progress", key="-RESET_MAP-"),
+                    sg.Button(
+                        "Delete Map",
+                        key="-DELETE_MAP-",
+                        button_color=("white", "#a83232"),
+                    ),
                 ],
             ],
             expand_x=True,
@@ -798,6 +1149,7 @@ class Gui:
         controls = sg.Column(
             [
                 [actions],
+                [map_config],
                 [mobs_config],
                 [options],
                 [status],
@@ -849,7 +1201,7 @@ class Gui:
                 [
                     sg.Image(
                         data=self.__make_live_map_placeholder(
-                            "No map yet — click Map Area to begin."
+                            "Select a map to load its persistent progress."
                         ),
                         key="-MAPPER_IMAGE-",
                         size=(960, 245),
@@ -1134,7 +1486,16 @@ class Gui:
         }
 
     def __select_mobs_popup(self, bot, is_delete_form=False):
-        all_mobs = bot.get_all_mobs()
+        registered_mobs = bot.get_all_mobs()
+        if is_delete_form:
+            all_mobs = registered_mobs
+        else:
+            allowed = set(self.map_catalog.mobs_for(self._selected_map_name))
+            all_mobs = {
+                name: params
+                for name, params in registered_mobs.items()
+                if name in allowed
+            }
         selected_mobs_names = [
             mob["name"]
             for mob in bot.config["selected_mobs"]
@@ -1232,6 +1593,11 @@ class Gui:
                 popup_window.close()
                 all_names = list(dict.keys(all_mobs))
                 selected_names = [all_names[i] for i in selected_mobs_indexes]
+                profile = self.map_catalog.get(self._selected_map_name)
+                sg.user_settings_set_entry(
+                    f"saved_selected_mobs::{profile.slug}",
+                    selected_names,
+                )
                 sg.user_settings_set_entry("saved_selected_mobs", selected_names)
                 bot.set_config(
                     selected_mobs=[all_mobs[name] for name in selected_names]

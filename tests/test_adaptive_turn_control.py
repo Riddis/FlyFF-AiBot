@@ -146,3 +146,42 @@ def test_one_reversal_backlash_is_tolerated_then_turn_completes() -> None:
     assert abs(error) <= 5.0
     assert controller.backlash_used
     assert len(result.pulses) >= 2
+
+
+def test_heading_recovery_callback_is_used_after_ambiguous_post_pulse_read() -> None:
+    model = AdaptiveMotionModel()
+    controller = FakeController(model)
+    failed_once = False
+    recoveries: list[TurnDirection] = []
+
+    def read_with_one_failure(_label: str, samples: int) -> HeadingReading:
+        nonlocal failed_once
+        if controller.heading > 1.0 and not failed_once:
+            failed_once = True
+            raise RuntimeError("ambiguous heading")
+        return reading(controller, samples)
+
+    def recover(
+        direction: TurnDirection,
+        _label: str,
+        samples: int,
+    ) -> HeadingReading:
+        recoveries.append(direction)
+        return reading(controller, samples)
+
+    turner = AdaptiveTurnController(
+        controller,  # type: ignore[arg-type]
+        model,
+        read_heading=read_with_one_failure,
+        recover_heading=recover,
+        cancellation=CancellationToken(),
+        neutral_wait_seconds=0.0,
+        settle_seconds=0.0,
+    )
+
+    result = turner.turn_to_heading(90.0, label="recover heading")
+
+    assert failed_once
+    assert recoveries
+    assert recoveries[0] is TurnDirection.RIGHT
+    assert abs(result.final_reading.angle_deg - 90.0) <= 5.0

@@ -17,10 +17,17 @@ from .AdaptiveMotionModel import (
     AdaptiveForwardOutcome,
     AdaptiveMotionModel,
     ForwardAssessment,
+    TurnDirection,
 )
 from .AdaptiveMotionTracker import AdaptiveMotionTracker, MotionEstimate
-from .AdaptiveTurnControl import AdaptiveTurnController, AdaptiveTurnResult
+from .AdaptiveRunMotionBaseline import AdaptiveRunMotionBaseline
+from .AdaptiveTurnControl import (
+    AdaptiveTurnController,
+    AdaptiveTurnError,
+    AdaptiveTurnResult,
+)
 from .Explorer import Explorer, ExplorerDecision
+from .MapCatalog import MapCatalog, MapProfile
 from .MapLogger import MapLogger
 from .MinimapHeading import HeadingReading, MinimapHeadingDetector, signed_angle_delta
 from .OccupancyGrid import FREE, UNKNOWN, OccupancyGrid, PoseIntegration
@@ -28,6 +35,11 @@ from .PangDetector import PangDetection, PangDetector
 
 StatusCallback = Callable[[str], None]
 FrameCallback = Callable[[np.ndarray], None]
+RecoveryCallback = Callable[[str, str, bool, bool], str | None]
+
+
+class HeadingAcquisitionError(RuntimeError):
+    """A stable heading could not be obtained without guessing."""
 
 
 class MapperBot(Protocol):
@@ -55,6 +67,9 @@ class MapperConfig:
     pang_threshold: float = 0.82
     save_every_steps: int = 5
     blocked_confirmations: int = 2
+    forward_revalidation_attempts: int = 3
+    heading_search_attempts: int = 3
+    heading_search_pulse_seconds: float = 0.040
 
     def __post_init__(self) -> None:
         if not 0.03 <= self.forward_seconds <= 0.50:
@@ -79,6 +94,10 @@ class MapperConfig:
             raise ValueError("maximum_step_cells must not be below the minimum")
         if self.save_every_steps < 1 or self.blocked_confirmations < 1:
             raise ValueError("mapper counts must be positive")
+        if self.forward_revalidation_attempts < 0 or self.heading_search_attempts < 0:
+            raise ValueError("mapper recovery counts cannot be negative")
+        if not 0.015 <= self.heading_search_pulse_seconds <= 0.10:
+            raise ValueError("heading search pulse must be between 15 and 100 ms")
 
 
 @dataclass(frozen=True)
@@ -95,6 +114,9 @@ class _StepResult:
     turn_result: AdaptiveTurnResult | None = None
     stop_reason: str | None = None
     motion_debug_path: str | None = None
+    recovery_reason: str | None = None
+    recovery_can_retry_in_place: bool = False
+    recovery_requires_spawn_reset: bool = False
 
 
 class AdaptiveMapper:
@@ -107,7 +129,7 @@ class AdaptiveMapper:
     still fails closed so map drift is not silently accumulated.
     """
 
-    VERSION = "1.2-obstacle-recovery"
+    VERSION = "1.4-contact-aware-map-management"
 
     def __init__(
         self,
@@ -116,6 +138,8 @@ class AdaptiveMapper:
         frame_callback: FrameCallback | None = None,
         config: MapperConfig | None = None,
         cancellation: CancellationToken | None = None,
+        map_name: str | None = None,
+        recovery_callback: RecoveryCallback | None = None,
     ) -> None:
         if bot.keyboard is None:
             raise RuntimeError("Attach the Flyff window first.")
@@ -125,6 +149,11 @@ class AdaptiveMapper:
         self.frame_callback = frame_callback
         self.config = config or MapperConfig()
         self.cancellation = cancellation or CancellationToken()
+        self.recovery_callback = recovery_callback
+
+        self.map_catalog = MapCatalog()
+        self.map_profile: MapProfile = self.map_catalog.get(map_name)
+        self.map_dir = self.map_catalog.map_directory(self.map_profile.name)
 
         self.model_path = Path(__file__).resolve().parent / "adaptive_motion.json"
         self.motion_model, model_warning = AdaptiveMotionModel.load_or_default(
@@ -137,7 +166,32 @@ class AdaptiveMapper:
         self.controller = AdaptiveMappingController(bot.keyboard)
         self.heading_detector = MinimapHeadingDetector()
         self.tracker = AdaptiveMotionTracker()
-        self.grid = OccupancyGrid()
+        self.run_motion_baseline = AdaptiveRunMotionBaseline()
+        canonical_exists = (self.map_dir / "map.json").is_file()
+        self.grid, map_warning = OccupancyGrid.load(self.map_dir)
+        legacy_import_allowed = self.map_catalog.legacy_import_allowed(
+            self.map_profile.name
+        )
+        if (
+            not canonical_exists
+            and legacy_import_allowed
+            and self.map_profile.name == self.map_catalog.default_name
+        ):
+            legacy_run = self.map_catalog.best_legacy_run()
+            if legacy_run is not None:
+                legacy_grid, legacy_warning = OccupancyGrid.load(legacy_run)
+                if legacy_warning is None:
+                    self.grid = legacy_grid
+                    self.status_callback(
+                        "Imported the richest legacy mapping run into the "
+                        f"persistent map '{self.map_profile.name}': {legacy_run.name}."
+                    )
+                elif map_warning is None:
+                    map_warning = legacy_warning
+            self.map_catalog.mark_legacy_import_complete(self.map_profile.name)
+        self.grid.metadata.map_name = self.map_profile.name
+        if map_warning is not None:
+            self.status_callback(map_warning)
         self.explorer = Explorer()
 
         self._position_known = False
@@ -157,6 +211,7 @@ class AdaptiveMapper:
             self.motion_model,
             read_heading=self._read_heading_for_turn,
             cancellation=self.cancellation,
+            recover_heading=self._recover_heading_after_turn,
             status_callback=self.status_callback,
             model_update_callback=self._save_motion_model,
             neutral_wait_seconds=self.config.neutral_turn_wait_seconds,
@@ -173,7 +228,12 @@ class AdaptiveMapper:
         self.pang = PangDetector(template_path, threshold=self.config.pang_threshold)
 
         run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        self.output_dir = Path(__file__).resolve().parent / "mapping_runs" / run_id
+        self.output_dir = (
+            Path(__file__).resolve().parent
+            / "mapping_runs"
+            / self.map_profile.slug
+            / run_id
+        )
         self.logger = MapLogger(self.output_dir / "mapping_steps.csv")
 
     def stop(self) -> None:
@@ -201,7 +261,7 @@ class AdaptiveMapper:
             cleanup_actions = (
                 ("release movement keys", self.controller.stop),
                 ("save learned motion", self._save_motion_model),
-                ("save the map", lambda: self.grid.save(self.output_dir)),
+                ("save persistent and run maps", self._save_map_state),
                 (
                     "save the motion snapshot",
                     lambda: self.motion_model.save_snapshot(
@@ -228,34 +288,31 @@ class AdaptiveMapper:
                 raise cleanup_error
 
     def _run(self) -> Path:
+        known_cells = self.grid.known_cell_count()
         self.status_callback(
-            "Adaptive mapper starts in 5 seconds. Enter the dungeon, stand at "
-            "the known spawn, and keep the camera fixed. Behind-character and "
-            "top-down views are both supported, but do not change view during a "
-            "run. Obstacles are confirmed, marked on the occupancy grid, and "
-            "replanned around. No mapper calibration is required."
+            f"Adaptive mapper starts in 5 seconds for map '{self.map_profile.name}'. "
+            "Stand at the known spawn and keep the camera fixed. Behind-character "
+            "and top-down views are both supported, but do not change view during "
+            "a run. The selected map is persistent across runs; recovery never "
+            "teleports automatically."
         )
         self.status_callback(
             f"Adaptive mapper {self.VERSION}; heading detector "
-            f"{self.heading_detector.version()}; {self.motion_model.summary()}."
+            f"{self.heading_detector.version()}; {self.motion_model.summary()}; "
+            f"loaded {known_cells} known map cells."
         )
+        self._publish_map_preview(force=True)
         for remaining in range(5, 0, -1):
             if self.cancellation.wait(1.0):
                 self.cancellation.raise_if_cancelled()
             self.status_callback(f"Mapper starting in {remaining}...")
 
-        _ = self._wait_for_frame_sample(not_before=monotonic())
-        initial_heading = self._strict_heading("Initial mapper heading", samples=15)
-        self.grid.set_continuous_pose(0.0, 0.0, initial_heading.angle_deg)
-        self._remember_heading(initial_heading)
-        self._set_pose_reliability(
-            position_known=True,
-            heading_known=True,
-            note="Spawn position and stable initial heading confirmed.",
-        )
-        self._align_to_nearest_cardinal(initial_heading)
+        self._initialize_spawn_with_recovery()
+        self.grid.metadata.run_count += 1
+        self.grid.metadata.termination_reason = None
         self.heading_detector.reset_fast()
         self._publish_map_preview(force=True)
+        self._save_map_state()
 
         step = 0
         while not self.cancellation.cancelled:
@@ -266,15 +323,28 @@ class AdaptiveMapper:
                 self.grid.metadata.termination_reason = reason
                 self.status_callback(reason)
                 self._publish_map_preview(force=True)
-                self.grid.save(self.output_dir)
+                self._save_map_state()
                 break
 
-            step += 1
-            if decision.action == "FORWARD":
-                result = self._execute_forward(step)
-            else:
-                result = self._execute_turn(decision)
+            candidate_step = step + 1
+            try:
+                if decision.action == "FORWARD":
+                    result = self._execute_forward(candidate_step)
+                else:
+                    result = self._execute_turn(decision)
+            except (AdaptiveTurnError, HeadingAcquisitionError) as error:
+                reason = f"Mapper lost a reliable heading during {decision.action}: {error}"
+                if self._attempt_manual_recovery(
+                    reason,
+                    can_retry_in_place=(decision.action != "FORWARD"),
+                    requires_spawn_reset=(decision.action == "FORWARD"),
+                ):
+                    continue
+                self.grid.metadata.termination_reason = reason
+                self.status_callback(reason)
+                break
 
+            step = candidate_step
             pang = self.pang.detect(result.frame_sample.frame)
             if pang.visible and result.pose_known:
                 self.grid.add_pang_sighting(
@@ -288,18 +358,147 @@ class AdaptiveMapper:
             self._publish_map_preview()
 
             if step % self.config.save_every_steps == 0:
-                self.grid.save(self.output_dir)
+                self._save_map_state()
                 self._save_motion_model()
+
+            if result.recovery_reason is not None:
+                if self._attempt_manual_recovery(
+                    result.recovery_reason,
+                    can_retry_in_place=result.recovery_can_retry_in_place,
+                    requires_spawn_reset=result.recovery_requires_spawn_reset,
+                ):
+                    continue
+                stop_reason = (
+                    "Mapping stopped after recovery was declined or cancelled. "
+                    f"Last issue: {result.recovery_reason}"
+                )
+                self.grid.metadata.termination_reason = stop_reason
+                self.status_callback(stop_reason)
+                break
 
             if result.stop_reason is not None:
                 self.grid.metadata.termination_reason = result.stop_reason
                 self.controller.stop()
-                self.grid.save(self.output_dir)
+                self._save_map_state()
                 self._save_motion_model()
                 self.status_callback(result.stop_reason)
                 break
 
         return self.output_dir
+
+    def _initialize_spawn_with_recovery(self) -> None:
+        while True:
+            self.cancellation.raise_if_cancelled()
+            try:
+                self._reset_pose_at_spawn()
+                return
+            except (AdaptiveTurnError, HeadingAcquisitionError) as error:
+                reason = f"Could not initialize the known spawn heading: {error}"
+                decision = self._request_recovery_decision(
+                    reason,
+                    can_retry_in_place=True,
+                    requires_spawn_reset=True,
+                )
+                if decision not in {"retry", "spawn"}:
+                    raise HeadingAcquisitionError(reason) from error
+
+    def _reset_pose_at_spawn(self, *, manual: bool = False) -> None:
+        _ = self._wait_for_frame_sample(not_before=monotonic())
+        initial_heading = self._strict_heading("Known spawn heading", samples=15)
+        spawn_x, spawn_y = self.grid.metadata.spawn
+        self.grid.set_continuous_pose(
+            float(spawn_x),
+            float(spawn_y),
+            initial_heading.angle_deg,
+        )
+        self._remember_heading(initial_heading)
+        self._set_pose_reliability(
+            position_known=True,
+            heading_known=True,
+            note="Known spawn position and stable heading confirmed.",
+        )
+        self._align_to_nearest_cardinal(initial_heading)
+        self._blocked_observations.clear()
+        self.run_motion_baseline.clear()
+        self.heading_detector.reset_fast()
+        if manual:
+            self.grid.metadata.manual_spawn_resets += 1
+        self.status_callback(
+            f"Mapper pose reset to the known spawn on '{self.map_profile.name}' "
+            "without changing the persistent map."
+        )
+
+    def _attempt_manual_recovery(
+        self,
+        reason: str,
+        *,
+        can_retry_in_place: bool,
+        requires_spawn_reset: bool,
+    ) -> bool:
+        self.controller.stop()
+        self._save_map_state()
+        self._save_motion_model()
+        while not self.cancellation.cancelled:
+            decision = self._request_recovery_decision(
+                reason,
+                can_retry_in_place=can_retry_in_place,
+                requires_spawn_reset=requires_spawn_reset,
+            )
+            if decision == "stop" or decision is None:
+                return False
+            try:
+                if decision == "spawn":
+                    self._reset_pose_at_spawn(manual=True)
+                    self._publish_map_preview(force=True)
+                    self._save_map_state()
+                    return True
+                if decision == "retry" and can_retry_in_place:
+                    reading = self._strict_heading(
+                        "Heading recovery in place",
+                        samples=15,
+                    )
+                    self.grid.set_heading_degrees(reading.angle_deg)
+                    self._remember_heading(reading)
+                    self._set_pose_reliability(
+                        position_known=True,
+                        heading_known=True,
+                        note="Heading reacquired at the last confirmed position.",
+                    )
+                    self.heading_detector.reset_fast()
+                    self.grid.metadata.heading_recovery_successes += 1
+                    self._publish_map_preview(force=True)
+                    return True
+            except (AdaptiveTurnError, HeadingAcquisitionError) as error:
+                reason = f"Recovery attempt still could not establish heading: {error}"
+                can_retry_in_place = self._position_known
+                requires_spawn_reset = not self._position_known
+                continue
+        return False
+
+    def _request_recovery_decision(
+        self,
+        reason: str,
+        *,
+        can_retry_in_place: bool,
+        requires_spawn_reset: bool,
+    ) -> str | None:
+        self.status_callback(
+            "Mapper paused safely with all movement keys released. "
+            f"Recovery needed: {reason}"
+        )
+        if self.recovery_callback is None:
+            return None
+        return self.recovery_callback(
+            self.map_profile.name,
+            reason,
+            can_retry_in_place,
+            requires_spawn_reset,
+        )
+
+    def _save_map_state(self) -> None:
+        self.grid.metadata.map_name = self.map_profile.name
+        self.grid.save(self.map_dir)
+        self.grid.save(self.output_dir)
 
     def _align_to_nearest_cardinal(self, reading: HeadingReading) -> None:
         heading_index = self.grid.heading_index_from_degrees(reading.angle_deg)
@@ -354,7 +553,7 @@ class AdaptiveMapper:
             note="Position and post-turn heading confirmed.",
         )
         if self.grid.pose.heading_index != target_index:
-            raise RuntimeError(
+            raise AdaptiveTurnError(
                 "Validated adaptive turn did not resolve to the intended cardinal."
             )
 
@@ -378,7 +577,8 @@ class AdaptiveMapper:
     def _execute_forward(self, step: int) -> _StepResult:
         before = self._wait_for_frame_sample(not_before=monotonic())
         start_heading = self.grid.continuous_pose.heading_deg
-        step_dx, step_dy = self.grid.DIRECTIONS[self.grid.pose.heading_index]
+        travel_heading_index = self.grid.pose.heading_index
+        step_dx, step_dy = self.grid.DIRECTIONS[travel_heading_index]
         target_cell = (self.grid.pose.x + step_dx, self.grid.pose.y + step_dy)
         self._set_pose_reliability(
             position_known=False,
@@ -426,10 +626,12 @@ class AdaptiveMapper:
                 integration=None,
                 pose_known=False,
                 motion_debug_path=motion_debug_path,
-                stop_reason=(
-                    "Probable teleport detected. Mapping stopped at the last "
-                    f"confirmed pose ({self.grid.pose.x}, {self.grid.pose.y})."
+                recovery_reason=(
+                    "Probable teleport or scene discontinuity detected after a "
+                    "forward command. Return manually to the known spawn before "
+                    "resuming; the bot will not teleport itself."
                 ),
+                recovery_requires_spawn_reset=True,
             )
 
         strict_heading = self._strict_heading(
@@ -458,18 +660,37 @@ class AdaptiveMapper:
                 integration=None,
                 pose_known=False,
                 motion_debug_path=motion_debug_path,
-                stop_reason=(
+                recovery_reason=(
                     "Forward movement changed heading by "
-                    f"{heading_change:+.1f}°. Pose integration was discarded "
-                    "before drift could accumulate."
+                    f"{heading_change:+.1f}°. The new position is not trusted; "
+                    "return manually to the known spawn to continue safely."
                 ),
+                recovery_requires_spawn_reset=True,
             )
 
-        assessment = self.motion_model.assess_forward(
-            motion.directional_flow,
-            change_score=motion.change_score,
+        assessment = self._assess_forward_motion(
+            motion,
             held_seconds=timing.held_seconds,
+            heading_index=travel_heading_index,
         )
+        if assessment.outcome is AdaptiveForwardOutcome.UNCERTAIN:
+            (
+                after,
+                fast_heading,
+                motion,
+                assessment,
+                retry_debug_path,
+            ) = self._revalidate_forward_observation(
+                step=step,
+                before=before,
+                after=after,
+                timing=timing,
+                initial_motion=motion,
+                initial_assessment=assessment,
+                heading_index=travel_heading_index,
+            )
+            motion_debug_path = retry_debug_path or motion_debug_path
+
         if assessment.outcome is AdaptiveForwardOutcome.BLOCKED:
             motion_debug_path = motion_debug_path or self._save_motion_debug(
                 step, before, after, motion
@@ -513,11 +734,13 @@ class AdaptiveMapper:
                 integration=None,
                 pose_known=False,
                 motion_debug_path=motion_debug_path,
-                stop_reason=(
-                    "Forward travel was visually uncertain, so mapping stopped "
-                    "without guessing the new position. "
-                    f"Reason: {assessment.reason}."
+                recovery_reason=(
+                    "Forward travel remained visually uncertain after fresh-frame "
+                    "revalidation, so the new position was not guessed. "
+                    f"Reason: {assessment.reason}. Return manually to the known "
+                    "spawn, then resume the persistent map."
                 ),
+                recovery_requires_spawn_reset=True,
             )
 
         distance_cells = assessment.distance_cells
@@ -544,7 +767,11 @@ class AdaptiveMapper:
                 distance_cells=distance_cells,
                 integration=None,
                 pose_known=False,
-                stop_reason="Adaptive forward distance failed its safety gate.",
+                recovery_reason=(
+                    "Adaptive forward distance failed its safety gate. Return "
+                    "manually to the known spawn before resuming."
+                ),
+                recovery_requires_spawn_reset=True,
                 motion_debug_path=motion_debug_path,
             )
 
@@ -573,13 +800,19 @@ class AdaptiveMapper:
                 integration=integration,
                 pose_known=False,
                 motion_debug_path=motion_debug_path,
-                stop_reason=(
+                recovery_reason=(
                     "Adaptive motion could not be integrated safely "
-                    f"({integration.reason})."
+                    f"({integration.reason}). Return manually to the known spawn "
+                    "before resuming."
                 ),
+                recovery_requires_spawn_reset=True,
             )
 
         self.motion_model.observe_forward(motion.directional_flow)
+        self.run_motion_baseline.observe(
+            travel_heading_index,
+            motion.directional_flow,
+        )
         self._save_motion_model()
         self.grid.set_heading_degrees(strict_heading.angle_deg)
         self._set_pose_reliability(
@@ -600,16 +833,121 @@ class AdaptiveMapper:
             motion_debug_path=motion_debug_path,
         )
 
+    def _assess_forward_motion(
+        self,
+        motion: MotionEstimate,
+        *,
+        held_seconds: float,
+        heading_index: int,
+    ) -> ForwardAssessment:
+        contact = self.run_motion_baseline.assess_contact(
+            heading_index,
+            motion.directional_flow,
+        )
+        if contact.likely_contact:
+            observed = max(0.0, float(motion.directional_flow.magnitude_px))
+            return ForwardAssessment(
+                outcome=AdaptiveForwardOutcome.BLOCKED,
+                reliable=True,
+                distance_cells=0.0,
+                confidence=contact.confidence,
+                expected_flow_px=contact.baseline_flow_px,
+                observed_flow_px=observed,
+                flow_ratio=contact.flow_ratio,
+                reason=contact.reason or "partial obstacle contact likely",
+            )
+        return self.motion_model.assess_forward(
+            motion.directional_flow,
+            change_score=motion.change_score,
+            held_seconds=held_seconds,
+        )
+
+    def _revalidate_forward_observation(
+        self,
+        *,
+        step: int,
+        before: FrameSample,
+        after: FrameSample,
+        timing: KeyPressTiming,
+        initial_motion: MotionEstimate,
+        initial_assessment: ForwardAssessment,
+        heading_index: int,
+    ) -> tuple[
+        FrameSample,
+        HeadingReading | None,
+        MotionEstimate,
+        ForwardAssessment,
+        str | None,
+    ]:
+        """Retry vision only; never issue another movement command."""
+        latest_after = after
+        latest_motion = initial_motion
+        latest_assessment = initial_assessment
+        latest_fast = self.heading_detector.read_fast(after.frame)
+        debug_path: str | None = None
+
+        for attempt in range(1, self.config.forward_revalidation_attempts + 1):
+            self.status_callback(
+                "Forward evidence was uncertain; rechecking the completed step "
+                f"with a fresh frame ({attempt}/"
+                f"{self.config.forward_revalidation_attempts}) without moving."
+            )
+            if self.cancellation.wait(0.12):
+                self.cancellation.raise_if_cancelled()
+            candidate = self._wait_for_frame_sample(
+                after_identity=latest_after.identity,
+                generation=before.generation,
+                not_before=monotonic(),
+            )
+            candidate_motion = self.tracker.compare(before.frame, candidate.frame)
+            candidate_assessment = self._assess_forward_motion(
+                candidate_motion,
+                held_seconds=timing.held_seconds,
+                heading_index=heading_index,
+            )
+            debug_path = self._save_motion_debug(
+                step,
+                before,
+                candidate,
+                candidate_motion,
+                suffix=f"recheck_{attempt}",
+            )
+            latest_after = candidate
+            latest_fast = self.heading_detector.read_fast(candidate.frame)
+            if candidate_motion.teleport_likely:
+                continue
+            latest_motion = candidate_motion
+            latest_assessment = candidate_assessment
+            if candidate_assessment.outcome is not AdaptiveForwardOutcome.UNCERTAIN:
+                self.status_callback(
+                    "Fresh-frame revalidation resolved the forward step as "
+                    f"{candidate_assessment.outcome.value}."
+                )
+                break
+
+        return (
+            latest_after,
+            latest_fast,
+            latest_motion,
+            latest_assessment,
+            debug_path,
+        )
+
     def _save_motion_debug(
         self,
         step: int,
         before: FrameSample,
         after: FrameSample,
         motion: MotionEstimate,
+        *,
+        suffix: str | None = None,
     ) -> str:
         path = self.tracker.save_diagnostics(
             self.output_dir / "motion_debug",
-            prefix=f"step_{step:04d}_forward",
+            prefix=(
+                f"step_{step:04d}_forward"
+                + (f"_{suffix}" if suffix else "")
+            ),
             before=before.frame,
             after=after.frame,
             estimate=motion,
@@ -681,6 +1019,52 @@ class AdaptiveMapper:
     def _read_heading_for_turn(self, context: str, samples: int) -> HeadingReading:
         return self._strict_heading(context, samples=samples)
 
+    def _recover_heading_after_turn(
+        self,
+        direction: TurnDirection,
+        context: str,
+        samples: int,
+    ) -> HeadingReading:
+        """Move the arrow out of an ambiguous orientation without translating."""
+        last_error: HeadingAcquisitionError | None = None
+        for attempt in range(1, self.config.heading_search_attempts + 1):
+            self.cancellation.raise_if_cancelled()
+            duration = min(
+                0.10,
+                self.config.heading_search_pulse_seconds * (1.0 + 0.25 * (attempt - 1)),
+            )
+            self.status_callback(
+                f"{context}: heading search {attempt}/"
+                f"{self.config.heading_search_attempts}, {direction.value} "
+                f"{duration * 1000.0:.0f} ms."
+            )
+            if direction is TurnDirection.LEFT:
+                self.controller.turn_left(duration)
+            else:
+                self.controller.turn_right(duration)
+            if self.cancellation.wait(self.config.turn_settle_seconds + 0.10):
+                self.cancellation.raise_if_cancelled()
+            try:
+                reading = self._strict_heading(
+                    f"{context}: heading search {attempt}",
+                    samples=max(9, int(samples)),
+                )
+            except HeadingAcquisitionError as error:
+                last_error = error
+                continue
+            self.grid.metadata.heading_recovery_successes += 1
+            self.status_callback(
+                f"{context}: heading reacquired at {reading.angle_deg:.1f}° "
+                "after a bounded search pulse."
+            )
+            return reading
+
+        if last_error is not None:
+            raise last_error
+        raise HeadingAcquisitionError(
+            f"{context}: heading search had no permitted attempts"
+        )
+
     def _strict_heading(
         self,
         context: str,
@@ -720,7 +1104,7 @@ class AdaptiveMapper:
         debug_text = (
             f" Debug saved to: {debug_folder}" if debug_folder is not None else ""
         )
-        raise RuntimeError(
+        raise HeadingAcquisitionError(
             f"Could not obtain a stable fresh minimap heading.{debug_text}"
         )
 
@@ -783,6 +1167,7 @@ class AdaptiveMapper:
                 "timestamp": datetime.now(timezone.utc).isoformat(
                     timespec="milliseconds"
                 ),
+                "map_name": self.map_profile.name,
                 "step": step,
                 "x": self.grid.pose.x,
                 "y": self.grid.pose.y,
@@ -902,6 +1287,10 @@ class AdaptiveMapper:
                     if strict is not None and strict.angular_uncertainty_deg is not None
                     else ""
                 ),
+                "recovery_reason": result.recovery_reason or "",
+                "recovery_requires_spawn_reset": (
+                    result.recovery_requires_spawn_reset
+                ),
                 "stop_reason": result.stop_reason or "",
             }
         )
@@ -942,7 +1331,7 @@ class AdaptiveMapper:
         now = monotonic()
         if not force and now - self._last_map_publish_at < self._map_publish_interval:
             return
-        self.frame_callback(self.grid.render())
+        self.frame_callback(self.grid.render_overview())
         self._last_map_publish_at = now
 
 
