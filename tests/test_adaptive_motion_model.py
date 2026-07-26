@@ -144,3 +144,73 @@ def test_texture_variation_does_not_freeze_online_learning() -> None:
     assert model.forward_samples == 4
     assert model.forward_flow_px is not None
     assert model.forward_flow_px < 50.0
+
+
+def test_local_animation_against_wall_is_classified_as_blocked() -> None:
+    model = AdaptiveMotionModel(
+        forward_flow_px=10.5925,
+        forward_flow_deviation_px=1.73,
+        forward_samples=66,
+    )
+    stalled = DirectionalFlow(
+        scene_dx_px=0.0,
+        scene_dy_px=0.0,
+        magnitude_px=0.166,
+        dispersion_px=0.14,
+        tracked_points=1,
+        inlier_ratio=0.0,
+        confidence=0.0,
+        detected_points=227,
+        valid_tracks=16,
+        moving_points=1,
+        moving_ratio=0.0625,
+        spatial_coverage=0.0,
+        occupied_regions=0,
+        translation_coherence=0.0,
+        expansion_coherence=0.0,
+        camera_model="none",
+    )
+
+    assessment = model.assess_forward(
+        stalled,
+        change_score=0.12561,
+        held_seconds=0.12037,
+    )
+
+    assert assessment.outcome is AdaptiveForwardOutcome.BLOCKED
+    assert assessment.reliable
+    assert assessment.distance_cells == 0.0
+    assert "obstacle" in assessment.reason
+
+
+def test_tracking_failure_without_stationary_evidence_remains_uncertain() -> None:
+    model = AdaptiveMotionModel(
+        forward_flow_px=10.0,
+        forward_samples=20,
+    )
+    weak = DirectionalFlow(
+        scene_dx_px=0.0,
+        scene_dy_px=0.0,
+        magnitude_px=0.15,
+        dispersion_px=0.0,
+        tracked_points=0,
+        inlier_ratio=0.0,
+        confidence=0.0,
+        detected_points=3,
+        valid_tracks=2,
+        moving_points=0,
+        moving_ratio=0.0,
+        spatial_coverage=0.0,
+        occupied_regions=0,
+        translation_coherence=0.0,
+        expansion_coherence=0.0,
+        camera_model="none",
+    )
+
+    assessment = model.assess_forward(
+        weak,
+        change_score=0.12,
+        held_seconds=0.12,
+    )
+
+    assert assessment.outcome is AdaptiveForwardOutcome.UNCERTAIN

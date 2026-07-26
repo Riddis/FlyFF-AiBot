@@ -107,7 +107,7 @@ class AdaptiveMapper:
     still fails closed so map drift is not silently accumulated.
     """
 
-    VERSION = "1.1-multi-camera-forward-validation"
+    VERSION = "1.2-obstacle-recovery"
 
     def __init__(
         self,
@@ -230,9 +230,10 @@ class AdaptiveMapper:
     def _run(self) -> Path:
         self.status_callback(
             "Adaptive mapper starts in 5 seconds. Enter the dungeon, stand at "
-            "the known spawn, keep the camera fixed, and leave a clear path "
-            "ahead. Behind-character and top-down views are both supported, "
-            "but do not change view during a run. No mapper calibration is required."
+            "the known spawn, and keep the camera fixed. Behind-character and "
+            "top-down views are both supported, but do not change view during a "
+            "run. Obstacles are confirmed, marked on the occupancy grid, and "
+            "replanned around. No mapper calibration is required."
         )
         self.status_callback(
             f"Adaptive mapper {self.VERSION}; heading detector "
@@ -470,6 +471,9 @@ class AdaptiveMapper:
             held_seconds=timing.held_seconds,
         )
         if assessment.outcome is AdaptiveForwardOutcome.BLOCKED:
+            motion_debug_path = motion_debug_path or self._save_motion_debug(
+                step, before, after, motion
+            )
             self.grid.set_heading_degrees(strict_heading.angle_deg)
             self._set_pose_reliability(
                 position_known=True,
@@ -634,6 +638,12 @@ class AdaptiveMapper:
             self._blocked_observations.pop(target_cell, None)
         else:
             blocked_recorded = self.grid.mark_blocked(*target_cell)
+
+        if blocked_recorded and target_value != FREE:
+            self.status_callback(
+                "Obstacle confirmed and marked at "
+                f"({target_cell[0]}, {target_cell[1]}); replanning around it."
+            )
 
         if target_value == FREE or not blocked_recorded:
             return (

@@ -70,6 +70,11 @@ class AdaptiveMotionModel:
     MIN_MOVING_RATIO = 0.25
     MIN_OCCUPIED_REGIONS = 2
     MIN_FLOW_CONFIDENCE = 0.38
+    MAX_BLOCKED_MOVING_RATIO = 0.15
+    MAX_BLOCKED_FLOW_CONFIDENCE = 0.22
+    MAX_BLOCKED_OCCUPIED_REGIONS = 1
+    LEARNED_BLOCKED_FLOW_RATIO = 0.30
+    ABSOLUTE_BLOCKED_FLOW_PX = 0.65
 
     def __post_init__(self) -> None:
         if self.version != 1:
@@ -273,43 +278,102 @@ class AdaptiveMotionModel:
                 "measured forward hold is outside the safe range",
             )
 
+        # New tracker fields are camera-agnostic. Preserve compatibility with
+        # older DirectionalFlow objects that only populated tracked_points.
+        has_extended_evidence = bool(
+            flow.detected_points
+            or flow.valid_tracks
+            or flow.moving_points
+            or flow.moving_ratio
+            or flow.occupied_regions
+            or flow.spatial_coverage
+            or flow.translation_coherence
+            or flow.expansion_coherence
+            or flow.camera_model != "none"
+        )
+        if has_extended_evidence:
+            valid_tracks = max(0, int(flow.valid_tracks))
+            moving_points = max(0, int(flow.moving_points))
+            moving_ratio = max(0.0, float(flow.moving_ratio))
+            occupied_regions = max(0, int(flow.occupied_regions))
+        else:
+            valid_tracks = max(0, int(flow.tracked_points))
+            moving_points = valid_tracks
+            moving_ratio = 1.0 if valid_tracks > 0 else 0.0
+            occupied_regions = 2 if valid_tracks >= self.MIN_MOVING_POINTS else 0
+
         static_limit = self.STATIC_FLOW_PX
         if expected is not None:
             static_limit = min(static_limit, max(0.65, expected * 0.18))
-        if observed <= static_limit and change_score <= self.STATIC_CHANGE_SCORE:
-            confidence = float(
-                max(
-                    0.55,
-                    min(
-                        0.95,
-                        1.0
-                        - 0.35 * observed / max(static_limit, 0.1)
-                        - 0.20 * change_score / self.STATIC_CHANGE_SCORE,
+
+        ordinary_static = (
+            observed <= static_limit
+            and change_score <= self.STATIC_CHANGE_SCORE
+        )
+
+        # When the character walks into a wall, character animation and nearby
+        # particles can produce a large raw image-difference score even though
+        # the world does not translate. Treat that as a blocked step only when
+        # enough feature tracks remain measurable and almost none of them show
+        # distributed scene travel. Requiring two mapper confirmations prevents
+        # a single input hitch from permanently blocking a map cell.
+        moving_point_limit = max(2, math.ceil(valid_tracks * 0.12))
+        stationary_track_evidence = (
+            valid_tracks >= self.MIN_VALID_TRACKS
+            and moving_points <= moving_point_limit
+            and moving_ratio <= self.MAX_BLOCKED_MOVING_RATIO
+            and occupied_regions <= self.MAX_BLOCKED_OCCUPIED_REGIONS
+            and flow.confidence <= self.MAX_BLOCKED_FLOW_CONFIDENCE
+        )
+        learned_flow_collapse = bool(
+            expected is not None
+            and self.forward_samples >= 3
+            and ratio is not None
+            and ratio <= self.LEARNED_BLOCKED_FLOW_RATIO
+        )
+        absolute_flow_stall = observed <= self.ABSOLUTE_BLOCKED_FLOW_PX
+        animated_stall = stationary_track_evidence and (
+            learned_flow_collapse or absolute_flow_stall
+        )
+
+        if ordinary_static or animated_stall:
+            if animated_stall and not ordinary_static:
+                reason = (
+                    "world flow collapsed after forward input while only local "
+                    "animation changed; obstacle or impassable boundary likely"
+                )
+                confidence = min(
+                    0.96,
+                    0.72
+                    + 0.12 * min(1.0, self.forward_samples / 8.0)
+                    + 0.12 * max(
+                        0.0,
+                        1.0 - moving_ratio / self.MAX_BLOCKED_MOVING_RATIO,
                     ),
                 )
-            )
+            else:
+                reason = "two-frame view is effectively static after forward input"
+                confidence = float(
+                    max(
+                        0.55,
+                        min(
+                            0.95,
+                            1.0
+                            - 0.35 * observed / max(static_limit, 0.1)
+                            - 0.20 * change_score / self.STATIC_CHANGE_SCORE,
+                        ),
+                    )
+                )
             return ForwardAssessment(
                 outcome=AdaptiveForwardOutcome.BLOCKED,
                 reliable=True,
                 distance_cells=0.0,
-                confidence=confidence,
+                confidence=float(confidence),
                 expected_flow_px=expected,
                 observed_flow_px=observed,
                 flow_ratio=ratio,
-                reason="two-frame view is effectively static after forward input",
+                reason=reason,
             )
-
-        # New tracker fields are camera-agnostic. The fallbacks preserve
-        # compatibility with motion objects created by the initial adaptive
-        # mapper and with older local tests.
-        valid_tracks = flow.valid_tracks or flow.tracked_points
-        moving_points = flow.moving_points or flow.tracked_points
-        moving_ratio = flow.moving_ratio
-        if moving_ratio <= 0.0 and valid_tracks > 0:
-            moving_ratio = moving_points / valid_tracks
-        occupied_regions = flow.occupied_regions
-        if occupied_regions == 0 and flow.tracked_points >= self.MIN_MOVING_POINTS:
-            occupied_regions = 2
 
         failures: list[str] = []
         if valid_tracks < self.MIN_VALID_TRACKS:
