@@ -18,3 +18,11 @@ mapper.zip
 
 # Persistent learned map data (keep locally; map_profiles.json is tracked)
 mapper/maps/
+
+# Mapper RL simulator outputs
+models/mapper_explorer_ppo.zip
+models/mapper_explorer_ppo.metadata.json
+models/mapper_best/
+models/mapper_eval/
+models/mapper_checkpoints/
+training_logs/mapper_rl/

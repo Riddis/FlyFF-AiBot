@@ -1,0 +1,10 @@
+{"actual_action": "TURN_LEFT", "actual_reason": "unknown neighbor", "agrees": true, "outcome": "turn", "pose_known": true, "shadow_action": "TURN_LEFT", "step": 1, "timestamp": "2026-07-26T17:37:27.855+00:00"}
+{"actual_action": "FORWARD", "actual_reason": "unknown neighbor", "agrees": true, "outcome": "moved", "pose_known": true, "shadow_action": "FORWARD", "step": 2, "timestamp": "2026-07-26T17:37:28.605+00:00"}
+{"actual_action": "FORWARD", "actual_reason": "unknown neighbor", "agrees": true, "outcome": "moved", "pose_known": true, "shadow_action": "FORWARD", "step": 3, "timestamp": "2026-07-26T17:37:29.312+00:00"}
+{"actual_action": "FORWARD", "actual_reason": "unknown neighbor", "agrees": true, "outcome": "moved", "pose_known": true, "shadow_action": "FORWARD", "step": 4, "timestamp": "2026-07-26T17:37:29.977+00:00"}
+{"actual_action": "FORWARD", "actual_reason": "unknown neighbor", "agrees": true, "outcome": "moved", "pose_known": true, "shadow_action": "FORWARD", "step": 5, "timestamp": "2026-07-26T17:37:30.613+00:00"}
+{"actual_action": "FORWARD", "actual_reason": "unknown neighbor", "agrees": true, "outcome": "moved", "pose_known": true, "shadow_action": "FORWARD", "step": 6, "timestamp": "2026-07-26T17:37:31.507+00:00"}
+{"actual_action": "FORWARD", "actual_reason": "unknown neighbor", "agrees": true, "outcome": "blocked", "pose_known": true, "shadow_action": "FORWARD", "step": 7, "timestamp": "2026-07-26T17:37:32.376+00:00"}
+{"actual_action": "FORWARD", "actual_reason": "unknown neighbor", "agrees": true, "outcome": "blocked", "pose_known": true, "shadow_action": "FORWARD", "step": 8, "timestamp": "2026-07-26T17:37:33.077+00:00"}
+{"actual_action": "TURN_RIGHT", "actual_reason": "unknown neighbor", "agrees": true, "outcome": "turn", "pose_known": true, "shadow_action": "TURN_RIGHT", "step": 9, "timestamp": "2026-07-26T17:37:39.214+00:00"}
+{"actual_action": "FORWARD", "actual_reason": "unknown neighbor", "agrees": true, "outcome": "turn", "pose_known": false, "shadow_action": "FORWARD", "step": 10, "timestamp": "2026-07-26T17:37:39.934+00:00"}

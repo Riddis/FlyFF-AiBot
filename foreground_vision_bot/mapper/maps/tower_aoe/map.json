@@ -1,14 +1,14 @@
 {
   "size": 401,
   "pose": {
-    "x": 21,
-    "y": 20,
+    "x": -5,
+    "y": 0,
     "heading_index": 1
   },
   "continuous_pose": {
-    "x": 20.938107344316297,
-    "y": 20.08660506517069,
-    "heading_deg": 349.05443818575134
+    "x": -5.02798699823696,
+    "y": -0.1403566403849536,
+    "heading_deg": 6.385634813745535
   },
   "metadata": {
     "version": 4,
@@ -22,15 +22,15 @@
     "suspected_transitions": [],
     "position_known": false,
     "heading_known": true,
-    "heading_uncertainty_deg": 1.3238736728302012,
+    "heading_uncertainty_deg": 1.5657706179444857,
     "pose_known": false,
     "pose_note": "Post-forward heading confirmed; position awaits visual validation.",
-    "pose_state_updated_at": "2026-07-26T16:58:35.866272+00:00",
-    "termination_reason": "Mapping stopped after recovery was declined or cancelled. Last issue: Forward travel remained visually uncertain after fresh-frame revalidation, so the new position was not guessed. Reason: forward evidence failed: moving ratio 0.12 < 0.25. Return manually to the known spawn, then resume the persistent map.",
+    "pose_state_updated_at": "2026-07-26T17:37:39.831351+00:00",
+    "termination_reason": "Mapping stopped after recovery was declined or cancelled. Last issue: Forward movement changed heading by +11.0\u00b0. The new position is not trusted; return manually to the known spawn to continue safely.",
     "map_name": "Tower AoE",
-    "run_count": 2,
+    "run_count": 3,
     "heading_recovery_successes": 0,
     "manual_spawn_resets": 0,
-    "updated_at": "2026-07-26T16:58:44.770344+00:00"
+    "updated_at": "2026-07-26T17:37:50.695095+00:00"
   }
 }

@@ -94,7 +94,12 @@ class RuntimeController:
 
         self._start_control(f"rl-{mode}", run)
 
-    def start_mapper(self, map_name: str) -> None:
+    def start_mapper(
+        self,
+        map_name: str,
+        *,
+        rl_shadow_enabled: bool = False,
+    ) -> None:
         def run(token: CancellationToken):
             mapper = Mapper(
                 self.bot,
@@ -116,6 +121,7 @@ class RuntimeController:
                         cancellation_event=token.event,
                     )
                 ),
+                rl_shadow_enabled=rl_shadow_enabled,
             )
             return mapper.run()
 

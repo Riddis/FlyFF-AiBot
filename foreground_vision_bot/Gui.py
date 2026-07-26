@@ -127,7 +127,12 @@ class Gui:
                 selected_map = values.get("-MAP-NAME-", self._selected_map_name)
                 self.__apply_map_selection(bot, selected_map, publish_preview=False)
                 self.__start_control(
-                    lambda: self.controller.start_mapper(self._selected_map_name),
+                    lambda: self.controller.start_mapper(
+                        self._selected_map_name,
+                        rl_shadow_enabled=bool(
+                            values.get("-MAPPER_RL_SHADOW-", False)
+                        ),
+                    ),
                     "Mapping",
                     f"Starting adaptive mapper for {self._selected_map_name}...",
                 )
@@ -171,6 +176,12 @@ class Gui:
                 )
 
             # BOT OPTIONS - Video options
+            if event == "-MAPPER_RL_SHADOW-":
+                sg.user_settings_set_entry(
+                    "-MAPPER_RL_SHADOW-",
+                    bool(values.get("-MAPPER_RL_SHADOW-", False)),
+                )
+
             if event == "-SHOW_FRAMES-":
                 bot.set_config(show_frames=values["-SHOW_FRAMES-"])
                 sg.user_settings_set_entry("-SHOW_FRAMES-", values["-SHOW_FRAMES-"])
@@ -648,6 +659,12 @@ class Gui:
         )
 
     def __load_settings(self, bot):
+        mapper_rl_shadow = sg.user_settings_get_entry(
+            "-MAPPER_RL_SHADOW-",
+            False,
+        )
+        self.window["-MAPPER_RL_SHADOW-"].update(bool(mapper_rl_shadow))
+
         show_frames = sg.user_settings_get_entry("-SHOW_FRAMES-", True)
         self.window["-SHOW_FRAMES-"].update(show_frames)
         self.window["-SHOW_MATCHES_TEXT-"].update(visible=show_frames)
@@ -1037,6 +1054,18 @@ class Gui:
                         key="-DELETE_MAP-",
                         button_color=("white", "#a83232"),
                     ),
+                ],
+                [
+                    sg.Checkbox(
+                        "Enable mapper RL shadow recommendations",
+                        default=False,
+                        enable_events=True,
+                        key="-MAPPER_RL_SHADOW-",
+                        tooltip=(
+                            "The RL policy only recommends actions and is logged; "
+                            "the deterministic mapper remains in control."
+                        ),
+                    )
                 ],
             ],
             expand_x=True,

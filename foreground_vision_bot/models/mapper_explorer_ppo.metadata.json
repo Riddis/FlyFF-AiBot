@@ -1,0 +1,36 @@
+{
+  "algorithm": "PPO",
+  "live_mode": "shadow_only",
+  "simulator": {
+    "base_camera_obstruction_probability": 0.018,
+    "completion_coverage": 0.97,
+    "completion_reward": 8.0,
+    "contact_camera_obstruction_probability": 0.16,
+    "heading_dropout_probability": 0.025,
+    "invalid_observation_penalty": 0.45,
+    "lateral_slide_cell_probability": 0.12,
+    "max_steps": 900,
+    "maximum_camera_obstruction_steps": 4,
+    "new_free_reward": 1.0,
+    "new_wall_reward": 0.18,
+    "repeated_contact_penalty": 0.12,
+    "step_penalty": 0.015,
+    "successful_recovery_reward": 0.3,
+    "turn_heading_dropout_probability": 0.08,
+    "turn_penalty": 0.025,
+    "wait_penalty": 0.025,
+    "wall_slide_probability": 0.3
+  },
+  "training": {
+    "checkpoint_dir": "models/mapper_checkpoints",
+    "checkpoint_frequency": 50000,
+    "evaluation_episodes": 20,
+    "evaluation_frequency": 25000,
+    "model_path": "models/mapper_explorer_ppo",
+    "parallel_envs": 8,
+    "seed": 7,
+    "tensorboard_dir": "training_logs/mapper_rl",
+    "total_timesteps": 500000
+  },
+  "version": 1
+}

@@ -32,6 +32,7 @@ from .MapLogger import MapLogger
 from .MinimapHeading import HeadingReading, MinimapHeadingDetector, signed_angle_delta
 from .OccupancyGrid import FREE, UNKNOWN, OccupancyGrid, PoseIntegration
 from .PangDetector import PangDetection, PangDetector
+from .rl.ShadowPlanner import MapperShadowPlanner, ShadowDecision
 
 StatusCallback = Callable[[str], None]
 FrameCallback = Callable[[np.ndarray], None]
@@ -129,7 +130,7 @@ class AdaptiveMapper:
     still fails closed so map drift is not silently accumulated.
     """
 
-    VERSION = "1.4-contact-aware-map-management"
+    VERSION = "1.5-rl-simulator-shadow-foundation"
 
     def __init__(
         self,
@@ -140,6 +141,8 @@ class AdaptiveMapper:
         cancellation: CancellationToken | None = None,
         map_name: str | None = None,
         recovery_callback: RecoveryCallback | None = None,
+        rl_shadow_enabled: bool = False,
+        rl_policy_path: Path | None = None,
     ) -> None:
         if bot.keyboard is None:
             raise RuntimeError("Attach the Flyff window first.")
@@ -235,6 +238,21 @@ class AdaptiveMapper:
             / run_id
         )
         self.logger = MapLogger(self.output_dir / "mapping_steps.csv")
+        default_policy_path = (
+            Path(__file__).resolve().parents[1]
+            / "models"
+            / "mapper_explorer_ppo.zip"
+        )
+        self.shadow_planner = MapperShadowPlanner(
+            enabled=rl_shadow_enabled,
+            model_path=rl_policy_path or default_policy_path,
+            output_path=self.output_dir / "mapper_rl_shadow.jsonl",
+        )
+        if self.shadow_planner.warning is not None:
+            self.status_callback(
+                "Mapper RL shadow mode is unavailable; deterministic mapping "
+                f"will continue. {self.shadow_planner.warning}"
+            )
 
     def stop(self) -> None:
         self.cancellation.cancel()
@@ -268,6 +286,7 @@ class AdaptiveMapper:
                         self.output_dir / "adaptive_motion_snapshot.json"
                     ),
                 ),
+                ("close the mapper RL shadow log", self.shadow_planner.close),
                 ("close the mapping log", self.logger.close),
             )
             for label, action in cleanup_actions:
@@ -317,6 +336,7 @@ class AdaptiveMapper:
         step = 0
         while not self.cancellation.cancelled:
             self.cancellation.raise_if_cancelled()
+            shadow_decision = self.shadow_planner.recommend(self.grid)
             decision = self.explorer.decide(self.grid)
             if decision.action == "STOP":
                 reason = "Mapping completed: no reachable unexplored frontier remains."
@@ -353,8 +373,32 @@ class AdaptiveMapper:
                     pang.score,
                 )
 
-            self._write_step(step, decision, result, pang)
-            self._report_step(step, decision, result, pang)
+            self.shadow_planner.memory.update_after_step(
+                actual_action=decision.action,
+                forward_outcome=(
+                    result.forward_assessment.outcome
+                    if result.forward_assessment is not None
+                    else None
+                ),
+                motion=result.motion,
+                pose_known=result.pose_known,
+                heading_known=self._heading_known,
+            )
+            shadow_outcome = (
+                result.forward_assessment.outcome.value
+                if result.forward_assessment is not None
+                else "turn"
+            )
+            self.shadow_planner.record(
+                step=step,
+                actual_action=decision.action,
+                actual_reason=decision.reason,
+                recommendation=shadow_decision,
+                outcome=shadow_outcome,
+                pose_known=result.pose_known,
+            )
+            self._write_step(step, decision, result, pang, shadow_decision)
+            self._report_step(step, decision, result, pang, shadow_decision)
             self._publish_map_preview()
 
             if step % self.config.save_every_steps == 0:
@@ -1145,6 +1189,7 @@ class AdaptiveMapper:
         decision: ExplorerDecision,
         result: _StepResult,
         pang: PangDetection,
+        shadow: ShadowDecision,
     ) -> None:
         motion = result.motion
         flow = motion.directional_flow if motion is not None else None
@@ -1180,6 +1225,12 @@ class AdaptiveMapper:
                 "heading_deg": round(continuous.heading_deg, 3),
                 "action": decision.action,
                 "reason": decision.reason,
+                "rl_shadow_enabled": shadow.enabled,
+                "rl_shadow_action": shadow.action,
+                "rl_shadow_agrees": (
+                    shadow.enabled and shadow.action == decision.action
+                ),
+                "rl_shadow_status": shadow.status,
                 "frame_sequence": result.frame_sample.sequence,
                 "requested_seconds": (
                     round(timing.requested_seconds, 5) if timing is not None else ""
@@ -1301,6 +1352,7 @@ class AdaptiveMapper:
         decision: ExplorerDecision,
         result: _StepResult,
         pang: PangDetection,
+        shadow: ShadowDecision,
     ) -> None:
         if result.forward_assessment is not None:
             motion_text = result.forward_assessment.outcome.value
@@ -1316,13 +1368,18 @@ class AdaptiveMapper:
             if result.motion is not None
             else "n/a"
         )
+        shadow_text = (
+            f" rl_shadow={shadow.action}"
+            if shadow.enabled and shadow.action
+            else ""
+        )
         self.status_callback(
             f"map step={step} pose=({self.grid.continuous_pose.x:.2f},"
             f"{self.grid.continuous_pose.y:.2f}) "
             f"heading={self.grid.continuous_pose.heading_deg:.1f}° "
             f"action={decision.action} motion={motion_text} camera={camera_text} "
             f"strict_heading={strict_text} pose_known={result.pose_known} "
-            f"pang={pang.visible}; {self.motion_model.summary()}"
+            f"pang={pang.visible}{shadow_text}; {self.motion_model.summary()}"
         )
 
     def _publish_map_preview(self, force: bool = False) -> None:
