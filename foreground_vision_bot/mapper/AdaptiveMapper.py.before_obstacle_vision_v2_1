@@ -2019,10 +2019,3 @@ class AdaptiveMapper:
 
 # Keep the public name expected by RuntimeController and existing imports.
 Mapper = AdaptiveMapper
-
-# BEGIN OBSTACLE_VISION_V2_1_DROPIN
-from .obstacle_vision.integration import install_obstacle_vision as _install_obstacle_vision_v21
-
-_install_obstacle_vision_v21(AdaptiveMapper)
-del _install_obstacle_vision_v21
-# END OBSTACLE_VISION_V2_1_DROPIN

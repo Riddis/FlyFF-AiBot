@@ -298,10 +298,11 @@ class AdaptiveRunMotionBaseline:
                 <= self.STATIONARY_CONTACT_MAX_OCCUPIED_REGIONS
             )
         )
-        required_votes = max(
-            self.STATIONARY_CONTACT_MIN_RECHECKS,
-            math.ceil(count * 0.80),
-        )
+        # One recheck can briefly include an extra animated region as the
+        # character/effect settles against geometry. Require a two-thirds
+        # consensus, while the median/final locality and decay gates below still
+        # prevent distributed world travel from being mistaken for contact.
+        required_votes = max(2, math.ceil(count * (2.0 / 3.0)))
         moving_ratios = [max(0.0, float(flow.moving_ratio)) for flow in flows]
         coverages = [max(0.0, float(flow.spatial_coverage)) for flow in flows]
         median_ratio = float(median(moving_ratios))

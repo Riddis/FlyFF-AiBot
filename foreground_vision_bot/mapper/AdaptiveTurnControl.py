@@ -56,6 +56,9 @@ class AdaptiveTurnController:
         neutral_wait_seconds: float = 0.75,
         settle_seconds: float = 0.35,
         tolerance_degrees: float = 5.0,
+        settled_tolerance_degrees: float = 8.0,
+        settled_confirmation_seconds: float = 0.18,
+        maximum_settled_drift_degrees: float = 3.5,
         maximum_uncertainty_degrees: float = 8.0,
         maximum_step_degrees: float = 28.0,
         maximum_pulse_seconds: float = 0.140,
@@ -65,6 +68,15 @@ class AdaptiveTurnController:
             raise ValueError("turn waits cannot be negative")
         if tolerance_degrees <= 0.0:
             raise ValueError("turn tolerance must be positive")
+        if not tolerance_degrees <= settled_tolerance_degrees <= 12.0:
+            raise ValueError(
+                "settled_tolerance_degrees must be between the normal "
+                "tolerance and 12 degrees"
+            )
+        if settled_confirmation_seconds < 0.0:
+            raise ValueError("settled confirmation wait cannot be negative")
+        if maximum_settled_drift_degrees <= 0.0:
+            raise ValueError("maximum settled drift must be positive")
         if maximum_uncertainty_degrees <= 0.0:
             raise ValueError("maximum uncertainty must be positive")
         if not 2.0 <= maximum_step_degrees <= 45.0:
@@ -84,6 +96,11 @@ class AdaptiveTurnController:
         self.neutral_wait_seconds = float(neutral_wait_seconds)
         self.settle_seconds = float(settle_seconds)
         self.tolerance_degrees = float(tolerance_degrees)
+        self.settled_tolerance_degrees = float(settled_tolerance_degrees)
+        self.settled_confirmation_seconds = float(settled_confirmation_seconds)
+        self.maximum_settled_drift_degrees = float(
+            maximum_settled_drift_degrees
+        )
         self.maximum_uncertainty_degrees = float(maximum_uncertainty_degrees)
         self.maximum_step_degrees = float(maximum_step_degrees)
         self.maximum_pulse_seconds = float(maximum_pulse_seconds)
@@ -270,6 +287,16 @@ class AdaptiveTurnController:
                 current = after
 
             final_error = signed_angle_delta(target, current.angle_deg)
+            settled = self._confirm_bounded_settle(
+                target=target,
+                label=label,
+                current=current,
+                correction=self.maximum_corrections,
+                pulses=pulses,
+                model_updates=model_updates,
+            )
+            if settled is not None:
+                return settled
             raise AdaptiveTurnError(
                 f"{label} could not reach {target:.1f}° after "
                 f"{self.maximum_corrections} corrections; "
@@ -278,6 +305,69 @@ class AdaptiveTurnController:
         except Exception:
             self.controller.stop()
             raise
+
+    def _confirm_bounded_settle(
+        self,
+        *,
+        target: float,
+        label: str,
+        current: HeadingReading,
+        correction: int,
+        pulses: list[KeyPressTiming],
+        model_updates: int,
+    ) -> AdaptiveTurnResult | None:
+        """Accept a stable near-cardinal result instead of oscillating forever.
+
+        Flyff can retain a small amount of turn momentum and reversal backlash.
+        Near the target, another minimum key pulse can overshoot farther than the
+        remaining error. The normal five-degree band is still preferred. This
+        secondary band is used only after the correction budget is exhausted and
+        only when a fresh, high-sample heading confirms that the view has settled.
+        """
+
+        current_error = signed_angle_delta(target, current.angle_deg)
+        if abs(current_error) > self.settled_tolerance_degrees:
+            return None
+
+        self.controller.stop()
+        if self.cancellation.wait(self.settled_confirmation_seconds):
+            self.cancellation.raise_if_cancelled()
+        final = self.read_heading(
+            f"{label}: bounded final settle confirmation",
+            15,
+        )
+        self._validate_reading(final, label)
+        final_error = signed_angle_delta(target, final.angle_deg)
+        settled_drift = abs(
+            signed_angle_delta(final.angle_deg, current.angle_deg)
+        )
+        uncertainty_allowance = 0.5 * (
+            self._uncertainty(current) + self._uncertainty(final)
+        )
+        maximum_drift = max(
+            self.maximum_settled_drift_degrees,
+            uncertainty_allowance,
+        )
+        if (
+            abs(final_error) > self.settled_tolerance_degrees
+            or settled_drift > maximum_drift
+        ):
+            return None
+
+        self.status(
+            f"{label} accepted after bounded final settle at "
+            f"{final.angle_deg:.1f}° (target {target:.1f}°, error "
+            f"{final_error:+.1f}°); the view stayed stable within the "
+            f"{self.settled_tolerance_degrees:.1f}° operational band, so no "
+            "additional reversal pulse was issued."
+        )
+        return AdaptiveTurnResult(
+            target_heading=target,
+            final_reading=final,
+            corrections=correction,
+            pulses=tuple(pulses),
+            model_updates=model_updates,
+        )
 
     def _validate_reading(self, reading: HeadingReading, label: str) -> None:
         if reading.is_stale:

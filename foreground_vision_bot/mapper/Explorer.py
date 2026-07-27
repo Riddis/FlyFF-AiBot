@@ -34,8 +34,18 @@ class Explorer:
 
         candidates: list[int] = []
         for direction, (dx, dy) in enumerate(grid.DIRECTIONS):
-            value = grid.value(pose.x + dx, pose.y + dy)
-            if value == UNKNOWN:
+            target_x = pose.x + dx
+            target_y = pose.y + dy
+            value = grid.value(target_x, target_y)
+            if (
+                value == UNKNOWN
+                and not grid.contact_boundary_blocks(
+                    pose.x,
+                    pose.y,
+                    target_x,
+                    target_y,
+                )
+            ):
                 candidates.append(direction)
 
         if candidates:

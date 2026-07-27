@@ -69,6 +69,18 @@ class SuspectedTransition(TypedDict):
     timestamp: str
 
 
+class ContactBoundary(TypedDict):
+    """A confirmed collision boundary between two adjacent planner cells."""
+
+    from_x: int
+    from_y: int
+    to_x: int
+    to_y: int
+    heading_deg: float
+    confirmations: int
+    timestamp: str
+
+
 @dataclass
 class GridMetadata:
     version: int = 3
@@ -79,6 +91,7 @@ class GridMetadata:
     pang_sightings: list[PangSighting] = field(default_factory=list)
     teleport_zones: list[TeleportZone] = field(default_factory=list)
     suspected_transitions: list[SuspectedTransition] = field(default_factory=list)
+    contact_boundaries: list[ContactBoundary] = field(default_factory=list)
     position_known: bool = False
     heading_known: bool = False
     heading_uncertainty_deg: float | None = None
@@ -409,6 +422,112 @@ class OccupancyGrid:
             return True
         return current == BLOCKED
 
+    @staticmethod
+    def _normalise_boundary(
+        from_x: int,
+        from_y: int,
+        to_x: int,
+        to_y: int,
+    ) -> tuple[tuple[int, int], tuple[int, int]]:
+        first = (int(from_x), int(from_y))
+        second = (int(to_x), int(to_y))
+        if abs(first[0] - second[0]) + abs(first[1] - second[1]) != 1:
+            raise ValueError("contact boundary cells must be cardinal neighbours")
+        return (first, second) if first <= second else (second, first)
+
+    def add_contact_boundary(
+        self,
+        *,
+        from_x: int,
+        from_y: int,
+        to_x: int,
+        to_y: int,
+        heading_deg: float,
+        confirmations: int = 1,
+    ) -> bool:
+        """Record directional collision evidence without erasing free cells.
+
+        A collision proves that the character could not cross the boundary between
+        two planner cells. It does not always prove that the target cell centre is
+        occupied: coarse visual odometry can round the current pose into a cell
+        that was visited from another side. Persisting the edge lets the planner
+        avoid the failed crossing while preserving trustworthy free-space evidence.
+        """
+        first, second = self._normalise_boundary(from_x, from_y, to_x, to_y)
+        increment = max(1, int(confirmations))
+        for boundary in self.metadata.contact_boundaries:
+            existing_first, existing_second = self._normalise_boundary(
+                boundary["from_x"],
+                boundary["from_y"],
+                boundary["to_x"],
+                boundary["to_y"],
+            )
+            if (existing_first, existing_second) != (first, second):
+                continue
+            boundary["confirmations"] = max(
+                int(boundary.get("confirmations", 1)),
+                increment,
+            )
+            boundary["heading_deg"] = round(float(heading_deg) % 360.0, 3)
+            boundary["timestamp"] = datetime.now(timezone.utc).isoformat()
+            return False
+
+        self.metadata.contact_boundaries.append(
+            {
+                "from_x": first[0],
+                "from_y": first[1],
+                "to_x": second[0],
+                "to_y": second[1],
+                "heading_deg": round(float(heading_deg) % 360.0, 3),
+                "confirmations": increment,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        return True
+
+    def contact_boundary_blocks(
+        self,
+        from_x: int,
+        from_y: int,
+        to_x: int,
+        to_y: int,
+    ) -> bool:
+        try:
+            first, second = self._normalise_boundary(
+                from_x,
+                from_y,
+                to_x,
+                to_y,
+            )
+        except ValueError:
+            return True
+        for boundary in self.metadata.contact_boundaries:
+            try:
+                existing = self._normalise_boundary(
+                    boundary["from_x"],
+                    boundary["from_y"],
+                    boundary["to_x"],
+                    boundary["to_y"],
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+            if existing == (first, second):
+                return True
+        return False
+
+    def can_traverse(
+        self,
+        from_x: int,
+        from_y: int,
+        to_x: int,
+        to_y: int,
+    ) -> bool:
+        if abs(int(from_x) - int(to_x)) + abs(int(from_y) - int(to_y)) != 1:
+            return False
+        if self.contact_boundary_blocks(from_x, from_y, to_x, to_y):
+            return False
+        return self.value(to_x, to_y) == FREE
+
     def mark_forbidden(self, x: int, y: int, radius: int = 5) -> None:
         self.metadata.teleport_zones.append({"x": x, "y": y, "radius": radius})
         cx, cy = self.world_to_cell(x, y)
@@ -481,7 +600,11 @@ class OccupancyGrid:
         for gy, gx in np.argwhere(self.cells == FREE):
             wx, wy = gx - self.origin, self.origin - gy
             for dx, dy in self.DIRECTIONS:
-                if self.value(wx + dx, wy + dy) == UNKNOWN:
+                neighbor = (wx + dx, wy + dy)
+                if (
+                    self.value(*neighbor) == UNKNOWN
+                    and not self.contact_boundary_blocks(wx, wy, *neighbor)
+                ):
                     frontiers.append((wx, wy))
                     break
         return frontiers
@@ -506,7 +629,11 @@ class OccupancyGrid:
                 break
             for dx, dy in self.DIRECTIONS:
                 nxt = (current[0] + dx, current[1] + dy)
-                if nxt in parents or self.value(*nxt) != FREE:
+                if (
+                    nxt in parents
+                    or self.value(*nxt) != FREE
+                    or self.contact_boundary_blocks(*current, *nxt)
+                ):
                     continue
                 parents[nxt] = current
                 queue.append(nxt)
@@ -560,6 +687,44 @@ class OccupancyGrid:
             cv.line(image, (px - 3, py + 3), (px + 3, py - 3), (255, 0, 255), 1)
         return image
 
+    def _draw_contact_boundaries(
+        self,
+        image: np.ndarray,
+        *,
+        crop_min_x: int,
+        crop_min_y: int,
+        scale: int,
+    ) -> None:
+        """Overlay collision edges so corners do not look like separate rocks."""
+        thickness = max(1, scale // 2)
+        for boundary in self.metadata.contact_boundaries:
+            try:
+                from_gx, from_gy = self.world_to_cell(
+                    int(boundary["from_x"]),
+                    int(boundary["from_y"]),
+                )
+                to_gx, to_gy = self.world_to_cell(
+                    int(boundary["to_x"]),
+                    int(boundary["to_y"]),
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+            local_from_x = from_gx - crop_min_x
+            local_from_y = from_gy - crop_min_y
+            local_to_x = to_gx - crop_min_x
+            local_to_y = to_gy - crop_min_y
+            if local_from_x == local_to_x:
+                boundary_y = max(local_from_y, local_to_y) * scale
+                start = (local_from_x * scale, boundary_y)
+                end = ((local_from_x + 1) * scale - 1, boundary_y)
+            elif local_from_y == local_to_y:
+                boundary_x = max(local_from_x, local_to_x) * scale
+                start = (boundary_x, local_from_y * scale)
+                end = (boundary_x, (local_from_y + 1) * scale - 1)
+            else:
+                continue
+            cv.line(image, start, end, (0, 0, 0), thickness, cv.LINE_8)
+
     def render(self, scale: int = 3, crop_radius: int = 65) -> np.ndarray:
         image = self._render_full()
         px, py = self.world_to_cell(self.pose.x, self.pose.y)
@@ -570,11 +735,18 @@ class OccupancyGrid:
         y0 = max(0, py - crop_radius)
         y1 = min(self.size, py + crop_radius + 1)
         crop = image[y0:y1, x0:x1]
-        return cv.resize(
+        rendered = cv.resize(
             crop,
             (crop.shape[1] * scale, crop.shape[0] * scale),
             interpolation=cv.INTER_NEAREST,
         )
+        self._draw_contact_boundaries(
+            rendered,
+            crop_min_x=x0,
+            crop_min_y=y0,
+            scale=scale,
+        )
+        return rendered
 
     def render_overview(self, scale: int = 5, margin: int = 8) -> np.ndarray:
         """Render every explored cell, not just the area around the current pose."""
@@ -594,11 +766,18 @@ class OccupancyGrid:
             min_x = max(0, min(int(known[:, 1].min()), px) - margin)
             max_x = min(self.size - 1, max(int(known[:, 1].max()), px) + margin)
         crop = image[min_y : max_y + 1, min_x : max_x + 1]
-        return cv.resize(
+        rendered = cv.resize(
             crop,
             (max(1, crop.shape[1] * scale), max(1, crop.shape[0] * scale)),
             interpolation=cv.INTER_NEAREST,
         )
+        self._draw_contact_boundaries(
+            rendered,
+            crop_min_x=min_x,
+            crop_min_y=min_y,
+            scale=scale,
+        )
+        return rendered
 
     @classmethod
     def load(cls, directory: Path) -> tuple["OccupancyGrid", str | None]:

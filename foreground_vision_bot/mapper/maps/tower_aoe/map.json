@@ -1,73 +1,37 @@
 {
   "size": 401,
   "pose": {
-    "x": -1,
-    "y": 77,
-    "heading_index": 0
+    "x": 0,
+    "y": 1,
+    "heading_index": 1
   },
   "continuous_pose": {
-    "x": -0.5578672059808023,
-    "y": 77.31201038259638,
-    "heading_deg": 93.79070406674774
+    "x": -0.010872328012109746,
+    "y": 1.0024693767093278,
+    "heading_deg": 343.37832158403313
   },
   "metadata": {
     "version": 3,
-    "created_at": "2026-07-26T22:22:39.826271+00:00",
+    "created_at": "2026-07-27T17:21:48.143793+00:00",
     "spawn": [
       0,
       0
     ],
-    "pang_sightings": [
-      {
-        "x": -1,
-        "y": 73,
-        "score": 0.8278,
-        "timestamp": "2026-07-26T22:23:37.593868+00:00"
-      },
-      {
-        "x": -1,
-        "y": 74,
-        "score": 0.8434,
-        "timestamp": "2026-07-26T22:23:39.417071+00:00"
-      },
-      {
-        "x": -2,
-        "y": 75,
-        "score": 0.8435,
-        "timestamp": "2026-07-26T22:23:40.047501+00:00"
-      },
-      {
-        "x": -2,
-        "y": 76,
-        "score": 0.8315,
-        "timestamp": "2026-07-26T22:23:40.926293+00:00"
-      },
-      {
-        "x": -2,
-        "y": 77,
-        "score": 0.8224,
-        "timestamp": "2026-07-26T22:23:42.260378+00:00"
-      },
-      {
-        "x": -2,
-        "y": 77,
-        "score": 0.8428,
-        "timestamp": "2026-07-26T22:23:43.157987+00:00"
-      }
-    ],
+    "pang_sightings": [],
     "teleport_zones": [],
     "suspected_transitions": [],
+    "contact_boundaries": [],
     "position_known": false,
-    "heading_known": true,
-    "heading_uncertainty_deg": 1.370554343066293,
+    "heading_known": false,
+    "heading_uncertainty_deg": 1.0,
     "pose_known": false,
-    "pose_note": "Post-forward heading confirmed; position awaits visual validation.",
-    "pose_state_updated_at": "2026-07-26T22:23:52.112597+00:00",
-    "termination_reason": "Mapping stopped after recovery was declined or cancelled. Last issue: Forward travel remained visually uncertain after fresh-frame revalidation, so the new position was not guessed. Reason: forward evidence failed: moving tracks 5 < 6; moving ratio 0.17 < 0.25; occupied regions 1 < 2; flow confidence 0.29 < 0.38. Return manually to the known spawn, then resume the persistent map.",
+    "pose_note": "Forward command is in progress; saved pose is last confirmed.",
+    "pose_state_updated_at": "2026-07-27T17:56:22.633701+00:00",
+    "termination_reason": "Mapper lost a reliable heading during FORWARD: Could not obtain a stable fresh minimap heading. Debug saved to: C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\foreground_vision_bot\\debug\\minimap_heading\\20260727_175623_876007",
     "map_name": "Tower AoE",
     "run_count": 1,
-    "heading_recovery_successes": 1,
+    "heading_recovery_successes": 0,
     "manual_spawn_resets": 0,
-    "updated_at": "2026-07-26T22:24:08.946444+00:00"
+    "updated_at": "2026-07-27T17:56:26.012437+00:00"
   }
 }
