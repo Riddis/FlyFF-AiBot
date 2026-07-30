@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +12,7 @@ import numpy as np
 from capture_service import FrameSample
 from libs.HumanKeyboard import HumanKeyboard, KeyPressTiming
 from project_paths import MAPPING_MODELS_DIR
+from position import PlayerPose
 from worker_manager import CancellationToken
 
 from .AdaptiveMappingController import AdaptiveMappingController
@@ -53,6 +55,8 @@ class MapperBot(Protocol):
 
     def get_frame_sample(self) -> FrameSample | None: ...
 
+    def get_player_pose(self) -> PlayerPose | None: ...
+
 
 @dataclass(frozen=True)
 class MapperConfig:
@@ -83,6 +87,9 @@ class MapperConfig:
     camera_recovery_wait_seconds: float = 0.18
     heading_search_attempts: int = 3
     heading_search_pulse_seconds: float = 0.040
+    native_position_shadow_enabled: bool = True
+    native_blocked_distance_units: float = 0.05
+    native_teleport_distance_units: float = 100.0
 
     def __post_init__(self) -> None:
         if not 0.03 <= self.forward_seconds <= 0.50:
@@ -131,6 +138,26 @@ class MapperConfig:
             raise ValueError("camera recovery wait cannot be negative")
         if not 0.015 <= self.heading_search_pulse_seconds <= 0.10:
             raise ValueError("heading search pulse must be between 15 and 100 ms")
+        if self.native_blocked_distance_units < 0.0:
+            raise ValueError("native blocked distance cannot be negative")
+        if (
+            self.native_teleport_distance_units
+            <= self.native_blocked_distance_units
+        ):
+            raise ValueError(
+                "native teleport distance must exceed native blocked distance"
+            )
+
+
+@dataclass(frozen=True)
+class _NativeMotionShadow:
+    enabled: bool
+    before: PlayerPose | None
+    after: PlayerPose | None
+    horizontal_distance: float | None
+    vertical_delta: float | None
+    outcome: str
+    error: str | None = None
 
 
 @dataclass(frozen=True)
@@ -144,6 +171,7 @@ class _StepResult:
     distance_cells: float | None
     integration: PoseIntegration | None
     pose_known: bool
+    native_motion: _NativeMotionShadow | None = None
     turn_result: AdaptiveTurnResult | None = None
     stop_reason: str | None = None
     motion_debug_path: str | None = None
@@ -180,7 +208,7 @@ class AdaptiveMapper:
     still fails closed so map drift is not silently accumulated.
     """
 
-    VERSION = "1.9.5-contact-boundary-topology"
+    VERSION = "1.9.5-native-position-shadow-v0.2"
 
     def __init__(
         self,
@@ -705,9 +733,71 @@ class AdaptiveMapper:
             "has not moved forward, so recovery in place is safe."
         )
 
+    def _read_native_pose_shadow(
+        self,
+        phase: str,
+    ) -> tuple[PlayerPose | None, str | None]:
+        if not self.config.native_position_shadow_enabled:
+            return None, None
+        getter = getattr(self.bot, "get_player_pose", None)
+        if not callable(getter):
+            return None, f"{phase}: bot has no native position provider API"
+        try:
+            pose = getter()
+        except Exception as error:  # noqa: BLE001 - shadow mode must not stop mapping.
+            return (
+                None,
+                f"{phase}: {type(error).__name__}: {error}",
+            )
+        if pose is None:
+            return None, f"{phase}: native position provider is unavailable"
+        return pose, None
+
+    def _build_native_motion_shadow(
+        self,
+        before: PlayerPose | None,
+        after: PlayerPose | None,
+        *errors: str | None,
+    ) -> _NativeMotionShadow | None:
+        if not self.config.native_position_shadow_enabled:
+            return None
+        combined_error = "; ".join(error for error in errors if error) or None
+        if before is None or after is None:
+            return _NativeMotionShadow(
+                enabled=True,
+                before=before,
+                after=after,
+                horizontal_distance=None,
+                vertical_delta=None,
+                outcome="unavailable",
+                error=combined_error,
+            )
+
+        horizontal_distance = math.hypot(
+            after.x - before.x,
+            after.z - before.z,
+        )
+        vertical_delta = after.y - before.y
+        if horizontal_distance <= self.config.native_blocked_distance_units:
+            outcome = "blocked"
+        elif horizontal_distance >= self.config.native_teleport_distance_units:
+            outcome = "teleport"
+        else:
+            outcome = "moved"
+        return _NativeMotionShadow(
+            enabled=True,
+            before=before,
+            after=after,
+            horizontal_distance=horizontal_distance,
+            vertical_delta=vertical_delta,
+            outcome=outcome,
+            error=combined_error,
+        )
+
     def _execute_forward(self, step: int) -> _StepResult:
         if self._forward_heading_settle_required:
             self._settle_heading_before_forward()
+        native_before, native_before_error = self._read_native_pose_shadow("before")
         before = self._wait_for_frame_sample(not_before=monotonic())
         start_heading = self.grid.continuous_pose.heading_deg
         travel_heading_index = self.grid.pose.heading_index
@@ -727,6 +817,13 @@ class AdaptiveMapper:
             after_identity=before.identity,
             generation=before.generation,
             not_before=monotonic(),
+        )
+        native_after, native_after_error = self._read_native_pose_shadow("after")
+        native_motion = self._build_native_motion_shadow(
+            native_before,
+            native_after,
+            native_before_error,
+            native_after_error,
         )
 
         fast_heading = self.heading_detector.read_fast(after.frame)
@@ -758,6 +855,7 @@ class AdaptiveMapper:
                 distance_cells=None,
                 integration=None,
                 pose_known=False,
+                native_motion=native_motion,
                 motion_debug_path=motion_debug_path,
                 recovery_reason=(
                     "Probable teleport or scene discontinuity detected after a "
@@ -843,6 +941,7 @@ class AdaptiveMapper:
             "camera_recovered": camera_recovered,
             "camera_recovery_turns": camera_recovery_turns,
             "camera_recovery_reason": camera_recovery_reason,
+            "native_motion": native_motion,
         }
 
         if assessment.outcome is AdaptiveForwardOutcome.BLOCKED:
@@ -1812,7 +1911,23 @@ class AdaptiveMapper:
         fast = result.fast_heading
         strict = result.strict_heading
         timing = result.key_timing
+        native = result.native_motion
         continuous = self.grid.continuous_pose
+
+        native_before = native.before if native is not None else None
+        native_after = native.after if native is not None else None
+        visual_outcome = (
+            assessment.outcome.value
+            if assessment is not None
+            else ("teleport" if motion is not None and motion.teleport_likely else None)
+        )
+        visual_native_agree = (
+            visual_outcome == native.outcome
+            if native is not None
+            and native.outcome in ("blocked", "moved", "teleport")
+            and visual_outcome is not None
+            else ""
+        )
 
         expected = assessment.expected_flow_px if assessment is not None else None
         observed = assessment.observed_flow_px if assessment is not None else None
@@ -1854,6 +1969,45 @@ class AdaptiveMapper:
                     "held_seconds": (
                         round(timing.held_seconds, 5) if timing is not None else ""
                     ),
+                    "native_shadow_enabled": (
+                        native.enabled if native is not None else False
+                    ),
+                    "native_before_x": (
+                        round(native_before.x, 6) if native_before is not None else ""
+                    ),
+                    "native_before_y": (
+                        round(native_before.y, 6) if native_before is not None else ""
+                    ),
+                    "native_before_z": (
+                        round(native_before.z, 6) if native_before is not None else ""
+                    ),
+                    "native_after_x": (
+                        round(native_after.x, 6) if native_after is not None else ""
+                    ),
+                    "native_after_y": (
+                        round(native_after.y, 6) if native_after is not None else ""
+                    ),
+                    "native_after_z": (
+                        round(native_after.z, 6) if native_after is not None else ""
+                    ),
+                    "native_horizontal_distance": (
+                        round(native.horizontal_distance, 6)
+                        if native is not None
+                        and native.horizontal_distance is not None
+                        else ""
+                    ),
+                    "native_vertical_delta": (
+                        round(native.vertical_delta, 6)
+                        if native is not None and native.vertical_delta is not None
+                        else ""
+                    ),
+                    "native_motion_outcome": (
+                        native.outcome if native is not None else ""
+                    ),
+                    "native_motion_error": (
+                        native.error or "" if native is not None else ""
+                    ),
+                    "visual_native_agree": visual_native_agree,
                     "change_score": (
                         round(motion.change_score, 5) if motion is not None else ""
                     ),
@@ -1998,13 +2152,23 @@ class AdaptiveMapper:
             if shadow.enabled and shadow.action
             else ""
         )
+        native = result.native_motion
+        native_text = ""
+        if native is not None:
+            distance_text = (
+                f"/{native.horizontal_distance:.4f}u"
+                if native.horizontal_distance is not None
+                else ""
+            )
+            native_text = f" native={native.outcome}{distance_text}"
         self.status_callback(
             f"map step={step} pose=({self.grid.continuous_pose.x:.2f},"
             f"{self.grid.continuous_pose.y:.2f}) "
             f"heading={self.grid.continuous_pose.heading_deg:.1f}° "
             f"action={decision.action} motion={motion_text} camera={camera_text} "
             f"strict_heading={strict_text} pose_known={result.pose_known} "
-            f"pang={pang.visible}{shadow_text}; {self.motion_model.summary()}"
+            f"pang={pang.visible}{shadow_text}{native_text}; "
+            f"{self.motion_model.summary()}"
         )
 
     def _publish_map_preview(self, force: bool = False) -> None:
@@ -2020,9 +2184,3 @@ class AdaptiveMapper:
 # Keep the public name expected by RuntimeController and existing imports.
 Mapper = AdaptiveMapper
 
-# BEGIN OBSTACLE_VISION_V2_1_DROPIN
-from .obstacle_vision.integration import install_obstacle_vision as _install_obstacle_vision_v21
-
-_install_obstacle_vision_v21(AdaptiveMapper)
-del _install_obstacle_vision_v21
-# END OBSTACLE_VISION_V2_1_DROPIN

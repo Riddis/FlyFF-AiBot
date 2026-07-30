@@ -1,0 +1,15 @@
+{
+  "map_name": "Tower AoE",
+  "grid_size": 1001,
+  "closed_interior_components": 1,
+  "final_free_cells": 57300,
+  "final_blocked_cells": 12157,
+  "final_teleport_cells": 15,
+  "unknown_cells_filled_inside": 39390,
+  "inferred_walls_promoted_to_blocked": 12,
+  "inferred_free_records_promoted_to_normal_free": 204,
+  "outside_free_cells_removed": 1,
+  "outside_blocked_cells_removed": 0,
+  "outside_teleport_cells_removed": 0,
+  "stale_contact_boundaries_removed": 225
+}

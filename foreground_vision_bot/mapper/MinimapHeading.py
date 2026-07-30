@@ -24,6 +24,8 @@ class MinimapAnchor(TypedDict):
     arrow_center_x: int
     arrow_center_y: int
     crop_size: int
+    right_offset: int
+    top_offset: int
 
 
 @dataclass(frozen=True)
@@ -85,7 +87,11 @@ def counterclockwise_delta(start: float, current: float) -> float:
 
 
 class MinimapHeadingDetector:
-    VERSION = "7.3-canonical-zero-grayscale-geometry"
+    VERSION = "7.6-event-driven-validated-navigator"
+    ANCHOR_RELOCATION_MISS_THRESHOLD = 4
+    ANCHOR_RELOCATION_RETRY_FRAMES = 12
+    REFERENCE_MISMATCH_THRESHOLD = 3
+    REFERENCE_DISAGREEMENT_DEGREES = 52.0
     STRICT_CONSENSUS_FLOOR_DEGREES = 1.0
     GEOMETRY_MINIMUM_VISIBLE_PIXELS = 24
     GEOMETRY_MINIMUM_BRIGHTNESS_MASS = 10.0
@@ -125,8 +131,9 @@ class MinimapHeadingDetector:
         180° = south/down
         270° = west/left
 
-    The red Navigator ring is located in the top-right portion of the frame.
-    Its center is cached, but periodically revalidated.
+    The red Navigator ring may be placed anywhere in the game viewport. Its
+    centre is cached and reused; relocation CV runs only after consecutive
+    arrow misses or when a new capture size has no usable transformed anchor.
     """
 
     @classmethod
@@ -163,6 +170,14 @@ class MinimapHeadingDetector:
         self._last_automatic_debug_fingerprint: tuple[object, ...] | None = None
         self._anchor_path = Path(__file__).resolve().parent / "minimap_anchor.json"
         self._anchor_config: MinimapAnchor | None = None
+        self._resolved_anchor_cache: dict[tuple[int, int], MinimapAnchor] = {}
+        self._last_resolved_anchor: MinimapAnchor | None = None
+        self._anchor_miss_counts: dict[tuple[int, int], int] = {}
+        self._last_anchor_search_sequence: dict[tuple[int, int], int] = {}
+        self._read_sequence = 0
+        self._last_frame_key: tuple[int, int] | None = None
+        self._last_visual_heading: float | None = None
+        self._reference_mismatch_count = 0
 
         # Fast-tracker state. This is intentionally separate from strict
         # multi-frame acquisition.
@@ -175,51 +190,326 @@ class MinimapHeadingDetector:
 
     def read(self, frame: np.ndarray) -> HeadingReading | None:
         """
-        Read one heading from a fixed arrow crop.
+        Read one heading from the Navigator arrow.
 
-        The game client and Navigator do not move, so no circle detection or
-        per-frame localization is performed.
+        The preferred anchor is cached per frame size. When the game window
+        changes resolution, cheap transforms are tried first. Full-frame CV can
+        relocate the circular Navigator anywhere in the viewport, but only when
+        the arrow cannot be read for several consecutive frames.
         """
         if frame is None or frame.size == 0:
             return None
 
-        anchor = self._load_anchor(frame)
-        x = int(anchor["arrow_center_x"])
-        y = int(anchor["arrow_center_y"])
-        crop_size = int(anchor["crop_size"])
-        return self._read_arrow(frame, x, y, crop_size // 2)
+        self._read_sequence += 1
+        height, width = frame.shape[:2]
+        key = (width, height)
+        self._last_frame_key = key
+        cached = self._resolved_anchor_cache.get(key)
+        if cached is not None and self._anchor_inside(
+            cached,
+            width=width,
+            height=height,
+        ):
+            reading = self._read_arrow(
+                frame,
+                int(cached["arrow_center_x"]),
+                int(cached["arrow_center_y"]),
+                int(cached["crop_size"]) // 2,
+            )
+            if reading is not None:
+                self._anchor_miss_counts[key] = 0
+                self._last_resolved_anchor = cached
+                return self._record_visual_reading(reading)
+
+            # A particular arrow heading can occasionally produce one weak
+            # geometry frame.  Keep using the known centre and let read_fast()
+            # hold the previous angle instead of running an expensive global
+            # Navigator search on every transient miss.
+            misses = self._anchor_miss_counts.get(key, 0) + 1
+            self._anchor_miss_counts[key] = misses
+            if misses < self.ANCHOR_RELOCATION_MISS_THRESHOLD:
+                return None
+            if not self._anchor_search_is_due(key):
+                return None
+
+            self._last_anchor_search_sequence[key] = self._read_sequence
+            relocated = self._relocate_anchor(frame, cached)
+            if relocated is None:
+                return None
+            self._resolved_anchor_cache[key] = relocated
+            self._last_resolved_anchor = relocated
+            reading = self._read_arrow(
+                frame,
+                int(relocated["arrow_center_x"]),
+                int(relocated["arrow_center_y"]),
+                int(relocated["crop_size"]) // 2,
+            )
+            if reading is not None:
+                self._anchor_miss_counts[key] = 0
+                return self._record_visual_reading(reading)
+            return None
+
+        # A new capture size first tries cheap transforms of the last known or
+        # manually saved centre.  Full-frame CV runs only when those candidates
+        # cannot see the arrow.
+        for anchor in self._anchor_candidates(frame, include_global=False):
+            x = int(anchor["arrow_center_x"])
+            y = int(anchor["arrow_center_y"])
+            crop_size = int(anchor["crop_size"])
+            reading = self._read_arrow(frame, x, y, crop_size // 2)
+            if reading is None:
+                continue
+            self._resolved_anchor_cache[key] = anchor
+            self._anchor_miss_counts[key] = 0
+            self._last_resolved_anchor = anchor
+            return self._record_visual_reading(reading)
+
+        if not self._anchor_search_is_due(key):
+            return None
+        self._last_anchor_search_sequence[key] = self._read_sequence
+        circle = self._find_navigator_circle(frame, proportional_fallback=False)
+        if circle is None or not self._circle_is_valid(frame, circle):
+            return None
+        anchor = self._anchor_from_circle(frame, circle)
+        # Cache a confidently detected ring even if this exact arrow frame is
+        # weak.  Subsequent frames can read the arrow without repeating CV.
+        self._resolved_anchor_cache[key] = anchor
+        self._last_resolved_anchor = anchor
+        self._anchor_miss_counts[key] = 1
+        reading = self._read_arrow(
+            frame,
+            int(anchor["arrow_center_x"]),
+            int(anchor["arrow_center_y"]),
+            int(anchor["crop_size"]) // 2,
+        )
+        if reading is not None:
+            self._anchor_miss_counts[key] = 0
+            return self._record_visual_reading(reading)
+        return None
+
+    def _record_visual_reading(self, reading: HeadingReading) -> HeadingReading:
+        self._last_visual_heading = float(reading.angle_deg) % 360.0
+        return reading
+
+    def _anchor_search_is_due(self, key: tuple[int, int]) -> bool:
+        previous = self._last_anchor_search_sequence.get(key)
+        return (
+            previous is None
+            or self._read_sequence - previous
+            >= self.ANCHOR_RELOCATION_RETRY_FRAMES
+        )
+
+    def _relocate_anchor(
+        self,
+        frame: np.ndarray,
+        previous: MinimapAnchor,
+    ) -> MinimapAnchor | None:
+        # First search only around the old location.  This cheaply handles a
+        # dragged Navigator or a small UI-scale shift.  A full-frame search is
+        # the fallback and supports arbitrary screen positions.
+        local_circle = self._find_navigator_circle_near(frame, previous)
+        circle = local_circle or self._find_navigator_circle(
+            frame,
+            proportional_fallback=False,
+        )
+        if circle is None or not self._circle_is_valid(frame, circle):
+            return None
+        return self._anchor_from_circle(frame, circle)
+
+    def _anchor_from_circle(
+        self,
+        frame: np.ndarray,
+        circle: tuple[int, int, int],
+    ) -> MinimapAnchor:
+        height, width = frame.shape[:2]
+        cx, cy, radius = circle
+        saved = self._read_saved_anchor()
+        if saved is not None:
+            reference_radius = max(1.0, float(saved["crop_size"]) * 2.0)
+            crop_size = self._odd_size(
+                saved["crop_size"] * float(radius) / reference_radius
+            )
+        else:
+            crop_size = self._odd_size(float(radius) * 0.60)
+        return MinimapAnchor(
+            version=3,
+            frame_width=width,
+            frame_height=height,
+            arrow_center_x=int(cx),
+            arrow_center_y=int(cy),
+            crop_size=crop_size,
+            right_offset=width - int(cx),
+            top_offset=int(cy),
+        )
 
     def _load_anchor(self, frame: np.ndarray) -> MinimapAnchor:
-        anchor = self._anchor_config
-        if anchor is None:
-            if not self._anchor_path.exists():
-                raise RuntimeError(
-                    "Minimap anchor is not configured. Click "
-                    "'Set Minimap Center' before calibration."
-                )
-            loaded: object = json.loads(self._anchor_path.read_text(encoding="utf-8"))
-            anchor = self._parse_anchor(loaded)
-            self._anchor_config = anchor
+        """Return the best currently available anchor without reading heading."""
+        candidates = self._anchor_candidates(frame)
+        if not candidates:
+            raise RuntimeError(
+                "Could not locate the FlyFF Navigator. Keep it visible or use "
+                "'Calibrate Minimap (optional)'."
+            )
+        return candidates[0]
 
+    @staticmethod
+    def _odd_size(value: float, *, minimum: int = 25, maximum: int = 151) -> int:
+        size = int(round(value))
+        size = max(minimum, min(maximum, size))
+        if size % 2 == 0:
+            size += 1 if size < maximum else -1
+        return size
+
+    @staticmethod
+    def _anchor_inside(
+        anchor: MinimapAnchor,
+        *,
+        width: int,
+        height: int,
+    ) -> bool:
+        x = int(anchor["arrow_center_x"])
+        y = int(anchor["arrow_center_y"])
+        half = int(anchor["crop_size"]) // 2
+        return (
+            x - half >= 0
+            and y - half >= 0
+            and x + half < width
+            and y + half < height
+        )
+
+    def _read_saved_anchor(self) -> MinimapAnchor | None:
+        if self._anchor_config is not None:
+            return self._anchor_config
+        if not self._anchor_path.exists():
+            return None
+        loaded: object = json.loads(self._anchor_path.read_text(encoding="utf-8"))
+        self._anchor_config = self._parse_anchor(loaded)
+        return self._anchor_config
+
+    def _anchor_candidates(
+        self,
+        frame: np.ndarray,
+        *,
+        include_global: bool = True,
+    ) -> list[MinimapAnchor]:
+        """Build resolution-independent candidates in confidence order."""
         height, width = frame.shape[:2]
-        expected_width = anchor["frame_width"]
-        expected_height = anchor["frame_height"]
+        candidates: list[MinimapAnchor] = []
+        seen: set[tuple[int, int, int]] = set()
 
-        if width != expected_width or height != expected_height:
-            raise RuntimeError(
-                "Game frame size changed after minimap setup: "
-                f"configured {expected_width}x{expected_height}, "
-                f"current {width}x{height}. Run 'Set Minimap Center' again."
+        def add(anchor: MinimapAnchor | None) -> None:
+            if anchor is None or not self._anchor_inside(
+                anchor,
+                width=width,
+                height=height,
+            ):
+                return
+            fingerprint = (
+                int(anchor["arrow_center_x"]),
+                int(anchor["arrow_center_y"]),
+                int(anchor["crop_size"]),
+            )
+            if fingerprint in seen:
+                return
+            seen.add(fingerprint)
+            candidates.append(anchor)
+
+        saved = self._read_saved_anchor()
+
+        # The most recently verified centre is more useful than the original
+        # calibration after the user drags the Navigator.  Scale it to a new
+        # capture size before considering older saved geometry.
+        recent = self._last_resolved_anchor
+        if recent is not None:
+            reference_width = max(1, int(recent["frame_width"]))
+            reference_height = max(1, int(recent["frame_height"]))
+            scale = min(width / reference_width, height / reference_height)
+            add(
+                MinimapAnchor(
+                    version=3,
+                    frame_width=width,
+                    frame_height=height,
+                    arrow_center_x=round(
+                        recent["arrow_center_x"] * width / reference_width
+                    ),
+                    arrow_center_y=round(
+                        recent["arrow_center_y"] * height / reference_height
+                    ),
+                    crop_size=self._odd_size(recent["crop_size"] * scale),
+                    right_offset=round(recent["right_offset"] * scale),
+                    top_offset=round(recent["top_offset"] * scale),
+                )
             )
 
-        x = anchor["arrow_center_x"]
-        y = anchor["arrow_center_y"]
-        half = anchor["crop_size"] // 2
-        if x - half < 0 or y - half < 0 or x + half >= width or y + half >= height:
-            raise RuntimeError(
-                "Saved minimap arrow center is outside the current frame."
+        if saved is not None:
+            reference_width = max(1, int(saved["frame_width"]))
+            reference_height = max(1, int(saved["frame_height"]))
+            if width == reference_width and height == reference_height:
+                add(saved)
+
+        # CV relocation is the primary resize path. The arrow is fixed at the
+        # centre of FlyFF's circular Navigator, so circle detection gives the
+        # crop centre without relying on a specific client resolution.
+        if include_global:
+            circle = self._find_navigator_circle(
+                frame,
+                proportional_fallback=False,
             )
-        return anchor
+            if circle is not None and self._circle_is_valid(frame, circle):
+                add(self._anchor_from_circle(frame, circle))
+
+        if saved is not None:
+            reference_width = max(1, int(saved["frame_width"]))
+            reference_height = max(1, int(saved["frame_height"]))
+            height_scale = height / reference_height
+
+            # FlyFF's Navigator is anchored to the top-right corner. This is
+            # exact for ordinary window-width changes and remains a strong
+            # fallback when Hough detection is temporarily obscured.
+            crop_size = self._odd_size(saved["crop_size"] * height_scale)
+            edge_x = width - round(saved["right_offset"] * height_scale)
+            edge_y = round(saved["top_offset"] * height_scale)
+            add(
+                MinimapAnchor(
+                    version=2,
+                    frame_width=width,
+                    frame_height=height,
+                    arrow_center_x=edge_x,
+                    arrow_center_y=edge_y,
+                    crop_size=crop_size,
+                    right_offset=width - edge_x,
+                    top_offset=edge_y,
+                )
+            )
+
+            # Proportional scaling covers UI layouts that scale the full game
+            # viewport rather than keeping fixed top/right offsets.
+            proportional_x = round(saved["arrow_center_x"] * width / reference_width)
+            proportional_y = round(
+                saved["arrow_center_y"] * height / reference_height
+            )
+            proportional_crop = self._odd_size(
+                saved["crop_size"]
+                * min(width / reference_width, height / reference_height)
+            )
+            add(
+                MinimapAnchor(
+                    version=2,
+                    frame_width=width,
+                    frame_height=height,
+                    arrow_center_x=proportional_x,
+                    arrow_center_y=proportional_y,
+                    crop_size=proportional_crop,
+                    right_offset=width - proportional_x,
+                    top_offset=proportional_y,
+                )
+            )
+
+        if include_global and not candidates:
+            fallback = self._find_navigator_circle(frame, proportional_fallback=True)
+            if fallback is not None:
+                add(self._anchor_from_circle(frame, fallback))
+        return candidates
 
     @staticmethod
     def _parse_anchor(loaded: object) -> MinimapAnchor:
@@ -240,6 +530,19 @@ class MinimapHeadingDetector:
                 raise TypeError(f"Minimap anchor field '{field}' must be an integer.")
             values[field] = value
 
+        right_offset = loaded.get(
+            "right_offset",
+            values["frame_width"] - values["arrow_center_x"],
+        )
+        top_offset = loaded.get("top_offset", values["arrow_center_y"])
+        for field, value in (
+            ("right_offset", right_offset),
+            ("top_offset", top_offset),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"Minimap anchor field '{field}' must be an integer.")
+            values[field] = value
+
         return MinimapAnchor(
             version=values["version"],
             frame_width=values["frame_width"],
@@ -247,6 +550,8 @@ class MinimapHeadingDetector:
             arrow_center_x=values["arrow_center_x"],
             arrow_center_y=values["arrow_center_y"],
             crop_size=values["crop_size"],
+            right_offset=values["right_offset"],
+            top_offset=values["top_offset"],
         )
 
     def reset_fast(self) -> None:
@@ -258,6 +563,64 @@ class MinimapHeadingDetector:
         self._fast_jump_angle = None
         self._fast_jump_rejections = 0
         self._last_arrow_angle = None
+
+    def observe_reference_heading(
+        self,
+        heading_deg: float | None,
+        *,
+        disagreement_degrees: float | None = None,
+        allow_opposite: bool = False,
+    ) -> bool:
+        """Validate the cached visual heading against trusted native motion.
+
+        A single disagreement is ignored because course-over-ground can lag the
+        facing direction during a turn. Repeated large disagreement from a
+        straight native-coordinate movement trace invalidates only the current
+        frame-size anchor. The next read then performs a fresh Navigator scan.
+
+        Returns ``True`` when the cached anchor was invalidated.
+        """
+        if heading_deg is None or not math.isfinite(float(heading_deg)):
+            self._reference_mismatch_count = 0
+            return False
+        if self._last_visual_heading is None or self._last_frame_key is None:
+            return False
+
+        threshold = (
+            self.REFERENCE_DISAGREEMENT_DEGREES
+            if disagreement_degrees is None
+            else max(1.0, float(disagreement_degrees))
+        )
+        difference = abs(
+            signed_angle_delta(
+                float(heading_deg) % 360.0,
+                self._last_visual_heading,
+            )
+        )
+        if allow_opposite:
+            # Passive course-over-ground cannot distinguish forward from
+            # backward travel. Treat both as compatible; explicit mapper
+            # forward probes leave this disabled and remain authoritative.
+            difference = min(difference, abs(180.0 - difference))
+        if difference < threshold:
+            self._reference_mismatch_count = 0
+            return False
+
+        self._reference_mismatch_count += 1
+        if self._reference_mismatch_count < self.REFERENCE_MISMATCH_THRESHOLD:
+            return False
+
+        key = self._last_frame_key
+        self._resolved_anchor_cache.pop(key, None)
+        self._anchor_miss_counts.pop(key, None)
+        # Allow an immediate scan rather than waiting for the ordinary retry
+        # interval that applies to repeated visual misses.
+        self._last_anchor_search_sequence.pop(key, None)
+        self._last_resolved_anchor = None
+        self._last_visual_heading = None
+        self._reference_mismatch_count = 0
+        self.reset_fast()
+        return True
 
     def read_fast(
         self,
@@ -285,7 +648,9 @@ class MinimapHeadingDetector:
                 return None
 
             self._fast_confidence *= 0.72
-            anchor = self._load_anchor(frame)
+            anchor = self._last_resolved_anchor
+            if anchor is None:
+                return None
             return HeadingReading(
                 angle_deg=self._fast_angle,
                 confidence=max(0.0, self._fast_confidence),
@@ -917,46 +1282,52 @@ class MinimapHeadingDetector:
     def _find_navigator_circle(
         self,
         frame: np.ndarray,
+        *,
+        proportional_fallback: bool = True,
     ) -> tuple[int, int, int] | None:
         frame = self._as_bgr(frame)
         height, width = frame.shape[:2]
-        x0 = int(width * 0.78)
-        roi = frame[0 : int(height * 0.34), x0:width]
-        if roi.size == 0:
-            return None
+        candidates = self._red_navigator_candidates(frame)
+        validated = self._best_validated_navigator(frame, candidates)
+        if validated is not None:
+            return validated
 
-        gray = cv.cvtColor(roi, cv.COLOR_BGR2GRAY)
+        # Red-ring segmentation is normally enough and is much cheaper than a
+        # full Hough pass.  Keep a grayscale fallback for unusual colour themes
+        # or capture paths that reduce saturation.
+        gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         gray = cv.medianBlur(gray, 5)
-        min_radius = max(38, int(min(width, height) * 0.045))
-        max_radius = int(min(width, height) * 0.16)
-
+        min_radius = max(20, int(min(width, height) * 0.032))
+        max_radius = max(min_radius + 2, int(min(width, height) * 0.18))
         circles = cv.HoughCircles(
             gray,
             cv.HOUGH_GRADIENT,
-            dp=1.2,
+            dp=1.35,
             minDist=max(40, min_radius),
-            param1=100,
-            param2=38,
+            param1=110,
+            param2=44,
             minRadius=min_radius,
             maxRadius=max_radius,
         )
         if circles is not None:
-            candidates: list[tuple[int, int, int]] = []
-            for cx, cy, radius in circles[0]:
-                global_x = round(cx) + x0
-                global_y = round(cy)
-                if global_x >= int(width * 0.84):
-                    candidates.append((global_x, global_y, round(radius)))
-            if candidates:
-                expected_radius = min(width, height) * 0.087
-                expected_y = height * 0.105
-                return min(
-                    candidates,
-                    key=lambda candidate: (
-                        abs(candidate[2] - expected_radius)
-                        + 0.18 * abs(candidate[1] - expected_y)
-                    ),
+            hough_candidates = [
+                (round(cx), round(cy), round(radius))
+                for cx, cy, radius in circles[0]
+                if self._circle_is_valid(
+                    frame,
+                    (round(cx), round(cy), round(radius)),
                 )
+            ]
+            if hough_candidates:
+                validated = self._best_validated_navigator(
+                    frame,
+                    hough_candidates,
+                )
+                if validated is not None:
+                    return validated
+
+        if not proportional_fallback:
+            return None
 
         # Resolution-independent fallback matching the supplied client layout.
         return (
@@ -964,6 +1335,259 @@ class MinimapHeadingDetector:
             round(height * 0.105),
             round(min(width, height) * 0.087),
         )
+
+    def _best_validated_navigator(
+        self,
+        frame: np.ndarray,
+        candidates: list[tuple[int, int, int]],
+    ) -> tuple[int, int, int] | None:
+        scored: list[tuple[float, tuple[int, int, int]]] = []
+        for circle in candidates:
+            score = self._navigator_candidate_score(frame, circle)
+            if score is not None:
+                scored.append((score, circle))
+        if not scored:
+            return None
+        scored.sort(key=lambda item: item[0], reverse=True)
+        return scored[0][1]
+
+    def _navigator_candidate_score(
+        self,
+        frame: np.ndarray,
+        circle: tuple[int, int, int],
+    ) -> float | None:
+        """Reject red circular UI elements that are not the Navigator.
+
+        A real Navigator has a dark central disc, a valid bright arrow centred
+        inside it, and normally a small red/yellow ``Navigator`` label above
+        the ring. The label is used only as a ranking bonus; the dark disc and
+        arrow geometry are mandatory and therefore work across resolutions and
+        against transparent game backgrounds.
+        """
+        if not self._circle_is_valid(frame, circle):
+            return None
+        frame = self._as_bgr(frame)
+        x, y, radius = circle
+        height, width = frame.shape[:2]
+        inner_radius = max(5, int(round(radius * 0.54)))
+        x0 = max(0, x - inner_radius)
+        y0 = max(0, y - inner_radius)
+        x1 = min(width, x + inner_radius + 1)
+        y1 = min(height, y + inner_radius + 1)
+        inner = frame[y0:y1, x0:x1]
+        if inner.size == 0:
+            return None
+        gray = cv.cvtColor(inner, cv.COLOR_BGR2GRAY)
+        yy, xx = np.indices(gray.shape, dtype=np.float32)
+        disk = np.hypot(
+            xx + x0 - float(x),
+            yy + y0 - float(y),
+        ) <= float(inner_radius)
+        disk_count = int(np.count_nonzero(disk))
+        if disk_count == 0:
+            return None
+        dark_ratio = float(np.count_nonzero((gray <= 58) & disk)) / disk_count
+        if dark_ratio < 0.48:
+            return None
+
+        anchor = self._anchor_from_circle(frame, circle)
+        arrow = self._arrow_crop(
+            frame,
+            int(anchor["arrow_center_x"]),
+            int(anchor["arrow_center_y"]),
+            int(anchor["crop_size"]) // 2,
+        )
+        if arrow is None:
+            return None
+        arrow_gray, _centered = arrow
+        geometry_input = self._geometry_scale_normalized(arrow_gray)
+        geometry = self._principal_axis_geometry(geometry_input)
+        if not self._geometry_is_valid(geometry):
+            return None
+        assert geometry is not None
+
+        label_half_width = max(12, int(round(radius * 0.62)))
+        label_top = max(0, int(round(y - radius * 1.20)))
+        label_bottom = min(height, int(round(y - radius * 0.66)))
+        label_left = max(0, x - label_half_width)
+        label_right = min(width, x + label_half_width + 1)
+        label_score = 0.0
+        if label_right > label_left and label_bottom > label_top:
+            label = frame[label_top:label_bottom, label_left:label_right]
+            hsv = cv.cvtColor(label, cv.COLOR_BGR2HSV)
+            red = cv.bitwise_or(
+                cv.inRange(
+                    hsv,
+                    np.array((0, 80, 75), dtype=np.uint8),
+                    np.array((16, 255, 255), dtype=np.uint8),
+                ),
+                cv.inRange(
+                    hsv,
+                    np.array((165, 80, 75), dtype=np.uint8),
+                    np.array((179, 255, 255), dtype=np.uint8),
+                ),
+            )
+            yellow = cv.inRange(
+                hsv,
+                np.array((16, 70, 90), dtype=np.uint8),
+                np.array((42, 255, 255), dtype=np.uint8),
+            )
+            coloured = cv.bitwise_or(red, yellow)
+            label_score = min(
+                1.0,
+                float(np.count_nonzero(coloured)) / max(1.0, label.size * 0.035),
+            )
+
+        geometry_score = float(
+            np.clip(
+                0.55 * geometry.anisotropy
+                + 0.45 * min(1.0, abs(geometry.normalized_skew) / 0.35),
+                0.0,
+                1.0,
+            )
+        )
+        return 0.50 * dark_ratio + 0.40 * geometry_score + 0.10 * label_score
+
+    @staticmethod
+    def _geometry_scale_normalized(gray: np.ndarray) -> np.ndarray:
+        """Normalize UI-scaled arrow crops before applying fixed thresholds."""
+        height, width = gray.shape[:2]
+        # Existing calibration was built from ordinary 41-49 px crops. Preserve
+        # those pixels exactly; only upscale genuinely small UI-scale crops.
+        if min(height, width) >= 35:
+            return gray
+        return cv.resize(gray, (41, 41), interpolation=cv.INTER_LINEAR)
+
+    def _find_navigator_circle_near(
+        self,
+        frame: np.ndarray,
+        anchor: MinimapAnchor,
+    ) -> tuple[int, int, int] | None:
+        frame = self._as_bgr(frame)
+        height, width = frame.shape[:2]
+        center_x = int(anchor["arrow_center_x"])
+        center_y = int(anchor["arrow_center_y"])
+        # The arrow crop is roughly half the Navigator radius.  Six crop widths
+        # therefore gives enough room for a deliberate UI drag while keeping
+        # this recovery search much cheaper than scanning the whole frame.
+        half_size = max(80, int(anchor["crop_size"]) * 6)
+        x0 = max(0, center_x - half_size)
+        y0 = max(0, center_y - half_size)
+        x1 = min(width, center_x + half_size + 1)
+        y1 = min(height, center_y + half_size + 1)
+        if x1 <= x0 or y1 <= y0:
+            return None
+        local = self._red_navigator_candidates(
+            frame[y0:y1, x0:x1],
+            origin=(x0, y0),
+        )
+        return self._best_validated_navigator(frame, local)
+
+    def _red_navigator_candidates(
+        self,
+        frame: np.ndarray,
+        *,
+        origin: tuple[int, int] = (0, 0),
+    ) -> list[tuple[int, int, int]]:
+        """Locate FlyFF's red circular Navigator ring anywhere in ``frame``.
+
+        The previous detector searched only the top-right corner.  This method
+        scores red, approximately circular components over the supplied image,
+        so a dragged Navigator and arbitrary client resolution are supported.
+        It runs only during initial acquisition or after consecutive arrow
+        misses, not in the normal per-frame heading path.
+        """
+        frame = self._as_bgr(frame)
+        height, width = frame.shape[:2]
+        if height < 32 or width < 32:
+            return []
+
+        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        lower_red = cv.inRange(
+            hsv,
+            np.array((0, 70, 55), dtype=np.uint8),
+            np.array((14, 255, 255), dtype=np.uint8),
+        )
+        upper_red = cv.inRange(
+            hsv,
+            np.array((166, 70, 55), dtype=np.uint8),
+            np.array((179, 255, 255), dtype=np.uint8),
+        )
+        mask = cv.bitwise_or(lower_red, upper_red)
+        kernel = np.ones((3, 3), dtype=np.uint8)
+        mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel, iterations=2)
+
+        contours, _hierarchy = cv.findContours(
+            mask,
+            cv.RETR_EXTERNAL,
+            cv.CHAIN_APPROX_SIMPLE,
+        )
+        minimum_dimension = min(height, width)
+        minimum_radius = max(18.0, minimum_dimension * 0.030)
+        maximum_radius = max(minimum_radius + 2.0, minimum_dimension * 0.22)
+        scored: list[tuple[float, tuple[int, int, int]]] = []
+
+        for contour in contours:
+            area = float(cv.contourArea(contour))
+            if area < 80.0:
+                continue
+            (center_x, center_y), radius = cv.minEnclosingCircle(contour)
+            if not minimum_radius <= radius <= maximum_radius:
+                continue
+            _x, _y, box_width, box_height = cv.boundingRect(contour)
+            aspect = box_width / max(1.0, float(box_height))
+            if not 0.65 <= aspect <= 1.45:
+                continue
+            perimeter = float(cv.arcLength(contour, True))
+            circularity = (
+                4.0 * math.pi * area / (perimeter * perimeter)
+                if perimeter > 1e-6
+                else 0.0
+            )
+            if circularity < 0.12:
+                continue
+
+            sample_radius = radius * 1.16
+            sample_x0 = max(0, int(math.floor(center_x - sample_radius)))
+            sample_y0 = max(0, int(math.floor(center_y - sample_radius)))
+            sample_x1 = min(width, int(math.ceil(center_x + sample_radius)) + 1)
+            sample_y1 = min(height, int(math.ceil(center_y + sample_radius)) + 1)
+            sample = mask[sample_y0:sample_y1, sample_x0:sample_x1]
+            if sample.size == 0:
+                continue
+            yy, xx = np.indices(sample.shape, dtype=np.float32)
+            distance = np.hypot(
+                xx + sample_x0 - float(center_x),
+                yy + sample_y0 - float(center_y),
+            )
+            annulus = (distance >= radius * 0.68) & (
+                distance <= radius * 1.08
+            )
+            inner = distance <= radius * 0.54
+            annulus_total = int(np.count_nonzero(annulus))
+            inner_total = int(np.count_nonzero(inner))
+            if annulus_total == 0 or inner_total == 0:
+                continue
+            annulus_ratio = float(np.count_nonzero(sample[annulus])) / annulus_total
+            inner_ratio = float(np.count_nonzero(sample[inner])) / inner_total
+            if annulus_ratio < 0.055:
+                continue
+
+            aspect_score = max(0.0, 1.0 - abs(1.0 - aspect))
+            score = (
+                4.0 * annulus_ratio
+                + 1.25 * min(1.0, circularity)
+                + 0.75 * aspect_score
+                - 0.40 * inner_ratio
+            )
+            global_x = round(center_x) + int(origin[0])
+            global_y = round(center_y) + int(origin[1])
+            scored.append(
+                (score, (global_x, global_y, max(1, round(radius))))
+            )
+
+        scored.sort(key=lambda item: item[0], reverse=True)
+        return [circle for _score, circle in scored]
 
     @staticmethod
     def _circle_is_valid(
@@ -1422,12 +2046,12 @@ class MinimapHeadingDetector:
         frame: np.ndarray,
         center_x: int,
         center_y: int,
+        radius: int,
     ) -> tuple[np.ndarray, np.ndarray] | None:
         """Extract the exact same rectangle for every frame and orientation."""
         frame = self._as_bgr(frame)
-        anchor = self._load_anchor(frame)
-        size = int(anchor["crop_size"])
-        half = size // 2
+        half = max(1, int(radius))
+        size = half * 2 + 1
 
         x0 = center_x - half
         y0 = center_y - half
@@ -1711,12 +2335,13 @@ class MinimapHeadingDetector:
         are not evaluated during an ordinary read and can never select, adjust,
         reject, or rescue a geometry heading.
         """
-        extracted = self._arrow_crop(frame, center_x, center_y)
+        extracted = self._arrow_crop(frame, center_x, center_y, radius)
         if extracted is None:
             return None
         crop_gray, observed = extracted
 
-        geometry_evidence = self._geometry_evidence(crop_gray)
+        geometry_input = self._geometry_scale_normalized(crop_gray)
+        geometry_evidence = self._geometry_evidence(geometry_input)
         geometry = (
             self._principal_axis_geometry(geometry_evidence)
             if geometry_evidence is not None

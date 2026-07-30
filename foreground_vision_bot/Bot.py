@@ -4,7 +4,7 @@ import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from threading import Lock
+from threading import Lock, RLock
 from time import time
 from typing import TYPE_CHECKING
 
@@ -15,6 +15,16 @@ from libs.ActionExecutor import ActionExecutor, BotAction
 from libs.ComputerVision import ComputerVision as CV
 from libs.DigitReader import DigitReader
 from libs.HumanKeyboard import VKEY, HumanKeyboard
+from libs.KillCounterPanel import DynamicKillCounterReader
+from mapper.NativeCourseHeading import NativeCourseHeadingTracker
+from position import (
+    NativeActor,
+    NativeFlyffMonsterProvider,
+    PlayerPose,
+    PositionProvider,
+    create_native_monster_provider,
+    create_native_position_provider,
+)
 
 if TYPE_CHECKING:
     from capture_service import CaptureService, FrameSample
@@ -60,25 +70,44 @@ class Bot:
             "mob_dedup_distance_px": 20.0,
             "selected_mobs": [],
             "kill_counter_crop": (168, 198, 1360, 1415),
+            "dynamic_kill_counter": True,
             "show_kill_counter_crop": False,
+            "selected_map_name": None,
+            "show_native_monsters_on_map": True,
+            "native_monster_map_refresh_seconds": 0.5,
+            "native_monster_local_radius_cells": 50,
         }
 
         self.runtime_bus: RuntimeBus | None = None
         self.capture_service: CaptureService | None = None
         self.keyboard: HumanKeyboard | None = None
         self.action_executor: ActionExecutor | None = None
+        self.position_provider: PositionProvider | None = None
+        self.monster_provider: NativeFlyffMonsterProvider | None = None
 
         self._frame_lock = Lock()
+        self._heading_lock = RLock()
+        self._kill_counter_lock = RLock()
         self._rl_enabled = False
         self._latest_mob_points: list[Point] = []
         self._latest_mob_points_at = 0.0
         self._preview_detection_interval = 0.25
         self._heading_preview_detector = None
+        self._latest_heading_reading = None
+        self._latest_heading_reading_at = 0.0
         self._last_heading_error_at = 0.0
+        self._native_course_tracker = NativeCourseHeadingTracker()
+        self._native_map_overlay = None
+        self._native_map_overlay_name: str | None = None
+        self._last_native_map_publish_at = 0.0
+        self._last_native_map_error_at = 0.0
 
         self.digit_reader = DigitReader(
             digits_dir=Path(__file__).parent / "assets" / "digits",
             threshold=0.85,
+        )
+        self.kill_counter_reader = DynamicKillCounterReader(
+            digit_reader=self.digit_reader,
         )
 
         self._mob_templates: list[MobTemplate] = []
@@ -96,12 +125,68 @@ class Bot:
     ) -> None:
         self.runtime_bus = runtime_bus
         self.capture_service = capture_service
-        self.keyboard = HumanKeyboard(window_handler)
-        self.action_executor = ActionExecutor(self.keyboard)
+        self._close_position_provider()
+        self._close_monster_provider()
+        position_provider = None
+        monster_provider = None
+        try:
+            position_provider = create_native_position_provider(window_handler)
+            monster_provider = create_native_monster_provider(window_handler)
+            keyboard = HumanKeyboard(window_handler)
+            action_executor = ActionExecutor(keyboard)
+        except Exception:
+            if position_provider is not None:
+                position_provider.close()
+            if monster_provider is not None:
+                monster_provider.close()
+            raise
+        self.keyboard = keyboard
+        self.action_executor = action_executor
+        self.position_provider = position_provider
+        self.monster_provider = monster_provider
+        if monster_provider is not None:
+            self._emit(
+                "msg_green",
+                "Native monster reader attached. Actor slots and local species "
+                "positions will be discovered dynamically.",
+            )
+
+        if position_provider is not None:
+            resolver = position_provider.config.resolver
+            if resolver == "module_pointer":
+                pointer_storage = position_provider.pointer_storage_address
+                detail = (
+                    ""
+                    if pointer_storage is None
+                    else f" Pointer slot: 0x{pointer_storage:X}."
+                )
+                message = (
+                    "Native player-position reader attached with module-pointer "
+                    "resolution."
+                )
+            else:
+                addresses = getattr(position_provider, "resolved_addresses", ())
+                address_text = ", ".join(f"0x{value:X}" for value in addresses)
+                detail = f" Resolved: {address_text}." if address_text else ""
+                mode = "consensus" if resolver == "module_offsets" else "direct"
+                message = f"Native player-position reader attached in {mode} mode."
+            self._emit("msg_green", message + detail)
         # Heading continuity belongs to one capture attachment. Reusing an
         # old-window angle can make the fast jump guard pin Bot Vision after a
         # reattach.
-        self._heading_preview_detector = None
+        with self._heading_lock:
+            self._heading_preview_detector = None
+            self._latest_heading_reading = None
+            self._latest_heading_reading_at = 0.0
+        self._native_course_tracker.reset()
+        with self._kill_counter_lock:
+            self.kill_counter_reader.invalidate()
+        self._emit(
+            "msg_yellow",
+            "Background skill hotkeys are available, but this FlyFF client reads "
+            "movement only while focused. The mapper pauses when focus is lost so "
+            "unfocused input cannot create false walls.",
+        )
         self._emit("msg_green", "RL bot is ready.")
 
     def start(self) -> None:
@@ -129,14 +214,50 @@ class Bot:
         cv.destroyAllWindows()
 
     def release_input(self) -> None:
+        first_error: Exception | None = None
         try:
             self.stop_movement()
+        except Exception as error:  # noqa: BLE001 - still close all handles.
+            first_error = error
+        try:
+            self._close_position_provider()
+        except Exception as error:  # noqa: BLE001 - finish input cleanup first.
+            if first_error is None:
+                first_error = error
+        try:
+            self._close_monster_provider()
+        except Exception as error:  # noqa: BLE001 - finish input cleanup first.
+            if first_error is None:
+                first_error = error
         finally:
+            keyboard = self.keyboard
             self.keyboard = None
             self.action_executor = None
+            if keyboard is not None:
+                try:
+                    keyboard.close()
+                except Exception as error:  # noqa: BLE001 - report after cleanup.
+                    if first_error is None:
+                        first_error = error
+
+        if first_error is not None:
+            raise first_error
+
+    def _close_position_provider(self) -> None:
+        provider = getattr(self, "position_provider", None)
+        self.position_provider = None
+        if provider is not None:
+            provider.close()
+
+    def _close_monster_provider(self) -> None:
+        provider = getattr(self, "monster_provider", None)
+        self.monster_provider = None
+        if provider is not None:
+            provider.close()
 
     def set_config(self, **options) -> None:
         reload_templates = False
+        reset_native_map = False
 
         for key, value in options.items():
             # Keep accepting obsolete GUI settings so the old GUI does not
@@ -145,12 +266,65 @@ class Bot:
 
             if key == "selected_mobs":
                 reload_templates = True
+            if key in {
+                "selected_map_name",
+                "native_monster_local_radius_cells",
+            }:
+                reset_native_map = True
 
         if reload_templates:
             self._reload_mob_templates()
+        if reset_native_map:
+            self._native_map_overlay = None
+            self._native_map_overlay_name = None
 
     def get_all_mobs(self):
         return MobInfo.get_all_mobs()
+
+    def capture_selected_monster(self) -> NativeActor:
+        provider = self.monster_provider
+        if provider is None:
+            raise RuntimeError(
+                "Native monster reader is disabled or the game window is not attached"
+            )
+        return provider.capture_selected_actor()
+
+    def get_native_monsters(
+        self,
+        *,
+        vision_radius_native: float | None = None,
+        force_rediscovery: bool = False,
+    ) -> list[NativeActor]:
+        """Return selected registered species inside the local native radius."""
+        provider = self.monster_provider
+        if provider is None:
+            return []
+
+        species_ids: set[int] = set()
+        for mob in self.config.get("selected_mobs") or []:
+            if not isinstance(mob, dict):
+                continue
+            value = mob.get("species_id")
+            if isinstance(value, bool):
+                continue
+            try:
+                species_id = int(value)
+            except (TypeError, ValueError):
+                continue
+            if species_id >= 0:
+                species_ids.add(species_id)
+
+        # An empty memory-species selection is deliberately not interpreted as
+        # "all actors" because players, pets and helper entities share this
+        # layout. Register/capture at least one monster species first.
+        if not species_ids:
+            return []
+
+        return provider.read_active_actors(
+            allowed_species_ids=species_ids,
+            vision_radius_native=vision_radius_native,
+            force_rediscovery=force_rediscovery,
+        )
 
     @property
     def is_ready(self) -> bool:
@@ -227,6 +401,32 @@ class Bot:
         if frame is None:
             return None
 
+        if bool(self.config.get("dynamic_kill_counter", True)):
+            reader = getattr(self, "kill_counter_reader", None)
+            if reader is None:
+                reader = DynamicKillCounterReader(digit_reader=self.digit_reader)
+                self.kill_counter_reader = reader
+            with self._kill_counter_lock:
+                reading = reader.read(frame)
+            if reading is not None and reading.kills is not None:
+                if self.config["show_kill_counter_crop"]:
+                    anchor = reading.anchor
+                    left, top, right, bottom = reader._scaled_box(
+                        anchor,
+                        reader._KILLS_BOX,
+                    )
+                    preview = frame[
+                        max(0, top) : min(frame.shape[0], bottom),
+                        max(0, left) : min(frame.shape[1], right),
+                    ]
+                    if preview.size:
+                        cv.imshow("Kill Counter Crop", preview)
+                        cv.waitKey(1)
+                return max(0, int(reading.kills))
+
+        # The panel anchor may be valid while one transparent/animated frame
+        # makes digit OCR fail. Do not turn that transient miss into a permanent
+        # None result; try the existing configured crop before giving up.
         top, bottom, left, right = self.config["kill_counter_crop"]
 
         height, width = frame.shape[:2]
@@ -253,6 +453,19 @@ class Bot:
             return None
 
         return max(0, int(kills))
+
+    def read_penya_count(self) -> int | None:
+        """Read the Penya total from the same dynamically located tracker."""
+        frame, _ = self._frame_snapshot()
+        if frame is None:
+            return None
+        reader = getattr(self, "kill_counter_reader", None)
+        if reader is None:
+            reader = DynamicKillCounterReader(digit_reader=self.digit_reader)
+            self.kill_counter_reader = reader
+        with self._kill_counter_lock:
+            reading = reader.read(frame)
+        return None if reading is None else reading.penya
 
     def execute_action(
         self,
@@ -292,6 +505,59 @@ class Bot:
 
         if first_error is not None:
             raise first_error
+
+    @property
+    def native_position_available(self) -> bool:
+        return self.position_provider is not None
+
+    def get_player_pose(self) -> PlayerPose | None:
+        """Return a native world-pose sample when the provider is enabled."""
+        provider = self.position_provider
+        if provider is None:
+            return None
+        return provider.read_pose()
+
+    def get_navigation_pose(
+        self,
+        *,
+        max_heading_age_seconds: float = 1.0,
+    ) -> PlayerPose | None:
+        """Combine native X/Y/Z with the latest validated minimap heading."""
+        pose = self.get_player_pose()
+        if pose is None:
+            return None
+        if pose.heading_degrees is not None:
+            return pose
+
+        now = time()
+        reading = None
+        with self._heading_lock:
+            if (
+                self._latest_heading_reading is not None
+                and now - self._latest_heading_reading_at
+                <= max(0.05, float(max_heading_age_seconds))
+            ):
+                reading = self._latest_heading_reading
+            else:
+                _gray, frame = self._frame_snapshot()
+                if frame is not None:
+                    if self._heading_preview_detector is None:
+                        from mapper import MinimapHeadingDetector
+
+                        self._heading_preview_detector = MinimapHeadingDetector()
+                    reading = self._heading_preview_detector.read_fast(frame)
+                    if reading is not None:
+                        self._latest_heading_reading = reading
+                        self._latest_heading_reading_at = now
+        if reading is None:
+            return pose
+        return PlayerPose(
+            x=pose.x,
+            y=pose.y,
+            z=pose.z,
+            heading_degrees=float(reading.angle_deg),
+            timestamp=pose.timestamp,
+        )
 
     def get_frame_shape(self) -> tuple[int, int] | None:
         frame, _ = self._frame_snapshot()
@@ -347,7 +613,65 @@ class Bot:
 
         self._draw_cached_mob_overlay(frame, now)
         self._draw_heading_overlay(frame, now)
+        self._draw_kill_counter_overlay(frame, now)
+        self._publish_native_monster_map(now)
         return frame
+
+    def _publish_native_monster_map(self, now: float) -> None:
+        """Publish the persistent map with native monster markers.
+
+        This runs on the droppable preview worker, not Tk and not the RL
+        control loop. The expensive global slot discovery is cached by the
+        provider; ordinary refreshes only poll known actor addresses.
+        """
+        if not self.config.get("show_native_monsters_on_map", True):
+            return
+        map_name = self.config.get("selected_map_name")
+        if not map_name or self.runtime_bus is None:
+            return
+        if self.monster_provider is None or self.position_provider is None:
+            return
+
+        refresh = max(
+            0.1,
+            float(self.config.get("native_monster_map_refresh_seconds", 0.5)),
+        )
+        if now - self._last_native_map_publish_at < refresh:
+            return
+        self._last_native_map_publish_at = now
+
+        try:
+            if (
+                self._native_map_overlay is None
+                or self._native_map_overlay_name != str(map_name)
+            ):
+                # Import the class from its defining module. Importing it from
+                # the package namespace is unsafe once Python has loaded the
+                # identically named submodule: ``from mapper import
+                # NativeMonsterMapOverlay`` can then resolve to the module
+                # object instead of the class.
+                from mapper.NativeMonsterMapOverlay import (
+                    NativeMonsterMapOverlay,
+                )
+
+                self._native_map_overlay = NativeMonsterMapOverlay.load(
+                    str(map_name),
+                    local_radius_cells=int(
+                        self.config.get("native_monster_local_radius_cells", 50)
+                    ),
+                )
+                self._native_map_overlay_name = str(map_name)
+
+            player_pose = self.get_player_pose()
+            if player_pose is None:
+                return
+            actors = self.get_native_monsters()
+            dashboard = self._native_map_overlay.render(player_pose, actors)
+            self.runtime_bus.publish_latest("map_frame", dashboard)
+        except Exception as error:  # noqa: BLE001 - optional preview boundary.
+            if now - self._last_native_map_error_at >= 15.0:
+                self._emit("msg_red", f"Native monster map overlay failed: {error}")
+                self._last_native_map_error_at = now
 
     def _reload_mob_templates(self) -> None:
         entries = self.config.get("selected_mobs") or []
@@ -468,16 +792,35 @@ class Bot:
             )
 
     def _draw_heading_overlay(self, frame: np.ndarray, now: float) -> None:
-        """Draw the fast minimap heading from the preview worker."""
+        """Draw and cache the fast minimap heading from the preview worker."""
         try:
-            if self._heading_preview_detector is None:
-                from mapper import MinimapHeadingDetector
+            heading_lock = getattr(self, "_heading_lock", None)
+            if heading_lock is None:
+                heading_lock = RLock()
+                self._heading_lock = heading_lock
+            with heading_lock:
+                if self._heading_preview_detector is None:
+                    from mapper import MinimapHeadingDetector
 
-                self._heading_preview_detector = MinimapHeadingDetector()
+                    self._heading_preview_detector = MinimapHeadingDetector()
 
-            reading = self._heading_preview_detector.read_fast(frame)
-            if reading is None:
-                return
+                reading = self._heading_preview_detector.read_fast(frame)
+                reference = self._native_course_heading_reference()
+                observe_reference = getattr(
+                    self._heading_preview_detector,
+                    "observe_reference_heading",
+                    None,
+                )
+                if (
+                    reference is not None
+                    and callable(observe_reference)
+                    and observe_reference(reference, allow_opposite=True)
+                ):
+                    reading = self._heading_preview_detector.read_fast(frame)
+                if reading is None:
+                    return
+                self._latest_heading_reading = reading
+                self._latest_heading_reading_at = float(now)
 
             center_x, center_y = reading.center
             angle = math.radians(reading.angle_deg)
@@ -510,6 +853,62 @@ class Bot:
             if now - self._last_heading_error_at >= 15.0:
                 self._emit("msg_red", f"Heading preview failed: {error}")
                 self._last_heading_error_at = now
+
+    def _draw_kill_counter_overlay(self, frame: np.ndarray, now: float) -> None:
+        """Mark the dynamically tracked kill/Penya panel in Bot Vision."""
+        del now
+        if not bool(self.config.get("dynamic_kill_counter", True)):
+            return
+        try:
+            counter_lock = getattr(self, "_kill_counter_lock", None)
+            if counter_lock is None:
+                counter_lock = RLock()
+                self._kill_counter_lock = counter_lock
+            with counter_lock:
+                reader = self.kill_counter_reader
+                anchor = reader.locate(frame)
+                if anchor is None:
+                    return
+                left, top, right, bottom = reader.tracking_bounds(
+                    anchor,
+                    frame_shape=frame.shape[:2],
+                )
+            cv.rectangle(
+                frame,
+                (left, top),
+                (right, bottom),
+                (0, 255, 0),
+                2,
+                cv.LINE_AA,
+            )
+            cv.putText(
+                frame,
+                "Kill/Penya tracked",
+                (left, max(16, top - 6)),
+                cv.FONT_HERSHEY_SIMPLEX,
+                0.48,
+                (0, 255, 0),
+                2,
+                cv.LINE_AA,
+            )
+        except Exception:
+            # This diagnostic overlay must never interrupt capture or control.
+            return
+
+    def _native_course_heading_reference(self) -> float | None:
+        provider = getattr(self, "position_provider", None)
+        if provider is None:
+            return None
+        tracker = getattr(self, "_native_course_tracker", None)
+        if tracker is None:
+            tracker = NativeCourseHeadingTracker()
+            self._native_course_tracker = tracker
+        try:
+            pose = provider.read_pose()
+        except Exception:  # noqa: BLE001 - optional validation signal.
+            return None
+        course = tracker.update(pose)
+        return None if course is None else float(course.angle_deg)
 
     def _require_setup(self) -> None:
         if (

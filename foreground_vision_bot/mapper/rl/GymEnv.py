@@ -8,6 +8,7 @@ from gymnasium import spaces
 
 from .Observation import LOCAL_CHANNELS, LOCAL_SIZE, STATE_SIZE
 from .PolicyTypes import MapperAction
+from .LayoutSources import LayoutGenerator
 from .SimulatorCore import MapperSimulatorConfig, MapperSimulatorCore
 
 
@@ -16,9 +17,13 @@ class MapperSimEnv(gym.Env):
 
     metadata: ClassVar[dict[str, list[str]]] = {"render_modes": []}
 
-    def __init__(self, config: MapperSimulatorConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: MapperSimulatorConfig | None = None,
+        generator: LayoutGenerator | None = None,
+    ) -> None:
         super().__init__()
-        self.core = MapperSimulatorCore(config=config)
+        self.core = MapperSimulatorCore(config=config, generator=generator)
         self.action_space = spaces.Discrete(len(MapperAction))
         self.observation_space = spaces.Dict(
             {

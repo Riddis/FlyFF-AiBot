@@ -5,7 +5,9 @@ from time import monotonic
 
 import cv2 as cv
 import PySimpleGUI as sg
+from mapper.ManualMapEditor import ManualMapEditorSession
 from mapper.MapCatalog import MapCatalog
+from mapper.OccupancyGrid import OccupancyGrid
 from runtime_bus import RuntimeBus
 from runtime_controller import RuntimeController
 from utils.helpers import get_window_handlers, hex_variant
@@ -22,6 +24,7 @@ class Gui:
             "msg_green": ("white", "green"),
         }
         self.frame_resolutions = {
+            "Fit panel": None,
             "160x120": (160, 120),
             "200x150": (200, 150),
             "320x240": (320, 240),
@@ -116,6 +119,13 @@ class Gui:
                     "Starting training...",
                 )
 
+            if event == "-DRY_RUN-":
+                self.__start_control(
+                    lambda: self.controller.start_rl("dry-run"),
+                    "Dry Run",
+                    "Starting native no-learning dry run...",
+                )
+
             if event == "-RUN_AGENT-":
                 self.__start_control(
                     lambda: self.controller.start_rl("agent"),
@@ -129,16 +139,29 @@ class Gui:
                 self.__start_control(
                     lambda: self.controller.start_mapper(
                         self._selected_map_name,
-                        rl_shadow_enabled=bool(
-                            values.get("-MAPPER_RL_SHADOW-", False)
-                        ),
+                        rl_shadow_enabled=False,
                     ),
                     "Mapping",
-                    f"Starting adaptive mapper for {self._selected_map_name}...",
+                    f"Starting coordinate mapper for {self._selected_map_name}...",
+                )
+
+            if event == "-START_MANUAL_MAPPER-":
+                selected_map = values.get("-MAP-NAME-", self._selected_map_name)
+                self.__apply_map_selection(bot, selected_map, publish_preview=False)
+                self.__start_control(
+                    lambda: self.controller.start_manual_mapper(
+                        self._selected_map_name,
+                    ),
+                    "Manual Mapping",
+                    f"Tracking your movement on {self._selected_map_name}; "
+                    "the bot will not send movement keys.",
                 )
 
             if event == "-SET_MINIMAP_ANCHOR-":
                 self.__set_minimap_anchor(bot)
+
+            if event == "-EDIT_MAP_CELLS-":
+                self.__edit_map_cells_popup()
 
             if event == "-SHOW_LOG-":
                 self.__show_log_window()
@@ -152,12 +175,6 @@ class Gui:
                 )
 
             # BOT OPTIONS - Video options
-            if event == "-MAPPER_RL_SHADOW-":
-                sg.user_settings_set_entry(
-                    "-MAPPER_RL_SHADOW-",
-                    bool(values.get("-MAPPER_RL_SHADOW-", False)),
-                )
-
             if event == "-SHOW_FRAMES-":
                 bot.set_config(show_frames=values["-SHOW_FRAMES-"])
                 sg.user_settings_set_entry("-SHOW_FRAMES-", values["-SHOW_FRAMES-"])
@@ -343,7 +360,7 @@ class Gui:
                 self.__select_mobs_popup(bot)
 
             if event == "-ADD_MOB-":
-                self.__add_mob_popup()
+                self.__add_mob_popup(bot)
 
             if event == "-DELETE_MOB-":
                 self.__select_mobs_popup(bot, is_delete_form=True)
@@ -376,8 +393,8 @@ class Gui:
             # heading template matching here blocks Tk's only event loop and
             # makes Bot Vision plus every button appear frozen.
             image = frame.copy()
-            resolution = values.get("-DEBUG_IMG_WIDTH-", "960x540")
-            width, height = self.frame_resolutions[resolution]
+            resolution = values.get("-DEBUG_IMG_WIDTH-", "Fit panel")
+            width, height = self.__preview_target_size(resolution)
             image = self.__fit_image(image, width, height)
             # Tk's PhotoImage accepts PNG bytes directly. JPEG bytes trigger
             # PySimpleGUI's internal modal error dialog, which Tk can position
@@ -536,15 +553,20 @@ class Gui:
 
     def __set_rl_buttons(self, attached, running):
         """Keep the RL action buttons in a consistent state."""
+        self.window["-DRY_RUN-"].update(disabled=(not attached or running))
         self.window["-START_BOT-"].update(disabled=(not attached or running))
         self.window["-RUN_AGENT-"].update(disabled=(not attached or running))
         self.window["-START_MAPPER-"].update(disabled=(not attached or running))
+        self.window["-START_MANUAL_MAPPER-"].update(
+            disabled=(not attached or running)
+        )
         self.window["-SET_MINIMAP_ANCHOR-"].update(disabled=(not attached or running))
         self.window["-STOP_BOT-"].update(disabled=(not attached or not running))
         self.window["-ATTACH_WINDOW-"].update(disabled=running)
         self.window["-MAP-NAME-"].update(disabled=running)
         self.window["-ADD_MAP-"].update(disabled=running)
         self.window["-EDIT_MAP_MOBS-"].update(disabled=running)
+        self.window["-EDIT_MAP_CELLS-"].update(disabled=running)
         self.window["-RESET_MAP-"].update(disabled=running)
         self.window["-DELETE_MAP-"].update(disabled=running)
 
@@ -564,7 +586,7 @@ class Gui:
             return
 
         try:
-            from mapper import MinimapAnchorSetup
+            from mapper.MinimapAnchorSetup import MinimapAnchorSetup
 
             sg.cprint(
                 "Opening minimap-center selector. Click the exact center of "
@@ -635,12 +657,6 @@ class Gui:
         )
 
     def __load_settings(self, bot):
-        mapper_rl_shadow = sg.user_settings_get_entry(
-            "-MAPPER_RL_SHADOW-",
-            False,
-        )
-        self.window["-MAPPER_RL_SHADOW-"].update(bool(mapper_rl_shadow))
-
         show_frames = sg.user_settings_get_entry("-SHOW_FRAMES-", True)
         self.window["-SHOW_FRAMES-"].update(show_frames)
         self.window["-SHOW_MATCHES_TEXT-"].update(visible=show_frames)
@@ -694,6 +710,7 @@ class Gui:
             return
 
         self._selected_map_name = profile.name
+        bot.set_config(selected_map_name=profile.name)
         sg.user_settings_set_entry("saved_map_name", profile.name)
         if hasattr(self, "window"):
             self.window["-MAP-NAME-"].update(profile.name)
@@ -732,6 +749,248 @@ class Gui:
                 value=selected,
             )
         return selected
+
+    def __edit_map_cells_popup(self):
+        if not self.__map_management_available():
+            return
+        if self.controller is None:
+            return
+
+        profile = self.map_catalog.get(self._selected_map_name)
+        directory = self.map_catalog.map_directory(profile.name)
+        if not (directory / "map.json").is_file():
+            self.show_error(
+                f"{profile.name} does not have a saved map yet. Run the mapper first."
+            )
+            return
+        grid, warning = OccupancyGrid.load(directory)
+        if warning is not None:
+            self.show_error(warning)
+            return
+
+        session = ManualMapEditorSession(grid)
+        radius = 35
+
+        def cell_pixels_for(view_radius):
+            return max(4, min(11, 620 // (2 * int(view_radius) + 1)))
+
+        cell_pixels = cell_pixels_for(radius)
+
+        def encoded_view():
+            image = session.render_view(
+                radius_cells=radius,
+                cell_pixels=cell_pixels,
+            )
+            encoded = cv.imencode(".png", image)
+            return b"" if not encoded[0] else encoded[1].tobytes()
+
+        layout = [
+            [
+                sg.Text(f"Occupancy cell editor — {profile.name}", font="Any 13 bold"),
+                sg.Push(),
+                sg.Text("View radius:"),
+                sg.Combo(
+                    [20, 30, 35, 40, 50, 60],
+                    default_value=radius,
+                    readonly=True,
+                    enable_events=True,
+                    key="-CELL-EDIT-RADIUS-",
+                    size=(5, 1),
+                ),
+            ],
+            [
+                sg.Frame(
+                    "Paint",
+                    [[
+                        sg.Radio("Explored / free", "CELL_TOOL", default=True, key="-CELL-FREE-"),
+                        sg.Radio("Blocked", "CELL_TOOL", key="-CELL-BLOCKED-"),
+                        sg.Radio(
+                            "Teleport area",
+                            "CELL_TOOL",
+                            key="-CELL-TELEPORT-",
+                            text_color="red",
+                        ),
+                        sg.Radio("Clear to unknown", "CELL_TOOL", key="-CELL-ERASE-"),
+                    ]],
+                ),
+                sg.Frame(
+                    "Selection",
+                    [[
+                        sg.Radio("Line / brush", "CELL_SHAPE", default=True, key="-CELL-LINE-"),
+                        sg.Radio("Rectangle", "CELL_SHAPE", key="-CELL-RECT-"),
+                    ]],
+                ),
+            ],
+            [
+                sg.Button("↖", key="-CELL-PAN-NW-"),
+                sg.Button("↑", key="-CELL-PAN-N-"),
+                sg.Button("↗", key="-CELL-PAN-NE-"),
+                sg.Button("←", key="-CELL-PAN-W-"),
+                sg.Button("Player", key="-CELL-CENTER-"),
+                sg.Button("→", key="-CELL-PAN-E-"),
+                sg.Button("↙", key="-CELL-PAN-SW-"),
+                sg.Button("↓", key="-CELL-PAN-S-"),
+                sg.Button("↘", key="-CELL-PAN-SE-"),
+                sg.Push(),
+                sg.Button("Undo", key="-CELL-UNDO-"),
+            ],
+            [
+                sg.Image(
+                    data=encoded_view(),
+                    key="-CELL-EDIT-IMAGE-",
+                    background_color="#5a5a5a",
+                )
+            ],
+            [
+                sg.Text(
+                    "Drag to select. Saved edits become authoritative free, blocked, red "
+                    "teleport, or unknown map cells. Manual-drive mode stops before entering "
+                    "a red teleport cell.",
+                    size=(90, 2),
+                    key="-CELL-EDIT-STATUS-",
+                )
+            ],
+            [
+                sg.Button("Save Cells", key="-CELL-SAVE-", button_color=("white", "#287a3c")),
+                sg.Button("Cancel"),
+            ],
+        ]
+        editor = sg.Window(
+            "Edit Occupancy Cells",
+            layout,
+            modal=True,
+            keep_on_top=False,
+            finalize=True,
+            resizable=False,
+        )
+        image_widget = editor["-CELL-EDIT-IMAGE-"].Widget
+        image_widget.bind(
+            "<ButtonPress-1>",
+            lambda event: editor.write_event_value("-CELL-MOUSE-DOWN-", (event.x, event.y)),
+        )
+        image_widget.bind(
+            "<B1-Motion>",
+            lambda event: editor.write_event_value("-CELL-MOUSE-DRAG-", (event.x, event.y)),
+        )
+        image_widget.bind(
+            "<ButtonRelease-1>",
+            lambda event: editor.write_event_value("-CELL-MOUSE-UP-", (event.x, event.y)),
+        )
+
+        drag_start = None
+        drag_end = None
+
+        def selected_mode(values):
+            if values.get("-CELL-BLOCKED-"):
+                return "blocked"
+            if values.get("-CELL-TELEPORT-"):
+                return "teleport"
+            if values.get("-CELL-ERASE-"):
+                return "erase"
+            return "free"
+
+        def refresh(message=None):
+            editor["-CELL-EDIT-IMAGE-"].update(data=encoded_view())
+            if message is not None:
+                editor["-CELL-EDIT-STATUS-"].update(message)
+
+        pan_directions = {
+            "-CELL-PAN-NW-": (-1, 1),
+            "-CELL-PAN-N-": (0, 1),
+            "-CELL-PAN-NE-": (1, 1),
+            "-CELL-PAN-W-": (-1, 0),
+            "-CELL-PAN-E-": (1, 0),
+            "-CELL-PAN-SW-": (-1, -1),
+            "-CELL-PAN-S-": (0, -1),
+            "-CELL-PAN-SE-": (1, -1),
+        }
+
+        try:
+            while True:
+                event, values = editor.read()
+                if event in (sg.WIN_CLOSED, "Cancel"):
+                    return
+                if event == "-CELL-EDIT-RADIUS-":
+                    radius = int(values[event])
+                    cell_pixels = cell_pixels_for(radius)
+                    refresh()
+                    continue
+                if event in pan_directions:
+                    dx, dy = pan_directions[event]
+                    step = max(5, radius // 2)
+                    session.pan(dx * step, dy * step)
+                    refresh()
+                    continue
+                if event == "-CELL-CENTER-":
+                    session.center_on_player()
+                    refresh()
+                    continue
+                if event == "-CELL-UNDO-":
+                    if session.undo():
+                        refresh(f"Undid the last selection. {len(session.staged)} staged cells remain.")
+                    continue
+                if event == "-CELL-MOUSE-DOWN-":
+                    drag_start = session.pixel_to_cell(
+                        *values[event], radius_cells=radius, cell_pixels=cell_pixels
+                    )
+                    drag_end = drag_start
+                    continue
+                if event == "-CELL-MOUSE-DRAG-":
+                    drag_end = session.pixel_to_cell(
+                        *values[event], radius_cells=radius, cell_pixels=cell_pixels
+                    )
+                    if drag_end is not None:
+                        editor["-CELL-EDIT-STATUS-"].update(
+                            f"Selection endpoint: {drag_end}. Release to stage cells."
+                        )
+                    continue
+                if event == "-CELL-MOUSE-UP-":
+                    drag_end = session.pixel_to_cell(
+                        *values[event], radius_cells=radius, cell_pixels=cell_pixels
+                    )
+                    if drag_start is None or drag_end is None:
+                        drag_start = drag_end = None
+                        continue
+                    cells = (
+                        session.rectangle_cells(drag_start, drag_end)
+                        if values.get("-CELL-RECT-")
+                        else session.line_cells(drag_start, drag_end)
+                    )
+                    try:
+                        changed = session.stage_cells(cells, selected_mode(values))
+                    except ValueError as error:
+                        self.show_error(str(error))
+                    else:
+                        refresh(
+                            f"Staged {changed} cells; {len(session.staged)} total. "
+                            "Press Save Cells to persist."
+                        )
+                    drag_start = drag_end = None
+                    continue
+                if event == "-CELL-SAVE-":
+                    if not session.staged:
+                        editor["-CELL-EDIT-STATUS-"].update("No cells are staged.")
+                        continue
+                    try:
+                        summary = self.controller.apply_manual_map_edits(
+                            profile.name,
+                            session.staged,
+                        )
+                    except Exception as error:  # noqa: BLE001 - GUI command boundary.
+                        self.show_error(f"Could not save manual map cells: {error}")
+                        continue
+                    message = (
+                        f"Saved {summary.free_cells} free, {summary.blocked_cells} blocked, "
+                        f"{summary.teleport_cells} teleport, and cleared "
+                        f"{summary.erased_cells} cells to unknown"
+                    )
+                    if summary.skipped_cells:
+                        message += f"; skipped {summary.skipped_cells} unchanged/invalid cells"
+                    message += "."
+                    self.runtime_bus.log(message, "msg_green")
+                    return
+        finally:
+            editor.close()
 
     def __map_management_available(self):
         if self.controller is not None and self.controller.control_active:
@@ -933,6 +1192,14 @@ class Gui:
                 ],
                 [
                     sg.Button(
+                        "Native Dry Run (No Learning)",
+                        disabled=True,
+                        key="-DRY_RUN-",
+                        expand_x=True,
+                    )
+                ],
+                [
+                    sg.Button(
                         "Start Training",
                         disabled=True,
                         key="-START_BOT-",
@@ -947,7 +1214,7 @@ class Gui:
                 ],
                 [
                     sg.Button(
-                        "Set Minimap Center",
+                        "Calibrate Minimap (optional)",
                         disabled=True,
                         key="-SET_MINIMAP_ANCHOR-",
                         expand_x=True,
@@ -955,9 +1222,17 @@ class Gui:
                 ],
                 [
                     sg.Button(
-                        "Map Area (Adaptive)",
+                        "Map Area (Automatic)",
                         disabled=True,
                         key="-START_MAPPER-",
+                        expand_x=True,
+                    )
+                ],
+                [
+                    sg.Button(
+                        "Trace Map While I Drive",
+                        disabled=True,
+                        key="-START_MANUAL_MAPPER-",
                         expand_x=True,
                     )
                 ],
@@ -1010,24 +1285,15 @@ class Gui:
                     sg.Button("Edit Map Mobs", key="-EDIT_MAP_MOBS-"),
                 ],
                 [
+                    sg.Button("Edit Map Cells", key="-EDIT_MAP_CELLS-", expand_x=True),
+                ],
+                [
                     sg.Button("Reset Progress", key="-RESET_MAP-"),
                     sg.Button(
                         "Delete Map",
                         key="-DELETE_MAP-",
                         button_color=("white", "#a83232"),
                     ),
-                ],
-                [
-                    sg.Checkbox(
-                        "Enable mapper RL shadow recommendations",
-                        default=False,
-                        enable_events=True,
-                        key="-MAPPER_RL_SHADOW-",
-                        tooltip=(
-                            "The RL policy only recommends actions and is logged; "
-                            "the deterministic mapper remains in control."
-                        ),
-                    )
                 ],
             ],
             expand_x=True,
@@ -1160,7 +1426,7 @@ class Gui:
                     sg.Text("Image Resolution:"),
                     sg.Combo(
                         list(self.frame_resolutions.keys()),
-                        default_value="960x540",
+                        default_value="Fit panel",
                         readonly=True,
                         key="-DEBUG_IMG_WIDTH-",
                     ),
@@ -1169,12 +1435,15 @@ class Gui:
                     sg.Image(
                         filename="",
                         key="-DEBUG_IMAGE-",
-                        size=(960, 540),
+                        size=(1, 1),
+                        expand_x=True,
+                        expand_y=True,
                     )
                 ],
             ],
             visible=True,
             expand_x=True,
+            expand_y=True,
             key="-VISION_FRAME-",
         )
 
@@ -1186,8 +1455,8 @@ class Gui:
                     sg.Text("Explored", text_color="white"),
                     sg.Text("Wall / obstacle", text_color="black"),
                     sg.Text("Teleport", text_color="red"),
-                    sg.Text("Pang", text_color="cyan"),
-                    sg.Text("Player + heading", text_color="yellow"),
+                    sg.Text("Player", text_color="yellow"),
+                    sg.Text("Detected monster (square)", text_color="light green"),
                 ],
                 [
                     sg.Image(
@@ -1214,6 +1483,36 @@ class Gui:
         )
 
         return [title, [controls, visuals]]
+
+    def __preview_target_size(self, selected_resolution):
+        configured = self.frame_resolutions.get(selected_resolution)
+        if configured is not None:
+            return configured
+
+        # PySimpleGUI's Image element is backed by a Tk Label. With expansion
+        # enabled its actual widget size follows the current bot-view panel,
+        # so fullscreen and small-window previews use the same available area
+        # rather than the game capture's source resolution.
+        try:
+            widget = self.window["-DEBUG_IMAGE-"].Widget
+            width = int(widget.winfo_width())
+            height = int(widget.winfo_height())
+        except Exception:
+            width, height = 0, 0
+
+        if width < 64 or height < 64:
+            try:
+                frame_widget = self.window["-VISION_FRAME-"].Widget
+                width = max(64, int(frame_widget.winfo_width()) - 18)
+                height = max(64, int(frame_widget.winfo_height()) - 62)
+            except Exception:
+                width, height = 960, 540
+
+        # Avoid transient one-pixel or absurd values while Tk is relaying out
+        # a resized window. The next preview frame will use the final size.
+        width = max(160, min(width, 3840))
+        height = max(90, min(height, 2160))
+        return width, height
 
     def __fit_image(self, image, target_width, target_height):
         """Letterbox an image without changing its aspect ratio."""
@@ -1612,7 +1911,7 @@ class Gui:
                 MobInfo.delete_mobs(deleted_mobs_names)
                 return
 
-    def __add_mob_popup(self):
+    def __add_mob_popup(self, bot):
         from assets.Assets import (
             mob_type_electricity_path,
             mob_type_fire_path,
@@ -1642,7 +1941,7 @@ class Gui:
                     sg.Input(key="-MAP-", size=(40, 20)),
                 ],
                 [
-                    sg.Text("Choose an image file (mob name): "),
+                    sg.Text("Optional legacy CV name image: "),
                     sg.Input(
                         key="-IMAGE-",
                         change_submits=True,
@@ -1656,8 +1955,24 @@ class Gui:
                     sg.Text("Enter height offset: "),
                     sg.Input(key="-HEIGHT-", enable_events=True, size=(10, 20)),
                     sg.Text(
-                        "(Number, usually in range from 40 to 100)", text_color="grey"
+                        "(Only used by the optional CV detector)", text_color="grey"
                     ),
+                ],
+                [
+                    sg.Text("Native species ID: "),
+                    sg.Input(
+                        key="-SPECIES-ID-",
+                        size=(12, 20),
+                        readonly=True,
+                    ),
+                    sg.Button("Capture targeted monster", key="-CAPTURE-SPECIES-"),
+                ],
+                [
+                    sg.Text(
+                        "Target exactly one monster in FlyFF, then capture its ID.",
+                        key="-SPECIES-STATUS-",
+                        text_color="grey",
+                    )
                 ],
                 element_buttons_layout,
                 [
@@ -1670,7 +1985,7 @@ class Gui:
                 ],
             ],
             modal=True,
-            size=(500, 225),
+            size=(620, 310),
         )
 
         while True:
@@ -1687,26 +2002,66 @@ class Gui:
                 for value in values:
                     if value.startswith("-"):
                         popup_window.Element(value).update("")
+            if event == "-CAPTURE-SPECIES-":
+                try:
+                    captured = bot.capture_selected_monster()
+                except Exception as error:  # noqa: BLE001 - GUI command boundary.
+                    popup_window["-SPECIES-STATUS-"].update(
+                        f"Capture failed: {error}",
+                        text_color="red",
+                    )
+                else:
+                    popup_window["-SPECIES-ID-"].update(str(captured.species_id))
+                    popup_window["-SPECIES-STATUS-"].update(
+                        f"Captured species {captured.species_id} from "
+                        f"0x{captured.base_address:08X} ({captured.hp} HP).",
+                        text_color="light green",
+                    )
             if event == "Save":
-                # form validation
-                is_form_valid = True
-                for key in ["-NAME-", "-MAP-", "-IMAGE-", "-HEIGHT-", "-ELEMENT-"]:
-                    if not len(values[key]):
-                        is_form_valid = False
-                        break
+                # Native registration needs only a name, map and captured
+                # species ID. Image/height/element remain optional legacy-CV
+                # metadata.
+                is_form_valid = all(
+                    len(values[key])
+                    for key in ["-NAME-", "-MAP-", "-SPECIES-ID-"]
+                )
+                if values["-IMAGE-"] and not values["-HEIGHT-"]:
+                    is_form_valid = False
 
                 if is_form_valid:
                     from assets.Assets import MobInfo
 
-                    MobInfo.add_new_mob(
-                        name=values["-NAME-"],
-                        map_name=values["-MAP-"],
-                        image_path=values["-IMAGE-"],
-                        height_offset=int(values["-HEIGHT-"]),
-                        element=values["-ELEMENT-"],
-                    )
+                    try:
+                        MobInfo.add_new_mob(
+                            name=values["-NAME-"],
+                            map_name=values["-MAP-"],
+                            image_path=values["-IMAGE-"] or None,
+                            height_offset=int(values["-HEIGHT-"] or 0),
+                            element=values["-ELEMENT-"] or "unknown",
+                            species_id=int(values["-SPECIES-ID-"]),
+                        )
+                        # Refresh the active map selection immediately so an
+                        # overwritten existing mob entry gains its captured
+                        # species ID without requiring a restart or map toggle.
+                        self.__apply_map_selection(
+                            bot,
+                            self._selected_map_name,
+                            publish_preview=False,
+                        )
+                    except Exception as error:  # noqa: BLE001 - GUI boundary.
+                        popup_window["-SPECIES-STATUS-"].update(
+                            f"Save failed: {error}",
+                            text_color="red",
+                        )
+                        continue
+
                     popup_window.close()
                     return
+                popup_window["-SPECIES-STATUS-"].update(
+                    "Enter a name and map, capture the target ID, and add a "
+                    "height only when a CV image is selected.",
+                    text_color="red",
+                )
             if event == "-HEIGHT-":
                 # height validation - only numbers
                 popup_window.Element(event).update(

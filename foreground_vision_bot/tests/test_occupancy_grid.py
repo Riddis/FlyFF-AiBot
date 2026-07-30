@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 from mapper.OccupancyGrid import FREE, OccupancyGrid
 
@@ -149,8 +150,59 @@ def test_saved_map_labels_last_pose_as_unknown(tmp_path: Path) -> None:
     grid.save(tmp_path)
 
     state = json.loads((tmp_path / "map.json").read_text(encoding="utf-8"))
-    assert state["metadata"]["version"] == 3
+    assert state["metadata"]["version"] == 5
     assert state["metadata"]["position_known"] is False
     assert state["metadata"]["heading_known"] is True
     assert state["metadata"]["pose_known"] is False
     assert state["metadata"]["termination_reason"] == "forward measurement failed"
+
+
+def test_map_dashboard_places_player_centred_local_panel_beside_overview() -> None:
+    grid = OccupancyGrid(size=101)
+    for x in range(-15, 16):
+        grid.mark_free(x, 0)
+    grid.set_continuous_pose(12.0, 0.0, 90.0)
+
+    dashboard = grid.render_dashboard(
+        local_radius_cells=10,
+        content_height=120,
+        overview_width=240,
+        local_width=120,
+        gap=6,
+        header_height=20,
+    )
+
+    assert dashboard.shape == (140, 366, 3)
+    # Player marker (BGR cyan/yellow) must remain visible in the local panel.
+    local_panel = dashboard[20:, 246:]
+    assert ((local_panel[:, :, 1] >= 200) & (local_panel[:, :, 2] >= 200)).any()
+
+
+def test_save_can_write_combined_full_and_local_previews(tmp_path: Path) -> None:
+    grid = OccupancyGrid(size=101)
+    grid.mark_free(0, 0)
+    grid.mark_blocked(1, 0)
+
+    grid.save(tmp_path, preview_local_radius_cells=8)
+
+    assert (tmp_path / "map_preview.png").is_file()
+    assert (tmp_path / "map_overview.png").is_file()
+    assert (tmp_path / "map_local.png").is_file()
+
+
+def test_runtime_monster_markers_render_on_local_map_without_mutating_cells() -> None:
+    grid = OccupancyGrid(size=41)
+    before = grid.cells.copy()
+
+    image = grid.render(
+        scale=1,
+        crop_radius=10,
+        monster_cells=[(3.0, 2.0, 944)],
+    )
+
+    center = 10
+    marker_x = center + 3
+    marker_y = center - 2
+    assert image[marker_y, marker_x].tolist() == list(grid._monster_color(944))
+    assert image[marker_y, marker_x + 1].tolist() == [90, 90, 90]
+    assert np.array_equal(grid.cells, before)

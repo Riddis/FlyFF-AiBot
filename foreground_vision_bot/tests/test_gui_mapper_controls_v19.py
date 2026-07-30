@@ -33,4 +33,11 @@ def test_only_obsolete_mapper_calibration_controls_are_removed() -> None:
     assert "-CALIBRATE_MAPPER-" not in gui_source
     assert "-DEBUG_CALIBRATE_MAPPER-" not in gui_source
     assert "-START_MAPPER-" in gui_source
+    assert "-START_MANUAL_MAPPER-" in gui_source
+    assert "Trace Map While I Drive" in gui_source
     assert "-SET_MINIMAP_ANCHOR-" in gui_source
+    assert "Calibrate Minimap (optional)" in gui_source
+    assert (
+        "from mapper.MinimapAnchorSetup import MinimapAnchorSetup"
+        in gui_source
+    )

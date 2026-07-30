@@ -70,19 +70,30 @@ class RuntimeController:
 
     def start_rl(self, mode: str) -> None:
         def run(token: CancellationToken):
-            from train import run_trained_agent, train_agent
+            from native_farming import (
+                dry_run_native_farming,
+                run_native_farming_agent,
+                train_native_farming,
+            )
 
             report = self._reporter("rl_status", "rl")
             self.bot.start()
             try:
                 if mode == "train":
-                    return train_agent(
+                    return train_native_farming(
                         self.bot,
                         status_callback=report,
                         cancellation=token,
                     )
                 if mode == "agent":
-                    run_trained_agent(
+                    run_native_farming_agent(
+                        self.bot,
+                        status_callback=report,
+                        cancellation=token,
+                    )
+                    return None
+                if mode == "dry-run":
+                    dry_run_native_farming(
                         self.bot,
                         status_callback=report,
                         cancellation=token,
@@ -127,6 +138,28 @@ class RuntimeController:
 
         self._start_control("mapper", run)
 
+    def start_manual_mapper(self, map_name: str) -> None:
+        """Track user-controlled native movement without sending input."""
+
+        def run(token: CancellationToken):
+            from mapper.ManualDriveMapper import ManualDriveMapper
+
+            mapper = ManualDriveMapper(
+                self.bot,
+                status_callback=self._reporter(
+                    "mapper_status",
+                    "manual-mapper",
+                ),
+                frame_callback=lambda frame: self.bus.publish_latest(
+                    "map_frame", frame
+                ),
+                cancellation=token,
+                map_name=map_name,
+            )
+            return mapper.run()
+
+        self._start_control("manual-mapper", run)
+
     def publish_map_preview(self, map_name: str) -> bool:
         from mapper.MapCatalog import MapCatalog
 
@@ -136,6 +169,38 @@ class RuntimeController:
             return False
         self.bus.publish_latest("map_frame", image)
         return True
+
+    def apply_manual_map_edits(self, map_name: str, edits):
+        """Persist user-authored occupancy cells while control is stopped."""
+        if self.control_active:
+            raise RuntimeError(
+                "Stop mapping or RL control before editing map cells. "
+                "This prevents the mapper checkpoint from overwriting the edit."
+            )
+
+        from mapper.CoordinateMapper import load_mapper_config
+        from mapper.ManualMapEditor import apply_manual_edits
+        from mapper.MapCatalog import MapCatalog
+        from mapper.OccupancyGrid import OccupancyGrid
+
+        catalog = MapCatalog()
+        profile = catalog.get(map_name)
+        directory = catalog.map_directory(profile.name)
+        if not (directory / "map.json").is_file():
+            raise RuntimeError(
+                f"'{profile.name}' does not have a saved occupancy map yet."
+            )
+        grid, warning = OccupancyGrid.load(directory)
+        if warning is not None:
+            raise RuntimeError(warning)
+        summary = apply_manual_edits(grid, dict(edits))
+        radius = load_mapper_config().local_map_radius_cells
+        grid.save(directory, preview_local_radius_cells=radius)
+        self.bus.publish_latest(
+            "map_frame",
+            grid.render_dashboard(local_radius_cells=radius),
+        )
+        return summary
 
     def start_calibration(self, *, visual_confirmation: bool) -> None:
         # Legacy rollback path. Ordinary mapping no longer imports or requires

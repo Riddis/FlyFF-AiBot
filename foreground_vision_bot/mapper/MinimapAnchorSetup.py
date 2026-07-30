@@ -7,7 +7,13 @@ import cv2 as cv
 
 
 class MinimapAnchorSetup:
-    """One-time fixed minimap-arrow center selection."""
+    """Optional minimap-arrow calibration.
+
+    The heading detector can now locate the Navigator automatically. A manual
+    click remains useful as a high-confidence fallback for unusual UI skins or
+    capture layouts. Saved values are edge-relative so ordinary window resizing
+    does not invalidate the calibration.
+    """
 
     WINDOW_NAME = "Select minimap arrow center"
 
@@ -140,12 +146,14 @@ class MinimapAnchorSetup:
         x, y = self._selected
         crop_size = 41
         config = {
-            "version": 1,
+            "version": 2,
             "frame_width": width,
             "frame_height": height,
             "arrow_center_x": x,
             "arrow_center_y": y,
             "crop_size": crop_size,
+            "right_offset": width - x,
+            "top_offset": y,
         }
         self.config_path.write_text(
             json.dumps(config, indent=2),

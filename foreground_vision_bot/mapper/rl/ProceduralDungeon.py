@@ -8,10 +8,38 @@ from numpy.typing import NDArray
 
 @dataclass(frozen=True)
 class DungeonLayout:
-    """Hidden simulator layout. True cells are traversable."""
+    """Hidden simulator layout. True cells are traversable.
+
+    ``forbidden`` marks teleport/transition cells. They are non-traversable but
+    remain distinguishable from ordinary walls in simulator observations and
+    diagnostics. The optional fields preserve source provenance for curriculum
+    reporting without changing the existing policy contract.
+    """
 
     traversable: NDArray[np.bool_]
     spawn: tuple[int, int]
+    forbidden: NDArray[np.bool_] | None = None
+    source_name: str = "procedural:dungeon"
+
+    def __post_init__(self) -> None:
+        traversable = np.asarray(self.traversable, dtype=np.bool_)
+        if traversable.ndim != 2 or traversable.size == 0:
+            raise ValueError("layout traversable mask must be a non-empty 2-D array")
+        object.__setattr__(self, "traversable", traversable)
+        forbidden = self.forbidden
+        if forbidden is None:
+            forbidden = np.zeros_like(traversable)
+        else:
+            forbidden = np.asarray(forbidden, dtype=np.bool_)
+            if forbidden.shape != traversable.shape:
+                raise ValueError("forbidden and traversable masks must match")
+            forbidden = forbidden & ~traversable
+        object.__setattr__(self, "forbidden", forbidden)
+        x, y = self.spawn
+        if not (0 <= x < traversable.shape[1] and 0 <= y < traversable.shape[0]):
+            raise ValueError("layout spawn is outside the layout")
+        if not traversable[y, x]:
+            raise ValueError("layout spawn must be traversable")
 
     @property
     def height(self) -> int:

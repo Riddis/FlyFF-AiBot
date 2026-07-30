@@ -13,12 +13,13 @@ class AdaptiveMappingController:
         self.forward_key = VKEY["z"]
         self.left_key = VKEY["q"]
         self.right_key = VKEY["d"]
+        self.backward_key = VKEY["s"]
 
     def stop(self) -> None:
         first_error: Exception | None = None
         try:
             self.keyboard.release_keys(
-                (self.forward_key, self.left_key, self.right_key)
+                (self.forward_key, self.backward_key, self.left_key, self.right_key)
             )
         except Exception as error:  # noqa: BLE001 - still release tracked keys.
             first_error = error
@@ -40,6 +41,9 @@ class AdaptiveMappingController:
 
     def forward(self, seconds: float) -> KeyPressTiming:
         return self._pulse(self.forward_key, seconds)
+
+    def backward(self, seconds: float) -> KeyPressTiming:
+        return self._pulse(self.backward_key, seconds)
 
     def turn_left(self, seconds: float) -> KeyPressTiming:
         return self._pulse(self.left_key, seconds)

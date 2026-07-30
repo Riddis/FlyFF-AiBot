@@ -61,3 +61,39 @@ def test_stop_movement_unconditionally_releases_mapper_keys() -> None:
     bot.stop_movement()
 
     assert released == [(VKEY["z"], VKEY["q"], VKEY["d"])]
+
+
+def test_get_player_pose_returns_none_when_provider_is_disabled() -> None:
+    bot = Bot.__new__(Bot)
+    bot.position_provider = None
+
+    assert bot.get_player_pose() is None
+    assert not bot.native_position_available
+
+
+def test_release_input_closes_native_position_provider() -> None:
+    bot = Bot.__new__(Bot)
+    closed: list[bool] = []
+    bot.position_provider = SimpleNamespace(close=lambda: closed.append(True))
+    bot.action_executor = None
+    bot.keyboard = None
+
+    bot.release_input()
+
+    assert closed == [True]
+    assert bot.position_provider is None
+
+
+def test_kill_counter_preview_draws_green_tracking_rectangle() -> None:
+    bot = _preview_bot()
+    bot.config = {"dynamic_kill_counter": True}
+    bot.kill_counter_reader = SimpleNamespace(
+        locate=lambda _frame: object(),
+        tracking_bounds=lambda _anchor, frame_shape=None: (20, 25, 100, 70),
+    )
+    frame = np.zeros((120, 140, 3), dtype=np.uint8)
+
+    bot._draw_kill_counter_overlay(frame, now=10.0)
+
+    assert frame[25, 20].tolist() == [0, 255, 0]
+    assert frame[70, 100].tolist() == [0, 255, 0]

@@ -14,6 +14,7 @@ import pytest
 from capture_service import FrameSample
 from mapper.MinimapHeading import (
     HeadingReading,
+    MinimapAnchor,
     MinimapHeadingDetector,
     observed_heading_delta,
     signed_angle_delta,
@@ -179,6 +180,66 @@ def _frame_with_arrow_crop(crop: np.ndarray) -> np.ndarray:
     frame = np.zeros((940, 1502, 3), dtype=np.uint8)
     frame[90:131, 1382:1423] = cv.cvtColor(crop, cv.COLOR_GRAY2BGR)
     return frame
+
+
+def _north_arrow_crop() -> np.ndarray:
+    source = cv.imread(
+        str(TEST_APP_ROOT / "assets" / "map" / "map_arrow_n.png"),
+        cv.IMREAD_GRAYSCALE,
+    )
+    assert source is not None
+    crop = np.zeros((41, 41), dtype=np.uint8)
+    height, width = source.shape
+    crop[
+        (41 - height) // 2 : (41 - height) // 2 + height,
+        (41 - width) // 2 : (41 - width) // 2 + width,
+    ] = source
+    return crop
+
+
+def test_heading_anchor_tracks_top_right_when_window_width_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    detector = MinimapHeadingDetector()
+    monkeypatch.setattr(
+        detector,
+        "_find_navigator_circle",
+        lambda _frame, *, proportional_fallback=True: None,
+    )
+    crop = _north_arrow_crop()
+    frame = np.zeros((940, 1462, 3), dtype=np.uint8)
+    # Saved anchor is (1402, 110) in a 1502x940 frame: 100 px from the right.
+    # The resized frame therefore resolves to (1362, 110) without recalibration.
+    frame[90:131, 1342:1383] = cv.cvtColor(crop, cv.COLOR_GRAY2BGR)
+
+    reading = detector.read(frame)
+
+    assert reading is not None
+    assert reading.center == (1362, 110)
+    assert reading.angle_deg == pytest.approx(0.0)
+
+
+def test_heading_can_auto_locate_navigator_without_manual_anchor(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    detector = MinimapHeadingDetector()
+    detector._anchor_path = tmp_path / "missing_anchor.json"
+    detector._anchor_config = None
+    monkeypatch.setattr(
+        detector,
+        "_find_navigator_circle",
+        lambda _frame, *, proportional_fallback=True: (1362, 110, 82),
+    )
+    crop = _north_arrow_crop()
+    frame = np.zeros((940, 1462, 3), dtype=np.uint8)
+    frame[90:131, 1342:1383] = cv.cvtColor(crop, cv.COLOR_GRAY2BGR)
+
+    reading = detector.read(frame)
+
+    assert reading is not None
+    assert reading.center == (1362, 110)
+    assert reading.angle_deg == pytest.approx(0.0)
 
 
 def test_strict_heading_counts_only_distinct_fresh_capture_frames() -> None:
@@ -852,3 +913,125 @@ def test_debug_metadata_preserves_raw_and_calibrated_geometry(
     assert metadata["geometry_anisotropy"] == pytest.approx(0.6904)
     assert metadata["geometry_normalized_skew"] == pytest.approx(0.2894)
     assert metadata["template_diagnostics_computed"] is True
+
+
+def test_heading_auto_locates_dragged_navigator_anywhere_on_frame(
+    tmp_path: Path,
+) -> None:
+    detector = MinimapHeadingDetector()
+    detector._anchor_path = tmp_path / "missing_anchor.json"
+    detector._anchor_config = None
+
+    frame = np.zeros((800, 1200, 3), dtype=np.uint8)
+    center = (420, 500)
+    cv.circle(frame, center, 70, (0, 0, 230), 8, cv.LINE_AA)
+    crop = _north_arrow_crop()
+    frame[
+        center[1] - 20 : center[1] + 21,
+        center[0] - 20 : center[0] + 21,
+    ] = cv.cvtColor(crop, cv.COLOR_GRAY2BGR)
+
+    reading = detector.read(frame)
+
+    assert reading is not None
+    assert abs(reading.center[0] - center[0]) <= 4
+    assert abs(reading.center[1] - center[1]) <= 4
+    assert reading.angle_deg == pytest.approx(0.0, abs=2.0)
+
+
+def test_cached_anchor_relocation_waits_for_consecutive_arrow_misses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    detector = MinimapHeadingDetector()
+    frame = np.zeros((600, 900, 3), dtype=np.uint8)
+    key = (900, 600)
+    anchor = MinimapAnchor(
+        version=3,
+        frame_width=900,
+        frame_height=600,
+        arrow_center_x=450,
+        arrow_center_y=300,
+        crop_size=41,
+        right_offset=450,
+        top_offset=300,
+    )
+    detector._resolved_anchor_cache[key] = anchor
+    relocation_calls: list[int] = []
+
+    monkeypatch.setattr(detector, "_read_arrow", lambda *_args, **_kwargs: None)
+
+    def relocate(_frame: np.ndarray, _anchor: MinimapAnchor):
+        relocation_calls.append(1)
+        return None
+
+    monkeypatch.setattr(detector, "_relocate_anchor", relocate)
+
+    for _ in range(detector.ANCHOR_RELOCATION_MISS_THRESHOLD - 1):
+        assert detector.read(frame) is None
+    assert relocation_calls == []
+
+    assert detector.read(frame) is None
+    assert relocation_calls == [1]
+
+
+def test_navigator_scan_rejects_false_red_circle_without_arrow(
+    tmp_path: Path,
+) -> None:
+    detector = MinimapHeadingDetector()
+    detector._anchor_path = tmp_path / "missing_anchor.json"
+    detector._anchor_config = None
+
+    frame = np.zeros((700, 1000, 3), dtype=np.uint8)
+    false_center = (260, 260)
+    true_center = (760, 420)
+    cv.circle(frame, false_center, 66, (0, 0, 240), 10, cv.LINE_AA)
+    cv.circle(frame, true_center, 66, (0, 0, 230), 8, cv.LINE_AA)
+    # A bright but symmetric blob is not valid arrow geometry.
+    cv.circle(frame, false_center, 8, (220, 220, 220), -1, cv.LINE_AA)
+    crop = _north_arrow_crop()
+    frame[
+        true_center[1] - 20 : true_center[1] + 21,
+        true_center[0] - 20 : true_center[0] + 21,
+    ] = cv.cvtColor(crop, cv.COLOR_GRAY2BGR)
+
+    reading = detector.read(frame)
+
+    assert reading is not None
+    assert abs(reading.center[0] - true_center[0]) <= 4
+    assert abs(reading.center[1] - true_center[1]) <= 4
+
+
+def test_native_reference_invalidates_only_after_repeated_disagreement() -> None:
+    detector = MinimapHeadingDetector()
+    key = (900, 600)
+    anchor = MinimapAnchor(
+        version=3,
+        frame_width=900,
+        frame_height=600,
+        arrow_center_x=450,
+        arrow_center_y=300,
+        crop_size=41,
+        right_offset=450,
+        top_offset=300,
+    )
+    detector._resolved_anchor_cache[key] = anchor
+    detector._last_frame_key = key
+    detector._last_visual_heading = 0.0
+
+    for _ in range(detector.REFERENCE_MISMATCH_THRESHOLD - 1):
+        assert detector.observe_reference_heading(90.0) is False
+        assert key in detector._resolved_anchor_cache
+
+    assert detector.observe_reference_heading(90.0) is True
+    assert key not in detector._resolved_anchor_cache
+
+
+def test_native_reference_agreement_clears_pending_mismatch() -> None:
+    detector = MinimapHeadingDetector()
+    key = (900, 600)
+    detector._last_frame_key = key
+    detector._last_visual_heading = 0.0
+    detector._reference_mismatch_count = 2
+
+    assert detector.observe_reference_heading(8.0) is False
+    assert detector._reference_mismatch_count == 0

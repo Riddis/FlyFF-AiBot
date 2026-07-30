@@ -30,17 +30,47 @@ class MobType:
 class MobInfo:
     @staticmethod
     def add_new_mob(
-        name: str, map_name: str, image_path: str, height_offset: int, element: str
+        name: str,
+        map_name: str,
+        image_path: str | None,
+        height_offset: int,
+        element: str,
+        species_id: int | None = None,
     ) -> None:
         """
         Add new mob to json collection (mobs_list.json)
         """
         json_collection_path = str(Path(__file__).parent / "mobs_list.json")
 
-        # copy image for cv detection in asset folder
-        shutil.copyfile(
-            image_path, str(Path(__file__).parent / "names" / f"{name}.png")
-        )
+        # The native reader does not need a name image. Keep optional image
+        # support for the legacy CV preview/detector.
+        if image_path:
+            source_path = Path(image_path).expanduser()
+            destination_path = Path(__file__).parent / "names" / f"{name}.png"
+
+            if not source_path.is_file():
+                raise FileNotFoundError(
+                    f"Legacy CV image does not exist: {source_path}"
+                )
+
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Updating an existing mob often points the optional image picker
+            # at the image already stored in assets/names. shutil.copyfile
+            # raises SameFileError in that case, even though no copy is needed.
+            same_file = False
+            if destination_path.exists():
+                try:
+                    same_file = source_path.samefile(destination_path)
+                except OSError:
+                    # Fall back to normalized absolute paths if the platform
+                    # cannot perform an identity check for either path.
+                    same_file = os.path.normcase(os.path.abspath(source_path)) == (
+                        os.path.normcase(os.path.abspath(destination_path))
+                    )
+
+            if not same_file:
+                shutil.copyfile(source_path, destination_path)
 
         current_mobs_list = MobInfo.get_all_mobs()
         current_mobs_list[name] = {
@@ -49,6 +79,10 @@ class MobInfo:
             "map_name": map_name,
             "height_offset": height_offset,
         }
+        if species_id is not None:
+            if isinstance(species_id, bool) or int(species_id) < 0:
+                raise ValueError("species_id must be a non-negative integer")
+            current_mobs_list[name]["species_id"] = int(species_id)
 
         with open(json_collection_path, "w+") as file:
             json.dump(current_mobs_list, file)
@@ -65,7 +99,9 @@ class MobInfo:
         # delete images for cv detection from asset folder
         for key in current_mobs_list:
             if key in name_list:
-                os.remove(str(Path(__file__).parent / "names" / f"{key}.png"))
+                image_path = Path(__file__).parent / "names" / f"{key}.png"
+                if image_path.exists():
+                    os.remove(str(image_path))
             else:
                 new_mobs_list[key] = current_mobs_list[key]
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from mapper.OccupancyGrid import BLOCKED, FREE, UNKNOWN
+from mapper.OccupancyGrid import BLOCKED, FORBIDDEN, FREE, UNKNOWN
 
 from .ActionMask import fallback_action, valid_action_names
 from .Observation import ObservationEncoder, PolicyContext
@@ -156,6 +156,7 @@ class MapperSimulatorCore:
         self.steps_since_progress = 0
         self.maximum_no_progress_streak_seen = 0
         self.frontier_escape_steps_taken = 0
+        self.last_contact_forbidden = False
         self._cached_policy_context: PolicyContext | None = None
         self._cached_policy_key: tuple[object, ...] | None = None
         self._map_revision = 0
@@ -185,6 +186,7 @@ class MapperSimulatorCore:
         self.steps_since_progress = 0
         self.maximum_no_progress_streak_seen = 0
         self.frontier_escape_steps_taken = 0
+        self.last_contact_forbidden = False
         self._cached_policy_context = None
         self._cached_policy_key = None
         self._map_revision = 0
@@ -422,6 +424,8 @@ class MapperSimulatorCore:
                 "recovery_needed_before": recovery_needed_before,
                 "recovery_succeeded": recovery_succeeded,
                 "stagnation_truncated": stagnation_truncated,
+                "layout_source": self.layout.source_name,
+                "forbidden_contact": self.last_contact_forbidden,
             },
         )
 
@@ -608,7 +612,11 @@ class MapperSimulatorCore:
             self.last_outcome = MotionOutcome.MOVED
             return self.last_outcome, newly_free, 0
 
-        newly_blocked = self._mark_blocked(target)
+        self.last_contact_forbidden = self._is_forbidden(target)
+        newly_blocked = self._mark_blocked(
+            target,
+            value=FORBIDDEN if self.last_contact_forbidden else BLOCKED,
+        )
         self.contact_streak += 1
         self.pose_known = True
         if self.rng.random() < self.config.wall_slide_probability:
@@ -751,6 +759,17 @@ class MapperSimulatorCore:
             and self.layout.traversable[y, x]
         )
 
+    def _is_forbidden(self, position: tuple[int, int]) -> bool:
+        if self.layout is None:
+            return False
+        x, y = position
+        return bool(
+            0 <= x < self.layout.width
+            and 0 <= y < self.layout.height
+            and self.layout.forbidden is not None
+            and self.layout.forbidden[y, x]
+        )
+
     def _mark_free(self, position: tuple[int, int]) -> int:
         x, y = position
         new = int(self.known[y, x] != FREE)
@@ -763,13 +782,20 @@ class MapperSimulatorCore:
         self._map_revision += 1
         return new
 
-    def _mark_blocked(self, position: tuple[int, int]) -> int:
+    def _mark_blocked(
+        self,
+        position: tuple[int, int],
+        *,
+        value: int = BLOCKED,
+    ) -> int:
         x, y = position
         if not (0 <= x < self.known.shape[1] and 0 <= y < self.known.shape[0]):
             return 0
+        if value not in (BLOCKED, FORBIDDEN):
+            raise ValueError("blocked occupancy must be BLOCKED or FORBIDDEN")
         new = int(self.known[y, x] == UNKNOWN)
         if self.known[y, x] != FREE:
-            self.known[y, x] = BLOCKED
+            self.known[y, x] = value
         self.discovered_walls += new
         if new:
             self._map_revision += 1

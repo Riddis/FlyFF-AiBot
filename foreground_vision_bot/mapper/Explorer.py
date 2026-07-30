@@ -20,9 +20,16 @@ class Explorer:
     cell. Forbidden and blocked cells are never selected.
     """
 
-    def decide(self, grid: OccupancyGrid) -> ExplorerDecision:
+    def decide(
+        self,
+        grid: OccupancyGrid,
+        *,
+        ignore_contact_boundaries: bool = False,
+    ) -> ExplorerDecision:
         pose = grid.pose
-        path = grid.nearest_frontier_path()
+        path = grid.nearest_frontier_path(
+            ignore_contact_boundaries=ignore_contact_boundaries,
+        )
 
         if path:
             target = path[0]
@@ -39,11 +46,14 @@ class Explorer:
             value = grid.value(target_x, target_y)
             if (
                 value == UNKNOWN
-                and not grid.contact_boundary_blocks(
-                    pose.x,
-                    pose.y,
-                    target_x,
-                    target_y,
+                and (
+                    ignore_contact_boundaries
+                    or not grid.contact_boundary_blocks(
+                        pose.x,
+                        pose.y,
+                        target_x,
+                        target_y,
+                    )
                 )
             ):
                 candidates.append(direction)

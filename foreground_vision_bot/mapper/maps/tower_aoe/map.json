@@ -1,37 +1,116 @@
 {
-  "size": 401,
+  "size": 1001,
   "pose": {
     "x": 0,
-    "y": 1,
-    "heading_index": 1
+    "y": 117,
+    "heading_index": 0
   },
   "continuous_pose": {
-    "x": -0.010872328012109746,
-    "y": 1.0024693767093278,
-    "heading_deg": 343.37832158403313
+    "x": 0.035991668701171875,
+    "y": 116.73690795898438,
+    "heading_deg": 52.50349511361307
   },
   "metadata": {
-    "version": 3,
-    "created_at": "2026-07-27T17:21:48.143793+00:00",
+    "version": 5,
+    "created_at": "2026-07-27T21:48:00.707635+00:00",
     "spawn": [
       0,
       0
     ],
     "pang_sightings": [],
-    "teleport_zones": [],
+    "teleport_zones": [
+      {
+        "x": 1,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 2,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 3,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 2,
+        "y": -9,
+        "radius": 0
+      },
+      {
+        "x": 2,
+        "y": -10,
+        "radius": 0
+      },
+      {
+        "x": 2,
+        "y": -11,
+        "radius": 0
+      },
+      {
+        "x": 5,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 5,
+        "y": -9,
+        "radius": 0
+      },
+      {
+        "x": 5,
+        "y": -10,
+        "radius": 0
+      },
+      {
+        "x": 5,
+        "y": -11,
+        "radius": 0
+      },
+      {
+        "x": 6,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 7,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 6,
+        "y": -10,
+        "radius": 0
+      },
+      {
+        "x": 7,
+        "y": -10,
+        "radius": 0
+      },
+      {
+        "x": 7,
+        "y": -9,
+        "radius": 0
+      }
+    ],
     "suspected_transitions": [],
     "contact_boundaries": [],
-    "position_known": false,
-    "heading_known": false,
-    "heading_uncertainty_deg": 1.0,
-    "pose_known": false,
-    "pose_note": "Forward command is in progress; saved pose is last confirmed.",
-    "pose_state_updated_at": "2026-07-27T17:56:22.633701+00:00",
-    "termination_reason": "Mapper lost a reliable heading during FORWARD: Could not obtain a stable fresh minimap heading. Debug saved to: C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\foreground_vision_bot\\debug\\minimap_heading\\20260727_175623_876007",
+    "inferred_wall_cells": [],
+    "inferred_free_cells": [],
+    "manual_cells": [],
+    "position_known": true,
+    "heading_known": true,
+    "heading_uncertainty_deg": 2.8804924576637974,
+    "pose_known": true,
+    "pose_note": "Manual-drive position is native-coordinate authoritative; heading is refined from each meaningful user-controlled movement segment.",
+    "pose_state_updated_at": "2026-07-29T23:08:36.092382+00:00",
+    "termination_reason": "Manual mapping stopped by user.",
     "map_name": "Tower AoE",
-    "run_count": 1,
+    "run_count": 58,
     "heading_recovery_successes": 0,
     "manual_spawn_resets": 0,
-    "updated_at": "2026-07-27T17:56:26.012437+00:00"
+    "updated_at": "2026-07-29T23:12:40.364320+00:00"
   }
 }
