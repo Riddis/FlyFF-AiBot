@@ -74,6 +74,7 @@ both config files.
 - Branch: `feature/adaptive-mapper`.
 - Validated anchored checkpoint: `84559c6ce6ff63a86604a4c71aff8ae2308cdb98`.
 - Validated local actor-layout correction: `abd8f9e1cabaa4ea033ee221dbf2145b1470fffb`.
+- Validated unique single-species cohort correction: `ba77d834815c33b1efa5243fab3eb82a10254c26`.
 - Protected pre-refactor SHA: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`
   through both protected refs.
 - Active model SHA-256 remains
