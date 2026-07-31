@@ -29,10 +29,20 @@ reached 569 passed, 2 unchanged legacy failures, and 1 skipped in 6.02 seconds.
 Final Sol checkpoint review found no remaining isolated-core correctness,
 contract, production-reachability, or candidate-boundary blocker.
 
-The next uncommitted foundation slice adds validated read-only config migration,
+The foundation checkpoint `8c7d8362a85a98e29f099c07325995c07b70f9d4`
+adds validated read-only config migration,
 the shipped Tower map context/hash, cancellable single-flight actor discovery,
 scan-free one-snapshot native frames, persistent direct four-action input, and
 cast-scoped native kill confirmation. Production imports remain unchanged.
+
+The next bounded slice is implemented and validated in the dirty tree. It adds
+the explicit one-reset `UnifiedFarmingEnv`, a Gym adapter that never exposes an
+external session end as a tuple, a real-SB3 collector that trains a proven
+policy-terminal prefix exactly once while discarding external/cancel prefixes,
+pre-input model compatibility loading, atomic model/report/manifest output,
+and the canonical live preflight/trainer/dry-run/agent owner. Its focused gate
+is 89 tests in 4.68 seconds with clean compile, Ruff F/I, and error-level type
+checking. No production import has switched yet.
 
 ## Validation
 
@@ -55,15 +65,13 @@ cast-scoped native kill confirmation. Production imports remain unchanged.
 
 ## Exact continuation
 
-1. Checkpoint the exact foundation source/tests/evidence set without the five
-   classified user-owned/backup paths.
-2. Build the canonical environment/model-preflight/reporting/SB3/trainer
-   boundary with focused lifecycle and terminal-boundary tests.
-3. Atomically
-   switch the production controller away from the legacy patch installers.
+1. Commit the exact 17-path environment/trainer checkpoint candidate recorded
+   in `STATE.json`.
+2. Atomically switch the production controller away from the legacy patch
+   installers and run behavior-parity/broad gates before deletion.
 
 ## Dirty-tree ownership
 
-- Canonical foundation source/tests plus journal evidence.
-- Three pre-existing deletions and two ignored backup ZIPs remain excluded.
+- The exact environment/trainer checkpoint candidate plus three pre-existing
+  deletions and two ignored backup ZIPs.
 - Nothing is staged.

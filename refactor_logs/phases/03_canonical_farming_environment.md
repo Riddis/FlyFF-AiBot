@@ -134,3 +134,25 @@ Implemented the planned foundation without switching production imports:
 The focused gate is 74 passed in 0.94 seconds with clean compile, Ruff,
 BasedPyright error-level, and diff checks. The active model/config/map files are
 unchanged and production still uses the legacy patch chain.
+
+## 2026-07-31 environment, SB3, and trainer boundary
+
+The explicit one-reset domain environment now owns coherent frame assembly,
+direct action timing, cast-scoped kills, OCR diagnostics, typed session
+classification, one reward calculation, immutable terminal observation, and
+key release before sealing. The Gym adapter raises external expiry/teleport and
+cancellation before returning a Gym tuple. A dedicated PPO rollout buffer and
+collector train a real policy-caused terminal prefix exactly once; external and
+cancelled partial prefixes are reset without a timestep or training boundary
+sample, and the terminal sink can never be sampled.
+
+Model loading validates the 482/4 semantic contract without a live environment.
+The trainer completes map/pointer/actor-cache/model preflight before `bot.start`,
+resumes with the session-aware buffer, releases control for atomic checkpoints,
+and writes model/report/recovery-manifest artifacts. Reports contain config
+version/hash, model path/timesteps, map identity/hash, pointer/cache diagnostics,
+session reason, native kills, reward components, steps, duration, and actions.
+
+Acceptance: 89 focused farming/native tests pass in 4.68 seconds; compileall,
+Ruff F/I, and BasedPyright error-level gates pass. Production remains on the
+legacy import until this bounded slice is checkpointed.

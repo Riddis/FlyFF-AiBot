@@ -1,19 +1,21 @@
 # Refactor Status
 
 - Current phase: Phase 03 canonical farming environment and Phase 04 direct input foundation
-- Phase status: canonical config/map/native-world/control/kill foundation implemented and checkpoint-ready; production route remains unchanged
+- Phase status: canonical environment/model/reporting/trainer boundary validated and checkpoint-ready; production route remains unchanged
 - Active task: `FARM-001,FARM-002,FARM-003,INPUT-001,BOUND-001`
 - Branch/HEAD: `feature/adaptive-mapper` at `ca9457639e63696352aba3bd27bd7ad76dea0f52`
 - Known checkpoints: stabilization `63651e97d6d013ac41364d912e98b70ac5c76b88`; shared native ownership `a0304c72089980f6028e2e4c7baef70909687f63`; completed Phase 02 `a63e2221e20fdd56add0acdfd2add0a389b83f61`
 - Protected pre-Codex commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`; annotated tag `protected/pre-codex-refactor`; branch `backup/pre-codex-refactor`
 - Latest checkpoint: `ca9457639e63696352aba3bd27bd7ad76dea0f52` (`RESUME-003 freeze canonical farming core contracts`)
-- Staged files: none
+- Runtime foundation checkpoint: `8c7d8362a85a98e29f099c07325995c07b70f9d4` (`FARM-003 establish canonical farming runtime foundations`)
+- Staged files: none; 17 exact checkpoint candidates recorded in `STATE.json`
 - Phase 03: dependency-light core and five behavior tests are committed, validated, and ready for production integration
 - Foundation slice: explicit cached actor refresh, coherent scan-free frame reads, Tower context, direct persistent input, and native kill confirmation pass 74 focused tests
 - User-owned/pre-existing: deleted `AGENTS.md`, deleted `README.md`, deleted root `foreground_vision_farm.json`
 - User-confirmed ignored backups: untracked `foreground_vision_bot.zip` and `refactor_logs.zip`; leave untouched and exclude from checkpoints
+- Environment/trainer gate: 89 tests pass in 4.68 s; compileall, Ruff F/I, and BasedPyright error-level pass. Real SB3 tests prove policy-prefix training once, external/cancel prefix discard, and metadata-safe resume.
 - Runnable: yes under fake/integration coverage; active farming runtime still uses the legacy patch chain
 - Last checkpoint gate: 37 corrected focused tests passed in 0.40 s; canonical suite reached 569 passed, 2 known legacy failures, and 1 skipped in 6.02 s; compile/Ruff/BasedPyright/diff gates pass
 - Final Sol checkpoint audit: no remaining isolated-core correctness, contract, reachability, or candidate-boundary blocker
 - Blockers: none; live FlyFF validation is deferred until automated cutover and cleanup are complete
-- Next action: checkpoint the foundation slice, then implement the canonical environment, model preflight, reporting, SB3 boundary, and trainer before atomic production cutover
+- Next action: checkpoint this boundary, atomically cut production to `farming.trainer`, then remove the patch installers and obsolete behavior tests after parity gates

@@ -108,9 +108,9 @@ class FarmingRuntimeConfig:
                 "boolean"
             )
         buffer_radius = float(self.teleport_buffer_radius_cells)
-        if not isfinite(buffer_radius) or buffer_radius < 0.0:
+        if not isfinite(buffer_radius) or buffer_radius <= 0.0:
             raise ValueError(
-                "teleport_buffer_radius_cells must be finite and non-negative"
+                "teleport_buffer_radius_cells must be finite and positive"
             )
         object.__setattr__(self, "teleport_buffer_radius_cells", buffer_radius)
         if self.teleport_warning_radius_cells <= buffer_radius:
