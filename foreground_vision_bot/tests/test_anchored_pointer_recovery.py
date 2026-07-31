@@ -513,6 +513,99 @@ def test_pointer_rich_world_can_use_a_stable_module_marker() -> None:
     assert service.read_pointer_snapshot().world_base == memory.world_base
 
 
+def test_spawn_player_selects_the_right_structural_world_hypothesis() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    decoy_world = memory.heap_base + 0x9000
+    decoy_field = config.world_offset
+    memory.u32(decoy_world + 0x2C, memory.module_base_value + 0x900)
+    for index, pointer in enumerate(
+        (memory.heap_base, memory.heap_base + 0x3000, memory.player_base)
+    ):
+        memory.u32(decoy_world + 0x40 + index * 4, pointer)
+    for index in range(5):
+        memory.u32(decoy_world + 0x60 + index * 4, index + 1)
+    for index in range(8):
+        memory.u32(memory.module_base_value + 0x4000 + index * 4, decoy_world)
+    for actor in (memory.heap_base, memory.heap_base + 0x3000):
+        memory.u32(actor + decoy_field, decoy_world)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    state = PointerRecoveryState()
+
+    assert recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    ) is None
+
+    metrics = state.metrics_for(memory.pid, memory.module_base_value)
+    assert metrics is not None
+    assert metrics.outcome == "movement_required"
+    assert metrics.structural_world_hypotheses >= 2
+    assert metrics.spawn_world_hypothesis_matches == 1
+    assert metrics.inferred_world_offset == memory.new_world_offset
+    assert metrics.inferred_world_vtable == memory.module_base_value + 0x800
+
+
+def test_same_target_world_field_aliases_are_not_player_ambiguity() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    alias_field = config.world_offset
+    for actor in (
+        memory.heap_base,
+        memory.heap_base + 0x3000,
+        memory.player_base,
+    ):
+        memory.u32(actor + alias_field, memory.world_base)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    state = PointerRecoveryState()
+
+    assert recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    ) is None
+
+    metrics = state.metrics_for(memory.pid, memory.module_base_value)
+    assert metrics is not None
+    assert metrics.outcome == "movement_required"
+    assert metrics.structural_world_hypotheses >= 2
+    assert metrics.spawn_world_hypothesis_matches >= 2
+    assert metrics.ambiguous_candidates == 0
+
+
 def test_player_specific_hp_field_does_not_replace_monster_hp_layout() -> None:
     memory = AnchoredMemory()
     config = NativeMonsterConfig(

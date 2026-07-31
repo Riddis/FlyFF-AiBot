@@ -34,6 +34,7 @@ def test_player_status_reader_locates_fixture_and_reads_exact_hp() -> None:
     assert reading.maximum_hp == 30982
     assert reading.anchor.panel_x == 91
     assert reading.anchor.panel_y == 73
+    assert reader.tracking_bounds(reading.anchor) == (91, 73, 308, 182)
 
 
 def test_player_status_reader_reuses_a_valid_cached_anchor() -> None:

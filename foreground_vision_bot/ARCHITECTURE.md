@@ -72,7 +72,8 @@ by consensus, and ranks player objects by the full spawn transform, exact
 current/maximum HP, shared world, player characteristics, and repeated reads.
 The HP anchor is read automatically from the dynamically located player-status
 panel. Its stable chrome locates the panel, while the existing FlyFF digit
-templates OCR the masked current/max fields inside the diagnostic worker.
+templates OCR the masked current/max fields inside the diagnostic worker. Bot
+Vision outlines the OCR-validated panel in green and labels the detected HP.
 Species hits are treated only as address anchors: nearby self references infer
 the actor base plus current species/self offsets, while duplicate species,
 transform, and HP relationships establish one multi-actor layout. Repeated
@@ -102,6 +103,10 @@ fields and eight distinct nonzero values. This prevents common scalar bits such 
 field and module-relative table identity are persisted and rechecked by
 ordinary pointer snapshots, including Native Health after restart; the
 persisted identity kind distinguishes `vtable` from `module_marker`.
+All bounded structural world hypotheses survive until spawn/HP/player
+validation. Only the world actually carried by a stable player candidate is
+selected; proximity to a stale configured actor field cannot discard the
+correct world before that cross-check.
 Monster-layout HP
 remains distinct from the player-specific HP fields
 used by the stationary/movement anchor. Preview template detection observes its

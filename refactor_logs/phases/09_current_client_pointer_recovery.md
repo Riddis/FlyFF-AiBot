@@ -324,3 +324,19 @@ recovery click obtains a fresh current/max pair inside the diagnostic worker;
 the GUI no longer accepts manual HP. Automated coverage passes 568 tests with
 1 skipped, including arbitrary panel placement, cached validation, all ten
 digits, Bot capture integration, GUI removal, and off-Tk controller use.
+
+Live OCR then correctly read `33750/33750`. Monster consensus again succeeded
+with 49 actors, and four world targets passed the structural-marker gate, but
+the one selected before player validation matched none of 46 spawn structures.
+That disproves early single-world ranking by actor support/module references
+and stale-field proximity; it does not weaken the identity gate.
+
+Discovery now retains every bounded structural world hypothesis through the
+spawn transform, exact OCRed HP, player traits, repeated reads, and module
+reference checks. Only the world carried by the winning stable player becomes
+the selected/persistable world; equal distinct player/world results remain
+ambiguous. Diagnostics expose total `world_hypotheses` and the number carried
+by spawn structures as `spawn_world_hypotheses`. Bot Vision also marks the
+OCR-validated status panel with a green rectangle and HP label. Automated
+coverage passes 571 tests with 1 skipped; the 31-test focused gate and native
+core type checks pass.

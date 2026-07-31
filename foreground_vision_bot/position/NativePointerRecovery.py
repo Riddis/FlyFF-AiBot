@@ -128,6 +128,7 @@ class PointerRecoveryMetrics:
     inferred_world_identity_kind: str | None = None
     inferred_world_readable_pointer_fields: int = 0
     inferred_world_distinct_values: int = 0
+    structural_world_hypotheses: int = 0
     world_object_rejections: int = 0
     world_identity_candidates: int = 0
     world_identity_span_rejections: int = 0
@@ -162,6 +163,7 @@ class PointerRecoveryMetrics:
     inferred_z_offset: int | None = None
     spawn_structure_candidates: int = 0
     spawn_world_matches: int = 0
+    spawn_world_hypothesis_matches: int = 0
     spawn_hp_matches: int = 0
     spawn_player_matches: int = 0
     stable_spawn_candidates: int = 0
@@ -258,6 +260,7 @@ class _MetricsBuilder:
     inferred_world_identity_kind: str | None = None
     inferred_world_readable_pointer_fields: int = 0
     inferred_world_distinct_values: int = 0
+    structural_world_hypotheses: int = 0
     world_object_rejections: int = 0
     world_identity_candidates: int = 0
     world_identity_span_rejections: int = 0
@@ -292,6 +295,7 @@ class _MetricsBuilder:
     inferred_z_offset: int | None = None
     spawn_structure_candidates: int = 0
     spawn_world_matches: int = 0
+    spawn_world_hypothesis_matches: int = 0
     spawn_hp_matches: int = 0
     spawn_player_matches: int = 0
     stable_spawn_candidates: int = 0
@@ -382,6 +386,7 @@ class _MetricsBuilder:
                 self.inferred_world_readable_pointer_fields
             ),
             inferred_world_distinct_values=self.inferred_world_distinct_values,
+            structural_world_hypotheses=self.structural_world_hypotheses,
             world_object_rejections=self.world_object_rejections,
             world_identity_candidates=self.world_identity_candidates,
             world_identity_span_rejections=(
@@ -432,6 +437,9 @@ class _MetricsBuilder:
             inferred_z_offset=self.inferred_z_offset,
             spawn_structure_candidates=self.spawn_structure_candidates,
             spawn_world_matches=self.spawn_world_matches,
+            spawn_world_hypothesis_matches=(
+                self.spawn_world_hypothesis_matches
+            ),
             spawn_hp_matches=self.spawn_hp_matches,
             spawn_player_matches=self.spawn_player_matches,
             stable_spawn_candidates=self.stable_spawn_candidates,
@@ -1536,6 +1544,7 @@ def _record_anchor_evidence(
     metrics.inferred_world_distinct_values = (
         evidence.inferred_world_distinct_values
     )
+    metrics.structural_world_hypotheses = evidence.structural_world_hypotheses
     metrics.world_object_rejections = evidence.world_object_rejections
     metrics.world_identity_candidates = evidence.world_identity_candidates
     metrics.world_identity_span_rejections = (
@@ -1584,6 +1593,9 @@ def _record_anchor_evidence(
     metrics.inferred_z_offset = evidence.inferred_z_offset
     metrics.spawn_structure_candidates = evidence.spawn_structure_candidates
     metrics.spawn_world_matches = evidence.spawn_world_matches
+    metrics.spawn_world_hypothesis_matches = (
+        evidence.spawn_world_hypothesis_matches
+    )
     metrics.spawn_hp_matches = evidence.spawn_hp_matches
     metrics.spawn_player_matches = evidence.spawn_player_matches
     metrics.stable_spawn_candidates = evidence.stable_spawn_candidates
@@ -2400,6 +2412,7 @@ def recover_local_player_pointer(
                 f" world_vtable={None if metrics.inferred_world_vtable is None else f'0x{metrics.inferred_world_vtable:X}'},"
                 f" world_vtable_field={None if metrics.inferred_world_vtable_field_offset is None else f'0x{metrics.inferred_world_vtable_field_offset:X}'},"
                 f" world_identity_kind={metrics.inferred_world_identity_kind},"
+                f" world_hypotheses={metrics.structural_world_hypotheses},"
                 f" world_selected_structure=(readable_ptrs={metrics.inferred_world_readable_pointer_fields},"
                 f"distinct={metrics.inferred_world_distinct_values}),"
                 f" world_object_reject={metrics.world_object_rejections},"
@@ -2430,6 +2443,7 @@ def recover_local_player_pointer(
                 f"{metrics.inferred_y_offset},{metrics.inferred_z_offset}),"
                 f" spawn_structures={metrics.spawn_structure_candidates},"
                 f" spawn_world={metrics.spawn_world_matches},"
+                f" spawn_world_hypotheses={metrics.spawn_world_hypothesis_matches},"
                 f" spawn_hp={metrics.spawn_hp_matches},"
                 f" spawn_players={metrics.spawn_player_matches},"
                 f" stable_spawn={metrics.stable_spawn_candidates},"

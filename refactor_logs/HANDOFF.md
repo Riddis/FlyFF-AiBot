@@ -116,10 +116,17 @@ prior manual input. Current/max HP are now OCRed automatically from the
 dynamically located panel inside each managed diagnostic worker; manual HP
 fields have been removed.
 
+The following live run correctly OCRed `33750/33750`. Its 49-actor consensus
+produced four structural-marker acceptances, but the previously selected world
+matched none of 46 spawn structures. Recovery now retains all bounded
+structural worlds until spawn/HP/player validation chooses one, and reports
+`world_hypotheses` plus `spawn_world_hypotheses`. Bot Vision also draws a green
+rectangle and HP label over the validated status panel.
+
 ## Automated validation
 
-- Full canonical suite: 568 passed, 1 skipped in 10.70 seconds.
-- Focused player-status/diagnostic/GUI suite: 17 passed.
+- Full canonical suite: 571 passed, 1 skipped in 13.35 seconds.
+- Focused anchored/player-status/preview suite: 31 passed.
 - Changed production/test Ruff F/I: pass.
 - Native production BasedPyright: 0 errors; existing warning-level typing debt
   remains classified.

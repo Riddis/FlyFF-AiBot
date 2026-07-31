@@ -140,5 +140,7 @@ Acceptance: repository is runnable, evidence is captured, docs are self-containe
 - [x] `PTR-LIVE-024` Expose the selected world candidate's own pointer-richness and stable-value diversity separately from aggregate hypothesis totals.
 - [x] `PTR-LIVE-025` Locate the player-status panel dynamically and OCR current/maximum HP with the existing FlyFF digit templates.
 - [x] `PTR-LIVE-026` Remove manual HP fields and acquire a fresh HP anchor inside each managed recovery worker.
+- [x] `PTR-LIVE-027` Draw a green current/max HP detection marker over the validated player-status panel in Bot Vision.
+- [x] `PTR-LIVE-028` Defer world selection across all structural hypotheses until spawn/HP/player cross-validation.
 
 Acceptance: ordinary reads remain scan-free; recovery is bounded, cancellable, single-flight, and off Tk; accepted slots are stable and coherently validated; startup failure is concise and input-safe.

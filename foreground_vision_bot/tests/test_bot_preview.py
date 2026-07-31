@@ -124,3 +124,24 @@ def test_kill_counter_preview_draws_green_tracking_rectangle() -> None:
 
     assert frame[25, 20].tolist() == [0, 255, 0]
     assert frame[70, 100].tolist() == [0, 255, 0]
+
+
+def test_player_status_preview_draws_green_ocr_rectangle() -> None:
+    bot = _preview_bot()
+    anchor = object()
+    bot.player_status_reader = SimpleNamespace(
+        read=lambda _frame: SimpleNamespace(
+            current_hp=33750,
+            maximum_hp=33750,
+            anchor=anchor,
+        ),
+        tracking_bounds=lambda value, frame_shape=None: (
+            (15, 20, 105, 75) if value is anchor else None
+        ),
+    )
+    frame = np.zeros((120, 140, 3), dtype=np.uint8)
+
+    bot._draw_player_status_overlay(frame)
+
+    assert frame[20, 15].tolist() == [0, 255, 0]
+    assert frame[75, 105].tolist() == [0, 255, 0]

@@ -93,6 +93,7 @@ class AnchoredDiscoveryEvidence:
     inferred_world_identity_kind: str | None = None
     inferred_world_readable_pointer_fields: int = 0
     inferred_world_distinct_values: int = 0
+    structural_world_hypotheses: int = 0
     world_object_rejections: int = 0
     world_identity_candidates: int = 0
     world_identity_span_rejections: int = 0
@@ -123,6 +124,7 @@ class AnchoredDiscoveryEvidence:
     inferred_z_offset: int | None = None
     spawn_structure_candidates: int = 0
     spawn_world_matches: int = 0
+    spawn_world_hypothesis_matches: int = 0
     spawn_hp_matches: int = 0
     spawn_player_matches: int = 0
     stable_spawn_candidates: int = 0
@@ -202,6 +204,21 @@ class _InferredActorLayout:
 class _MonsterHypothesis:
     actor: _MonsterAnchor
     layout: _InferredActorLayout
+
+
+@dataclass(frozen=True, slots=True)
+class _WorldHypothesis:
+    score: tuple[int, int, int, int]
+    field_offset: int
+    world_base: int
+    identity_kind: str
+    identity_field_offset: int
+    identity_value: int
+    readable_pointer_fields: int
+    distinct_values: int
+    actor_support: int
+    species_support: int
+    module_references: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -756,7 +773,7 @@ def _infer_world_identity(
     return None
 
 
-def _infer_world(
+def _infer_worlds(
     anchors: tuple[_MonsterAnchor, ...],
     *,
     memory: AnchoredDiscoveryMemory,
@@ -766,7 +783,7 @@ def _infer_world(
     slot_refs: Mapping[int, list[int]],
     readable_contains: Callable[[int, int], bool],
     evidence: AnchoredDiscoveryEvidence,
-) -> tuple[int, int, str, int, int] | None:
+) -> tuple[_WorldHypothesis, ...]:
     support: dict[tuple[int, int], set[int]] = defaultdict(set)
     species_support: dict[tuple[int, int], set[int]] = defaultdict(set)
     for actor in anchors:
@@ -783,9 +800,7 @@ def _infer_world(
             support[key].add(actor.base)
             species_support[key].add(actor.species)
 
-    ranked: list[
-        tuple[tuple[int, int, int, int], int, int, str, int, int, int, int]
-    ] = []
+    ranked: list[_WorldHypothesis] = []
     best_near_score: tuple[int, int, int, int] | None = None
     for (offset, value), actors in support.items():
         module_refs = len(slot_refs.get(value, ()))
@@ -846,49 +861,46 @@ def _infer_world(
             distinct_values,
         ) = identity
         ranked.append(
-            (
-                score,
-                offset,
-                value,
-                identity_kind,
-                world_vtable_field_offset,
-                world_vtable,
-                readable_pointer_fields,
-                distinct_values,
+            _WorldHypothesis(
+                score=score,
+                field_offset=offset,
+                world_base=value,
+                identity_kind=identity_kind,
+                identity_field_offset=world_vtable_field_offset,
+                identity_value=world_vtable,
+                readable_pointer_fields=readable_pointer_fields,
+                distinct_values=distinct_values,
+                actor_support=len(actors),
+                species_support=distinct_species,
+                module_references=module_refs,
             )
         )
-    ranked.sort(reverse=True)
-    if not ranked:
-        return None
-    (
-        best_score,
-        offset,
-        world,
-        identity_kind,
-        world_vtable_field_offset,
-        world_vtable,
-        readable_pointer_fields,
-        distinct_values,
-    ) = ranked[0]
-    tied = [item for item in ranked[1:] if item[0] == best_score]
-    if tied:
-        evidence.anchor_ambiguities += len(tied) + 1
-        return None
-    evidence.inferred_world_actor_support = best_score[0]
-    evidence.inferred_world_species_support = best_score[1]
-    evidence.inferred_world_offset = offset
-    evidence.inferred_world_vtable = world_vtable
-    evidence.inferred_world_vtable_field_offset = world_vtable_field_offset
-    evidence.inferred_world_identity_kind = identity_kind
-    evidence.inferred_world_readable_pointer_fields = readable_pointer_fields
-    evidence.inferred_world_distinct_values = distinct_values
-    return (
-        offset,
-        world,
-        identity_kind,
-        world_vtable_field_offset,
-        world_vtable,
+    ranked.sort(
+        key=lambda item: (
+            item.score,
+            -item.field_offset,
+            -item.world_base,
+        ),
+        reverse=True,
     )
+    evidence.structural_world_hypotheses = len(ranked)
+    return tuple(ranked)
+
+
+def _record_selected_world(
+    evidence: AnchoredDiscoveryEvidence,
+    world: _WorldHypothesis,
+) -> None:
+    evidence.inferred_world_actor_support = world.actor_support
+    evidence.inferred_world_species_support = world.species_support
+    evidence.inferred_world_offset = world.field_offset
+    evidence.inferred_world_vtable = world.identity_value
+    evidence.inferred_world_vtable_field_offset = world.identity_field_offset
+    evidence.inferred_world_identity_kind = world.identity_kind
+    evidence.inferred_world_readable_pointer_fields = (
+        world.readable_pointer_fields
+    )
+    evidence.inferred_world_distinct_values = world.distinct_values
 
 
 def _aligned_value_offsets(data: bytes, value: int) -> tuple[int, ...]:
@@ -1103,7 +1115,7 @@ def discover_anchored_pointer_candidate(
             evidence,
             "Known monster hits did not produce one consensus actor layout.",
         )
-    inferred_world = _infer_world(
+    world_hypotheses = _infer_worlds(
         anchors,
         memory=memory,
         configured_world_offset=configured_world_field_offset,
@@ -1113,23 +1125,20 @@ def discover_anchored_pointer_candidate(
         readable_contains=readable_contains,
         evidence=evidence,
     )
-    if inferred_world is None:
+    if not world_hypotheses:
         return AnchoredDiscoveryResult(
             "actor_layout_inconclusive",
             None,
             evidence,
-            "Monster consensus did not produce unique self/world fields.",
+            "Monster consensus did not produce a structural world hypothesis.",
         )
-    (
-        world_field_offset,
-        world_base,
-        world_identity_kind,
-        world_vtable_field_offset,
-        world_vtable,
-    ) = inferred_world
 
     player_candidates: list[
-        tuple[tuple[int, int, int, float], AnchoredPointerCandidate]
+        tuple[
+            tuple[int, int, int, float, int, int, int],
+            AnchoredPointerCandidate,
+            _WorldHypothesis,
+        ]
     ] = []
     expected_x = float(hints.player_spawn_x)
     expected_z = float(hints.player_spawn_z)
@@ -1155,12 +1164,15 @@ def discover_anchored_pointer_candidate(
             or abs(y) > coordinate_limit
         ):
             continue
-        try:
-            if _u32(data, world_field_offset) != world_base:
-                continue
-        except Exception:
+        matching_worlds = tuple(
+            world
+            for world in world_hypotheses
+            if _u32(data, world.field_offset) == world.world_base
+        )
+        if not matching_worlds:
             continue
         evidence.spawn_world_matches += 1
+        evidence.spawn_world_hypothesis_matches += len(matching_worlds)
         matching_self_offsets = tuple(
             offset
             for offset in actor_layout.self_offsets
@@ -1204,134 +1216,155 @@ def discover_anchored_pointer_candidate(
             continue
         evidence.spawn_player_matches += 1
 
-        stable = True
-        for sample in range(max(3, int(stability_samples))):
-            check()
-            try:
-                sample_data = memory.read(base, object_span)
-                sample_x = _f32(sample_data, actor_layout.x_offset)
-                sample_z = _f32(sample_data, actor_layout.z_offset)
-                sample_hp = _i32(sample_data, selected_hp_offset)
-                sample_world = _u32(sample_data, world_field_offset)
-                sample_self = _u32(sample_data, selected_self_offset)
-            except Exception:
-                stable = False
-                break
-            if (
-                abs(sample_x - x) > 0.05
-                or abs(sample_z - z) > 0.05
-                or sample_hp != current_hp
-                or sample_world != world_base
-                or sample_self != base
-            ):
-                stable = False
-                break
-            if sample + 1 < max(3, int(stability_samples)):
-                sleep(max(0.0, float(stability_delay_seconds)))
-        if not stable:
-            continue
-        evidence.stable_spawn_candidates += 1
+        for world in matching_worlds:
+            stable = True
+            for sample in range(max(3, int(stability_samples))):
+                check()
+                try:
+                    sample_data = memory.read(base, object_span)
+                    sample_x = _f32(sample_data, actor_layout.x_offset)
+                    sample_z = _f32(sample_data, actor_layout.z_offset)
+                    sample_hp = _i32(sample_data, selected_hp_offset)
+                    sample_world = _u32(sample_data, world.field_offset)
+                    sample_self = _u32(sample_data, selected_self_offset)
+                except Exception:
+                    stable = False
+                    break
+                if (
+                    abs(sample_x - x) > 0.05
+                    or abs(sample_z - z) > 0.05
+                    or sample_hp != current_hp
+                    or sample_world != world.world_base
+                    or sample_self != base
+                ):
+                    stable = False
+                    break
+                if sample + 1 < max(3, int(stability_samples)):
+                    sleep(max(0.0, float(stability_delay_seconds)))
+            if not stable:
+                continue
+            evidence.stable_spawn_candidates += 1
 
-        world_ref = _resolve_module_reference(
-            memory,
-            world_base,
-            configured_slot=configured_world_slot,
-            slot_refs=slot_refs,
-            maximum_address=maximum_address,
-            chunk_size=chunk_size,
-            cancellation=cancellation,
-            deadline=deadline,
-            check=check,
-        )
-        evidence.direct_world_slot_candidates += world_ref.direct_candidates
-        evidence.world_chain_candidates += world_ref.chained_candidates
-        evidence.anchor_ambiguities += world_ref.ambiguous_candidates
-        if not world_ref.resolved:
-            continue
-        assert world_ref.slot is not None
-        world_slot = world_ref.slot
-        world_chain = world_ref.chain_offsets
-        player_ref = _resolve_module_reference(
-            memory,
-            base,
-            configured_slot=configured_player_slot,
-            slot_refs=slot_refs,
-            maximum_address=maximum_address,
-            chunk_size=chunk_size,
-            cancellation=cancellation,
-            deadline=deadline,
-            check=check,
-            preferred_roots=((world_base, world_slot, world_chain),),
-            maximum_preferred_offset=0x4000,
-        )
-        evidence.direct_player_slot_candidates += player_ref.direct_candidates
-        evidence.player_chain_candidates += player_ref.chained_candidates
-        evidence.player_reference_matches += player_ref.reference_matches
-        evidence.player_world_chain_candidates += (
-            player_ref.preferred_chain_candidates
-        )
-        evidence.player_reference_ambiguities += player_ref.ambiguous_candidates
-        evidence.anchor_ambiguities += player_ref.ambiguous_candidates
-        if not player_ref.resolved:
-            continue
-        assert player_ref.slot is not None
-        player_slot = player_ref.slot
-        player_chain = player_ref.chain_offsets
-        candidate = AnchoredPointerCandidate(
-            player_base=base,
-            world_base=world_base,
-            player_pointer_address=player_slot,
-            player_pointer_chain_offsets=player_chain,
-            world_pointer_address=world_slot,
-            world_pointer_chain_offsets=world_chain,
-            world_field_offset=world_field_offset,
-            world_vtable=world_vtable,
-            world_vtable_field_offset=world_vtable_field_offset,
-            world_identity_kind=world_identity_kind,
-            self_pointer_offset=selected_self_offset,
-            hp_offset=selected_hp_offset,
-            monster_hp_offset=actor_layout.hp_offset,
-            max_hp_offset=selected_max_offset,
-            species_offset=actor_layout.species_offset,
-            active_species_offset=actor_layout.active_species_offset,
-            x_offset=actor_layout.x_offset,
-            y_offset=actor_layout.y_offset,
-            z_offset=actor_layout.z_offset,
-            baseline_x=x,
-            baseline_y=y,
-            baseline_z=z,
-            baseline_hp=current_hp,
-            maximum_hp=maximum_hp,
-            monster_actor_support=evidence.inferred_world_actor_support,
-            monster_species_support=evidence.inferred_world_species_support,
-        )
-        score = (
-            int(not player_chain),
-            int(not world_chain),
-            int(selected_hp_offset == actor_layout.hp_offset),
-            -math.hypot(x - expected_x, z - expected_z),
-        )
-        player_candidates.append((score, candidate))
+            world_ref = _resolve_module_reference(
+                memory,
+                world.world_base,
+                configured_slot=configured_world_slot,
+                slot_refs=slot_refs,
+                maximum_address=maximum_address,
+                chunk_size=chunk_size,
+                cancellation=cancellation,
+                deadline=deadline,
+                check=check,
+            )
+            evidence.direct_world_slot_candidates += world_ref.direct_candidates
+            evidence.world_chain_candidates += world_ref.chained_candidates
+            evidence.anchor_ambiguities += world_ref.ambiguous_candidates
+            if not world_ref.resolved:
+                continue
+            assert world_ref.slot is not None
+            world_slot = world_ref.slot
+            world_chain = world_ref.chain_offsets
+            player_ref = _resolve_module_reference(
+                memory,
+                base,
+                configured_slot=configured_player_slot,
+                slot_refs=slot_refs,
+                maximum_address=maximum_address,
+                chunk_size=chunk_size,
+                cancellation=cancellation,
+                deadline=deadline,
+                check=check,
+                preferred_roots=((world.world_base, world_slot, world_chain),),
+                maximum_preferred_offset=0x4000,
+            )
+            evidence.direct_player_slot_candidates += player_ref.direct_candidates
+            evidence.player_chain_candidates += player_ref.chained_candidates
+            evidence.player_reference_matches += player_ref.reference_matches
+            evidence.player_world_chain_candidates += (
+                player_ref.preferred_chain_candidates
+            )
+            evidence.player_reference_ambiguities += (
+                player_ref.ambiguous_candidates
+            )
+            evidence.anchor_ambiguities += player_ref.ambiguous_candidates
+            if not player_ref.resolved:
+                continue
+            assert player_ref.slot is not None
+            player_slot = player_ref.slot
+            player_chain = player_ref.chain_offsets
+            candidate = AnchoredPointerCandidate(
+                player_base=base,
+                world_base=world.world_base,
+                player_pointer_address=player_slot,
+                player_pointer_chain_offsets=player_chain,
+                world_pointer_address=world_slot,
+                world_pointer_chain_offsets=world_chain,
+                world_field_offset=world.field_offset,
+                world_vtable=world.identity_value,
+                world_vtable_field_offset=world.identity_field_offset,
+                world_identity_kind=world.identity_kind,
+                self_pointer_offset=selected_self_offset,
+                hp_offset=selected_hp_offset,
+                monster_hp_offset=actor_layout.hp_offset,
+                max_hp_offset=selected_max_offset,
+                species_offset=actor_layout.species_offset,
+                active_species_offset=actor_layout.active_species_offset,
+                x_offset=actor_layout.x_offset,
+                y_offset=actor_layout.y_offset,
+                z_offset=actor_layout.z_offset,
+                baseline_x=x,
+                baseline_y=y,
+                baseline_z=z,
+                baseline_hp=current_hp,
+                maximum_hp=maximum_hp,
+                monster_actor_support=world.actor_support,
+                monster_species_support=world.species_support,
+            )
+            score = (
+                int(not player_chain),
+                int(not world_chain),
+                int(selected_hp_offset == actor_layout.hp_offset),
+                -math.hypot(x - expected_x, z - expected_z),
+                world.actor_support,
+                world.species_support,
+                min(world.module_references, 8),
+            )
+            player_candidates.append((score, candidate, world))
 
     if not player_candidates:
         return AnchoredDiscoveryResult(
             "spawn_player_not_found",
             None,
             evidence,
-            "No stable spawn/HP player candidate shared the inferred world.",
+            "No stable spawn/HP player candidate matched any structural world hypothesis.",
         )
     player_candidates.sort(key=lambda item: item[0], reverse=True)
-    best_score, candidate = player_candidates[0]
-    if any(score == best_score for score, _item in player_candidates[1:]):
-        evidence.anchor_ambiguities += sum(
-            1 for score, _item in player_candidates if score == best_score
+    best_score, candidate, selected_world = player_candidates[0]
+    tied = tuple(
+        (item, world)
+        for score, item, world in player_candidates
+        if score == best_score
+    )
+    distinct_targets = {
+        (
+            item.player_base,
+            item.world_base,
+            item.player_pointer_address,
+            item.player_pointer_chain_offsets,
+            item.world_pointer_address,
+            item.world_pointer_chain_offsets,
         )
+        for item, _world in tied
+    }
+    if len(distinct_targets) > 1:
+        evidence.anchor_ambiguities += len(distinct_targets)
         return AnchoredDiscoveryResult(
             "anchor_ambiguous",
             None,
             evidence,
             "Multiple equally supported spawn/HP player candidates remain.",
         )
+    _record_selected_world(evidence, selected_world)
     evidence.inferred_self_offset = candidate.self_pointer_offset
     evidence.inferred_player_hp_offset = candidate.hp_offset
     evidence.inferred_player_max_hp_offset = candidate.max_hp_offset

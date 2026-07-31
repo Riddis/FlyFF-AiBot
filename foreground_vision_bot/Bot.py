@@ -685,6 +685,7 @@ class Bot:
         self._draw_cached_mob_overlay(frame, now)
         self._draw_heading_overlay(frame, now)
         self._draw_kill_counter_overlay(frame, now)
+        self._draw_player_status_overlay(frame)
         self._publish_native_monster_map(now)
         return frame
 
@@ -964,6 +965,46 @@ class Bot:
                 cv.FONT_HERSHEY_SIMPLEX,
                 0.48,
                 (0, 255, 0),
+                2,
+                cv.LINE_AA,
+            )
+        except Exception:
+            # This diagnostic overlay must never interrupt capture or control.
+            return
+
+    def _draw_player_status_overlay(self, frame: np.ndarray) -> None:
+        """Mark the OCR-validated player-status panel in Bot Vision."""
+
+        try:
+            status_lock = getattr(self, "_player_status_lock", None)
+            if status_lock is None:
+                status_lock = RLock()
+                self._player_status_lock = status_lock
+            with status_lock:
+                reader = self.player_status_reader
+                reading = reader.read(frame)
+                if reading is None:
+                    return
+                left, top, right, bottom = reader.tracking_bounds(
+                    reading.anchor,
+                    frame_shape=frame.shape[:2],
+                )
+            color = (0, 255, 0)
+            cv.rectangle(
+                frame,
+                (left, top),
+                (right, bottom),
+                color,
+                2,
+                cv.LINE_AA,
+            )
+            cv.putText(
+                frame,
+                f"Player HP {reading.current_hp}/{reading.maximum_hp}",
+                (left, min(frame.shape[0] - 4, max(16, bottom + 18))),
+                cv.FONT_HERSHEY_SIMPLEX,
+                0.48,
+                color,
                 2,
                 cv.LINE_AA,
             )

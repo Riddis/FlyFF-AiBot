@@ -273,6 +273,33 @@ class DynamicPlayerStatusReader:
             )
         return crop
 
+    @classmethod
+    def tracking_bounds(
+        cls,
+        anchor: PlayerStatusAnchor,
+        *,
+        frame_shape: tuple[int, int] | None = None,
+    ) -> tuple[int, int, int, int]:
+        panel_height, panel_width = cls._scaled_panel_size(anchor.scale)
+        left = int(anchor.panel_x)
+        top = int(anchor.panel_y)
+        right = left + panel_width - 1
+        bottom = top + panel_height - 1
+        if frame_shape is not None:
+            height, width = int(frame_shape[0]), int(frame_shape[1])
+            left = max(0, min(width - 1, left))
+            right = max(left, min(width - 1, right))
+            top = max(0, min(height - 1, top))
+            bottom = max(top, min(height - 1, bottom))
+        return left, top, right, bottom
+
+    @staticmethod
+    def _scaled_panel_size(scale: float) -> tuple[int, int]:
+        return (
+            max(20, int(round(110 * float(scale)))),
+            max(20, int(round(218 * float(scale)))),
+        )
+
     def read(self, frame: np.ndarray) -> PlayerHealthReading | None:
         if frame is None or frame.size == 0:
             return None

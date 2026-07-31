@@ -20,6 +20,8 @@ of that exact candidate.
 1. Start FlyFF and the bot normally. Select **Tower AoE** and select both
    **Captain Asterius** (species 944) and **Captain Dantalian** (species 948).
    Attach the correct FlyFF window and verify Bot Vision/FPS remain responsive.
+   Bot Vision must outline the detected player-status panel in green and label
+   it with the same current/max HP shown by FlyFF.
 2. In FlyFF, place the character at the Tower AoE native spawn corresponding to
    map `(0.0, 0.0)`: native X `253.0`, Z `86.0`. Keep the character stationary.
    Ensure multiple selected monsters are active nearby. Do not stand in a
@@ -51,6 +53,9 @@ of that exact candidate.
    readable pointers and eight distinct stable values. `world=0x3F800000` is
    an explicit stop condition. `hp_field` is the monster layout;
    `player_hp_fields` may differ and must not replace it.
+   `world_hypotheses` may be greater than one: selection is deliberately
+   deferred until the spawn/HP player matches one. The log must also retain
+   `spawn_world_hypotheses`.
    Neither JSON config may change and no recovery backup may be created yet.
 5. If the first result is anything other than `recovery_movement_required`,
    stop the protocol without retrying and return the complete log and unchanged

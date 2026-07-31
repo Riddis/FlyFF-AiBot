@@ -98,6 +98,13 @@ fields and eight distinct nonzero values. `layout.world_identity_kind` records
 must observe the same field/table-or-marker pair before reporting a healthy
 world.
 
+Bot Vision draws a green rectangle and current/max HP label over the validated
+status-panel anchor. This preview annotation does not alter capture frames or
+feed pointer recovery. When several actor fields lead to structurally valid
+world objects, recovery reports `world_hypotheses` and defers selection until a
+spawn/HP player carries one of them; `spawn_world_hypotheses` reports those
+cross-check matches.
+
 ## Maps, mobs, and model compatibility
 
 `mapper/map_profiles.json` selects **Tower AoE** by default. Its directory owns
