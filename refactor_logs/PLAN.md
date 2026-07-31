@@ -99,7 +99,7 @@ Acceptance: farming dependencies are explicit and active map/editor/vision behav
 - [ ] `CLEAN-001` Finalize evidence-backed keep/merge/archive/delete manifest.
 - [x] `CLEAN-002` Remove obsolete movement-PPO/target/orbit/version-patch code and replace coverage.
 - [x] `CLEAN-003` Remove generated artifacts and update ignore rules.
-- [ ] `CLEAN-004` Normalize production/test names without compatibility layers.
+- [x] `CLEAN-004` Normalize production/test names without compatibility layers.
 
 Acceptance: no active reference reaches removed design code and all equivalent behavior tests pass.
 
