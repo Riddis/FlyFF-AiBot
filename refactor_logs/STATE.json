@@ -5,20 +5,20 @@
   "phase_status": "automated_self_alias_correction_complete_awaiting_human",
   "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "ba77d834815c33b1efa5243fab3eb82a10254c26",
-  "head_note": "Validated unique single-species cohort correction checkpoint; this final journal-only reconciliation follows.",
+  "head_commit": "5f55eaf0d1669e441d72811ae462c0c63ac0b32e",
+  "head_note": "Validated self-field alias correction checkpoint; this final journal-only reconciliation follows.",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
     "branch": "backup/pre-codex-refactor"
   },
-  "dirty_files": ["self-alias implementation and journal pending checkpoint"],
+  "dirty_files": ["final journal-only reconciliation pending checkpoint"],
   "ignored_user_backups": [
     "foreground_vision_bot.zip",
     "refactor_logs.zip"
   ],
   "staged_files": [],
-  "last_known_good_commit": "ba77d834815c33b1efa5243fab3eb82a10254c26",
+  "last_known_good_commit": "5f55eaf0d1669e441d72811ae462c0c63ac0b32e",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
   "last_known_good_test_result": "550 passed, 1 skipped in 9.72 seconds",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
