@@ -1,9 +1,9 @@
 # Refactor Status
 
-- Current phase: Phase 03 canonical farming environment and Phase 04 direct input foundation
-- Phase status: generated cleanup `aa4b104` is committed; movement/visual-farming/migration cleanup is broad-green and checkpoint-ready
-- Active task: `FARM-001,FARM-002,FARM-003,INPUT-001,BOUND-001`
-- Branch/HEAD: `feature/adaptive-mapper` at `c37598d8e89f3ae283e5f25b4055a70edd8e3400`
+- Current phase: Phase 05/06 lifecycle acceptance and Phase 08 documentation
+- Phase status: obsolete policy/migration cleanup is committed at `60d1e33`; fake live-session acceptance is broad-green and checkpoint-ready
+- Active task: `GUI-003,BOUND-004,DOC-002`
+- Branch/HEAD: `feature/adaptive-mapper` at `60d1e33`
 - Known checkpoints: stabilization `63651e97d6d013ac41364d912e98b70ac5c76b88`; shared native ownership `a0304c72089980f6028e2e4c7baef70909687f63`; completed Phase 02 `a63e2221e20fdd56add0acdfd2add0a389b83f61`
 - Protected pre-Codex commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`; annotated tag `protected/pre-codex-refactor`; branch `backup/pre-codex-refactor`
 - Latest checkpoint: `ca9457639e63696352aba3bd27bd7ad76dea0f52` (`RESUME-003 freeze canonical farming core contracts`)
@@ -21,8 +21,9 @@
 - Production dispatch: `runtime_controller.py` imports the three live modes directly from `farming.trainer`; 68 controller/farming tests pass after cutover. Patch modules remain present but unreachable pending their recorded deletion slice.
 - Canonical broad gate after deletion: 550 passed, 1 skipped, zero failures in 9.94 s. Ten dead production modules and fourteen implementation-detail tests are removed.
 - Post-movement/visual cleanup gate: 525 passed, 1 skipped, zero failures in 11.28 s. Active unified model SHA is unchanged.
+- Fake live-session acceptance gate: 528 passed, 1 skipped in 7.99 s. Launch/attach/preview/dry-run/stop and launch/attach/train/external-stop/publish are covered without a client process; fatal sessions preserve the last-known-good model.
 - Runnable: yes under fake/integration coverage on the canonical farming route
 - Last checkpoint gate: 37 corrected focused tests passed in 0.40 s; canonical suite reached 569 passed, 2 known legacy failures, and 1 skipped in 6.02 s; compile/Ruff/BasedPyright/diff gates pass
 - Final Sol checkpoint audit: no remaining isolated-core correctness, contract, reachability, or candidate-boundary blocker
 - Blockers: none; live FlyFF validation is deferred until automated cutover and cleanup are complete
-- Next action: checkpoint the current broad-green cleanup, then add fake end-to-end session smoke and finish GUI/diagnostic/docs validation
+- Next action: checkpoint fake session acceptance, then finish GUI/diagnostic boundary evidence, naming cleanup, final manifest, documentation, and final validation

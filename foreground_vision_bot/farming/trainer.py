@@ -411,23 +411,54 @@ def _load_training_model(
     return model, True
 
 
+def _default_session_path_factory(
+    config: FarmingRuntimeConfig,
+    kind: str,
+) -> tuple[Path, Path]:
+    return _session_paths(config, kind=kind)
+
+
+@dataclass(frozen=True, slots=True)
+class FarmingSessionServices:
+    """Injected orchestration edges for deterministic lifecycle tests."""
+
+    runtime_builder: Callable[
+        [FarmingBot, FarmingRuntimeConfig, CancellationToken],
+        FarmingRuntime,
+    ] = build_live_farming_runtime
+    model_loader: Callable[
+        [Path, FarmingRuntime, Path],
+        tuple[SessionAwarePPO, bool],
+    ] = _load_training_model
+    path_resolver: Callable[[str | Path], Path] = resolve_app_path
+    session_path_factory: Callable[
+        [FarmingRuntimeConfig, str],
+        tuple[Path, Path],
+    ] = _default_session_path_factory
+    artifact_saver: Callable[..., object] = save_session_artifacts
+    report_writer: Callable[..., object] = atomic_write_json
+
+
 def train_native_farming(
     bot: FarmingBot,
     config: FarmingRuntimeConfig | None = None,
     status_callback: StatusCallback | None = None,
     cancellation: CancellationToken | None = None,
+    *,
+    services: FarmingSessionServices | None = None,
 ) -> Path:
     selected = config or _default_config()
     token = cancellation or CancellationToken()
-    model_path = resolve_model_artifact(resolve_app_path(selected.model_path))
-    tensorboard_dir = resolve_app_path(selected.tensorboard_dir)
-    checkpoint_dir = resolve_app_path(selected.checkpoint_dir)
+    edges = services or FarmingSessionServices()
+    model_path = resolve_model_artifact(edges.path_resolver(selected.model_path))
+    tensorboard_dir = edges.path_resolver(selected.tensorboard_dir)
+    checkpoint_dir = edges.path_resolver(selected.checkpoint_dir)
     stats = SessionStats()
     runtime: FarmingRuntime | None = None
-    report_path, manifest_path = _session_paths(selected, kind="training")
+    report_path, manifest_path = edges.session_path_factory(selected, "training")
     try:
-        runtime = build_live_farming_runtime(bot, selected, token)
-        model, reset_timesteps = _load_training_model(
+        runtime = edges.runtime_builder(bot, selected, token)
+        model, reset_timesteps = edges.model_loader(
             model_path,
             runtime,
             tensorboard_dir,
@@ -475,7 +506,7 @@ def train_native_farming(
             model_timesteps=model.num_timesteps,
         )
         runtime.domain.control.release()
-        save_session_artifacts(
+        edges.artifact_saver(
             model,
             model_path=model_path,
             report_path=report_path,
@@ -501,7 +532,7 @@ def train_native_farming(
             model_timesteps=0,
             error=error,
         )
-        atomic_write_json(report_path, payload)
+        edges.report_writer(report_path, payload)
         raise
     except Exception as error:
         if runtime is not None:
@@ -517,7 +548,7 @@ def train_native_farming(
             model_timesteps=0,
             error=error,
         )
-        atomic_write_json(report_path, payload)
+        edges.report_writer(report_path, payload)
         _status(status_callback, f"Farming training failed: {type(error).__name__}: {error}")
         raise
     finally:
