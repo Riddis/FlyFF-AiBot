@@ -8,6 +8,7 @@
 - Validated self-field alias correction checkpoint: `5f55eaf0d1669e441d72811ae462c0c63ac0b32e`; final journal reconciliation follows it.
 - Validated world-rooted player-chain checkpoint: `fc24bb4e8a66a64e4af992837f2dec505066f92a`; final journal reconciliation follows it.
 - Validated false-world/HP/preview/health-identity checkpoint: `25ab14068cd432a72706c4caba7bc316990dfe03`; final journal reconciliation follows it.
+- Validated displaced structural world-identity checkpoint: `5351a4c988f31b6982f9f85e65e19118b3721857`; final journal reconciliation follows it.
 - Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through `protected/pre-codex-refactor` and `backup/pre-codex-refactor`.
 - Production route: `runtime_controller.py -> farming.trainer -> UnifiedFarmingEnv / SessionAwarePPO`.
 - Active model: `models/farming/native_strategy_ppo.zip`; SHA-256 `3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2` unchanged.
