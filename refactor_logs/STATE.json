@@ -5,8 +5,8 @@
   "phase_status": "automated_correction_complete_awaiting_human",
   "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "84559c6ce6ff63a86604a4c71aff8ae2308cdb98",
-  "head_note": "Validated anchored implementation checkpoint; this final journal-only reconciliation follows.",
+  "head_commit": "abd8f9e1cabaa4ea033ee221dbf2145b1470fffb",
+  "head_note": "Validated local actor-layout correction checkpoint; this final journal-only reconciliation follows.",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
@@ -18,7 +18,7 @@
     "refactor_logs.zip"
   ],
   "staged_files": [],
-  "last_known_good_commit": "84559c6ce6ff63a86604a4c71aff8ae2308cdb98",
+  "last_known_good_commit": "abd8f9e1cabaa4ea033ee221dbf2145b1470fffb",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
   "last_known_good_test_result": "547 passed, 1 skipped in 9.62 seconds",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
