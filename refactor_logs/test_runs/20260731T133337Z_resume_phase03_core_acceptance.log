@@ -1,0 +1,23 @@
+Task: RESUME-003 / FARM-001 / FARM-002 / FARM-003
+UTC: 2026-07-31T13:33:37.9601871Z
+
+Independent focused acceptance command:
+.venv\Scripts\python.exe -m pytest -q foreground_vision_bot/tests/test_farming_actions.py foreground_vision_bot/tests/test_farming_map_features.py foreground_vision_bot/tests/test_farming_model_contract.py foreground_vision_bot/tests/test_farming_observation_contract.py foreground_vision_bot/tests/test_farming_reward_and_session.py
+
+Result: PASS — 37 passed in 0.40 seconds.
+Warning: the existing pytest-cache WinError 183 warning only.
+
+Quality commands and results:
+- compileall over farming/ and the five focused tests: PASS.
+- Ruff format --check over 12 files: PASS; 12 files already formatted.
+- Ruff check --select F,I over 12 files: PASS.
+- BasedPyright --level error foreground_vision_bot/farming: PASS; 0 errors, 0 warnings, 0 notes.
+- git diff --check: PASS; only existing journal LF-to-CRLF notices.
+
+Frozen compatibility evidence:
+- active artifact SHA-256: 3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2
+- observation schema SHA-256: 7B8E1FC27E67CD5ECF200382DD1644DF9B253FCB654AA9F11413694F97C3DC15
+- model contract SHA-256: 03E1DA9C110611659DA10DF3CE27117C78E15F9E316ED080E4B75911768A8B18
+- runtime descriptor recomputation matched both frozen literals.
+
+Next gate: run the canonical foreground_vision_bot/tests suite once, classify only known failures, then prepare the exact isolated-core checkpoint.

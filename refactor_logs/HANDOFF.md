@@ -7,20 +7,28 @@ native ownership is committed at
 `a0304c72089980f6028e2e4c7baef70909687f63`. Phase 02 transactional pointer
 persistence and managed diagnostics are committed at
 `a63e2221e20fdd56add0acdfd2add0a389b83f61` after an exact 32-path cached audit
-and a 92-test focused pass.
+and a 92-test focused pass. The journal transition is committed at
+`2f8a8ebff636e48b3a6859c03b80a9add7a12c8f`.
 
 An isolated, dependency-light Phase 03 core exists but is not integrated:
 `farming/actions.py`, `observation.py`, `map_features.py`, `reward.py`,
 `session.py`, and `model_contract.py`, with five behavior-named test modules.
 Only those tests import `farming`; the active runtime still installs the legacy
-V0672/V0673/V0674/V0700/V0707 patch chain. Sol 5.6 Ultra is reviewing this core
-under `RESUME-003` before a separate checkpoint.
+V0672/V0673/V0674/V0700/V0707 patch chain. Sol 5.6 Ultra rejected the first
+checkpoint candidate, then corrected all six blockers under `RESUME-003`: fixed
+literal contract binding, dual legacy/direct coordinate frames, direct-density
+parity, external/EVA reward attribution, cached forbidden-map queries, and
+exhaustive typed session invariants. Independent acceptance is 37 focused tests
+plus clean compile/Ruff/BasedPyright/diff gates. The subsequent canonical gate
+reached 569 passed, 2 unchanged legacy failures, and 1 skipped in 6.02 seconds.
+Final Sol checkpoint review found no remaining isolated-core correctness,
+contract, production-reachability, or candidate-boundary blocker.
 
 ## Validation
 
 - Phase 02 resume gate: 92 passed in 2.44 seconds.
 - Previously recorded isolated core: 23 passed in 0.35 seconds.
-- Previously recorded canonical suite: 555 passed, 2 failed, 1 skipped.
+- Current canonical suite: 569 passed, 2 failed, 1 skipped in 6.02 seconds.
 - Remaining failures are the shipped mapper JSON mismatch and obsolete V0674
   source-string assertion.
 - Active model SHA remains
@@ -35,13 +43,16 @@ under `RESUME-003` before a separate checkpoint.
 
 ## Exact continuation
 
-1. Commit this journal-only Phase 02 SHA/transition record.
-2. Finish the Sol 5.6 Ultra architecture review of every isolated `farming/`
-   and `test_farming_*` file.
-3. Apply only review-required corrections and rerun the five focused tests plus
-   compile/Ruff/BasedPyright/diff gates.
-4. Stage and commit the isolated core separately under `RESUME-003` if coherent.
-5. Begin Phase B canonical environment integration only after that checkpoint.
+The automated exact-path `git add` was rejected because the platform's elevated
+action quota is exhausted. The index remains empty. This is an infrastructure
+blocker, not a source defect; do not bypass it or absorb unrelated files.
+
+1. Stage and audit only the 12 corrected core/test paths plus the 10 exact
+   journal evidence paths recorded as `checkpoint_candidate_files` in
+   `STATE.json`, then commit them separately under `RESUME-003`.
+2. Record the resulting SHA in a journal-only transition checkpoint.
+3. Begin the reviewed Phase B canonical environment implementation only after
+   that checkpoint.
 
 ## Dirty-tree ownership
 
@@ -49,4 +60,4 @@ under `RESUME-003` before a separate checkpoint.
   `test_farming_*` modules.
 - Journal-only Phase 02 SHA/Phase 03 transition update under `refactor_logs/`.
 - Three pre-existing deletions and two ignored backup ZIPs.
-- Nothing is staged.
+- Nothing is staged; `STATE.json` contains the exact 22-path candidate set.

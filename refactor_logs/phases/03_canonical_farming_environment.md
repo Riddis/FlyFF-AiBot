@@ -72,7 +72,7 @@ modules only after reference and parity gates.
 ## 2026-07-31 isolated core slice
 
 Status: implemented and validated, intentionally unintegrated and uncommitted
-pending the Phase 02 Git checkpoint.
+pending the separate RESUME-003 Phase 03 core checkpoint.
 
 Added:
 
@@ -89,7 +89,20 @@ Added:
   metadata-less compatibility is limited to the recorded active-model SHA.
 - Five behavior-named unit-test modules.
 
-Focused validation is 23 passed; compileall, Ruff format/F/I, and BasedPyright
-error level pass. The active model, map, and configs were not written. The next
-slice must review this API and inject it into a visible canonical
-`UnifiedFarmingEnv`; no existing patch installer or runtime import was changed.
+The first 23-test slice was rejected by Sol review before checkpointing. Its
+moving semantic hashes, shared layout/native actor offset, direct density
+population, external/EVA reward attribution, repeated forbidden-map reduction,
+and permissive session invariants were corrected. The reviewed literals are:
+
+- observation schema: `7B8E1FC27E67CD5ECF200382DD1644DF9B253FCB654AA9F11413694F97C3DC15`;
+- model contract: `03E1DA9C110611659DA10DF3CE27117C78E15F9E316ED080E4B75911768A8B18`.
+
+Independent acceptance is 37 focused tests in 0.40 seconds plus clean
+compileall, Ruff format/F/I, farming BasedPyright error-level, and diff gates.
+The active model, map, configs, and production imports remain untouched. The
+canonical suite then reached 569 passed, 2 failed, and 1 skipped in 6.02
+seconds. Both failures are unchanged legacy baseline items: the shipped mapper
+JSON's enclosed-area value differs from its old test expectation, and an
+obsolete V0674 test asserts a removed diagnostic source string. No corrected
+core test failed. The isolated slice is ready for its separate RESUME-003
+checkpoint; production integration has not begun.
