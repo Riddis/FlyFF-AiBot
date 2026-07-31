@@ -5,9 +5,10 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from math import isfinite
 from time import monotonic
-from typing import Any
+from typing import Any, cast
 
 from .native_process_service import (
+    NativePointerSnapshot,
     NativePointerSnapshotError,
     NativeRecoveryOutcome,
     NativeRecoveryResult,
@@ -45,6 +46,9 @@ class NativeRuntimeFacts:
 
     selected_map_name: str | None
     map_overlay_loaded: bool
+    native_player_position: tuple[float, float, float] | None
+    map_coordinate_cell: tuple[float, float] | None
+    coordinate_error: str | None
     ocr_enabled: bool
     ocr_anchor_cached: bool | None
     ocr_full_scan_count: int | None
@@ -134,7 +138,6 @@ def collect_native_health(
     """
 
     providers = _provider_health(bot)
-    runtime = _runtime_facts(bot)
     service = getattr(bot, "native_process_service", None)
     captured_at = float(clock())
     if service is None:
@@ -150,7 +153,7 @@ def collect_native_health(
             pointer_generation=None,
             error=None,
             providers=providers,
-            runtime=runtime,
+            runtime=_runtime_facts(bot),
         )
 
     process_id = _optional_int(getattr(getattr(service, "memory", None), "pid", None))
@@ -174,9 +177,10 @@ def collect_native_health(
             pointer_generation=None,
             error="Native process attachment is closed",
             providers=providers,
-            runtime=runtime,
+            runtime=_runtime_facts(bot),
         )
 
+    pointer: NativePointerSnapshot | None = None
     try:
         pointer = service.read_pointer_snapshot()
     except NativePointerSnapshotError as error:
@@ -192,13 +196,19 @@ def collect_native_health(
         world_base = None
         generation = None
     else:
+        resolved_pointer = cast(NativePointerSnapshot, pointer)
         status = NativeHealthStatus.HEALTHY
         error_text = None
-        player_base = int(pointer.player_base)
-        world_base = int(pointer.world_base)
-        generation = int(pointer.generation)
-        player_pointer_address = int(pointer.player_pointer_address)
-        world_pointer_address = int(pointer.world_pointer_address)
+        player_base = int(resolved_pointer.player_base)
+        world_base = int(resolved_pointer.world_base)
+        generation = int(resolved_pointer.generation)
+        player_pointer_address = int(resolved_pointer.player_pointer_address)
+        world_pointer_address = int(resolved_pointer.world_pointer_address)
+
+    runtime = _runtime_facts(
+        bot,
+        pointer_snapshot=pointer,
+    )
 
     return NativeHealthSnapshot(
         status=status,
@@ -388,7 +398,11 @@ def _provider_health(bot: Any) -> NativeProviderHealth:
     )
 
 
-def _runtime_facts(bot: Any) -> NativeRuntimeFacts:
+def _runtime_facts(
+    bot: Any,
+    *,
+    pointer_snapshot: object | None = None,
+) -> NativeRuntimeFacts:
     config_value = getattr(bot, "config", {})
     config: Mapping[str, object] = (
         config_value if isinstance(config_value, Mapping) else {}
@@ -398,11 +412,36 @@ def _runtime_facts(bot: Any) -> NativeRuntimeFacts:
     if selected_value is not None and str(selected_value).strip():
         selected_map = str(selected_value).strip()
     overlay_name = getattr(bot, "_native_map_overlay_name", None)
+    overlay = getattr(bot, "_native_map_overlay", None)
     map_overlay_loaded = bool(
         selected_map
         and overlay_name == selected_map
-        and getattr(bot, "_native_map_overlay", None) is not None
+        and overlay is not None
     )
+
+    native_player_position: tuple[float, float, float] | None = None
+    map_coordinate_cell: tuple[float, float] | None = None
+    coordinate_error: str | None = None
+    if pointer_snapshot is not None:
+        position = getattr(bot, "position_provider", None)
+        read_pose = getattr(position, "read_pose", None)
+        coordinate_frame = getattr(overlay, "coordinate_frame", None)
+        to_local_cells = getattr(coordinate_frame, "to_local_cells", None)
+        if not callable(read_pose):
+            coordinate_error = "Native position reader is unavailable"
+        elif not callable(to_local_cells):
+            coordinate_error = "Selected map coordinate frame is unavailable"
+        else:
+            try:
+                pose = read_pose(pointer_snapshot=pointer_snapshot)
+                x = float(getattr(pose, "x"))
+                y = float(getattr(pose, "y"))
+                z = float(getattr(pose, "z"))
+                local_x, local_y = cast(Any, to_local_cells)(x, z)
+                native_player_position = (x, y, z)
+                map_coordinate_cell = (float(local_x), float(local_y))
+            except Exception as error:  # noqa: BLE001 - typed health boundary.
+                coordinate_error = f"{type(error).__name__}: {error}"
 
     reader = getattr(bot, "kill_counter_reader", None)
     anchors = getattr(reader, "_anchors", None)
@@ -427,6 +466,9 @@ def _runtime_facts(bot: Any) -> NativeRuntimeFacts:
     return NativeRuntimeFacts(
         selected_map_name=selected_map,
         map_overlay_loaded=map_overlay_loaded,
+        native_player_position=native_player_position,
+        map_coordinate_cell=map_coordinate_cell,
+        coordinate_error=coordinate_error,
         ocr_enabled=bool(config.get("dynamic_kill_counter", False)),
         ocr_anchor_cached=ocr_anchor_cached,
         ocr_full_scan_count=ocr_full_scan_count,

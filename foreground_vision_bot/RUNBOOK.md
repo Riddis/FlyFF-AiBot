@@ -21,7 +21,7 @@ frame, not a farming camera-discovery sweep.
 1. In FlyFF, enter the mapped Tower AoE area and keep the character outside the red teleport cells.
 2. In the GUI select **Tower AoE** and select at least one mob with a captured native `species_id`.
 3. Choose **Attach Flyff Window** and select the correct client.
-4. Wait for Bot Vision and an FPS value. Use **Native Health**; expect `healthy`, the selected map, cached-provider facts, and focused input status in the log.
+4. Wait for Bot Vision and an FPS value. Use **Native Health**; expect `healthy`, pointer generation, the selected map/local cell conversion, cached actor-slot count, OCR state, and focused input status in the log.
 5. If the window is not focused when control starts, the bot attempts activation and then gives a two-second cancellable manual-focus grace period.
 
 ## Dry run, training, and agent
@@ -77,4 +77,3 @@ operation.
 - **Capture degraded/lost:** verify the chosen window still exists, stop control, and reattach.
 - **Focus terminal:** focus FlyFF during the grace period and restart the session; stale movement is intentionally not restored.
 - **Fatal training report:** inspect the report's error and session fields. The previous model remains the last-known-good artifact.
-

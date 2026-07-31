@@ -329,6 +329,32 @@ class RuntimeController:
                 timeout_seconds=bounded_timeout,
                 status_callback=publish,
             )
+            snapshot = report.after
+            facts = snapshot.runtime
+            pointer = (
+                "unavailable"
+                if snapshot.player_base is None or snapshot.world_base is None
+                else f"player=0x{snapshot.player_base:X}, world=0x{snapshot.world_base:X}, "
+                f"generation={snapshot.pointer_generation}"
+            )
+            coordinate = (
+                "unavailable"
+                if facts.map_coordinate_cell is None
+                else f"({facts.map_coordinate_cell[0]:.2f}, "
+                f"{facts.map_coordinate_cell[1]:.2f})"
+            )
+            self.bus.log(
+                "Native diagnostic summary: "
+                f"health={snapshot.status.value}; {pointer}; "
+                f"map={facts.selected_map_name or 'unselected'}; "
+                f"map_cell={coordinate}; "
+                f"cached_actor_slots={snapshot.providers.cached_actor_slots}; "
+                f"ocr_enabled={facts.ocr_enabled}; "
+                f"ocr_anchor_cached={facts.ocr_anchor_cached}; "
+                f"focused={facts.target_focused}; "
+                f"coordinate_error={facts.coordinate_error or 'none'}.",
+                "msg_blue",
+            )
             self.bus.publish_status(
                 "native_diagnostic_status",
                 f"Native diagnostic finished: {report.outcome.value}.",

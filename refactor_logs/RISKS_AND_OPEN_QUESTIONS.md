@@ -21,3 +21,18 @@
 | `RISK-017` | Critical | The first isolated core recomputed its schema/contract hashes from current code, so the known metadata-less model could remain approved after semantic drift. | `FARM-003` / Phase 03 | Freeze reviewed literal schema/contract hashes, bind the active artifact SHA to that contract, and reject recomputed drift. | Mitigated in isolated core; production preflight integration pending |
 | `RISK-018` | High | Legacy layout Y and direct native Z have opposite signs, and direct density excludes distant blocked actors while the legacy prefix does not. | `FARM-002` / Phase 03 | Carry both coordinate frames, maintain two density populations, and assert a full 482-value nonzero-Z golden vector. | Mitigated in isolated core; live-frame construction pending |
 | `RISK-019` | High | External exits and EVA could inherit non-policy shaping/penalty terms. | `FARM-002` / Phase 03 | External truncation is kill-only, cancellation/fatal is neutral, and EVA gates density/contact. | Mitigated in core; SB3 boundary integration pending |
+
+## Final reconciliation â€” 2026-07-31
+
+- Closed in canonical production and automated coverage: `RISK-003`,
+  `RISK-004`, `RISK-006`, `RISK-007`, `RISK-008`, `RISK-009`, `RISK-014`,
+  `RISK-015`, `RISK-017`, `RISK-018`, and `RISK-019`.
+- `RISK-010` is mitigated: cancellation cannot auto-reset and publication is a
+  short atomic critical section. Model serialization already in progress is
+  cooperatively non-preemptible; false joins preserve dependencies.
+- Still open pending live/external evidence: `RISK-001`, `RISK-002`, and
+  `RISK-005` (real FlyFF/Tk/Win32 behavior), `RISK-011` (an already-blocking
+  backend call), `RISK-012` (hard-crash paired-config recovery), and
+  `RISK-013` (confirmed persistence UI intentionally omitted).
+- `RISK-016` remains a low-severity future concern only if runtime commands
+  gain multiple concurrent callers; the current GUI serializes commands.

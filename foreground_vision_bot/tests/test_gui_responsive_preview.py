@@ -81,6 +81,8 @@ def test_late_worker_event_cannot_reenable_controls_during_shutdown() -> None:
         "-EDIT_MAP_CELLS-",
         "-RESET_MAP-",
         "-DELETE_MAP-",
+        "-NATIVE_HEALTH-",
+        "-RECOVER_POINTERS-",
     )
     gui.window = {key: _Button() for key in button_keys}
 

@@ -31,7 +31,7 @@ GUI event adapter
 | Capture source and frame generation | `CaptureService` | One generation at a time; copied snapshots; stale generations cannot publish. |
 | Bot Vision rendering | `PreviewService` | Fixed-rate consumer; publishes only the newest frame. |
 | Native memory handle and pointers | `NativeProcessService` | One coherent player/world pointer snapshot shared by both readers. Ordinary reads never recover. |
-| Pointer recovery | Diagnostic worker | Explicit, single-flight, cancellable, deadline-bounded, negatively cached, no automatic persistence. |
+| Pointer diagnostics/recovery | Diagnostic worker | Health uses one fixed pointer/pose sample plus cached actor/OCR/focus facts and map conversion. Recovery is explicit, single-flight, cancellable, deadline-bounded, negatively cached, and never auto-persisted. |
 | Farming key state and focus | `DirectFarmingControl` / `WindowFocusService` | One held-key ledger; autofocus plus cancellable manual grace; terminal paths release it. |
 | Farming behavior | `UnifiedFarmingEnv` | Visible `reset()`/`step()`, four actions, coherent native frame per step, typed terminal outcome. |
 | Model/report publication | `farming.reporting` | Temporary file plus atomic replace; report and recovery manifest identify the published artifact. |
@@ -78,4 +78,3 @@ one deadline. If a join times out, the GUI reports the live worker and retains
 its dependencies; a later close can finish safely. Model-space or preflight
 errors occur before `Bot.start()` enables movement. Fatal training failures
 write a report but do not overwrite the last-known-good model.
-

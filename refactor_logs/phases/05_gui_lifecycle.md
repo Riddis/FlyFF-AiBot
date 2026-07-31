@@ -51,10 +51,14 @@ and diagnostics and releases input. Close performs ordered, deadline-bounded
 shutdown and keeps dependencies alive after a false join.
 
 Native Health and Recover Pointers are explicit GUI commands. Health performs
-one fixed pointer sample plus cached provider/map/OCR/focus facts. Recovery is
+one fixed pointer/pose sample plus cached actor/OCR/focus facts and the selected
+map coordinate conversion, then logs a concise supported summary. Recovery is
 mutually exclusive with control, managed by the diagnostic worker, cancellable,
 deadline-bounded, and never persists offsets automatically.
 
 Acceptance: 25 GUI/runtime/diagnostic/bus/worker tests pass. Fake session tests
 also cover attach/preview/dry-run/stop and external-end training publication.
 Live Tk/Win32 behavior remains in the consolidated manual protocol.
+
+Final coordinate-summary coverage raises the focused diagnostic/controller gate
+to 14 passing tests.

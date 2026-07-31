@@ -115,6 +115,12 @@ class _DiagnosticBot:
         self.position_provider = SimpleNamespace(
             config=SimpleNamespace(resolver="module_pointer"),
             last_diagnostics=None,
+            read_pose=lambda *, pointer_snapshot: SimpleNamespace(
+                x=16.0,
+                y=3.0,
+                z=32.0,
+                pointer_snapshot=pointer_snapshot,
+            ),
         )
         self.monster_provider = SimpleNamespace(
             discovered_slot_bases=(1, 2, 3),
@@ -126,7 +132,11 @@ class _DiagnosticBot:
             "dynamic_kill_counter": True,
         }
         self._native_map_overlay_name = "Tower AoE"
-        self._native_map_overlay = object()
+        self._native_map_overlay = SimpleNamespace(
+            coordinate_frame=SimpleNamespace(
+                to_local_cells=lambda x, z: (x / 1.6, z / 1.6)
+            )
+        )
         self.kill_counter_reader = SimpleNamespace(
             _anchors={(1920, 1080): object()},
             full_scan_count=2,
@@ -169,6 +179,9 @@ def test_health_snapshot_is_typed_and_never_starts_recovery_or_scan() -> None:
     assert report.before.providers.cached_actor_slots == 3
     assert report.before.runtime.selected_map_name == "Tower AoE"
     assert report.before.runtime.map_overlay_loaded
+    assert report.before.runtime.native_player_position == (16.0, 3.0, 32.0)
+    assert report.before.runtime.map_coordinate_cell == (10.0, 20.0)
+    assert report.before.runtime.coordinate_error is None
     assert report.before.runtime.ocr_anchor_cached
     assert report.before.runtime.target_focused is True
     assert service.snapshot_calls == 1
@@ -184,6 +197,26 @@ def test_detached_health_is_a_typed_report() -> None:
     assert snapshot.captured_at == 7.5
     assert snapshot.process_id is None
     json.dumps(snapshot.to_dict())
+
+
+def test_managed_health_logs_supported_runtime_summary() -> None:
+    bot = _DiagnosticBot(_DiagnosticService())
+    bus = RuntimeBus()
+    controller = RuntimeController(bot, bus)
+
+    controller.start_native_diagnostic(recover=False, timeout=1.0)
+    assert controller.workers.join(WorkerKind.DIAGNOSTIC, 1.0)
+
+    messages = [message for _level, message in bus.drain_logs()]
+    summary = next(
+        message for message in messages if message.startswith("Native diagnostic summary")
+    )
+    assert "health=healthy" in summary
+    assert "map=Tower AoE" in summary
+    assert "map_cell=(10.00, 20.00)" in summary
+    assert "cached_actor_slots=3" in summary
+    assert "ocr_anchor_cached=True" in summary
+    assert "focused=True" in summary
 
 
 def test_managed_recovery_uses_worker_token_deadline_and_progress() -> None:
