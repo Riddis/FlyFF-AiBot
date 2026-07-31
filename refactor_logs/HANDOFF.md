@@ -139,6 +139,7 @@ both config files.
 - Validated world-rooted player-chain correction: `fc24bb4e8a66a64e4af992837f2dec505066f92a`.
 - Validated false-world/HP/preview/health-identity correction: `25ab14068cd432a72706c4caba7bc316990dfe03`.
 - Validated displaced structural world-identity correction: `5351a4c988f31b6982f9f85e65e19118b3721857`.
+- Validated structural module-marker world-identity correction: `f4903d98710f331d7aa175ffbc444fb05d1a0498`.
 - Protected pre-refactor SHA: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`
   through both protected refs.
 - Active model SHA-256 remains
