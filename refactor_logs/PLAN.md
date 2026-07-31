@@ -96,7 +96,7 @@ Acceptance: farming dependencies are explicit and active map/editor/vision behav
 
 ## Phase 07 — Legacy cleanup
 
-- [ ] `CLEAN-001` Finalize evidence-backed keep/merge/archive/delete manifest.
+- [x] `CLEAN-001` Finalize evidence-backed keep/merge/archive/delete manifest.
 - [x] `CLEAN-002` Remove obsolete movement-PPO/target/orbit/version-patch code and replace coverage.
 - [x] `CLEAN-003` Remove generated artifacts and update ignore rules.
 - [x] `CLEAN-004` Normalize production/test names without compatibility layers.
@@ -105,9 +105,9 @@ Acceptance: no active reference reaches removed design code and all equivalent b
 
 ## Phase 08 — Final validation and documentation
 
-- [ ] `DOC-001` Write `ARCHITECTURE.md`, `RUNBOOK.md`, and config reference.
+- [x] `DOC-001` Write `ARCHITECTURE.md`, `RUNBOOK.md`, and config reference.
 - [ ] `DOC-002` Run the complete relevant test/lint/type/smoke suite and compare performance.
-- [ ] `DOC-003` Record live-client validation gaps and model/config migration notes.
+- [x] `DOC-003` Record live-client validation gaps and model/config migration notes.
 - [ ] `DOC-004` Finalize journal, tree summary, commits, and handoff.
 
 Acceptance: repository is runnable, evidence is captured, docs are self-contained, and remaining live validation is explicit.

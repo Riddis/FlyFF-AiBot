@@ -76,3 +76,11 @@ files remain. `.gitignore` now excludes movement logs and both user ZIP backup
 names. The active unified policy remains byte-identical at SHA-256
 `3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2`.
 The broad suite after this slice is 525 passed and 1 skipped in 11.28 seconds.
+# Final disposition
+
+`FILE_MANIFEST.csv` now has 477 relevant rows and no pending/review Pass 2
+disposition. Every retained-final row resolves in the tree. Deleted and moved
+sets are summarized in `audits/final_disposition.md`; Git diff from the
+protected pre-refactor tag is the exact file ledger. The active unified model,
+Tower map/data/editor, user-owned deletions, and two ignored backup ZIPs remain
+protected as documented.

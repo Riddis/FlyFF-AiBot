@@ -1,0 +1,80 @@
+# Foreground Vision Bot Runbook
+
+## Install and launch
+
+Use 64-bit Windows, a visible FlyFF client, and Python 3.14-compatible packages.
+From the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Set-Location foreground_vision_bot
+..\.venv\Scripts\python.exe foreground_vision_farm.py
+```
+
+The application must be launched with a Windows account allowed to read the
+FlyFF process. Keep the Tower camera/layout in the normal farming setup; the
+canonical farming policy uses native heading and the fixed mapped coordinate
+frame, not a farming camera-discovery sweep.
+
+## First attach
+
+1. In FlyFF, enter the mapped Tower AoE area and keep the character outside the red teleport cells.
+2. In the GUI select **Tower AoE** and select at least one mob with a captured native `species_id`.
+3. Choose **Attach Flyff Window** and select the correct client.
+4. Wait for Bot Vision and an FPS value. Use **Native Health**; expect `healthy`, the selected map, cached-provider facts, and focused input status in the log.
+5. If the window is not focused when control starts, the bot attempts activation and then gives a two-second cancellable manual-focus grace period.
+
+## Dry run, training, and agent
+
+- **Native Dry Run (No Learning)** runs the canonical four-action environment without loading or changing a policy.
+- **Start Training** loads `models/farming/native_strategy_ppo.zip` when present, validates its observation/action contract before enabling input, and otherwise creates a compatible PPO model.
+- **Run Trained Agent** requires a compatible saved model and performs deterministic inference.
+
+Training checkpoints are written below `models/farming/native_checkpoints`.
+TensorBoard output goes below `training_logs/farming/native_strategy`. Session
+reports and publication manifests go below
+`training_logs/farming/native_sessions`; these are local runtime artifacts and
+are ignored by Git.
+
+## Stop and close
+
+Press **Stop** once. It cancels farming/mapping and native diagnostics and
+requests immediate key release. Wait for the finished status before starting a
+new control mode. Closing the window performs the same cancellation plus
+ordered worker joins. If the GUI reports a shutdown timeout, do not kill or
+detach resources underneath the named live worker; wait for its completion and
+close again.
+
+For an emergency, put FlyFF in the background and use Stop. Focus loss is a
+typed terminal and the direct controller releases its tracked movement keys.
+
+## Pointer/client update recovery
+
+Normal attach, preview, overlay, and farming reads never launch a broad pointer
+scan. If **Native Health** reports `pointer_unavailable` after a client update:
+
+1. Stop control and keep the character stationary in a known valid Tower cell.
+2. Choose **Recover Pointers**. The operation runs in its own worker for at most ten seconds and can be cancelled with Stop.
+3. Review the before/after health outcome. Recovery does not automatically persist offsets.
+4. If recovery succeeds but the shipped offsets need updating, validate several attach/health/player/actor samples first. The position and monster JSON pair must be updated transactionally; retain their `.pre_pointer_recovery.bak` files until the next successful launch.
+5. If recovery is not found, stop. Do not retry in a loop; the resolver uses cooldown/negative caching. Capture the GUI log and native diagnostic JSON facts for analysis.
+
+For actor-specific inspection, with control stopped:
+
+```powershell
+..\.venv\Scripts\python.exe inspect_native_monsters.py --window-title Flyff --json
+```
+
+This explicit command may perform actor discovery; it is not a preview/hot-path
+operation.
+
+## Common failures
+
+- **Attach first / missing first frame:** wait for capture to become live, then retry.
+- **No selected species:** capture/select at least one mob `species_id`.
+- **Outside map / in teleport trigger:** move to a known safe Tower cell before starting.
+- **Model contract mismatch:** preserve the rejected ZIP and start with a new model path; never force-load a same-shape model with unknown semantics.
+- **Capture degraded/lost:** verify the chosen window still exists, stop control, and reattach.
+- **Focus terminal:** focus FlyFF during the grace period and restart the session; stale movement is intentionally not restored.
+- **Fatal training report:** inspect the report's error and session fields. The previous model remains the last-known-good artifact.
+
