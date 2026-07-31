@@ -65,3 +65,8 @@ remain red for documented baseline debt. Post-fix null reads are below 0.009 ms
 p99 with zero enumeration, versus 979 ms and 24.9 MB scanned at baseline.
 `STAB-005` is ready for the scoped checkpoint commit; live-client attach/close
 validation remains explicitly required.
+
+Phase acceptance: complete in automated/fake coverage. Commit:
+`63651e97d6d013ac41364d912e98b70ac5c76b88`
+(`STAB-005 stabilize pointer recovery and runtime shutdown`). Live-client
+validation remains deferred and is not represented as complete.

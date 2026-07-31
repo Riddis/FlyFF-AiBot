@@ -36,7 +36,7 @@ Acceptance: call flow, thread, failure behavior, cleanup, and cancellation are d
 - [x] `STAB-002` Remove broad synchronous recovery from ordinary reads and preview/overlay hot paths.
 - [x] `STAB-003` Make recovery single-flight, cancellable, bounded, indexed, cooldown-backed, and observable.
 - [x] `STAB-004` Gate training/dry-run movement on resolved player state and make shutdown prompt.
-- [ ] `STAB-005` Validate and commit a runnable stabilization checkpoint.
+- [x] `STAB-005` Validate and commit a runnable stabilization checkpoint.
 
 Acceptance: required pointer and shutdown tests pass; failed reads are cheap; no hot path launches a broad scan.
 

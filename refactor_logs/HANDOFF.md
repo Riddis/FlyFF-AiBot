@@ -2,7 +2,7 @@
 
 ## Current position
 
-The user-provided brief and tracked repository guidance were read. Baseline, Static Pass 1, Runtime Pass 2, and implementation/validation of the narrow Phase 01 stabilization are complete. The stabilization is ready for its first commit: ordinary reads no longer scan, explicit recovery is bounded/single-flight/cancellable/cooldown-backed, farming startup preflights before input, and runtime events/shutdown are generation-aware and false-join safe.
+The user-provided brief and tracked repository guidance were read. Baseline, Static Pass 1, Runtime Pass 2, and Phase 01 stabilization are complete and committed at `63651e97d6d013ac41364d912e98b70ac5c76b88`. Ordinary reads no longer scan, explicit recovery is bounded/single-flight/cancellable/cooldown-backed, farming startup preflights before input, and runtime events/shutdown are generation-aware and false-join safe.
 
 ## Repository state known so far
 
@@ -23,7 +23,7 @@ The expanded stabilization suite passes 70 tests. Canonical pytest improved from
 
 ## Exact continuation
 
-In progress: `STAB-005` commit boundary only. Validate `STATE.json`, both JSONL ledgers, manifest uniqueness/coverage, and `git diff --check`. Then stage the prompt, journal, stabilization source, and behavior tests by exact path. Do not stage deleted `AGENTS.md`, `README.md`, or `foreground_vision_farm.json`. Commit as `STAB-005 stabilize pointer recovery and runtime shutdown`.
+In progress: Phase 02 `PTR-001`. Introduce one injected pointer state/resolver service shared by player and monster readers. Explicit recovery must be owned by a managed lifecycle boundary; ordinary provider, preview, and overlay reads remain cheap. Preserve the cooperative backend-call limitation as a typed/observable risk rather than spawning an unmanaged helper.
 
 ## Relevant files/symbols
 
@@ -40,5 +40,6 @@ In progress: `STAB-005` commit boundary only. Validate `STATE.json`, both JSONL 
 - Preserve without attribution changes: deleted `AGENTS.md`, `README.md`, `foreground_vision_farm.json`.
 - Keep: `codex_refactor_prompt_with_resume_logs.md` as the user-provided specification.
 - Keep: all modified stabilization source/test paths listed in `STATE.json`; they belong in the first refactor commit after validation.
-- Ready to commit: all modified stabilization source/test paths listed in `STATE.json`.
+- Committed stabilization: `63651e97d6d013ac41364d912e98b70ac5c76b88`.
+- Keep the current journal-only post-commit update.
 - Exclude from staging: deleted `AGENTS.md`, `README.md`, and `foreground_vision_farm.json`; these remain user-owned pre-existing changes.
