@@ -85,6 +85,7 @@ class NativeHealthSnapshot:
     world_field_offset: int | None = None
     world_vtable_offset: int | None = None
     world_vtable_field_offset: int | None = None
+    world_identity_kind: str | None = None
     self_pointer_offset: int | None = None
     species_offset: int | None = None
     active_species_offset: int | None = None
@@ -202,6 +203,7 @@ def collect_native_health(
     world_vtable_field_offset = _optional_int(
         getattr(service, "world_vtable_field_offset", None)
     )
+    world_identity_kind = getattr(service, "world_identity_kind", None)
     self_pointer_offset = _optional_int(getattr(service, "self_pointer_offset", None))
     species_offset = _optional_int(getattr(service, "species_offset", None))
     active_species_offset = _optional_int(
@@ -242,6 +244,9 @@ def collect_native_health(
             world_field_offset=world_field_offset,
             world_vtable_offset=world_vtable_offset,
             world_vtable_field_offset=world_vtable_field_offset,
+            world_identity_kind=(
+                None if world_identity_kind is None else str(world_identity_kind)
+            ),
             self_pointer_offset=self_pointer_offset,
             species_offset=species_offset,
             active_species_offset=active_species_offset,
@@ -305,6 +310,9 @@ def collect_native_health(
         world_field_offset=world_field_offset,
         world_vtable_offset=world_vtable_offset,
         world_vtable_field_offset=world_vtable_field_offset,
+        world_identity_kind=(
+            None if world_identity_kind is None else str(world_identity_kind)
+        ),
         self_pointer_offset=self_pointer_offset,
         species_offset=species_offset,
         active_species_offset=active_species_offset,

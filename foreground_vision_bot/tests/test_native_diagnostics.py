@@ -53,6 +53,7 @@ class _DiagnosticService:
         self.configured_world_pointer_offset = 0x596C6C
         self.world_vtable_offset = 0x800
         self.world_vtable_field_offset = 0x2C
+        self.world_identity_kind = "module_marker"
         self.player_pointer_address = 0x10002000
         self.world_pointer_address = 0x10002100
         self.is_closed = False
@@ -252,6 +253,7 @@ def test_managed_health_logs_supported_runtime_summary() -> None:
     assert "cached_actor_slots=3" in summary
     assert "world_vtable_offset=0x800" in summary
     assert "world_vtable_field=0x2C" in summary
+    assert "world_identity_kind=module_marker" in summary
     assert "ocr_anchor_cached=True" in summary
     assert "focused=True" in summary
 

@@ -88,8 +88,12 @@ configuration write. The bounded identity probe permits the vptr at any aligned
 field in the first `0x400` bytes, then requires its table to contain at least
 two module-owned function pointers. Successful anchored recovery stores the
 object-relative `layout.world_vtable_field_offset` and module-relative
-`layout.world_vtable_offset`; subsequent startup and Native Health snapshots
-must observe the same pair before reporting a healthy world.
+`layout.world_vtable_offset`. If no vtable qualifies, a stable module marker is
+accepted only for a repeated object prefix with at least three readable pointer
+fields and eight distinct nonzero values. `layout.world_identity_kind` records
+`vtable` or `module_marker`; subsequent startup and Native Health snapshots
+must observe the same field/table-or-marker pair before reporting a healthy
+world.
 
 ## Maps, mobs, and model compatibility
 

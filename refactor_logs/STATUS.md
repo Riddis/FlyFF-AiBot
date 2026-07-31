@@ -12,7 +12,7 @@
 - Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through `protected/pre-codex-refactor` and `backup/pre-codex-refactor`.
 - Production route: `runtime_controller.py -> farming.trainer -> UnifiedFarmingEnv / SessionAwarePPO`.
 - Active model: `models/farming/native_strategy_ppo.zip`; SHA-256 `3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2` unchanged.
-- Latest automated acceptance: 560 passed, 1 skipped in 10.65 seconds.
+- Latest automated acceptance: 562 passed, 1 skipped in 11.23 seconds.
 - Quality: changed production/test scope passes Ruff F/I; native production BasedPyright reports zero errors (existing warning-level typing debt remains); diff hygiene passes.
 - Live evidence retained: `Neuz.exe` base `0xB0000`, size `0x943000`, 32-bit; all 4,096 legacy candidates rejected at the historical self field. GUI responsiveness, cancellation, no-input startup failure, Stop, and shutdown passed.
 - Implemented next strategy: selected species consensus, inferred current world/self actor fields, Tower spawn `(253.0, 86.0)` plus exact current/max HP ranking, stable direct/one-hop module references, and mandatory second-sample movement confirmation.
@@ -38,3 +38,5 @@
 - Latest live evidence: 46 actors formed one layout with four self aliases, but all 52 shared world hypotheses failed only the byte-zero vtable assumption (`world_object_reject=52`). No player stage or persistence occurred.
 - Active correction: search a bounded `0x400`-byte world prefix for a stable displaced vptr and require its referenced table to contain module-owned function pointers. Persist/recheck both field and table offsets; emit detailed best-near-world identity evidence on failure.
 - Automated acceptance: 560 passed, 1 skipped in 10.65 seconds; 49 focused tests pass. Tests prove displaced-vptr recovery through movement/health/restart, bounded/aligned config validation, and rejection of readable scalar pages and bare module literals.
+- Structural fallback: a non-polymorphic manager may use a stable module marker only when repeated bounded samples have at least three readable pointer fields and eight distinct nonzero values. Identity kind is persisted and reported; scalar/lone-literal targets remain rejected.
+- Automated acceptance: 562 passed, 1 skipped in 11.23 seconds; 51 focused tests pass. Module-marker recovery is covered through movement, runtime health, persistence, and config validation.

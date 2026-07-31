@@ -76,6 +76,7 @@ class NativeMonsterConfig:
     world_offset: int = 0x16C
     world_vtable_offset: int | None = None
     world_vtable_field_offset: int = 0
+    world_identity_kind: str = "vtable"
     species_offset: int = 0x174
     hp_offset: int = 0x814
     active_species_offset: int = 0x1DBC
@@ -130,6 +131,10 @@ class NativeMonsterConfig:
         ):
             raise MonsterConfigurationError(
                 "world_vtable_field_offset must be aligned and at most 0x3FC"
+            )
+        if self.world_identity_kind not in {"vtable", "module_marker"}:
+            raise MonsterConfigurationError(
+                "world_identity_kind must be vtable or module_marker"
             )
 
         if not isinstance(self.private_memory_only, bool):
@@ -186,6 +191,11 @@ class NativeMonsterConfig:
             raise MonsterConfigurationError(
                 "discovery.private_memory_only must be true or false"
             )
+        world_identity_kind = layout.get("world_identity_kind", "vtable")
+        if not isinstance(world_identity_kind, str):
+            raise MonsterConfigurationError(
+                "layout.world_identity_kind must be a string"
+            )
 
         return cls(
             enabled=enabled,
@@ -241,6 +251,7 @@ class NativeMonsterConfig:
                 layout.get("world_vtable_field_offset", 0),
                 field_name="layout.world_vtable_field_offset",
             ),
+            world_identity_kind=world_identity_kind.strip(),
             species_offset=_parse_int(
                 layout.get("species_offset", "0x174"),
                 field_name="layout.species_offset",

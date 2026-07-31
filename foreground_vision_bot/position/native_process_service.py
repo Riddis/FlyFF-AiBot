@@ -205,6 +205,7 @@ class NativeProcessService:
         self._world_vtable_field_offset = int(
             monster_config.world_vtable_field_offset
         )
+        self._world_identity_kind = monster_config.world_identity_kind
         self._self_pointer_offset = int(monster_config.self_pointer_offset)
         self._species_offset = int(monster_config.species_offset)
         self._active_species_offset = int(monster_config.active_species_offset)
@@ -303,6 +304,11 @@ class NativeProcessService:
     def world_vtable_field_offset(self) -> int:
         with self._lock:
             return self._world_vtable_field_offset
+
+    @property
+    def world_identity_kind(self) -> str:
+        with self._lock:
+            return self._world_identity_kind
 
     @property
     def self_pointer_offset(self) -> int:
@@ -539,6 +545,8 @@ class NativeProcessService:
                         self._world_vtable_field_offset = (
                             recovery.world_vtable_field_offset
                         )
+                    if recovery.world_identity_kind is not None:
+                        self._world_identity_kind = recovery.world_identity_kind
                     if recovery.self_pointer_offset is not None:
                         self._self_pointer_offset = recovery.self_pointer_offset
                     if recovery.species_offset is not None:

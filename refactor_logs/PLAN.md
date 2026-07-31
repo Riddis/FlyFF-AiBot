@@ -135,5 +135,7 @@ Acceptance: repository is runnable, evidence is captured, docs are self-containe
 - [x] `PTR-LIVE-019` Persist the recovered module-relative world-vtable identity and require it in ordinary snapshots, cached recovery, restart health, and diagnostics.
 - [x] `PTR-LIVE-020` Replace the byte-zero vptr assumption with bounded displaced-vptr inference whose referenced table must contain module-owned function pointers.
 - [x] `PTR-LIVE-021` Persist/recheck the object-relative vptr field and expose bounded best-near-world diagnostics when no structural identity qualifies.
+- [x] `PTR-LIVE-022` Add a stable module-marker identity fallback gated by repeated pointer-rich and value-diverse world structure.
+- [x] `PTR-LIVE-023` Persist/recheck the explicit identity kind and expose aggregate/near structural evidence without admitting scalar pages or lone literals.
 
 Acceptance: ordinary reads remain scan-free; recovery is bounded, cancellable, single-flight, and off Tk; accepted slots are stable and coherently validated; startup failure is concise and input-safe.

@@ -90,18 +90,25 @@ class AnchoredDiscoveryEvidence:
     inferred_world_offset: int | None = None
     inferred_world_vtable: int | None = None
     inferred_world_vtable_field_offset: int | None = None
+    inferred_world_identity_kind: str | None = None
     world_object_rejections: int = 0
     world_identity_candidates: int = 0
     world_identity_span_rejections: int = 0
     world_identity_vtable_misses: int = 0
     world_identity_unstable_rejections: int = 0
     world_identity_module_pointer_fields: int = 0
+    world_identity_readable_pointer_fields: int = 0
+    world_identity_distinct_values: int = 0
+    world_identity_structural_rejections: int = 0
+    world_identity_marker_accepts: int = 0
     world_near_actor_support: int = 0
     world_near_species_support: int = 0
     world_near_module_references: int = 0
     world_near_field_offset: int | None = None
     world_near_target: int | None = None
     world_near_module_pointer_fields: int = 0
+    world_near_readable_pointer_fields: int = 0
+    world_near_distinct_values: int = 0
     inferred_self_actor_support: int = 0
     inferred_self_offset: int | None = None
     inferred_species_offset: int | None = None
@@ -140,6 +147,7 @@ class AnchoredPointerCandidate:
     world_field_offset: int
     world_vtable: int
     world_vtable_field_offset: int
+    world_identity_kind: str
     self_pointer_offset: int
     hp_offset: int
     monster_hp_offset: int
@@ -613,6 +621,8 @@ def _monster_anchors(
 
 _WORLD_IDENTITY_SPAN = 0x400
 _WORLD_VTABLE_PROBE_WORDS = 3
+_WORLD_MARKER_MINIMUM_READABLE_POINTERS = 3
+_WORLD_MARKER_MINIMUM_DISTINCT_VALUES = 8
 
 
 def _looks_like_module_vtable(
@@ -641,7 +651,7 @@ def _infer_world_identity(
     module_stop: int,
     readable_contains: Callable[[int, int], bool],
     evidence: AnchoredDiscoveryEvidence,
-) -> tuple[int, int] | None:
+) -> tuple[str, int, int] | None:
     evidence.world_identity_candidates += 1
     if not readable_contains(value, _WORLD_IDENTITY_SPAN):
         evidence.world_identity_span_rejections += 1
@@ -659,6 +669,33 @@ def _infer_world_identity(
         if module_start <= _u32(first, offset) < module_stop
     )
     evidence.world_identity_module_pointer_fields += len(module_fields)
+    stable_module_fields = tuple(
+        (offset, candidate)
+        for offset, candidate in module_fields
+        if _u32(second, offset) == candidate
+    )
+    readable_pointer_fields = tuple(
+        (offset, candidate)
+        for offset in range(0, len(first) - 3, 4)
+        if (
+            (candidate := _u32(first, offset)) > 0x10000
+            and not module_start <= candidate < module_stop
+            and readable_contains(candidate, 4)
+            and _u32(second, offset) == candidate
+        )
+    )
+    distinct_values = len(
+        {
+            _u32(first, offset)
+            for offset in range(0, len(first) - 3, 4)
+            if _u32(first, offset) != 0
+            and _u32(first, offset) == _u32(second, offset)
+        }
+    )
+    evidence.world_identity_readable_pointer_fields += len(
+        readable_pointer_fields
+    )
+    evidence.world_identity_distinct_values += distinct_values
     vtable_fields = tuple(
         (offset, candidate)
         for offset, candidate in module_fields
@@ -671,17 +708,38 @@ def _infer_world_identity(
     )
     if not vtable_fields:
         evidence.world_identity_vtable_misses += 1
-        return None
-
-    stable_fields = tuple(
-        (offset, candidate)
-        for offset, candidate in vtable_fields
-        if _u32(second, offset) == candidate
-    )
-    if not stable_fields:
+    else:
+        stable_fields = tuple(
+            (offset, candidate)
+            for offset, candidate in vtable_fields
+            if _u32(second, offset) == candidate
+        )
+        if stable_fields:
+            offset, candidate = min(
+                stable_fields,
+                key=lambda item: (item[0] != 0, item[0]),
+            )
+            return "vtable", offset, candidate
         evidence.world_identity_unstable_rejections += 1
-        return None
-    return min(stable_fields, key=lambda item: (item[0] != 0, item[0]))
+
+    # Some client managers are non-polymorphic but still carry a stable
+    # module-owned identity marker. Admit that shape only when the surrounding
+    # object is demonstrably pointer-rich and diverse; a readable scalar page
+    # or a lone module literal cannot pass this fallback.
+    if (
+        stable_module_fields
+        and len(readable_pointer_fields)
+        >= _WORLD_MARKER_MINIMUM_READABLE_POINTERS
+        and distinct_values >= _WORLD_MARKER_MINIMUM_DISTINCT_VALUES
+    ):
+        evidence.world_identity_marker_accepts += 1
+        offset, candidate = min(
+            stable_module_fields,
+            key=lambda item: (item[0] != 0, item[0]),
+        )
+        return "module_marker", offset, candidate
+    evidence.world_identity_structural_rejections += 1
+    return None
 
 
 def _infer_world(
@@ -694,7 +752,7 @@ def _infer_world(
     slot_refs: Mapping[int, list[int]],
     readable_contains: Callable[[int, int], bool],
     evidence: AnchoredDiscoveryEvidence,
-) -> tuple[int, int, int, int] | None:
+) -> tuple[int, int, str, int, int] | None:
     support: dict[tuple[int, int], set[int]] = defaultdict(set)
     species_support: dict[tuple[int, int], set[int]] = defaultdict(set)
     for actor in anchors:
@@ -711,7 +769,9 @@ def _infer_world(
             support[key].add(actor.base)
             species_support[key].add(actor.species)
 
-    ranked: list[tuple[tuple[int, int, int, int], int, int, int, int]] = []
+    ranked: list[
+        tuple[tuple[int, int, int, int], int, int, str, int, int]
+    ] = []
     best_near_score: tuple[int, int, int, int] | None = None
     for (offset, value), actors in support.items():
         module_refs = len(slot_refs.get(value, ()))
@@ -727,6 +787,10 @@ def _infer_world(
             -abs(offset - configured_world_offset),
         )
         identity_fields_before = evidence.world_identity_module_pointer_fields
+        readable_fields_before = (
+            evidence.world_identity_readable_pointer_fields
+        )
+        distinct_values_before = evidence.world_identity_distinct_values
         identity = _infer_world_identity(
             memory,
             value,
@@ -738,6 +802,13 @@ def _infer_world(
         observed_identity_fields = (
             evidence.world_identity_module_pointer_fields - identity_fields_before
         )
+        observed_readable_fields = (
+            evidence.world_identity_readable_pointer_fields
+            - readable_fields_before
+        )
+        observed_distinct_values = (
+            evidence.world_identity_distinct_values - distinct_values_before
+        )
         if best_near_score is None or score > best_near_score:
             best_near_score = score
             evidence.world_near_actor_support = len(actors)
@@ -746,17 +817,35 @@ def _infer_world(
             evidence.world_near_field_offset = offset
             evidence.world_near_target = value
             evidence.world_near_module_pointer_fields = observed_identity_fields
+            evidence.world_near_readable_pointer_fields = (
+                observed_readable_fields
+            )
+            evidence.world_near_distinct_values = observed_distinct_values
         if identity is None:
             evidence.world_object_rejections += 1
             continue
-        world_vtable_field_offset, world_vtable = identity
+        identity_kind, world_vtable_field_offset, world_vtable = identity
         ranked.append(
-            (score, offset, value, world_vtable_field_offset, world_vtable)
+            (
+                score,
+                offset,
+                value,
+                identity_kind,
+                world_vtable_field_offset,
+                world_vtable,
+            )
         )
     ranked.sort(reverse=True)
     if not ranked:
         return None
-    best_score, offset, world, world_vtable_field_offset, world_vtable = ranked[0]
+    (
+        best_score,
+        offset,
+        world,
+        identity_kind,
+        world_vtable_field_offset,
+        world_vtable,
+    ) = ranked[0]
     tied = [item for item in ranked[1:] if item[0] == best_score]
     if tied:
         evidence.anchor_ambiguities += len(tied) + 1
@@ -766,7 +855,14 @@ def _infer_world(
     evidence.inferred_world_offset = offset
     evidence.inferred_world_vtable = world_vtable
     evidence.inferred_world_vtable_field_offset = world_vtable_field_offset
-    return offset, world, world_vtable_field_offset, world_vtable
+    evidence.inferred_world_identity_kind = identity_kind
+    return (
+        offset,
+        world,
+        identity_kind,
+        world_vtable_field_offset,
+        world_vtable,
+    )
 
 
 def _aligned_value_offsets(data: bytes, value: int) -> tuple[int, ...]:
@@ -1001,6 +1097,7 @@ def discover_anchored_pointer_candidate(
     (
         world_field_offset,
         world_base,
+        world_identity_kind,
         world_vtable_field_offset,
         world_vtable,
     ) = inferred_world
@@ -1164,6 +1261,7 @@ def discover_anchored_pointer_candidate(
             world_field_offset=world_field_offset,
             world_vtable=world_vtable,
             world_vtable_field_offset=world_vtable_field_offset,
+            world_identity_kind=world_identity_kind,
             self_pointer_offset=selected_self_offset,
             hp_offset=selected_hp_offset,
             monster_hp_offset=actor_layout.hp_offset,

@@ -465,6 +465,52 @@ def test_world_identity_can_use_a_displaced_vtable_field() -> None:
     assert recovery.world_vtable_field_offset == displaced_field
 
 
+def test_pointer_rich_world_can_use_a_stable_module_marker() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    marker_field = 0x2C
+    memory.u32(memory.world_base, 0)
+    memory.u32(
+        memory.world_base + marker_field,
+        memory.module_base_value + 0x900,
+    )
+    for index, pointer in enumerate(
+        (memory.heap_base, memory.heap_base + 0x3000, memory.player_base)
+    ):
+        memory.u32(memory.world_base + 0x40 + index * 4, pointer)
+    for index in range(4):
+        memory.u32(memory.world_base + 0x60 + index * 4, index + 1)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    service = NativeProcessService(memory, config, owns_memory=False)
+
+    first = service.recover_pointers(hints=hints, timeout_seconds=2.0)
+
+    assert first.outcome is NativeRecoveryOutcome.MOVEMENT_REQUIRED
+    assert first.metrics.inferred_world_identity_kind == "module_marker"
+    assert first.metrics.world_identity_marker_accepts >= 1
+    memory.f32(memory.player_base + config.x_offset, 258.0)
+
+    second = service.recover_pointers(hints=hints, timeout_seconds=2.0)
+
+    assert second.outcome is NativeRecoveryOutcome.SUCCESS
+    assert second.recovery is not None
+    assert second.recovery.world_identity_kind == "module_marker"
+    assert service.world_identity_kind == "module_marker"
+    assert service.world_vtable_field_offset == marker_field
+    assert service.read_pointer_snapshot().world_base == memory.world_base
+
+
 def test_player_specific_hp_field_does_not_replace_monster_hp_layout() -> None:
     memory = AnchoredMemory()
     config = NativeMonsterConfig(

@@ -1,18 +1,18 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T21:25:09.2465623Z",
+  "updated_at": "2026-07-31T21:38:11.5620924Z",
   "current_phase": "live_current_client_acceptance",
-  "phase_status": "automated_displaced_world_identity_correction_complete_awaiting_human",
+  "phase_status": "automated_structural_world_marker_fallback_complete_awaiting_human",
   "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "5351a4c988f31b6982f9f85e65e19118b3721857",
-  "head_note": "Validated displaced structural world-identity checkpoint; this journal-only reconciliation follows.",
+  "head_commit": "273ea6d78f89f3bf87004b1667db90cd00cb0b52",
+  "head_note": "Validated displaced-world journal reconciliation; structural module-marker identity awaits checkpoint.",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
     "branch": "backup/pre-codex-refactor"
   },
-  "dirty_files": ["journal reconciliation pending checkpoint"],
+  "dirty_files": ["structural module-marker identity, tests, docs, and journal pending checkpoint"],
   "ignored_user_backups": [
     "foreground_vision_bot.zip",
     "refactor_logs.zip"
@@ -20,12 +20,12 @@
   "staged_files": [],
   "last_known_good_commit": "5351a4c988f31b6982f9f85e65e19118b3721857",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
-  "last_known_good_test_result": "560 passed, 1 skipped in 10.65 seconds",
+  "last_known_good_test_result": "562 passed, 1 skipped in 11.23 seconds",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
-  "last_broad_test_result": "560 passed, 1 skipped in 10.65 seconds",
+  "last_broad_test_result": "562 passed, 1 skipped in 11.23 seconds",
   "last_quality_result": "Changed Ruff F/I clean; native production BasedPyright 0 errors; diff hygiene clean. Existing warning-level and repository-wide legacy debt remains classified.",
   "active_model_sha256": "3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2",
-  "active_blocker": "Human-only current FlyFF validation of displaced structural world identity, movement persistence, and preview shutdown remains.",
+  "active_blocker": "Human-only current FlyFF validation of vtable-or-structural-marker world identity, movement persistence, and preview shutdown remains.",
   "blocked_tasks": ["PTR-LIVE-001 live_client_validation"],
   "next_action": "Run one stationary first-stage recovery; continue to movement only if its outcome is movement_required.",
   "completed_milestones": [
@@ -45,7 +45,7 @@
     "PTR-LIVE-007", "PTR-LIVE-008", "PTR-LIVE-009", "PTR-LIVE-010", "PTR-LIVE-011",
     "PTR-LIVE-012", "PTR-LIVE-013", "PTR-LIVE-014", "PTR-LIVE-015",
     "PTR-LIVE-016", "PTR-LIVE-017", "PTR-LIVE-018", "PTR-LIVE-019",
-    "PTR-LIVE-020", "PTR-LIVE-021"
+    "PTR-LIVE-020", "PTR-LIVE-021", "PTR-LIVE-022", "PTR-LIVE-023"
   ],
   "pending_migrations": [],
   "pending_deletions": [],

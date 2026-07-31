@@ -79,6 +79,13 @@ carried through movement, persistence, cached recovery, health, and restart.
 Failure logs include aggregate identity rejection reasons and the strongest
 near-world target instead of silently collapsing to `world_support=0`.
 
+Because the same live result contained 35 module-valued fields but zero valid
+vtables, recovery also recognizes a non-polymorphic manager through one stable
+module marker. That fallback requires two identical bounded samples with at
+least three readable non-module pointers and eight distinct nonzero values.
+The scalar page and a lone module literal remain hard failures. The explicit
+identity kind is persisted and rechecked throughout cache, health, and restart.
+
 The first strong result returns `movement_required` and is held only by the
 attachment's `NativeProcessService`. It is not applied or persisted. A second
 managed call resolves the same direct slot or one-hop chain and requires exact
@@ -104,8 +111,8 @@ both config files.
 
 ## Automated validation
 
-- Full canonical suite: 560 passed, 1 skipped in 10.65 seconds.
-- Focused recovery/persistence/diagnostic/preview/controller suite: 49 passed.
+- Full canonical suite: 562 passed, 1 skipped in 11.23 seconds.
+- Focused recovery/persistence/diagnostic/preview/controller suite: 51 passed.
 - Changed production/test Ruff F/I: pass.
 - Native production BasedPyright: 0 errors; existing warning-level typing debt
   remains classified.
@@ -119,7 +126,8 @@ both config files.
   duplicate world-rooted player fields, scalar false-world rejection,
   player/monster HP role separation, same-session and restarted world-identity
   health rejection, displaced-vptr discovery, vtable-shape validation, config
-  persistence, and cancellable preview construction.
+  persistence, pointer-rich module-marker fallback, identity-kind health, and
+  cancellable preview construction.
 
 ## Provenance
 

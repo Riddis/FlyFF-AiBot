@@ -92,10 +92,14 @@ World consensus is semantic, not just numerical: within a bounded `0x400`-byte
 object prefix, the shared target must expose a stable vptr whose referenced
 table contains module-owned function pointers. The vptr may be displaced from
 byte zero, but a readable scalar page or bare module-valued literal is not
-sufficient. This prevents common scalar bits such as float `1.0`
+sufficient. A non-polymorphic manager may instead use one stable module-owned
+marker only when the same repeated prefix has at least three readable pointer
+fields and eight distinct nonzero values. This prevents common scalar bits such as float `1.0`
 (`0x3F800000`) from masquerading as a world pointer. The object-relative vptr
 field and module-relative table identity are persisted and rechecked by
-ordinary pointer snapshots, including Native Health after restart. Monster-layout HP
+ordinary pointer snapshots, including Native Health after restart; the
+persisted identity kind distinguishes `vtable` from `module_marker`.
+Monster-layout HP
 remains distinct from the player-specific HP fields
 used by the stationary/movement anchor. Preview template detection observes its
 cancellation token between expensive matches so shutdown is not forced to wait

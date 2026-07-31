@@ -287,3 +287,18 @@ rejected target's actor/species support, module references, actor field, target,
 and module-field count. This preserves a hard semantic gate while making the
 next live result actionable. Automated coverage passes 560 tests with 1
 skipped; the focused recovery/persistence/diagnostic gate passes 49 tests.
+
+The same evidence also showed 35 stable module-valued fields across the 43
+rejected targets even though none led to a vtable. This is consistent with a
+non-polymorphic manager rather than a C++ object carrying a vptr. A second
+identity mode now accepts one stable module-owned marker only when two repeated
+`0x400`-byte samples contain at least three readable non-module pointers and
+eight distinct nonzero values. Thus the `0x3F800000` page and a page containing
+only a module literal still fail, while a stable pointer-rich manager can
+advance to spawn/HP/player/reference and movement validation.
+
+The selected `world_identity_kind` (`vtable` or `module_marker`) is carried
+through movement, paired persistence, cached recovery, Native Health, and
+restart. Diagnostics add aggregate and best-near readable-pointer/diversity
+counts plus marker acceptance/structural rejection totals. Automated coverage
+passes 562 tests with 1 skipped; the focused gate passes 51 tests.
