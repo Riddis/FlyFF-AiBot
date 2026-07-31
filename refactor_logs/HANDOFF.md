@@ -33,8 +33,8 @@ navigation, orbit/forced-steering behavior, patch installers/backups, obsolete
 migration utilities, the legacy farming model, and generated training outputs
 are removed after behavior parity coverage.
 
-The validated code checkpoint is
-`9cbc1f938d2b7f528b5962ec466f06459e6063e4`; the final journal-only checkpoint
+The validated current-client correction checkpoint is
+`d26ff8de14037be740a9cdb009fbda22b9eaa176`; the final journal-only reconciliation
 follows it. The permanent pre-refactor recovery point is
 `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`, protected by both
 `protected/pre-codex-refactor` and `backup/pre-codex-refactor`.
@@ -88,12 +88,10 @@ delete/move ledger.
 
 ## Dirty-tree ownership
 
-After the final journal checkpoint, only three pre-existing user-owned
-deletions should remain: root `AGENTS.md`, `README.md`, and
-`foreground_vision_farm.json`. Do not stage or restore them without a separate
-user decision. The two backup ZIPs are ignored and untouched. The inaccessible
-ignored `.pytest_tmp` remnants can be ignored; all real source/test directories
-compile cleanly when enumerated directly.
+The user committed the previously excluded root deletions in `3ac84c8`, before
+this correction began. The correction checkpoint is clean. The two ignored
+backup ZIPs remain untouched, and the protected pre-refactor refs still peel to
+`174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`.
 
 ## Exact continuation
 

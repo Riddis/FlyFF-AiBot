@@ -2,7 +2,7 @@
 
 - Phase: automated current-client correction complete; `PTR-LIVE-001` real-client acceptance pending.
 - Branch: `feature/adaptive-mapper`.
-- Validated code checkpoint: `9cbc1f938d2b7f528b5962ec466f06459e6063e4`; the final journal-only checkpoint follows it.
+- Validated current-client correction checkpoint: `d26ff8de14037be740a9cdb009fbda22b9eaa176`.
 - Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through immutable tag `protected/pre-codex-refactor` and branch `backup/pre-codex-refactor`.
 - Production route: `runtime_controller.py -> farming.trainer -> UnifiedFarmingEnv / SessionAwarePPO`.
 - Legacy farming monkeypatch, movement PPO, target/orbit/navigation, patch backup, installer, and generated-log paths: removed.
