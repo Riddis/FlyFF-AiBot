@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T15:45:00.0000000Z",
+  "updated_at": "2026-07-31T15:46:00.0000000Z",
   "current_phase": "phase_03_canonical_farming_environment",
-  "phase_status": "canonical_production_dispatch_cutover_validated",
+  "phase_status": "canonical_farming_legacy_deletion_broad_green",
   "active_task_id": "FARM-001,FARM-002,FARM-003,INPUT-001,BOUND-001",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "d4617eaa24363774f3200dfcb227ea9c638fba1a",
+  "head_commit": "c37598d8e89f3ae283e5f25b4055a70edd8e3400",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
@@ -20,8 +20,8 @@
   ],
   "staged_files": [],
   "checkpoint_candidate_files": [
-    "foreground_vision_bot/runtime_controller.py",
-    "foreground_vision_bot/tests/test_runtime_controller.py",
+    "the 24 exact deleted production/test paths frozen in refactor_logs/phases/07_legacy_cleanup.md",
+    "foreground_vision_bot/tests/test_coordinate_mapper.py",
     "refactor_logs/CHANGES.jsonl",
     "refactor_logs/COMMANDS.jsonl",
     "refactor_logs/HANDOFF.md",
@@ -30,17 +30,17 @@
     "refactor_logs/STATUS.md",
     "refactor_logs/phases/07_legacy_cleanup.md"
   ],
-  "last_known_good_commit": "d4617eaa24363774f3200dfcb227ea9c638fba1a",
+  "last_known_good_commit": "c37598d8e89f3ae283e5f25b4055a70edd8e3400",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q <10 exact farming/native foundation modules>",
   "last_known_good_test_result": "74 passed in 0.94 seconds; compileall, Ruff F/I, BasedPyright error level, Tower preflight, and diff check pass",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q foreground_vision_bot/tests --junitxml=refactor_logs/test_runs/20260731T_phase03_canonical.xml",
-  "last_broad_test_result": "569 passed, 2 documented legacy failures, 1 skipped in 6.02 seconds",
+  "last_broad_test_result": "550 passed, 1 skipped in 9.94 seconds; zero failures after canonical legacy deletion",
   "active_blocker": null,
   "blocked_tasks": [],
   "required_model_for_next_action": "Sol 5.6 with high reasoning per the active continuation instructions",
   "human_test_pending": false,
   "known_risks": ["RISK-003", "RISK-005", "RISK-006", "RISK-007", "RISK-008", "RISK-009", "RISK-010", "RISK-011", "RISK-012", "RISK-013", "RISK-014", "RISK-015", "RISK-016", "RISK-017", "RISK-018", "RISK-019"],
-  "next_action": "Checkpoint the canonical production dispatch, then execute the exact Phase 07 farming deletion manifest and run broad parity gates.",
+  "next_action": "Checkpoint the broad-green legacy farming deletion, then remove separately inventoried generated patch/backup artifacts and finish fake end-to-end/runtime documentation gates.",
   "current_work": [
     "Atomic production cutover to farming.trainer",
     "Behavior-parity validation before legacy deletion"

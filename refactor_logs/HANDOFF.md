@@ -52,6 +52,15 @@ production files and fourteen replaced implementation-detail tests are listed
 in `phases/07_legacy_cleanup.md` and must only be deleted after the dispatch
 cutover checkpoint.
 
+The dispatch cutover is checkpointed at
+`c37598d8e89f3ae283e5f25b4055a70edd8e3400`. The exact ten production modules
+and fourteen replaced tests were then deleted. The canonical test directory is
+fully green: 550 passed, 1 skipped in 9.94 seconds. The old mapper mismatch was
+a stale test assertion against values that were already explicitly `1`/`1` in
+the protected baseline JSON; the corrected test documents that conservative
+shipped override. Generated `.patch_backups` and `v0706_patch`/`v0707_patch`/
+`v0708_patch` trees have not yet been deleted.
+
 ## Validation
 
 - Phase 02 resume gate: 92 passed in 2.44 seconds.
@@ -73,9 +82,9 @@ cutover checkpoint.
 
 ## Exact continuation
 
-1. Commit the exact 9-path canonical dispatch cutover candidate in `STATE.json`.
-2. Delete only the exact Phase 07 farming manifest and run broad
-   parity/reference gates before checkpointing the cleanup.
+1. Commit the exact broad-green production/test deletion slice.
+2. Remove only the separately inventoried generated patch/backup artifacts,
+   then finish fake end-to-end, documentation, and live-client protocol gates.
 
 ## Dirty-tree ownership
 

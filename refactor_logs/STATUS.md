@@ -1,23 +1,25 @@
 # Refactor Status
 
 - Current phase: Phase 03 canonical farming environment and Phase 04 direct input foundation
-- Phase status: canonical production dispatch validated; exact legacy farming deletion set frozen for the next checkpointed slice
+- Phase status: canonical farming production/test legacy deletion is broad-green; generated patch/backup artifact cleanup remains
 - Active task: `FARM-001,FARM-002,FARM-003,INPUT-001,BOUND-001`
-- Branch/HEAD: `feature/adaptive-mapper` at `d4617eaa24363774f3200dfcb227ea9c638fba1a`
+- Branch/HEAD: `feature/adaptive-mapper` at `c37598d8e89f3ae283e5f25b4055a70edd8e3400`
 - Known checkpoints: stabilization `63651e97d6d013ac41364d912e98b70ac5c76b88`; shared native ownership `a0304c72089980f6028e2e4c7baef70909687f63`; completed Phase 02 `a63e2221e20fdd56add0acdfd2add0a389b83f61`
 - Protected pre-Codex commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`; annotated tag `protected/pre-codex-refactor`; branch `backup/pre-codex-refactor`
 - Latest checkpoint: `ca9457639e63696352aba3bd27bd7ad76dea0f52` (`RESUME-003 freeze canonical farming core contracts`)
 - Runtime foundation checkpoint: `8c7d8362a85a98e29f099c07325995c07b70f9d4` (`FARM-003 establish canonical farming runtime foundations`)
 - Environment/trainer checkpoint: `d4617eaa24363774f3200dfcb227ea9c638fba1a` (`FARM-004 establish explicit live session trainer`)
-- Staged files: none; 9 exact cutover checkpoint candidates recorded in `STATE.json`
+- Production dispatch checkpoint: `c37598d8e89f3ae283e5f25b4055a70edd8e3400` (`FARM-005 cut production to canonical trainer`)
+- Staged files: none; exact 24-file deletion manifest, mapper assertion correction, and journal are checkpoint candidates
 - Phase 03: dependency-light core and five behavior tests are committed, validated, and ready for production integration
 - Foundation slice: explicit cached actor refresh, coherent scan-free frame reads, Tower context, direct persistent input, and native kill confirmation pass 74 focused tests
 - User-owned/pre-existing: deleted `AGENTS.md`, deleted `README.md`, deleted root `foreground_vision_farm.json`
 - User-confirmed ignored backups: untracked `foreground_vision_bot.zip` and `refactor_logs.zip`; leave untouched and exclude from checkpoints
 - Environment/trainer gate: 89 tests pass in 4.68 s; compileall, Ruff F/I, and BasedPyright error-level pass. Real SB3 tests prove policy-prefix training once, external/cancel prefix discard, and metadata-safe resume.
 - Production dispatch: `runtime_controller.py` imports the three live modes directly from `farming.trainer`; 68 controller/farming tests pass after cutover. Patch modules remain present but unreachable pending their recorded deletion slice.
+- Canonical broad gate after deletion: 550 passed, 1 skipped, zero failures in 9.94 s. Ten dead production modules and fourteen implementation-detail tests are removed.
 - Runnable: yes under fake/integration coverage on the canonical farming route
 - Last checkpoint gate: 37 corrected focused tests passed in 0.40 s; canonical suite reached 569 passed, 2 known legacy failures, and 1 skipped in 6.02 s; compile/Ruff/BasedPyright/diff gates pass
 - Final Sol checkpoint audit: no remaining isolated-core correctness, contract, reachability, or candidate-boundary blocker
 - Blockers: none; live FlyFF validation is deferred until automated cutover and cleanup are complete
-- Next action: checkpoint this dispatch-only cutover, execute the exact Phase 07 legacy farming deletion manifest, then run broad parity/reference gates
+- Next action: checkpoint the green farming cleanup, remove separately inventoried generated patch/backup artifacts, then complete fake end-to-end, docs, and live-client protocol gates

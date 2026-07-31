@@ -5,15 +5,14 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from libs.HumanKeyboard import KeyPressTiming
 from mapper import Mapper
 from mapper.CoordinateFrame import CoordinateFrame
 from mapper.CoordinateMapper import (
     CoordinateMapper,
+    MapperConfig,
     MapProfileLocationMismatch,
     MapTransitionDetected,
-    MapperConfig,
     NativeMotion,
     load_mapper_config,
 )
@@ -151,8 +150,10 @@ def test_shipped_coordinate_mapper_config_loads_without_schema_mismatch() -> Non
     assert config.minimap_heading_enabled is True
     assert config.heading_collision_guard_degrees == pytest.approx(18.0)
     assert config.free_space_autofill_enabled is True
-    assert config.free_space_autofill_max_enclosed_area_cells == 12
-    assert config.free_space_autofill_max_enclosed_span_cells == 4
+    # The shipped profile deliberately applies the conservative 1x1 override
+    # instead of the broader dataclass defaults.
+    assert config.free_space_autofill_max_enclosed_area_cells == 1
+    assert config.free_space_autofill_max_enclosed_span_cells == 1
     assert config.free_space_autofill_max_line_length_cells == 40
 
 def test_runtime_mapper_alias_uses_coordinate_mapper() -> None:

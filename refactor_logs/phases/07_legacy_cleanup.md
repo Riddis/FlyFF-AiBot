@@ -1,6 +1,7 @@
 # Phase 07 — Legacy Cleanup
 
-Status: deletion manifest frozen; cutover checkpoint required before execution.
+Status: canonical farming production/test deletion executed and broad-gated;
+generated patch payload cleanup remains a separate slice.
 
 ## Canonical farming deletion set
 
@@ -41,3 +42,15 @@ SB3, reporting, and preflight suites and will be deleted in the same cleanup:
 Rollback is `git revert` of the future cleanup commit. The protected pre-Codex
 references remain immutable. Version-patch payload directories and generated
 backup trees are a later, separate deletion slice.
+
+## Deletion result
+
+The production dispatch checkpoint is
+`c37598d8e89f3ae283e5f25b4055a70edd8e3400`. All 24 exact files above were
+deleted afterward. Reference search outside the separately deferred generated
+patch/backup trees finds only canonical config/function names. The complete
+canonical suite is green at 550 passed and 1 skipped in 9.94 seconds. The last
+baseline mapper failure was a stale assertion: the shipped JSON has explicitly
+selected the conservative `1`/`1` free-space autofill limits since the protected
+pre-Codex commit, while the test incorrectly asserted the dataclass defaults
+`12`/`4`; the test now verifies the shipped override.
