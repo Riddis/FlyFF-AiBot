@@ -54,7 +54,7 @@ both config files.
 ## Provenance
 
 - Branch: `feature/adaptive-mapper`.
-- Pre-anchored checkpoint: `bba876bfe482fb55b26014e90a7350787e96dcf1`.
+- Validated anchored checkpoint: `84559c6ce6ff63a86604a4c71aff8ae2308cdb98`.
 - Protected pre-refactor SHA: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`
   through both protected refs.
 - Active model SHA-256 remains
