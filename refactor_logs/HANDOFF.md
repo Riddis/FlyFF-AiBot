@@ -44,6 +44,14 @@ and the canonical live preflight/trainer/dry-run/agent owner. Its focused gate
 is 89 tests in 4.68 seconds with clean compile, Ruff F/I, and error-level type
 checking. No production import has switched yet.
 
+That slice is now checkpointed at
+`d4617eaa24363774f3200dfcb227ea9c638fba1a`. The current dirty cutover changes
+`runtime_controller.py` to import all three live modes directly from
+`farming.trainer`; 68 controller/farming tests pass. The exact ten dead
+production files and fourteen replaced implementation-detail tests are listed
+in `phases/07_legacy_cleanup.md` and must only be deleted after the dispatch
+cutover checkpoint.
+
 ## Validation
 
 - Phase 02 resume gate: 92 passed in 2.44 seconds.
@@ -65,10 +73,9 @@ checking. No production import has switched yet.
 
 ## Exact continuation
 
-1. Commit the exact 17-path environment/trainer checkpoint candidate recorded
-   in `STATE.json`.
-2. Atomically switch the production controller away from the legacy patch
-   installers and run behavior-parity/broad gates before deletion.
+1. Commit the exact 9-path canonical dispatch cutover candidate in `STATE.json`.
+2. Delete only the exact Phase 07 farming manifest and run broad
+   parity/reference gates before checkpointing the cleanup.
 
 ## Dirty-tree ownership
 

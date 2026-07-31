@@ -59,9 +59,9 @@ Acceptance: every dirty/untracked path is classified, no user-owned artifact is 
 
 ## Phase 03 — Canonical farming environment
 
-- [ ] `FARM-001` Move final four-action behavior into normal canonical modules.
-- [ ] `FARM-002` Centralize observations, rewards, termination reasons, and telemetry.
-- [ ] `FARM-003` Add model-space compatibility preflight and typed configuration.
+- [x] `FARM-001` Move final four-action behavior into normal canonical modules.
+- [x] `FARM-002` Centralize observations, rewards, termination reasons, and telemetry.
+- [x] `FARM-003` Add model-space compatibility preflight and typed configuration.
 - [ ] `FARM-004` Replace patch-version tests with behavior-named coverage.
 - [ ] `FARM-005` Remove install-time monkeypatches after equivalent tests pass.
 
@@ -69,9 +69,9 @@ Acceptance: `reset()`/`step()` are explicit, only four actions exist, and no ver
 
 ## Phase 04 — Input, focus, and camera
 
-- [ ] `INPUT-001` Extract one persistent key-state/direct movement executor.
+- [x] `INPUT-001` Extract one persistent key-state/direct movement executor.
 - [ ] `INPUT-002` Extract cancellable focus and camera discovery services.
-- [ ] `INPUT-003` Remove unified-runtime dependence on movement PPO/target navigation.
+- [x] `INPUT-003` Remove unified-runtime dependence on movement PPO/target navigation.
 - [ ] `INPUT-004` Validate transitions, EVA, focus loss, cancellation, and exactly-once key release.
 
 Acceptance: direct control is deterministic and every terminal path releases keys.

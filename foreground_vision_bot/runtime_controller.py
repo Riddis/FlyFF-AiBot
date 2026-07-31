@@ -120,7 +120,7 @@ class RuntimeController:
 
     def start_rl(self, mode: str) -> None:
         def run(token: CancellationToken):
-            from native_farming import (
+            from farming.trainer import (
                 dry_run_native_farming,
                 run_native_farming_agent,
                 train_native_farming,

@@ -233,7 +233,7 @@ def test_rl_startup_enablement_belongs_to_preflighted_farming(
 
     bot = StartTrackingBot()
     controller = RuntimeController(bot, RuntimeBus())
-    module = ModuleType("native_farming")
+    module = ModuleType("farming.trainer")
 
     def dry_run(
         selected_bot,
@@ -249,7 +249,7 @@ def test_rl_startup_enablement_belongs_to_preflighted_farming(
     module.dry_run_native_farming = dry_run
     module.run_native_farming_agent = lambda *_args, **_kwargs: None
     module.train_native_farming = lambda *_args, **_kwargs: None
-    monkeypatch.setitem(sys.modules, "native_farming", module)
+    monkeypatch.setitem(sys.modules, "farming.trainer", module)
     monkeypatch.setattr(
         controller,
         "_start_control",
