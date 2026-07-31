@@ -123,6 +123,8 @@ class PointerRecoveryMetrics:
     inferred_self_actor_support: int = 0
     inferred_self_offset: int | None = None
     monster_base_hypotheses: int = 0
+    monster_layout_species_support: int = 0
+    monster_layout_ties: int = 0
     inferred_species_offset: int | None = None
     inferred_active_species_offset: int | None = None
     inferred_hp_offset: int | None = None
@@ -222,6 +224,8 @@ class _MetricsBuilder:
     inferred_self_actor_support: int = 0
     inferred_self_offset: int | None = None
     monster_base_hypotheses: int = 0
+    monster_layout_species_support: int = 0
+    monster_layout_ties: int = 0
     inferred_species_offset: int | None = None
     inferred_active_species_offset: int | None = None
     inferred_hp_offset: int | None = None
@@ -311,6 +315,8 @@ class _MetricsBuilder:
             inferred_self_actor_support=self.inferred_self_actor_support,
             inferred_self_offset=self.inferred_self_offset,
             monster_base_hypotheses=self.monster_base_hypotheses,
+            monster_layout_species_support=self.monster_layout_species_support,
+            monster_layout_ties=self.monster_layout_ties,
             inferred_species_offset=self.inferred_species_offset,
             inferred_active_species_offset=self.inferred_active_species_offset,
             inferred_hp_offset=self.inferred_hp_offset,
@@ -1372,6 +1378,10 @@ def _record_anchor_evidence(
     metrics.monster_hp_rejections = evidence.monster_hp_rejections
     metrics.monster_coordinate_rejections = evidence.monster_coordinate_rejections
     metrics.monster_base_hypotheses = evidence.monster_base_hypotheses
+    metrics.monster_layout_species_support = (
+        evidence.monster_layout_species_support
+    )
+    metrics.monster_layout_ties = evidence.monster_layout_ties
     metrics.inferred_world_actor_support = evidence.inferred_world_actor_support
     metrics.inferred_world_species_support = evidence.inferred_world_species_support
     metrics.inferred_world_offset = evidence.inferred_world_offset
@@ -2181,6 +2191,8 @@ def recover_local_player_pointer(
                 f" species_matches={metrics.species_value_matches},"
                 f" monsters={metrics.monster_candidates},"
                 f" monster_bases={metrics.monster_base_hypotheses},"
+                f" layout_species={metrics.monster_layout_species_support},"
+                f" layout_ties={metrics.monster_layout_ties},"
                 f" monster_species_reject={metrics.monster_species_rejections},"
                 f" monster_active_reject={metrics.monster_active_rejections},"
                 f" monster_hp_reject={metrics.monster_hp_rejections},"

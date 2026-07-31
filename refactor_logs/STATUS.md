@@ -1,6 +1,6 @@
 # Refactor Status
 
-- Phase: local actor-layout correction complete; awaiting one replacement `PTR-LIVE-001` live pass.
+- Phase: live-derived monster-consensus threshold correction complete; awaiting one replacement `PTR-LIVE-001` pass.
 - Branch: `feature/adaptive-mapper`.
 - Validated anchored implementation checkpoint: `84559c6ce6ff63a86604a4c71aff8ae2308cdb98`; this journal reconciliation follows it.
 - Validated local actor-layout correction checkpoint: `abd8f9e1cabaa4ea033ee221dbf2145b1470fffb`; final journal reconciliation follows it.
@@ -17,3 +17,6 @@
 - New live evidence: both runs reached the 1 GiB private-memory cap; species hits were 1,442/1,446 and spawn hits surged near the end, but `monster_candidates=0`. Legacy near-match probes found about 560 full structural matches, confirming the old self field alone is not a useful entry gate. No candidate reached spawn ranking or persistence.
 - Implemented correction: species addresses now seed local base/species/self hypotheses; one layout must have multiple actors and both selected species. XYZ/HP relationships shift with the inferred species field, private regions alternate high/low under a 1.5 GiB cap, and entered anchors plus every rejection stage are logged.
 - Open task: `PTR-LIVE-001` only. Run the replacement first-stage protocol once; move/click a second time only if it returns `recovery_movement_required`.
+- Latest live evidence: 1,435 species hits produced 1,970 actor-base hypotheses and a 38-actor top layout, but the layout was rejected because it did not contain both selected species. No world/player candidate was evaluated and nothing was persisted.
+- Active correction: accept a unique layout with either two species or at least three actors of one known species; retain all downstream world, spawn/exact-HP, stability, module-reference, and movement gates.
+- Automated acceptance: 548 passed, 1 skipped in 9.70 seconds. The exact three-actor/single-species cohort case passes while two actors still require cross-species support; layout species support and tie counts are reported.

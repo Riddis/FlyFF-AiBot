@@ -78,6 +78,8 @@ class AnchoredDiscoveryEvidence:
     spawn_x_matches: int = 0
     monster_candidates: int = 0
     monster_base_hypotheses: int = 0
+    monster_layout_species_support: int = 0
+    monster_layout_ties: int = 0
     monster_species_rejections: int = 0
     monster_active_rejections: int = 0
     monster_hp_rejections: int = 0
@@ -476,9 +478,10 @@ def _monster_anchors(
     selected_layout = ranked[0]
     required_species = min(2, len(species_matches))
     selected_actors = tuple(support[selected_layout].values())
-    if (
-        len(selected_actors) < 2
-        or len(species_support[selected_layout]) < required_species
+    selected_species_count = len(species_support[selected_layout])
+    evidence.monster_layout_species_support = selected_species_count
+    if len(selected_actors) < 2 or not (
+        selected_species_count >= required_species or len(selected_actors) >= 3
     ):
         evidence.monster_candidates = len(selected_actors)
         return selected_actors, None
@@ -487,15 +490,18 @@ def _monster_anchors(
         len(selected_actors),
         len(species_support[selected_layout]),
     )
-    if any(
-        (
+    tied_layouts = sum(
+        1
+        for layout in ranked[1:]
+        if (
             len(support[layout]),
             len(species_support[layout]),
         )
         == selected_score
-        for layout in ranked[1:]
-    ):
-        evidence.anchor_ambiguities += 1
+    )
+    evidence.monster_layout_ties = tied_layouts
+    if tied_layouts:
+        evidence.anchor_ambiguities += tied_layouts + 1
         evidence.monster_candidates = len(selected_actors)
         return selected_actors, None
 

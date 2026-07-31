@@ -131,3 +131,27 @@ Automated acceptance passes with 547 passed and 1 skipped. New coverage shifts
 the complete species/active/HP/XYZ field family, proves local base/self consensus,
 applies those inferred offsets through `NativeProcessService`, and retains the
 movement/persistence gates. `PTR-LIVE-001` remains the sole live boundary.
+
+## Third anchored live result
+
+Balanced discovery covered 1.095 GB across 1,749 private regions with no read
+failure. It found 1,435 species values, 1,970 plausible actor-base hypotheses,
+and a top layout containing 38 structurally valid known-monster actors. The
+layout still returned `actor_layout_inconclusive` because acceptance required
+both selected species in the same live cohort. The requirement asked for
+multiple known active monsters, not for both configured species to be physically
+present at the sample location. A unique 38-actor cohort is materially stronger
+than the intended minimum.
+
+The correction may accept one unique layout when it has either two known species
+or at least three independent actors of one known species. It must still pass
+shared-world inference, module reference resolution, exact spawn/current/max HP,
+player-kind checks, repeated stationary reads, and controlled movement before
+publication or persistence. Layout species support and tie counts must be logged.
+
+The threshold correction is complete. A layout advances when it is unique and
+has either two actors spanning both known species or at least three independent
+actors from one known species. Exact coverage reproduces the live-derived
+single-species cohort, verifies `layout_species=1` and `layout_ties=0`, and keeps
+all downstream gates unchanged. The full suite passes with 548 passed and 1
+skipped.

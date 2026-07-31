@@ -123,5 +123,7 @@ Acceptance: repository is runnable, evidence is captured, docs are self-containe
 - [x] `PTR-LIVE-007` Remove the historical species/base and active-field assumptions from initial monster-anchor construction using local pointer/layout consensus.
 - [x] `PTR-LIVE-008` Remove address-order bias from the private anchor scan and expose complete anchor rejection/hint evidence.
 - [x] `PTR-LIVE-009` Validate the corrected inference automatically and issue one replacement live protocol.
+- [x] `PTR-LIVE-010` Accept one unique monster layout supported by either two species or at least three actors of one known species, without weakening later world/player/movement gates.
+- [x] `PTR-LIVE-011` Expose layout species/tie evidence, validate the live-derived single-species cohort case, and replace the protocol.
 
 Acceptance: ordinary reads remain scan-free; recovery is bounded, cancellable, single-flight, and off Tk; accepted slots are stable and coherently validated; startup failure is concise and input-safe.

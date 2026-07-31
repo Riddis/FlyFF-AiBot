@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T19:01:27.2186200Z",
+  "updated_at": "2026-07-31T19:10:40.9712599Z",
   "current_phase": "live_current_client_acceptance",
-  "phase_status": "automated_correction_complete_awaiting_human",
+  "phase_status": "automated_threshold_correction_complete_awaiting_human",
   "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
   "head_commit": "abd8f9e1cabaa4ea033ee221dbf2145b1470fffb",
@@ -20,14 +20,14 @@
   "staged_files": [],
   "last_known_good_commit": "abd8f9e1cabaa4ea033ee221dbf2145b1470fffb",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
-  "last_known_good_test_result": "547 passed, 1 skipped in 9.62 seconds",
+  "last_known_good_test_result": "548 passed, 1 skipped in 9.70 seconds",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
-  "last_broad_test_result": "547 passed, 1 skipped in 9.62 seconds",
+  "last_broad_test_result": "548 passed, 1 skipped in 9.70 seconds",
   "last_quality_result": "Changed Ruff F/I clean; native production BasedPyright 0 errors; diff hygiene clean. Existing warning-level and repository-wide legacy debt remains classified.",
   "active_model_sha256": "3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2",
-  "active_blocker": "Human-only current FlyFF validation of the corrected local actor-layout inference remains.",
+  "active_blocker": "Human-only current FlyFF validation of the corrected unique-layout threshold remains.",
   "blocked_tasks": ["PTR-LIVE-001 live_client_validation"],
-  "next_action": "Run one replacement stationary first-stage recovery; continue to movement only if its outcome is movement_required.",
+  "next_action": "Run one stationary first-stage recovery; continue to movement only if its outcome is movement_required.",
   "completed_milestones": [
     "BASE-001", "BASE-002", "BASE-003", "BASE-004", "BASE-005",
     "AUD1-001", "AUD1-002", "AUD1-003", "AUD1-004",
@@ -42,7 +42,7 @@
     "CLEAN-001", "CLEAN-002", "CLEAN-003", "CLEAN-004",
     "DOC-001", "DOC-002", "DOC-003", "DOC-004",
     "PTR-LIVE-002", "PTR-LIVE-003", "PTR-LIVE-004", "PTR-LIVE-005", "PTR-LIVE-006",
-    "PTR-LIVE-007", "PTR-LIVE-008", "PTR-LIVE-009"
+    "PTR-LIVE-007", "PTR-LIVE-008", "PTR-LIVE-009", "PTR-LIVE-010", "PTR-LIVE-011"
   ],
   "pending_migrations": [],
   "pending_deletions": [],

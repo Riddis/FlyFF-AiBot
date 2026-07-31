@@ -25,6 +25,13 @@ field, and requires consensus across both selected species. Region order now
 alternates high/low under a 1.5 GiB cap. Start/outcome logs include exact hints,
 base hypotheses, field offsets, and each rejection stage.
 
+The next live pass then produced a unique 38-actor top layout but only one
+physically present selected species. The two-species rule was stricter than the
+requested multiple-actor consensus. The final threshold accepts either a
+two-species cohort or at least three independent actors of one known species,
+provided the layout is unique. Layout species support and ties are explicit;
+all world/player/HP/stability/movement/persistence gates remain unchanged.
+
 The first strong result returns `movement_required` and is held only by the
 attachment's `NativeProcessService`. It is not applied or persisted. A second
 managed call resolves the same direct slot or one-hop chain and requires exact
@@ -50,7 +57,7 @@ both config files.
 
 ## Automated validation
 
-- Full canonical suite: 547 passed, 1 skipped in 9.62 seconds.
+- Full canonical suite: 548 passed, 1 skipped in 9.70 seconds.
 - Focused pointer/native/controller suite: 91 passed.
 - Changed production/test Ruff F/I: pass.
 - Native production BasedPyright: 0 errors; existing warning-level typing debt

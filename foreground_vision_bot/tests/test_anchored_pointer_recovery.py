@@ -342,6 +342,54 @@ def test_species_anchor_infers_shifted_actor_field_family() -> None:
     assert recovery.z_offset == actual.z_offset
 
 
+def test_unique_three_actor_single_species_layout_is_sufficient() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    second = memory.heap_base + 0x3000
+    memory.i32(second + config.species_offset, 944)
+    memory.i32(second + config.active_species_offset, 944)
+    third = memory.heap_base + 0x9000
+    memory.u32(third + memory.new_self_offset, third)
+    memory.u32(third + memory.new_world_offset, memory.world_base)
+    memory.i32(third + config.species_offset, 944)
+    memory.i32(third + config.active_species_offset, 944)
+    memory.i32(third + config.hp_offset, 900)
+    memory.f32(third + config.x_offset, 270.0)
+    memory.f32(third + config.y_offset, 12.0)
+    memory.f32(third + config.z_offset, 95.0)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    state = PointerRecoveryState()
+
+    assert recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    ) is None
+
+    metrics = state.metrics_for(memory.pid, memory.module_base_value)
+    assert metrics is not None
+    assert metrics.outcome == "movement_required"
+    assert metrics.monster_candidates == 3
+    assert metrics.monster_layout_species_support == 1
+    assert metrics.monster_layout_ties == 0
+
+
 def test_service_applies_one_level_player_chain_after_movement() -> None:
     memory = AnchoredMemory()
     config = NativeMonsterConfig(

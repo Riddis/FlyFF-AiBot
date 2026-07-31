@@ -29,8 +29,9 @@ of that exact candidate.
 4. While the worker runs, move the GUI window once to confirm repainting, but do
    not move the character. Wait for completion. Expected result is
    `recovery_movement_required`; it is not a failure. The log must show at least
-   two validated monster candidates across species 944/948, nonzero monster-base
-   hypotheses, inferred species/active/HP/XYZ/world/self field offsets and
+   either two validated actors spanning species 944/948 or at least three
+   validated actors from one of them, nonzero monster-base hypotheses, zero
+   layout ties, inferred species/active/HP/XYZ/world/self field offsets and
    support, one stable spawn/player candidate, and a direct or one-hop player
    and world reference. It must also print the exact entered spawn/HP anchors.
    Neither JSON config may change and no recovery backup may be created yet.
