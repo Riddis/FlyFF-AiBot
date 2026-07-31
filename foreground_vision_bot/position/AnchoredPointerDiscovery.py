@@ -77,6 +77,7 @@ class AnchoredDiscoveryEvidence:
     species_value_matches: int = 0
     spawn_x_matches: int = 0
     monster_candidates: int = 0
+    monster_base_hypotheses: int = 0
     monster_species_rejections: int = 0
     monster_active_rejections: int = 0
     monster_hp_rejections: int = 0
@@ -86,6 +87,12 @@ class AnchoredDiscoveryEvidence:
     inferred_world_offset: int | None = None
     inferred_self_actor_support: int = 0
     inferred_self_offset: int | None = None
+    inferred_species_offset: int | None = None
+    inferred_active_species_offset: int | None = None
+    inferred_hp_offset: int | None = None
+    inferred_x_offset: int | None = None
+    inferred_y_offset: int | None = None
+    inferred_z_offset: int | None = None
     spawn_structure_candidates: int = 0
     spawn_world_matches: int = 0
     spawn_hp_matches: int = 0
@@ -112,6 +119,11 @@ class AnchoredPointerCandidate:
     self_pointer_offset: int
     hp_offset: int
     max_hp_offset: int
+    species_offset: int
+    active_species_offset: int
+    x_offset: int
+    y_offset: int
+    z_offset: int
     baseline_x: float
     baseline_y: float
     baseline_z: float
@@ -136,6 +148,23 @@ class _MonsterAnchor:
     data: bytes
 
 
+@dataclass(frozen=True, slots=True)
+class _InferredActorLayout:
+    species_offset: int
+    active_species_offset: int
+    hp_offset: int
+    x_offset: int
+    y_offset: int
+    z_offset: int
+    self_offset: int
+
+
+@dataclass(frozen=True, slots=True)
+class _MonsterHypothesis:
+    actor: _MonsterAnchor
+    layout: _InferredActorLayout
+
+
 def _bounds(region: object) -> tuple[int, int]:
     base = int(getattr(region, "base_address"))
     size = int(getattr(region, "size"))
@@ -143,12 +172,27 @@ def _bounds(region: object) -> tuple[int, int]:
 
 
 def _private_regions(regions: Iterable[object]) -> tuple[object, ...]:
-    return tuple(
+    ordered = sorted(
+        (
         region
         for region in regions
         if int(getattr(region, "region_type", MEM_PRIVATE)) == MEM_PRIVATE
         and _bounds(region)[1] > _bounds(region)[0]
+        ),
+        key=lambda region: _bounds(region)[0],
     )
+    # Alternate high and low virtual addresses so a byte cap cannot exclude
+    # every late private region merely because earlier regions are large.
+    balanced: list[object] = []
+    low = 0
+    high = len(ordered) - 1
+    while low <= high:
+        balanced.append(ordered[high])
+        high -= 1
+        if low <= high:
+            balanced.append(ordered[low])
+            low += 1
+    return tuple(balanced)
 
 
 def _u32(data: bytes, offset: int) -> int:
@@ -274,74 +318,197 @@ def _monster_anchors(
     maximum_candidates: int,
     check: Callable[[], None],
     evidence: AnchoredDiscoveryEvidence,
-) -> tuple[_MonsterAnchor, ...]:
-    anchors: list[_MonsterAnchor] = []
-    seen: set[int] = set()
+) -> tuple[tuple[_MonsterAnchor, ...], _InferredActorLayout | None]:
+    hypotheses: list[_MonsterHypothesis] = []
+    accepted_by_species: dict[int, int] = defaultdict(int)
+    seen: set[tuple[int, int, int]] = set()
+    coordinate_deltas = (
+        x_offset - species_offset,
+        y_offset - species_offset,
+        z_offset - species_offset,
+    )
+    hp_delta = hp_offset - species_offset
+    active_delta = active_species_offset - species_offset
+    page_size = 0x1000
+    local_window_size = 0x5000
+    maximum_species_offset = 0x1000
+    maximum_actor_span = max(0x4000, object_span)
+    per_species_limit = max(2, maximum_candidates // max(1, len(species_matches)))
+
     for expected_species, matches in species_matches.items():
         for address in sorted(matches):
             check()
-            if len(seen) >= maximum_candidates:
+            if accepted_by_species[expected_species] >= per_species_limit:
                 break
-            base = int(address) - int(species_offset)
-            if base in seen or not _contains(readable_contains, base, object_span):
+            # A species value is an address anchor, not proof that the old
+            # species offset still identifies the actor base. Read its local
+            # allocation and look for self references that imply both base and
+            # current species offset.
+            window_start = int(address) & ~(page_size - 1)
+            if not _contains(
+                readable_contains,
+                window_start,
+                local_window_size,
+            ):
+                evidence.monster_species_rejections += 1
                 continue
-            seen.add(base)
             try:
-                data = memory.read(base, object_span)
-                species = _i32(data, species_offset)
-                active = _i32(data, active_species_offset)
-                hp = _i32(data, hp_offset)
-                coordinates = (
-                    _f32(data, x_offset),
-                    _f32(data, y_offset),
-                    _f32(data, z_offset),
-                )
+                window = memory.read(window_start, local_window_size)
             except Exception:
                 evidence.monster_species_rejections += 1
                 continue
-            if species != expected_species:
+
+            local_candidates = 0
+            for relative in range(0, len(window) - 3, 4):
+                if relative % 0x1000 == 0:
+                    check()
+                base = _u32(window, relative)
+                current_species_offset = int(address) - base
+                current_self_offset = window_start + relative - base
+                identity = (base, current_species_offset, current_self_offset)
+                if (
+                    base <= 0x10000
+                    or current_species_offset < 0x40
+                    or current_species_offset > maximum_species_offset
+                    or current_self_offset < 0
+                    or current_self_offset >= maximum_actor_span
+                    or identity in seen
+                    or not _contains(
+                        readable_contains,
+                        base,
+                        maximum_actor_span,
+                    )
+                ):
+                    continue
+                seen.add(identity)
+                local_candidates += 1
+                evidence.monster_base_hypotheses += 1
+
+                current_x_offset = current_species_offset + coordinate_deltas[0]
+                current_y_offset = current_species_offset + coordinate_deltas[1]
+                current_z_offset = current_species_offset + coordinate_deltas[2]
+                current_hp_offset = current_species_offset + hp_delta
+                if min(
+                    current_x_offset,
+                    current_y_offset,
+                    current_z_offset,
+                    current_hp_offset,
+                ) < 0:
+                    evidence.monster_species_rejections += 1
+                    continue
+                try:
+                    data = memory.read(base, maximum_actor_span)
+                    species = _i32(data, current_species_offset)
+                    hp = _i32(data, current_hp_offset)
+                    coordinates = (
+                        _f32(data, current_x_offset),
+                        _f32(data, current_y_offset),
+                        _f32(data, current_z_offset),
+                    )
+                except Exception:
+                    evidence.monster_species_rejections += 1
+                    continue
+                if species != expected_species:
+                    evidence.monster_species_rejections += 1
+                    continue
+
+                active_offsets = tuple(
+                    offset
+                    for offset in _aligned_value_offsets(data, expected_species)
+                    if offset != current_species_offset
+                )
+                if not active_offsets:
+                    evidence.monster_active_rejections += 1
+                    continue
+                current_active_offset = min(
+                    active_offsets,
+                    key=lambda offset: abs(
+                        offset - (current_species_offset + active_delta)
+                    ),
+                )
+                if hp <= 0:
+                    evidence.monster_hp_rejections += 1
+                    continue
+                if not all(math.isfinite(value) for value in coordinates) or any(
+                    abs(value) > coordinate_limit for value in coordinates
+                ):
+                    evidence.monster_coordinate_rejections += 1
+                    continue
+                hypotheses.append(
+                    _MonsterHypothesis(
+                        actor=_MonsterAnchor(base, species, data),
+                        layout=_InferredActorLayout(
+                            species_offset=current_species_offset,
+                            active_species_offset=current_active_offset,
+                            hp_offset=current_hp_offset,
+                            x_offset=current_x_offset,
+                            y_offset=current_y_offset,
+                            z_offset=current_z_offset,
+                            self_offset=current_self_offset,
+                        ),
+                    )
+                )
+                accepted_by_species[expected_species] += 1
+            if local_candidates == 0:
                 evidence.monster_species_rejections += 1
-                continue
-            if active != species:
-                evidence.monster_active_rejections += 1
-                continue
-            if hp <= 0:
-                evidence.monster_hp_rejections += 1
-                continue
-            if not all(math.isfinite(value) for value in coordinates) or any(
-                abs(value) > coordinate_limit for value in coordinates
-            ):
-                evidence.monster_coordinate_rejections += 1
-                continue
-            anchors.append(_MonsterAnchor(base, species, data))
-    evidence.monster_candidates = len(anchors)
-    return tuple(anchors)
+            sleep(0)
 
-
-def _infer_self_offset(
-    anchors: tuple[_MonsterAnchor, ...],
-    *,
-    evidence: AnchoredDiscoveryEvidence,
-) -> int | None:
-    support: dict[int, set[int]] = defaultdict(set)
-    for actor in anchors:
-        needle = struct.pack("<I", actor.base)
-        for absolute in _find_aligned(actor.data, needle, actor.base):
-            support[absolute - actor.base].add(actor.base)
+    support: dict[_InferredActorLayout, dict[int, _MonsterAnchor]] = defaultdict(dict)
+    species_support: dict[_InferredActorLayout, set[int]] = defaultdict(set)
+    for hypothesis in hypotheses:
+        support[hypothesis.layout][hypothesis.actor.base] = hypothesis.actor
+        species_support[hypothesis.layout].add(hypothesis.actor.species)
     if not support:
-        return None
-    ordered = sorted(
-        support.items(),
-        key=lambda item: (len(item[1]), -item[0]),
+        evidence.monster_candidates = 0
+        return (), None
+
+    ranked = sorted(
+        support,
+        key=lambda layout: (
+            len(support[layout]),
+            len(species_support[layout]),
+            -abs(layout.species_offset - species_offset),
+            -abs(layout.active_species_offset - active_species_offset),
+            -abs(layout.self_offset),
+        ),
         reverse=True,
     )
-    offset, bases = ordered[0]
-    minimum = max(2, math.ceil(len(anchors) * 0.6))
-    if len(bases) < minimum:
-        return None
-    evidence.inferred_self_offset = offset
-    evidence.inferred_self_actor_support = len(bases)
-    return offset
+    selected_layout = ranked[0]
+    required_species = min(2, len(species_matches))
+    selected_actors = tuple(support[selected_layout].values())
+    if (
+        len(selected_actors) < 2
+        or len(species_support[selected_layout]) < required_species
+    ):
+        evidence.monster_candidates = len(selected_actors)
+        return selected_actors, None
+
+    selected_score = (
+        len(selected_actors),
+        len(species_support[selected_layout]),
+    )
+    if any(
+        (
+            len(support[layout]),
+            len(species_support[layout]),
+        )
+        == selected_score
+        for layout in ranked[1:]
+    ):
+        evidence.anchor_ambiguities += 1
+        evidence.monster_candidates = len(selected_actors)
+        return selected_actors, None
+
+    evidence.monster_candidates = len(selected_actors)
+    evidence.inferred_species_offset = selected_layout.species_offset
+    evidence.inferred_active_species_offset = selected_layout.active_species_offset
+    evidence.inferred_hp_offset = selected_layout.hp_offset
+    evidence.inferred_x_offset = selected_layout.x_offset
+    evidence.inferred_y_offset = selected_layout.y_offset
+    evidence.inferred_z_offset = selected_layout.z_offset
+    evidence.inferred_self_offset = selected_layout.self_offset
+    evidence.inferred_self_actor_support = len(selected_actors)
+    return selected_actors, selected_layout
 
 
 def _infer_world(
@@ -357,7 +524,7 @@ def _infer_world(
     support: dict[tuple[int, int], set[int]] = defaultdict(set)
     species_support: dict[tuple[int, int], set[int]] = defaultdict(set)
     for actor in anchors:
-        scan_stop = min(len(actor.data), 0x500)
+        scan_stop = min(len(actor.data), 0x1000)
         for offset in range(0, scan_stop - 3, 4):
             value = _u32(actor.data, offset)
             if (
@@ -494,7 +661,7 @@ def discover_anchored_pointer_candidate(
     check: Callable[[], None],
     stability_samples: int = 3,
     stability_delay_seconds: float = 0.03,
-    maximum_scan_bytes: int = 0x40000000,
+    maximum_scan_bytes: int = 0x60000000,
     maximum_monster_candidates: int = 512,
     progress_callback: Callable[[AnchoredDiscoveryEvidence], None] | None = None,
 ) -> AnchoredDiscoveryResult:
@@ -526,9 +693,9 @@ def discover_anchored_pointer_candidate(
         active_species_offset,
         hp_offset,
         z_offset,
-        0x500,
+        0x4000,
     ) + 4
-    anchors = _monster_anchors(
+    anchors, actor_layout = _monster_anchors(
         memory,
         species_matches,
         species_offset=species_offset,
@@ -551,7 +718,14 @@ def discover_anchored_pointer_candidate(
             evidence,
             "Fewer than two known active monster actors passed structural checks.",
         )
-    self_offset = _infer_self_offset(anchors, evidence=evidence)
+    if actor_layout is None:
+        return AnchoredDiscoveryResult(
+            "actor_layout_inconclusive",
+            None,
+            evidence,
+            "Known monster hits did not produce one consensus actor layout.",
+        )
+    self_offset = actor_layout.self_offset
     inferred_world = _infer_world(
         anchors,
         configured_world_offset=configured_world_field_offset,
@@ -561,7 +735,7 @@ def discover_anchored_pointer_candidate(
         readable_contains=readable_contains,
         evidence=evidence,
     )
-    if self_offset is None or inferred_world is None:
+    if inferred_world is None:
         return AnchoredDiscoveryResult(
             "actor_layout_inconclusive",
             None,
@@ -579,14 +753,14 @@ def discover_anchored_pointer_candidate(
     maximum_hp = int(hints.player_max_hp)
     for x_address in sorted(spawn_matches):
         check()
-        base = int(x_address) - x_offset
+        base = int(x_address) - actor_layout.x_offset
         if not _contains(readable_contains, base, object_span):
             continue
         try:
             data = memory.read(base, object_span)
-            x = _f32(data, x_offset)
-            y = _f32(data, y_offset)
-            z = _f32(data, z_offset)
+            x = _f32(data, actor_layout.x_offset)
+            y = _f32(data, actor_layout.y_offset)
+            z = _f32(data, actor_layout.z_offset)
         except Exception:
             continue
         evidence.spawn_structure_candidates += 1
@@ -610,7 +784,11 @@ def discover_anchored_pointer_candidate(
         if not hp_offsets or not max_hp_offsets:
             continue
         evidence.spawn_hp_matches += 1
-        selected_hp_offset = hp_offset if hp_offset in hp_offsets else hp_offsets[0]
+        selected_hp_offset = (
+            actor_layout.hp_offset
+            if actor_layout.hp_offset in hp_offsets
+            else hp_offsets[0]
+        )
         if current_hp == maximum_hp:
             # At full health both fields contain the same value. Prefer a
             # distinct second occurrence so a later damage sample can still
@@ -626,8 +804,8 @@ def discover_anchored_pointer_candidate(
         else:
             selected_max_offset = max_hp_offsets[0]
         try:
-            species = _i32(data, species_offset)
-            active = _i32(data, active_species_offset)
+            species = _i32(data, actor_layout.species_offset)
+            active = _i32(data, actor_layout.active_species_offset)
         except Exception:
             species = 0
             active = 0
@@ -641,8 +819,8 @@ def discover_anchored_pointer_candidate(
             check()
             try:
                 sample_data = memory.read(base, object_span)
-                sample_x = _f32(sample_data, x_offset)
-                sample_z = _f32(sample_data, z_offset)
+                sample_x = _f32(sample_data, actor_layout.x_offset)
+                sample_z = _f32(sample_data, actor_layout.z_offset)
                 sample_hp = _i32(sample_data, selected_hp_offset)
                 sample_world = _u32(sample_data, world_field_offset)
                 sample_self = _u32(sample_data, self_offset)
@@ -706,6 +884,11 @@ def discover_anchored_pointer_candidate(
             self_pointer_offset=self_offset,
             hp_offset=selected_hp_offset,
             max_hp_offset=selected_max_offset,
+            species_offset=actor_layout.species_offset,
+            active_species_offset=actor_layout.active_species_offset,
+            x_offset=actor_layout.x_offset,
+            y_offset=actor_layout.y_offset,
+            z_offset=actor_layout.z_offset,
             baseline_x=x,
             baseline_y=y,
             baseline_z=z,
@@ -717,7 +900,7 @@ def discover_anchored_pointer_candidate(
         score = (
             int(not player_chain),
             int(not world_chain),
-            int(selected_hp_offset == hp_offset),
+            int(selected_hp_offset == actor_layout.hp_offset),
             -math.hypot(x - expected_x, z - expected_z),
         )
         player_candidates.append((score, candidate))
@@ -754,9 +937,6 @@ def confirm_anchored_movement(
     candidate: AnchoredPointerCandidate,
     hints: PointerRecoveryHints,
     *,
-    x_offset: int,
-    y_offset: int,
-    z_offset: int,
     check: Callable[[], None],
     samples: int = 3,
     delay_seconds: float = 0.05,
@@ -792,9 +972,15 @@ def confirm_anchored_movement(
     for index in range(max(3, int(samples))):
         check()
         try:
-            x = float(struct.unpack("<f", memory.read(player + x_offset, 4))[0])
-            y = float(struct.unpack("<f", memory.read(player + y_offset, 4))[0])
-            z = float(struct.unpack("<f", memory.read(player + z_offset, 4))[0])
+            x = float(
+                struct.unpack("<f", memory.read(player + candidate.x_offset, 4))[0]
+            )
+            y = float(
+                struct.unpack("<f", memory.read(player + candidate.y_offset, 4))[0]
+            )
+            z = float(
+                struct.unpack("<f", memory.read(player + candidate.z_offset, 4))[0]
+            )
             hp = int(
                 struct.unpack(
                     "<i",

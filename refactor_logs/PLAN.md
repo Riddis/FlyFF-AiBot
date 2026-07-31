@@ -120,5 +120,8 @@ Acceptance: repository is runnable, evidence is captured, docs are self-containe
 - [x] `PTR-LIVE-004` Infer current actor/world relationships from known monster species and the Tower spawn/HP anchor without requiring the stale historical self field.
 - [x] `PTR-LIVE-005` Add a stable two-sample movement-correlation gate and direct-slot/pointer-chain publication for legacy-self-independent candidates.
 - [x] `PTR-LIVE-006` Validate the anchored strategy automatically, update diagnostics/docs, and replace the live protocol with one exact continuation.
+- [x] `PTR-LIVE-007` Remove the historical species/base and active-field assumptions from initial monster-anchor construction using local pointer/layout consensus.
+- [x] `PTR-LIVE-008` Remove address-order bias from the private anchor scan and expose complete anchor rejection/hint evidence.
+- [x] `PTR-LIVE-009` Validate the corrected inference automatically and issue one replacement live protocol.
 
 Acceptance: ordinary reads remain scan-free; recovery is bounded, cancellable, single-flight, and off Tk; accepted slots are stable and coherently validated; startup failure is concise and input-safe.

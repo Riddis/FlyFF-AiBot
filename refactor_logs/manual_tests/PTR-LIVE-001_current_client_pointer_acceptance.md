@@ -29,13 +29,15 @@ of that exact candidate.
 4. While the worker runs, move the GUI window once to confirm repainting, but do
    not move the character. Wait for completion. Expected result is
    `recovery_movement_required`; it is not a failure. The log must show at least
-   two validated monster candidates, inferred world/self field offsets and
+   two validated monster candidates across species 944/948, nonzero monster-base
+   hypotheses, inferred species/active/HP/XYZ/world/self field offsets and
    support, one stable spawn/player candidate, and a direct or one-hop player
-   and world reference. Neither JSON config may change and no recovery backup
-   may be created yet.
+   and world reference. It must also print the exact entered spawn/HP anchors.
+   Neither JSON config may change and no recovery backup may be created yet.
 5. If the first result is anything other than `recovery_movement_required`,
    stop the protocol without retrying and return the complete log and unchanged
-   configs. Outcomes such as monster consensus not found, actor layout
+   configs. Do not perform the movement or a second recovery. Outcomes such as
+   monster consensus not found, actor layout
    inconclusive, spawn player not found, ambiguity, deadline, or cancellation
    are valid diagnostic evidence.
 6. Without restarting or reattaching, focus FlyFF and manually move the

@@ -70,6 +70,11 @@ private memory once for selected monster species and the Tower spawn X value.
 It validates multiple active monster objects, infers shared world/self fields
 by consensus, and ranks player objects by the full spawn transform, exact
 current/maximum HP, shared world, player characteristics, and repeated reads.
+Species hits are treated only as address anchors: nearby self references infer
+the actor base plus current species/self offsets, while duplicate species,
+transform, and HP relationships establish one cross-species layout. Private
+regions are visited in alternating high/low address order so a byte cap is not
+silently consumed by only the low end of the process.
 An accepted candidate still requires a second, post-movement stationary sample.
 Only then may the service publish a direct module slot or one unambiguous
 pointer-chain hop and transactionally persist the inferred layout. It may be

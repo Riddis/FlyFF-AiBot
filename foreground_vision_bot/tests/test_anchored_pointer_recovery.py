@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import struct
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from position.AnchoredPointerDiscovery import PointerRecoveryHints
@@ -276,6 +276,72 @@ def test_stationary_second_sample_retains_pending_candidate() -> None:
     assert (memory.pid, memory.module_base_value) in state.pending_candidates
 
 
+def test_species_anchor_infers_shifted_actor_field_family() -> None:
+    memory = AnchoredMemory()
+    stale = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    actual = replace(
+        stale,
+        species_offset=stale.species_offset + 0x40,
+        active_species_offset=stale.active_species_offset + 0x40,
+        hp_offset=stale.hp_offset + 0x40,
+        x_offset=stale.x_offset + 0x40,
+        y_offset=stale.y_offset + 0x40,
+        z_offset=stale.z_offset + 0x40,
+    )
+    _populate(memory, actual)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    state = PointerRecoveryState()
+
+    assert recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=stale.player_pointer_offset,
+        monster_config=stale,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    ) is None
+    metrics = state.metrics_for(memory.pid, memory.module_base_value)
+    assert metrics is not None
+    assert metrics.outcome == "movement_required"
+    assert metrics.monster_base_hypotheses >= 2
+    assert metrics.inferred_species_offset == actual.species_offset
+    assert metrics.inferred_active_species_offset == actual.active_species_offset
+    assert metrics.inferred_hp_offset == actual.hp_offset
+    assert metrics.inferred_x_offset == actual.x_offset
+
+    memory.f32(memory.player_base + actual.x_offset, 258.0)
+    recovery = recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=stale.player_pointer_offset,
+        monster_config=stale,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    )
+
+    assert recovery is not None
+    assert recovery.species_offset == actual.species_offset
+    assert recovery.active_species_offset == actual.active_species_offset
+    assert recovery.hp_offset == actual.hp_offset
+    assert recovery.x_offset == actual.x_offset
+    assert recovery.y_offset == actual.y_offset
+    assert recovery.z_offset == actual.z_offset
+
+
 def test_service_applies_one_level_player_chain_after_movement() -> None:
     memory = AnchoredMemory()
     config = NativeMonsterConfig(
@@ -314,6 +380,49 @@ def test_service_applies_one_level_player_chain_after_movement() -> None:
     snapshot = service.read_pointer_snapshot()
     assert snapshot.player_base == memory.player_base
     assert snapshot.world_base == memory.world_base
+
+
+def test_service_applies_inferred_shifted_actor_layout() -> None:
+    memory = AnchoredMemory()
+    stale = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    actual = replace(
+        stale,
+        species_offset=stale.species_offset + 0x40,
+        active_species_offset=stale.active_species_offset + 0x40,
+        hp_offset=stale.hp_offset + 0x40,
+        x_offset=stale.x_offset + 0x40,
+        y_offset=stale.y_offset + 0x40,
+        z_offset=stale.z_offset + 0x40,
+    )
+    _populate(memory, actual)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    service = NativeProcessService(memory, stale, owns_memory=False)
+
+    first = service.recover_pointers(hints=hints, timeout_seconds=2.0)
+    assert first.outcome is NativeRecoveryOutcome.MOVEMENT_REQUIRED
+    memory.f32(memory.player_base + actual.z_offset, 91.0)
+    second = service.recover_pointers(hints=hints, timeout_seconds=2.0)
+
+    assert second.outcome is NativeRecoveryOutcome.SUCCESS
+    assert service.species_offset == actual.species_offset
+    assert service.active_species_offset == actual.active_species_offset
+    assert service.hp_offset == actual.hp_offset
+    assert (service.x_offset, service.y_offset, service.z_offset) == (
+        actual.x_offset,
+        actual.y_offset,
+        actual.z_offset,
+    )
+    assert service.read_pointer_snapshot().player_base == memory.player_base
 
 
 def test_explicit_anchor_does_not_persist_until_movement(
@@ -382,8 +491,13 @@ def test_explicit_anchor_does_not_persist_until_movement(
     )
 
     assert second is not None
-    assert json.loads(position_path.read_text())["pointer_offset"] == "0x3000"
+    position = json.loads(position_path.read_text())
+    assert position["pointer_offset"] == "0x3000"
+    assert position["layout"]["x_offset"] == "0x160"
     monster = json.loads(monster_path.read_text())
     assert monster["world_pointer_offset"] == "0x3100"
     assert monster["layout"]["world_offset"] == "0x180"
     assert monster["layout"]["self_pointer_offset"] == "0x1EF0"
+    assert monster["layout"]["species_offset"] == "0x174"
+    assert monster["layout"]["active_species_offset"] == "0x1DBC"
+    assert monster["layout"]["hp_offset"] == "0x814"

@@ -84,6 +84,12 @@ class NativeHealthSnapshot:
     world_pointer_chain_offsets: tuple[int, ...] = ()
     world_field_offset: int | None = None
     self_pointer_offset: int | None = None
+    species_offset: int | None = None
+    active_species_offset: int | None = None
+    hp_offset: int | None = None
+    x_offset: int | None = None
+    y_offset: int | None = None
+    z_offset: int | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-friendly recursive dataclass representation."""
@@ -189,6 +195,14 @@ def collect_native_health(
     world_chain = tuple(getattr(service, "world_pointer_chain_offsets", ()))
     world_field_offset = _optional_int(getattr(service, "world_field_offset", None))
     self_pointer_offset = _optional_int(getattr(service, "self_pointer_offset", None))
+    species_offset = _optional_int(getattr(service, "species_offset", None))
+    active_species_offset = _optional_int(
+        getattr(service, "active_species_offset", None)
+    )
+    hp_offset = _optional_int(getattr(service, "hp_offset", None))
+    x_offset = _optional_int(getattr(service, "x_offset", None))
+    y_offset = _optional_int(getattr(service, "y_offset", None))
+    z_offset = _optional_int(getattr(service, "z_offset", None))
     player_pointer_address = _optional_int(
         getattr(service, "player_pointer_address", None)
     )
@@ -219,6 +233,12 @@ def collect_native_health(
             world_pointer_chain_offsets=world_chain,
             world_field_offset=world_field_offset,
             self_pointer_offset=self_pointer_offset,
+            species_offset=species_offset,
+            active_species_offset=active_species_offset,
+            hp_offset=hp_offset,
+            x_offset=x_offset,
+            y_offset=y_offset,
+            z_offset=z_offset,
         )
 
     pointer: NativePointerSnapshot | None = None
@@ -274,6 +294,12 @@ def collect_native_health(
         world_pointer_chain_offsets=world_chain,
         world_field_offset=world_field_offset,
         self_pointer_offset=self_pointer_offset,
+        species_offset=species_offset,
+        active_species_offset=active_species_offset,
+        hp_offset=hp_offset,
+        x_offset=x_offset,
+        y_offset=y_offset,
+        z_offset=z_offset,
     )
 
 

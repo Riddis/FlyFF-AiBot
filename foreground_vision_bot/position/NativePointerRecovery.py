@@ -59,6 +59,12 @@ class PlayerPointerRecovery:
     world_pointer_chain_offsets: tuple[int, ...] = ()
     world_field_offset: int | None = None
     self_pointer_offset: int | None = None
+    species_offset: int | None = None
+    active_species_offset: int | None = None
+    hp_offset: int | None = None
+    x_offset: int | None = None
+    y_offset: int | None = None
+    z_offset: int | None = None
     movement_validated: bool = False
 
 
@@ -102,14 +108,27 @@ class PointerRecoveryMetrics:
     unstable_rejections: int = 0
     ambiguous_candidates: int = 0
     anchor_bytes_scanned: int = 0
+    anchor_regions_scanned: int = 0
+    anchor_read_failures: int = 0
     species_value_matches: int = 0
     spawn_x_matches: int = 0
     monster_candidates: int = 0
+    monster_species_rejections: int = 0
+    monster_active_rejections: int = 0
+    monster_hp_rejections: int = 0
+    monster_coordinate_rejections: int = 0
     inferred_world_actor_support: int = 0
     inferred_world_species_support: int = 0
     inferred_world_offset: int | None = None
     inferred_self_actor_support: int = 0
     inferred_self_offset: int | None = None
+    monster_base_hypotheses: int = 0
+    inferred_species_offset: int | None = None
+    inferred_active_species_offset: int | None = None
+    inferred_hp_offset: int | None = None
+    inferred_x_offset: int | None = None
+    inferred_y_offset: int | None = None
+    inferred_z_offset: int | None = None
     spawn_structure_candidates: int = 0
     spawn_world_matches: int = 0
     spawn_hp_matches: int = 0
@@ -188,14 +207,27 @@ class _MetricsBuilder:
     unstable_rejections: int = 0
     ambiguous_candidates: int = 0
     anchor_bytes_scanned: int = 0
+    anchor_regions_scanned: int = 0
+    anchor_read_failures: int = 0
     species_value_matches: int = 0
     spawn_x_matches: int = 0
     monster_candidates: int = 0
+    monster_species_rejections: int = 0
+    monster_active_rejections: int = 0
+    monster_hp_rejections: int = 0
+    monster_coordinate_rejections: int = 0
     inferred_world_actor_support: int = 0
     inferred_world_species_support: int = 0
     inferred_world_offset: int | None = None
     inferred_self_actor_support: int = 0
     inferred_self_offset: int | None = None
+    monster_base_hypotheses: int = 0
+    inferred_species_offset: int | None = None
+    inferred_active_species_offset: int | None = None
+    inferred_hp_offset: int | None = None
+    inferred_x_offset: int | None = None
+    inferred_y_offset: int | None = None
+    inferred_z_offset: int | None = None
     spawn_structure_candidates: int = 0
     spawn_world_matches: int = 0
     spawn_hp_matches: int = 0
@@ -264,14 +296,27 @@ class _MetricsBuilder:
             unstable_rejections=self.unstable_rejections,
             ambiguous_candidates=self.ambiguous_candidates,
             anchor_bytes_scanned=self.anchor_bytes_scanned,
+            anchor_regions_scanned=self.anchor_regions_scanned,
+            anchor_read_failures=self.anchor_read_failures,
             species_value_matches=self.species_value_matches,
             spawn_x_matches=self.spawn_x_matches,
             monster_candidates=self.monster_candidates,
+            monster_species_rejections=self.monster_species_rejections,
+            monster_active_rejections=self.monster_active_rejections,
+            monster_hp_rejections=self.monster_hp_rejections,
+            monster_coordinate_rejections=self.monster_coordinate_rejections,
             inferred_world_actor_support=self.inferred_world_actor_support,
             inferred_world_species_support=self.inferred_world_species_support,
             inferred_world_offset=self.inferred_world_offset,
             inferred_self_actor_support=self.inferred_self_actor_support,
             inferred_self_offset=self.inferred_self_offset,
+            monster_base_hypotheses=self.monster_base_hypotheses,
+            inferred_species_offset=self.inferred_species_offset,
+            inferred_active_species_offset=self.inferred_active_species_offset,
+            inferred_hp_offset=self.inferred_hp_offset,
+            inferred_x_offset=self.inferred_x_offset,
+            inferred_y_offset=self.inferred_y_offset,
+            inferred_z_offset=self.inferred_z_offset,
             spawn_structure_candidates=self.spawn_structure_candidates,
             spawn_world_matches=self.spawn_world_matches,
             spawn_hp_matches=self.spawn_hp_matches,
@@ -1137,25 +1182,38 @@ def persist_recovered_pointer_offsets(
             layout_updates["self_pointer_offset"] = (
                 f"0x{recovery.self_pointer_offset:X}"
             )
+        for key, offset in (
+            ("species_offset", recovery.species_offset),
+            ("active_species_offset", recovery.active_species_offset),
+            ("hp_offset", recovery.hp_offset),
+            ("x_offset", recovery.x_offset),
+            ("y_offset", recovery.y_offset),
+            ("z_offset", recovery.z_offset),
+        ):
+            if offset is not None:
+                layout_updates[key] = f"0x{offset:X}"
         if layout_updates:
             monster_updates["layout"] = layout_updates
+        position_updates: dict[str, object] = {
+            "pointer_offset": f"0x{recovery.player_pointer_offset:X}",
+        }
+        if recovery.strategy == "anchored_movement":
+            position_updates["pointer_chain_offsets"] = [
+                f"0x{offset:X}" for offset in recovery.player_pointer_chain_offsets
+            ]
+        position_layout_updates = {
+            key: f"0x{offset:X}"
+            for key, offset in (
+                ("x_offset", recovery.x_offset),
+                ("y_offset", recovery.y_offset),
+                ("z_offset", recovery.z_offset),
+            )
+            if offset is not None
+        }
+        if position_layout_updates:
+            position_updates["layout"] = position_layout_updates
         targets = (
-            _prepare_persistence_target(
-                position_path,
-                {
-                    "pointer_offset": f"0x{recovery.player_pointer_offset:X}",
-                    **(
-                        {
-                            "pointer_chain_offsets": [
-                                f"0x{offset:X}"
-                                for offset in recovery.player_pointer_chain_offsets
-                            ]
-                        }
-                        if recovery.strategy == "anchored_movement"
-                        else {}
-                    ),
-                },
-            ),
+            _prepare_persistence_target(position_path, position_updates),
             _prepare_persistence_target(monster_path, monster_updates),
         )
         if not any(target.changed for target in targets):
@@ -1304,14 +1362,29 @@ def _record_anchor_evidence(
     evidence: AnchoredDiscoveryEvidence,
 ) -> None:
     metrics.anchor_bytes_scanned = evidence.anchor_bytes_scanned
+    metrics.anchor_regions_scanned = evidence.anchor_regions_scanned
+    metrics.anchor_read_failures = evidence.anchor_read_failures
     metrics.species_value_matches = evidence.species_value_matches
     metrics.spawn_x_matches = evidence.spawn_x_matches
     metrics.monster_candidates = evidence.monster_candidates
+    metrics.monster_species_rejections = evidence.monster_species_rejections
+    metrics.monster_active_rejections = evidence.monster_active_rejections
+    metrics.monster_hp_rejections = evidence.monster_hp_rejections
+    metrics.monster_coordinate_rejections = evidence.monster_coordinate_rejections
+    metrics.monster_base_hypotheses = evidence.monster_base_hypotheses
     metrics.inferred_world_actor_support = evidence.inferred_world_actor_support
     metrics.inferred_world_species_support = evidence.inferred_world_species_support
     metrics.inferred_world_offset = evidence.inferred_world_offset
     metrics.inferred_self_actor_support = evidence.inferred_self_actor_support
     metrics.inferred_self_offset = evidence.inferred_self_offset
+    metrics.inferred_species_offset = evidence.inferred_species_offset
+    metrics.inferred_active_species_offset = (
+        evidence.inferred_active_species_offset
+    )
+    metrics.inferred_hp_offset = evidence.inferred_hp_offset
+    metrics.inferred_x_offset = evidence.inferred_x_offset
+    metrics.inferred_y_offset = evidence.inferred_y_offset
+    metrics.inferred_z_offset = evidence.inferred_z_offset
     metrics.spawn_structure_candidates = evidence.spawn_structure_candidates
     metrics.spawn_world_matches = evidence.spawn_world_matches
     metrics.spawn_hp_matches = evidence.spawn_hp_matches
@@ -1424,6 +1497,12 @@ def _anchored_recovery(
         world_pointer_chain_offsets=candidate.world_pointer_chain_offsets,
         world_field_offset=candidate.world_field_offset,
         self_pointer_offset=candidate.self_pointer_offset,
+        species_offset=candidate.species_offset,
+        active_species_offset=candidate.active_species_offset,
+        hp_offset=candidate.hp_offset,
+        x_offset=candidate.x_offset,
+        y_offset=candidate.y_offset,
+        z_offset=candidate.z_offset,
         movement_validated=True,
     )
 
@@ -1464,9 +1543,6 @@ def _perform_recovery_attempt(
             cast(AnchoredDiscoveryMemory, cast(object, memory)),
             pending_candidate,
             hints,
-            x_offset=config.x_offset,
-            y_offset=config.y_offset,
-            z_offset=config.z_offset,
             check=control.check,
         )
         _record_anchor_evidence(metrics, confirmation.evidence)
@@ -1747,7 +1823,12 @@ def _perform_recovery_attempt(
     _notify(
         status_callback,
         "anchor_scanning",
-        "Scanning private memory once for known species and Tower spawn anchors.",
+        (
+            "Scanning private memory for anchored actor layout; "
+            f"species={hints.known_species_ids}, "
+            f"spawn=({hints.player_spawn_x}, {hints.player_spawn_z}), "
+            f"player_hp={hints.player_current_hp}/{hints.player_max_hp}."
+        ),
         _progress_metrics(metrics, control),
     )
 
@@ -2095,10 +2176,22 @@ def recover_local_player_pointer(
                 f"unstable={metrics.unstable_rejections}, "
                 f"ambiguous={metrics.ambiguous_candidates}."
                 f" anchor_bytes={metrics.anchor_bytes_scanned},"
+                f" anchor_regions={metrics.anchor_regions_scanned},"
+                f" anchor_read_failures={metrics.anchor_read_failures},"
                 f" species_matches={metrics.species_value_matches},"
                 f" monsters={metrics.monster_candidates},"
+                f" monster_bases={metrics.monster_base_hypotheses},"
+                f" monster_species_reject={metrics.monster_species_rejections},"
+                f" monster_active_reject={metrics.monster_active_rejections},"
+                f" monster_hp_reject={metrics.monster_hp_rejections},"
+                f" monster_coord_reject={metrics.monster_coordinate_rejections},"
                 f" world_support={metrics.inferred_world_actor_support},"
                 f" self_support={metrics.inferred_self_actor_support},"
+                f" species_field={metrics.inferred_species_offset},"
+                f" active_field={metrics.inferred_active_species_offset},"
+                f" hp_field={metrics.inferred_hp_offset},"
+                f" xyz_fields=({metrics.inferred_x_offset},"
+                f"{metrics.inferred_y_offset},{metrics.inferred_z_offset}),"
                 f" spawn_structures={metrics.spawn_structure_candidates},"
                 f" spawn_world={metrics.spawn_world_matches},"
                 f" spawn_hp={metrics.spawn_hp_matches},"

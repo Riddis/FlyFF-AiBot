@@ -279,6 +279,42 @@ class NativeFlyffMonsterProvider:
             return self._native_service.self_pointer_offset
         return self.config.self_pointer_offset
 
+    @property
+    def _species_field_offset(self) -> int:
+        if self._native_service is not None:
+            return self._native_service.species_offset
+        return self.config.species_offset
+
+    @property
+    def _active_species_field_offset(self) -> int:
+        if self._native_service is not None:
+            return self._native_service.active_species_offset
+        return self.config.active_species_offset
+
+    @property
+    def _hp_field_offset(self) -> int:
+        if self._native_service is not None:
+            return self._native_service.hp_offset
+        return self.config.hp_offset
+
+    @property
+    def _x_field_offset(self) -> int:
+        if self._native_service is not None:
+            return self._native_service.x_offset
+        return self.config.x_offset
+
+    @property
+    def _y_field_offset(self) -> int:
+        if self._native_service is not None:
+            return self._native_service.y_offset
+        return self.config.y_offset
+
+    @property
+    def _z_field_offset(self) -> int:
+        if self._native_service is not None:
+            return self._native_service.z_offset
+        return self.config.z_offset
+
     def _shared_pointer_snapshot(
         self,
         pointer_snapshot: NativePointerSnapshot | None,
@@ -809,14 +845,13 @@ class NativeFlyffMonsterProvider:
         player_x: float,
         player_z: float,
     ) -> tuple[int, int, int, float, float, float, float, int]:
-        config = self.config
         world = self._read_u32(base + self._world_field_offset)
-        species = self._read_i32(base + config.species_offset)
-        active_species = self._read_i32(base + config.active_species_offset)
-        hp = self._read_i32(base + config.hp_offset)
-        x = self._read_float(base + config.x_offset)
-        y = self._read_float(base + config.y_offset)
-        z = self._read_float(base + config.z_offset)
+        species = self._read_i32(base + self._species_field_offset)
+        active_species = self._read_i32(base + self._active_species_field_offset)
+        hp = self._read_i32(base + self._hp_field_offset)
+        x = self._read_float(base + self._x_field_offset)
+        y = self._read_float(base + self._y_field_offset)
+        z = self._read_float(base + self._z_field_offset)
         distance = math.hypot(x - player_x, z - player_z)
         return world, species, hp, x, y, z, distance, active_species
 
@@ -832,8 +867,8 @@ class NativeFlyffMonsterProvider:
             shared = self._shared_pointer_snapshot(pointer_snapshot)
             player = self.read_player_base(pointer_snapshot=shared)
             world = self.read_world_base(pointer_snapshot=shared)
-            player_x = self._read_float(player + self.config.x_offset)
-            player_z = self._read_float(player + self.config.z_offset)
+            player_x = self._read_float(player + self._x_field_offset)
+            player_z = self._read_float(player + self._z_field_offset)
             if not math.isfinite(player_x) or not math.isfinite(player_z):
                 raise NativeMonsterReadError("Player coordinates are not finite")
 
@@ -973,8 +1008,8 @@ class NativeFlyffMonsterProvider:
                     f"Selected actor 0x{selected:X} failed the self-pointer check"
                 )
 
-            player_x = self._read_float(player + self.config.x_offset)
-            player_z = self._read_float(player + self.config.z_offset)
+            player_x = self._read_float(player + self._x_field_offset)
+            player_z = self._read_float(player + self._z_field_offset)
             (
                 actor_world,
                 species,

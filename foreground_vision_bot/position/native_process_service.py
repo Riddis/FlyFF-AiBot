@@ -202,6 +202,12 @@ class NativeProcessService:
         )
         self._world_field_offset = int(monster_config.world_offset)
         self._self_pointer_offset = int(monster_config.self_pointer_offset)
+        self._species_offset = int(monster_config.species_offset)
+        self._active_species_offset = int(monster_config.active_species_offset)
+        self._hp_offset = int(monster_config.hp_offset)
+        self._x_offset = int(monster_config.x_offset)
+        self._y_offset = int(monster_config.y_offset)
+        self._z_offset = int(monster_config.z_offset)
 
     @classmethod
     def from_window_handle(
@@ -288,6 +294,36 @@ class NativeProcessService:
     def self_pointer_offset(self) -> int:
         with self._lock:
             return self._self_pointer_offset
+
+    @property
+    def species_offset(self) -> int:
+        with self._lock:
+            return self._species_offset
+
+    @property
+    def active_species_offset(self) -> int:
+        with self._lock:
+            return self._active_species_offset
+
+    @property
+    def hp_offset(self) -> int:
+        with self._lock:
+            return self._hp_offset
+
+    @property
+    def x_offset(self) -> int:
+        with self._lock:
+            return self._x_offset
+
+    @property
+    def y_offset(self) -> int:
+        with self._lock:
+            return self._y_offset
+
+    @property
+    def z_offset(self) -> int:
+        with self._lock:
+            return self._z_offset
 
     @property
     def player_pointer_address(self) -> int:
@@ -466,6 +502,18 @@ class NativeProcessService:
                         self._world_field_offset = recovery.world_field_offset
                     if recovery.self_pointer_offset is not None:
                         self._self_pointer_offset = recovery.self_pointer_offset
+                    if recovery.species_offset is not None:
+                        self._species_offset = recovery.species_offset
+                    if recovery.active_species_offset is not None:
+                        self._active_species_offset = recovery.active_species_offset
+                    if recovery.hp_offset is not None:
+                        self._hp_offset = recovery.hp_offset
+                    if recovery.x_offset is not None:
+                        self._x_offset = recovery.x_offset
+                    if recovery.y_offset is not None:
+                        self._y_offset = recovery.y_offset
+                    if recovery.z_offset is not None:
+                        self._z_offset = recovery.z_offset
                     self._generation += 1
                 result = NativeRecoveryResult(
                     outcome=NativeRecoveryOutcome.from_metrics(metrics),

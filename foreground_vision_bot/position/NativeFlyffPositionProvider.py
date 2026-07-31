@@ -80,11 +80,6 @@ class NativeFlyffPositionProvider:
         self.last_diagnostics: PositionReadDiagnostics | None = None
         self._last_pointer_recovery: PlayerPointerRecovery | None = None
 
-        offsets = [config.x_offset, config.y_offset, config.z_offset]
-        if config.heading_offset is not None:
-            offsets.append(config.heading_offset)
-        self._block_start = min(offsets)
-        self._block_size = max(offsets) - self._block_start + self.FLOAT_SIZE
 
     @classmethod
     def from_window_handle(
@@ -230,22 +225,42 @@ class NativeFlyffPositionProvider:
         self._resolved_addresses = (target,)
         return self._resolved_addresses
 
-    def _read_float(self, data: bytes, offset: int) -> float:
-        relative_offset = offset - self._block_start
-        return float(struct.unpack_from("<f", data, relative_offset)[0])
-
     def _read_candidate(self, base_address: int) -> _CandidatePose:
-        data = self._memory.read(
-            base_address + self._block_start,
-            self._block_size,
+        x_offset = (
+            self.config.x_offset
+            if self._native_service is None
+            else self._native_service.x_offset
         )
-        x = self._read_float(data, self.config.x_offset)
-        y = self._read_float(data, self.config.y_offset)
-        z = self._read_float(data, self.config.z_offset)
+        y_offset = (
+            self.config.y_offset
+            if self._native_service is None
+            else self._native_service.y_offset
+        )
+        z_offset = (
+            self.config.z_offset
+            if self._native_service is None
+            else self._native_service.z_offset
+        )
+        offsets = [x_offset, y_offset, z_offset]
+        if self.config.heading_offset is not None:
+            offsets.append(self.config.heading_offset)
+        block_start = min(offsets)
+        block_size = max(offsets) - block_start + self.FLOAT_SIZE
+        data = self._memory.read(
+            base_address + block_start,
+            block_size,
+        )
+
+        def read_float(offset: int) -> float:
+            return float(struct.unpack_from("<f", data, offset - block_start)[0])
+
+        x = read_float(x_offset)
+        y = read_float(y_offset)
+        z = read_float(z_offset)
 
         heading: float | None = None
         if self.config.heading_offset is not None:
-            heading = self._read_float(data, self.config.heading_offset)
+            heading = read_float(self.config.heading_offset)
             if self.config.heading_unit == "radians":
                 heading = math.degrees(heading)
             heading %= 360.0

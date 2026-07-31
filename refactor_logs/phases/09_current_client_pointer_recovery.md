@@ -89,3 +89,45 @@ and 1 skipped. Fake current-client coverage proves shifted self/world fields,
 species consensus, spawn/HP ranking, exact HP update after movement, stationary
 rejection, one-hop player chains, service publication, and no persistence before
 movement. Real Win32 acceptance remains `PTR-LIVE-001`.
+
+## Second anchored live result
+
+The first current-client anchored pass read the full 1 GiB cap and found 1,442
+known-species values plus 129 exact spawn-X values; the repeat found 1,446 and
+75. Neither produced a monster candidate. Spawn hits rose sharply in the final
+64 MiB, demonstrating that sequential low-to-high region consumption biases the
+fixed byte budget. The implementation also derived every tentative actor base
+from the historical `species_offset` and required the historical active/HP/
+transform relationship before layout consensus, so it had merely moved the old
+layout assumption to a different entry gate.
+
+The correction must construct actor hypotheses around each species address,
+infer base/species/self and active relationships across multiple actors, and
+only then use transform/HP/world evidence. It must scan private regions in a
+coverage-balanced order or cover all committed private bytes under a larger
+explicit cap/deadline. Diagnostics must publish the known anchors entered and
+each monster rejection stage. The failed runs did not apply or persist state.
+
+## Local actor-layout correction
+
+Raw species values are no longer converted to actor bases with the configured
+species offset. For each value, recovery reads one bounded local allocation and
+collects plausible self references that jointly imply an actor base, species
+offset, and self offset. It then validates the old field *relationships* rather
+than their absolute offsets: transform and HP deltas move with the inferred
+species field, and a second same-species field supplies the active relationship.
+Only one layout supported by multiple actors and both selected species can
+advance to world/player inference. The inferred species, active, HP, XYZ, self,
+and world fields flow through runtime readers and the paired persistence update.
+
+Private regions now alternate from high and low address ends, eliminating the
+observed low-address-first truncation, and the explicit cap is 1.5 GiB under the
+same 30-second cooperative deadline. The start log records selected species,
+spawn, and exact HP. The outcome reports base hypotheses, species/active/HP/
+coordinate rejection counts, inferred field offsets, region/read failures, and
+the existing near-match/world/player/movement evidence.
+
+Automated acceptance passes with 547 passed and 1 skipped. New coverage shifts
+the complete species/active/HP/XYZ field family, proves local base/self consensus,
+applies those inferred offsets through `NativeProcessService`, and retains the
+movement/persistence gates. `PTR-LIVE-001` remains the sole live boundary.

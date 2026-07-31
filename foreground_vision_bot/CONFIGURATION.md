@@ -72,8 +72,9 @@ pose `(253.0, 86.0)`, and operator-supplied exact current/maximum HP to infer a
 changed actor layout. The first stable sample is retained only in attachment
 memory. A later controlled-movement sample must validate the same slot/chain,
 world, inferred fields, exact HP, and stable final pose before both JSON files
-are replaced transactionally. Automatic farming-startup recovery is in-memory
-only.
+are replaced transactionally. Inferred coordinate offsets are written to both
+configs; species, active-species, HP, world, and self offsets are written to the
+monster layout. Automatic farming-startup recovery is in-memory only.
 
 ## Maps, mobs, and model compatibility
 

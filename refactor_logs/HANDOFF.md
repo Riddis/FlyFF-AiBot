@@ -3,7 +3,7 @@
 ## Current outcome
 
 The canonical refactor remains complete and the automated continuation for the
-current-client pointer break is implemented. `PTR-LIVE-004..006` are complete;
+current-client pointer break is implemented. `PTR-LIVE-004..009` are complete;
 `PTR-LIVE-001` stays open until the user returns one real Win32 stationary plus
 movement sample.
 
@@ -14,6 +14,16 @@ and 948 to validate multiple active monster actors and infer the shared world
 and current self fields by consensus. It cross-checks player candidates against
 Tower native spawn `(253.0, 86.0)`, exact current/maximum HP, plausible Y,
 player characteristics, the inferred world, and repeated stationary reads.
+
+The second live pass found 1,442/1,446 raw species anchors but zero monsters.
+That exposed two remaining early assumptions: actor base was still derived from
+the configured species offset, and the 1 GiB sequential scan exhausted its
+budget just as spawn hits surged. The corrected collector treats each species
+address as an anchor, infers local base/species/self hypotheses, shifts XYZ/HP
+relationships with the inferred species field, locates the duplicate active
+field, and requires consensus across both selected species. Region order now
+alternates high/low under a 1.5 GiB cap. Start/outcome logs include exact hints,
+base hypotheses, field offsets, and each rejection stage.
 
 The first strong result returns `movement_required` and is held only by the
 attachment's `NativeProcessService`. It is not applied or persisted. A second
@@ -29,7 +39,7 @@ both config files.
 - Ordinary position, actor, overlay, preview, and Native Health reads never scan.
 - Recovery remains deadline-bounded, cancellable, single-flight, GIL-yielding,
   worker-owned, and off the Tk thread.
-- Anchor scanning is capped at 1 GiB and reports every 64 MiB. Legacy near-match
+- Anchor scanning is capped at 1.5 GiB and reports every 64 MiB. Legacy near-match
   probing is capped at 1,024 candidates and cannot accept a candidate.
 - Direct module references are preferred; at most one unambiguous chain hop is
   allowed and is supported by both providers and persisted config parsers.
@@ -40,13 +50,14 @@ both config files.
 
 ## Automated validation
 
-- Full canonical suite: 545 passed, 1 skipped in 9.27 seconds.
+- Full canonical suite: 547 passed, 1 skipped in 9.62 seconds.
 - Focused pointer/native/controller suite: 91 passed.
 - Changed production/test Ruff F/I: pass.
 - Native production BasedPyright: 0 errors; existing warning-level typing debt
   remains classified.
 - `git diff --check`: pass.
 - Fake current-client tests cover shifted world/self fields, monster consensus,
+  a shifted species/active/HP/XYZ field family, local actor-base inference,
   spawn/exact-HP ranking, HP update after movement, stationary rejection,
   one-hop player chains, runtime publication, and the no-write-before-movement
   invariant.
