@@ -1,24 +1,24 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T20:48:11.3510574Z",
+  "updated_at": "2026-07-31T20:52:30.1683250Z",
   "current_phase": "live_current_client_acceptance",
   "phase_status": "automated_false_world_hp_shutdown_and_health_identity_correction_complete_awaiting_human",
   "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "cafa3135abea47cf3bdf56e31b17b3195b4fe5d2",
-  "head_note": "World-rooted player-chain journal reconciliation; false-world, HP-role, preview cancellation, and health-identity changes await checkpoint.",
+  "head_commit": "25ab14068cd432a72706c4caba7bc316990dfe03",
+  "head_note": "Validated false-world, HP-role, preview-cancellation, and persisted health-identity checkpoint; this journal-only reconciliation follows.",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
     "branch": "backup/pre-codex-refactor"
   },
-  "dirty_files": ["false-world, HP-role, preview-cancellation, persisted world-identity implementation and journal pending checkpoint"],
+  "dirty_files": ["journal reconciliation pending checkpoint"],
   "ignored_user_backups": [
     "foreground_vision_bot.zip",
     "refactor_logs.zip"
   ],
   "staged_files": [],
-  "last_known_good_commit": "fc24bb4e8a66a64e4af992837f2dec505066f92a",
+  "last_known_good_commit": "25ab14068cd432a72706c4caba7bc316990dfe03",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
   "last_known_good_test_result": "557 passed, 1 skipped in 10.16 seconds",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
