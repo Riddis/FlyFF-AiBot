@@ -89,6 +89,35 @@ Append-only. Each entry records timestamp, task ID, context, options, decision, 
 - Consequences: exact transition/release behavior is testable; focus regain never replays stale movement; mapper pulses temporarily share the physical session.
 - Reversal path: revert the Phase 04 commit to the canonical farming checkpoint.
 
+## 2026-07-31 — `PTR-003` — Recover interrupted config writes to all-old
+
+- Context: Windows has no single primitive for atomically replacing both native
+  JSON files, and persistence must be reversible after a process or machine
+  interruption.
+- Decision: prepare and validate both replacements first, durably record exact
+  original bytes in an adjacent journal, then replace backups/configs. Any
+  visible journal means the pair is conservatively rolled back to all-old
+  before either config is loaded, even when both replacements had completed.
+- Consequences: readers never intentionally consume a mixed pair after factory
+  startup; a fully written update can be discarded after a crash just before
+  journal removal. Cross-process writers remain unsupported.
+- Reversal path: restore both `.pre_pointer_recovery.bak` files or revert the
+  PTR-003 checkpoint; never delete a retained recovery journal before a
+  successful rollback.
+
+## 2026-07-31 — `PTR-004` — Separate cheap health from explicit recovery
+
+- Context: attaching/previewing must not scan, while recovery needs a visible,
+  cancellable lifecycle owner and must not race movement control.
+- Decision: one DIAGNOSTIC worker kind owns either a scan-free health report or
+  an explicit recovery. Recovery and CONTROL are mutually exclusive in both
+  start orders; health-only may coexist. Diagnostics never persist offsets.
+- Consequences: the GUI-facing API returns immediately with a session ID and
+  consumes typed progress/completion data. Coordinate conversion is added later
+  at the presenter/boundary layer from cached inputs.
+- Reversal path: revert PTR-004 while retaining the synchronous shared-service
+  recovery API; do not restore hot-path automatic scans.
+
 ## 2026-07-31 — `GUI-001` — UI state is main-thread rendered from lifecycle snapshots
 
 - Context: `Gui.py` mixes widgets, blocking orchestration, status projection, native/map work, and several competing button-state writers.

@@ -13,6 +13,17 @@ from .MonsterConfig import (
     NativeMonsterConfig,
     load_native_monster_config,
 )
+from .native_diagnostics import (
+    NativeDiagnosticOutcome,
+    NativeDiagnosticProgress,
+    NativeDiagnosticReport,
+    NativeHealthSnapshot,
+    NativeHealthStatus,
+    NativeProviderHealth,
+    NativeRuntimeFacts,
+    collect_native_health,
+    run_native_diagnostic,
+)
 from .native_process_service import (
     NativePointerSnapshot,
     NativePointerSnapshotError,
@@ -33,6 +44,10 @@ from .NativeFlyffPositionProvider import (
     PointerResolutionError,
     PoseConsensusError,
     PositionReadDiagnostics,
+)
+from .NativePointerRecovery import (
+    PointerPersistenceError,
+    recover_interrupted_pointer_persistence,
 )
 from .PositionConfig import (
     DEFAULT_POSITION_CONFIG_PATH,
@@ -55,7 +70,12 @@ __all__ = [
     "MemoryRegion",
     "MemorySearchDiagnostics",
     "NativeActor",
+    "NativeDiagnosticOutcome",
+    "NativeDiagnosticProgress",
+    "NativeDiagnosticReport",
     "NativeFlyffMonsterProvider",
+    "NativeHealthSnapshot",
+    "NativeHealthStatus",
     "NativeMonsterConfig",
     "NativeMonsterReadError",
     "DEFAULT_POSITION_CONFIG_PATH",
@@ -65,9 +85,12 @@ __all__ = [
     "NativePointerSnapshotError",
     "NativeProcessService",
     "NativeProcessServiceError",
+    "NativeProviderHealth",
     "NativeProviderAttachment",
     "NativeRecoveryOutcome",
     "NativeRecoveryResult",
+    "NativeRuntimeFacts",
+    "PointerPersistenceError",
     "PointerResolutionError",
     "PoseConsensusError",
     "PositionReadDiagnostics",
@@ -82,6 +105,9 @@ __all__ = [
     "create_native_monster_provider_from_process_id",
     "create_native_provider_attachment",
     "create_native_position_provider",
+    "collect_native_health",
     "load_native_monster_config",
     "load_native_position_config",
+    "recover_interrupted_pointer_persistence",
+    "run_native_diagnostic",
 ]

@@ -12,6 +12,7 @@ from .MonsterConfig import (
 from .native_process_service import NativeProcessService
 from .NativeFlyffMonsterProvider import NativeFlyffMonsterProvider
 from .NativeFlyffPositionProvider import NativeFlyffPositionProvider
+from .NativePointerRecovery import recover_interrupted_pointer_persistence
 from .PositionConfig import (
     DEFAULT_POSITION_CONFIG_PATH,
     load_native_position_config,
@@ -61,6 +62,10 @@ def create_native_provider_attachment(
 ) -> NativeProviderAttachment:
     """Build enabled native providers over exactly one process attachment."""
 
+    recover_interrupted_pointer_persistence(
+        position_config_path=position_config_path,
+        monster_config_path=monster_config_path,
+    )
     position_config = load_native_position_config(position_config_path)
     monster_config = load_native_monster_config(monster_config_path)
     if not position_config.enabled and not monster_config.enabled:
@@ -70,6 +75,8 @@ def create_native_provider_attachment(
         window_handle,
         monster_config,
         position_config=position_config,
+        position_config_path=position_config_path,
+        monster_config_path=monster_config_path,
         backend=backend,
         clock=clock,
     )

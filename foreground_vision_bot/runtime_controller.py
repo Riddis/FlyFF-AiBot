@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import traceback
 from collections.abc import Callable
+from math import isfinite
 from threading import Lock
 from time import monotonic
 from typing import cast
@@ -10,6 +11,11 @@ import cv2 as cv
 from capture_service import CaptureService, FrameSource
 from libs.WindowCapture import WindowCapture
 from mapper import Mapper
+from position import (
+    NativeDiagnosticProgress,
+    NativeDiagnosticReport,
+    run_native_diagnostic,
+)
 from preview_service import PreviewService
 from runtime_bus import RuntimeBus
 from worker_manager import (
@@ -22,6 +28,8 @@ from worker_manager import (
 
 class RuntimeController:
     """Single owner for capture and control-worker lifecycle."""
+
+    MAX_NATIVE_DIAGNOSTIC_TIMEOUT_SECONDS: float = 30.0
 
     def __init__(self, bot, bus: RuntimeBus) -> None:
         self.bot = bot
@@ -41,6 +49,9 @@ class RuntimeController:
         )
         self._next_control_session_id = 1
         self._control_session_id: int | None = None
+        self._next_diagnostic_session_id = 1
+        self._diagnostic_session_id: int | None = None
+        self._diagnostic_recovery_requested = False
         self._shutdown_lock = Lock()
         self._shutdown_requested = False
         self._shutdown_finalized = False
@@ -59,8 +70,19 @@ class RuntimeController:
         return self.workers.snapshot(WorkerKind.CONTROL)
 
     @property
+    def diagnostic_active(self) -> bool:
+        return self.workers.is_active(WorkerKind.DIAGNOSTIC)
+
+    def diagnostic_snapshot(self) -> WorkerSnapshot | None:
+        return self.workers.snapshot(WorkerKind.DIAGNOSTIC)
+
+    @property
     def control_session_id(self) -> int | None:
         return self._control_session_id
+
+    @property
+    def diagnostic_session_id(self) -> int | None:
+        return self._diagnostic_session_id
 
     @property
     def shutdown_requested(self) -> bool:
@@ -78,6 +100,10 @@ class RuntimeController:
         if self.control_active:
             raise RuntimeError(
                 "Cannot reattach while a control task is active. Stop it first."
+            )
+        if self.diagnostic_active:
+            raise RuntimeError(
+                "Cannot reattach while native diagnostics are active. Stop them first."
             )
         if not self.preview.stop(3.0):
             raise RuntimeError("Previous preview worker did not stop.")
@@ -253,11 +279,95 @@ class RuntimeController:
 
         self._start_control("calibration", run)
 
+    def start_native_diagnostic(
+        self,
+        *,
+        recover: bool = False,
+        timeout: float = 1.0,
+    ) -> int:
+        """Start bounded native health/recovery work without blocking the caller."""
+
+        bounded_timeout = float(timeout)
+        if (
+            not isfinite(bounded_timeout)
+            or bounded_timeout <= 0.0
+            or bounded_timeout > self.MAX_NATIVE_DIAGNOSTIC_TIMEOUT_SECONDS
+        ):
+            raise ValueError(
+                "timeout must be finite, positive, and no greater than "
+                f"{self.MAX_NATIVE_DIAGNOSTIC_TIMEOUT_SECONDS:.0f} seconds"
+            )
+        if recover and self.control_active:
+            raise RuntimeError(
+                "Stop the active control task before recovering native pointers."
+            )
+
+        session_id = self._next_diagnostic_session_id
+        self._next_diagnostic_session_id += 1
+        previous_session_id = self._diagnostic_session_id
+        previous_recovery_requested = self._diagnostic_recovery_requested
+        self._diagnostic_session_id = session_id
+        self._diagnostic_recovery_requested = bool(recover)
+
+        def run(token: CancellationToken) -> NativeDiagnosticReport:
+            deadline = monotonic() + bounded_timeout
+
+            def publish(progress: NativeDiagnosticProgress) -> None:
+                self.bus.publish_status(
+                    "native_diagnostic_status",
+                    progress.message,
+                    session_id=session_id,
+                )
+                self.bus.log(progress.message, "msg_blue")
+                self.bus.heartbeat("diagnostic")
+
+            report = run_native_diagnostic(
+                self.bot,
+                recover=bool(recover),
+                cancellation=token,
+                deadline=deadline,
+                timeout_seconds=bounded_timeout,
+                status_callback=publish,
+            )
+            self.bus.publish_status(
+                "native_diagnostic_status",
+                f"Native diagnostic finished: {report.outcome.value}.",
+                session_id=session_id,
+            )
+            return report
+
+        try:
+            self.workers.start(
+                name=(
+                    "native-pointer-recovery"
+                    if recover
+                    else "native-health"
+                ),
+                kind=WorkerKind.DIAGNOSTIC,
+                target=run,
+                session_id=session_id,
+            )
+        except Exception:
+            self._diagnostic_session_id = previous_session_id
+            self._diagnostic_recovery_requested = previous_recovery_requested
+            raise
+        return session_id
+
+    def stop_native_diagnostic(self) -> bool:
+        """Request cancellation of the current managed native diagnostic."""
+
+        return self.workers.stop(WorkerKind.DIAGNOSTIC)
+
     def _start_control(
         self,
         name: str,
         target: Callable[[CancellationToken], object],
     ) -> None:
+        if self._diagnostic_recovery_requested and self.diagnostic_active:
+            raise RuntimeError(
+                "Wait for native pointer recovery to finish before starting "
+                "a control task."
+            )
         if not self.capture_active:
             raise RuntimeError("Attach the Flyff window first.")
         session_id = self._next_control_session_id

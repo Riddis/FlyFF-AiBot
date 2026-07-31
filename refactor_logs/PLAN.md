@@ -44,10 +44,18 @@ Acceptance: required pointer and shutdown tests pass; failed reads are cheap; no
 
 - [x] `PTR-001` Define one shared pointer state/resolver owner and typed native outcomes.
 - [x] `PTR-002` Inject shared player/monster readers and coherent per-step snapshots.
-- [ ] `PTR-003` Add atomic, reversible, multi-sample offset persistence.
-- [ ] `PTR-004` Add supported native diagnostics and validate lifecycle/performance.
+- [x] `PTR-003` Add atomic, reversible, multi-sample offset persistence.
+- [x] `PTR-004` Add supported native diagnostics and validate lifecycle/performance.
 
 Acceptance: readers share one resolver, recovery has one owner, and diagnostics never block the GUI.
+
+## Phase A — Resume reconciliation and checkpoints
+
+- [x] `RESUME-001` Reconcile the interrupted dirty tree, provenance, model route, and newly appeared artifacts.
+- [ ] `RESUME-002` Revalidate and checkpoint only the pending Phase 02 implementation and journal evidence.
+- [ ] `RESUME-003` Review and checkpoint the isolated Phase 03 farming core separately before integration.
+
+Acceptance: every dirty/untracked path is classified, no user-owned artifact is staged, and Phase 02/isolated Phase 03 have separate runnable checkpoints.
 
 ## Phase 03 — Canonical farming environment
 

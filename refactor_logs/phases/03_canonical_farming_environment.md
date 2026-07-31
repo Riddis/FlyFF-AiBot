@@ -68,3 +68,28 @@ Implementation order: characterization/golden tests; pure actions/schema/map/
 kills/reward/session modules; canonical env/control; atomic switch of builder
 and trainer; model/output contracts; behavior-test replacement; delete patch
 modules only after reference and parity gates.
+
+## 2026-07-31 isolated core slice
+
+Status: implemented and validated, intentionally unintegrated and uncommitted
+pending the Phase 02 Git checkpoint.
+
+Added:
+
+- `farming/actions.py`: exact `FarmingAction` `IntEnum` values 0–3.
+- `farming/observation.py`: frozen segment/field contract and typed builder for
+  all 482 values from one `ObservationFrame`.
+- `farming/map_features.py`: immutable static arrays, row-major 11×11
+  wall/teleport crop, Bresenham direct-path evidence, cached exact forbidden
+  distance transform, and bounded cached 8-neighbor geodesics.
+- `farming/reward.py` and `farming/session.py`: named native-only reward
+  components and typed policy/external/cancellation outcomes. A large jump is
+  external unless sampled trigger traversal/occupancy proves policy causation.
+- `farming/model_contract.py`: 482/4 dimension and semantic-hash validation;
+  metadata-less compatibility is limited to the recorded active-model SHA.
+- Five behavior-named unit-test modules.
+
+Focused validation is 23 passed; compileall, Ruff format/F/I, and BasedPyright
+error level pass. The active model, map, and configs were not written. The next
+slice must review this API and inject it into a visible canonical
+`UnifiedFarmingEnv`; no existing patch installer or runtime import was changed.

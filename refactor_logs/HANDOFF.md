@@ -2,44 +2,87 @@
 
 ## Current position
 
-The user-provided brief and tracked repository guidance were read. Baseline, Static Pass 1, Runtime Pass 2, and Phase 01 stabilization are complete at `63651e97d6d013ac41364d912e98b70ac5c76b88`; the journal transition commit is `5dd1d6d113e9ec07486450a7c3ecc7f7fea3f2c3`. Ordinary reads no longer scan, explicit recovery is bounded/single-flight/cancellable/cooldown-backed, farming startup preflights before input, and runtime events/shutdown are generation-aware and false-join safe.
+Baseline, both audit passes, and Phase 01 stabilization are complete. Shared
+native ownership is committed at
+`a0304c72089980f6028e2e4c7baef70909687f63`. Phase 02 `PTR-003/PTR-004`
+implementation and validation are complete in the worktree:
 
-## Repository state known so far
+- recovered pointer offsets use a durable, exact-byte, two-config transaction
+  with startup rollback;
+- health/recovery diagnostics are typed and lifecycle-owned;
+- recovery and CONTROL are mutually exclusive in both start orders;
+- false shutdown joins preserve dependencies.
 
-Before journal creation, `git status --short` reported:
+An isolated, dependency-light Phase 03 core also exists but is not integrated:
+`farming/actions.py`, `observation.py`, `map_features.py`, `reward.py`,
+`session.py`, and `model_contract.py`, with five behavior-named test modules.
+It freezes the exact `native-unified-482-v1` semantics, exact actions 0–3,
+native-only named reward components, typed external/policy session outcomes,
+cached map features, and a 482/4 semantic model preflight. The active runtime
+still uses the existing patch path.
 
-```text
- D AGENTS.md
- D README.md
- D foreground_vision_farm.json
-?? codex_refactor_prompt_with_resume_logs.md
-```
+## Validation
 
-These paths predate refactor work and must not be restored, staged, or overwritten without provenance review. Stabilization changes now exist in the native providers/recovery, farming startup/reset/sweep, lifecycle services/controller/GUI, related tests, and `refactor_logs/`.
+- Phase 02 focused integration: 92 passed in 1.57 seconds.
+- Phase 03 isolated core: 23 passed in 0.35 seconds.
+- Canonical after both slices: 555 passed, 2 failed, 1 skipped in 6.29 seconds.
+- Remaining failures are the shipped mapper JSON mismatch and obsolete V0674
+  source-string assertion.
+- Both changed scopes compile and pass Ruff F/I/diff hygiene.
+- Phase 02 position modules and the new farming package are BasedPyright
+  error-level clean.
+- Active model SHA remains
+  `3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2`.
 
-## Current failures
+## Resume reconciliation update
 
-The expanded stabilization suite passes 70 tests. Canonical pytest improved from the 479 passed / 4 failed / 1 skipped baseline to 509 passed / 2 failed / 1 skipped; remaining failures are the pre-existing mapper JSON mismatch and obsolete V0674 source assertion. Root collection is still blocked by three duplicate patch test trees. Repository-wide Ruff format/lint and BasedPyright remain red from recorded legacy debt; changed-file Ruff F/I passes.
+The attached continuation request explicitly permits narrow local staging and
+commits. No push, remote change, history rewrite, destructive cleanup, broad
+staging, or unrelated-file staging is authorized. The exact root model label is
+not exposed, so `RESUME-001` routes the high-risk provenance/staging-boundary
+review to an explicitly selected `gpt-5.6-sol` agent with ultra reasoning.
+
+Two untracked archives appeared after the prior journal snapshot:
+
+- `foreground_vision_bot.zip` — 3,915,667 bytes; SHA-256
+  `AF902762653D8C5791FCBFEA5A1065B08EFE2297A5FAB02F0F3C7ACB06E73E8E`
+- `refactor_logs.zip` — 237,424 bytes; SHA-256
+  `AAB0C07F2675323737DA285AFD2274B8177EB23E854E713785DFFB481273C3E4`
+
+They contain repository snapshots, were created around 2026-07-31 12:20Z, and
+are user-confirmed backup artifacts that may be ignored. Leave them untouched,
+exclude them from checkpoints, and use the working tree/Git history as the
+canonical source. Nothing is currently staged.
 
 ## Exact continuation
 
-In progress: Phase 02 `PTR-003`, after the ready-to-commit `PTR-001/PTR-002` slice. `NativeProcessService` owns one handle, one `PointerRecoveryState`, coherent six-read player/world snapshots, typed recovery results, and deferred-safe close. `NativeProviderAttachment` injects it into both providers and `Bot`. Commit this slice by exact path, then make paired config persistence transactional and add a supervised diagnostic/recovery command around the synchronous service API.
+The Sol 5.6 Ultra read-only review found Phase 2 safe to checkpoint separately,
+with no source/test blocker. The exact 16-module focused gate was rerun on
+resume: 92 passed in 2.44 seconds with only the existing pytest-cache warning.
 
-## Relevant files/symbols
+1. Stage only these Phase 02 groups:
+   `position/NativePointerRecovery.py`, `position/native_diagnostics.py`,
+   `position/native_process_service.py`, the three position factories and
+   `position/__init__.py`, `runtime_controller.py`, `worker_manager.py`,
+   `test_native_diagnostics.py`, `test_pointer_persistence_transaction.py`,
+   and `refactor_logs/`.
+2. Confirm `git diff --cached --name-only` contains no `farming/`,
+   `test_farming_*`, `AGENTS.md`, `README.md`, or
+   `foreground_vision_farm.json`.
+3. Commit `PTR-004 make pointer persistence and diagnostics lifecycle-safe`.
+4. Record the SHA and open `RESUME-003`.
+5. Review and then separately stage the isolated farming core before
+   implementing the canonical environment/control/config/trainer integration.
 
-- `codex_refactor_prompt_with_resume_logs.md`
-- `position/NativePointerRecovery.py` (new explicit bounded resolver)
-- `position/NativeFlyffPositionProvider.py`
-- `position/NativeFlyffMonsterProvider.py`
-- `native_farming.py`, `libs/NativeFarmingEnv.py`, `libs/CameraDiscoverySweep.py`
-- `Gui.py`, `foreground_vision_farm.py`, `runtime_controller.py`, `worker_manager.py`
+## Dirty-tree ownership
 
-## Uncommitted work
-
-- Keep: all files under `refactor_logs/` (journal deliverable).
-- Preserve without attribution changes: deleted `AGENTS.md`, `README.md`, `foreground_vision_farm.json`.
-- Keep: `codex_refactor_prompt_with_resume_logs.md` as the user-provided specification.
-- Keep: all modified stabilization source/test paths listed in `STATE.json`; they belong in the first refactor commit after validation.
-- Committed stabilization: `63651e97d6d013ac41364d912e98b70ac5c76b88`.
-- Keep and commit the current shared-native service/provider/factory/Bot/test slice and journal updates.
-- Exclude from staging: deleted `AGENTS.md`, `README.md`, and `foreground_vision_farm.json`; these remain user-owned pre-existing changes.
+- User-owned pre-existing deletions: `AGENTS.md`, `README.md`,
+  `foreground_vision_farm.json`.
+- Phase 02 validated checkpoint: position/runtime/worker source, two native
+  behavior tests, and journal files.
+- Phase 03 isolated validated slice: `foreground_vision_bot/farming/` and five
+  `test_farming_*` modules.
+- User-owned recovery archives: `foreground_vision_bot.zip` and
+  `refactor_logs.zip`.
+- The exact 32-path Phase 02/journal checkpoint is staged and recorded in
+  `STATE.json`; cached exclusion audit reports zero forbidden paths.

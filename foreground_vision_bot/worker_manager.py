@@ -15,6 +15,7 @@ class WorkerKind(Enum):
     CAPTURE = "capture"
     PREVIEW = "preview"
     CONTROL = "control"
+    DIAGNOSTIC = "diagnostic"
 
 
 class WorkerState(Enum):
@@ -246,6 +247,7 @@ class WorkerManager:
         results: dict[WorkerKind, bool] = {}
         for kind in (
             WorkerKind.CONTROL,
+            WorkerKind.DIAGNOSTIC,
             WorkerKind.PREVIEW,
             WorkerKind.CAPTURE,
         ):

@@ -1,11 +1,16 @@
 # Refactor Status
 
-- Current phase: `phase_02_runtime_pointer_ownership`
-- Phase status: in progress
-- Active task: `PTR-003` — make the two-file recovered-offset persistence transactionally atomic and reversible
-- Last completed action: implemented and validated one attachment-owned process/pointer service, coherent player/world snapshots, shared provider injection, and exactly-once deferred-safe handle closure.
-- Repository state: branch `feature/adaptive-mapper`, HEAD `5dd1d6d113e9ec07486450a7c3ecc7f7fea3f2c3` (`LOG record stabilization checkpoint and open PTR-001`). The current journal design update and the pre-existing deletions `AGENTS.md`, `README.md`, and `foreground_vision_farm.json` are dirty; PTR-001 implementation is delegated and in progress.
-- Runnable: yes under fake/integration coverage; 65 Phase 02 focused tests pass. GUI/live attach remains unverified.
-- Last test: canonical suite — 518 passed, 2 unchanged failures, 1 skipped in 5.80 s.
-- Blockers: none. Pre-existing dirty files must be preserved and attributed before refactor edits.
-- Next action: commit the PTR-001/PTR-002 slice, then implement transactional paired-config persistence and a supervised diagnostics/recovery command.
+- Current phase: Phase A checkpointing validated Phase 02
+- Phase status: exact 32-path Phase 02 checkpoint staged and exclusion-audited
+- Active task: `RESUME-002` — stage, inspect, and commit only the Phase 02 checkpoint
+- Branch/HEAD: `feature/adaptive-mapper` at `a0304c72089980f6028e2e4c7baef70909687f63`
+- Known checkpoints: stabilization `63651e97d6d013ac41364d912e98b70ac5c76b88`; shared native ownership `a0304c72089980f6028e2e4c7baef70909687f63`
+- Staged files: 32 exact paths recorded in `STATE.json`; cached audit reports zero forbidden paths
+- Phase 02: implementation and validation complete but uncommitted
+- Phase 03: dependency-light core and five behavior tests are isolated, validated, unintegrated, and uncommitted
+- User-owned/pre-existing: deleted `AGENTS.md`, deleted `README.md`, deleted root `foreground_vision_farm.json`
+- User-confirmed ignored backups: untracked `foreground_vision_bot.zip` and `refactor_logs.zip`; leave untouched and exclude from checkpoints
+- Runnable: yes under fake/integration coverage; active farming runtime still uses the legacy patch chain
+- Last test: canonical suite — 555 passed, 2 unchanged failures, 1 skipped in 6.29 s
+- Blockers: none; the user explicitly confirmed local Git permission and that both backup ZIPs may be ignored
+- Next action: restage this journal-only audit record, rerun cached checks, then create the local `PTR-004` checkpoint

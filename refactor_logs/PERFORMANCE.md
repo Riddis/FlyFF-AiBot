@@ -60,3 +60,16 @@ cooldown-backed, and checks cancellation/deadline between bounded operations.
 Its `deadline_is_cooperative` metric is intentionally true: an already-blocking
 backend call cannot be preempted synchronously and remains `RISK-011` for
 `PTR-001`.
+
+## Phase 02 managed-diagnostics measurement — 2026-07-31
+
+The fake shared service ran 1,000 health-only reports:
+
+| Scenario | Mean | p99 | Maximum | Expensive work |
+|---|---:|---:|---:|---|
+| Managed diagnostic core, health only | 0.016333 ms | 0.027500 ms | 0.091000 ms | 1,000 fixed snapshots; 0 recoveries; 0 readable-region calls |
+
+This measurement excludes worker start/GUI rendering and verifies the core
+health command cannot accidentally enter scan or persistence. Managed-worker
+cancellation, reciprocal control exclusion, and false-join shutdown are covered
+by the Phase 02 integration suite.

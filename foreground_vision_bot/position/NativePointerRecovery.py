@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import base64
 import json
 import math
+import os
 import struct
 from bisect import bisect_right
 from collections.abc import Callable
@@ -9,7 +11,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from threading import Event, RLock
 from time import monotonic, sleep
-from typing import Protocol
+from typing import Protocol, cast
 
 from .MonsterConfig import (
     DEFAULT_MONSTER_CONFIG_PATH,
@@ -509,24 +511,298 @@ def _stable_candidate(
     return True
 
 
-def _atomic_json_update(path: Path, updates: dict[str, str]) -> None:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+class PointerPersistenceError(RuntimeError):
+    """A two-config pointer update could not commit or recover safely."""
+
+
+@dataclass(frozen=True, slots=True)
+class _PersistenceTarget:
+    path: Path
+    original_existed: bool
+    original_bytes: bytes
+    replacement_bytes: bytes
+    changed: bool
+    backup_path: Path
+    backup_existed: bool
+    replacement_path: Path
+    backup_stage_path: Path
+    restore_path: Path
+
+
+_POINTER_TRANSACTION_VERSION = 1
+
+
+def _canonical_path(path: str | Path) -> Path:
+    return Path(path).resolve(strict=False)
+
+
+def _journal_path(position_config_path: Path) -> Path:
+    return position_config_path.with_name(
+        f".{position_config_path.name}.pointer_recovery.transaction.json"
+    )
+
+
+def _journal_stage_path(journal_path: Path) -> Path:
+    return journal_path.with_name(f"{journal_path.name}.tmp")
+
+
+def _target_paths(path: Path) -> tuple[Path, Path, Path, Path]:
+    backup = path.with_suffix(path.suffix + ".pre_pointer_recovery.bak")
+    replacement = path.with_name(
+        f".{path.name}.pointer_recovery.replacement.tmp"
+    )
+    backup_stage = path.with_name(
+        f".{path.name}.pointer_recovery.backup.tmp"
+    )
+    restore = path.with_name(f".{path.name}.pointer_recovery.restore.tmp")
+    return backup, replacement, backup_stage, restore
+
+
+def _sync_directory(directory: Path) -> None:
+    """Best-effort metadata flush; opening directories is unsupported on Windows."""
+
+    try:
+        descriptor = os.open(directory, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(descriptor)
+    except OSError:
+        pass
+    finally:
+        os.close(descriptor)
+
+
+def _write_durable_file(path: Path, data: bytes) -> None:
+    path.unlink(missing_ok=True)
+    with path.open("xb") as handle:
+        handle.write(data)
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def _atomic_replace(source: Path, destination: Path) -> None:
+    source.replace(destination)
+    _sync_directory(destination.parent)
+
+
+def _remove_file(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        return
+    _sync_directory(path.parent)
+
+
+def _prepare_persistence_target(
+    path: Path,
+    updates: dict[str, str],
+) -> _PersistenceTarget:
+    if not path.parent.is_dir():
+        raise PointerPersistenceError(
+            f"Configuration directory does not exist: {path.parent}"
+        )
+    original_existed = path.is_file()
+    if not original_existed:
+        raise PointerPersistenceError(f"Configuration does not exist: {path}")
+    original_bytes = path.read_bytes()
+    try:
+        payload = json.loads(original_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PointerPersistenceError(
+            f"Configuration is not valid UTF-8 JSON: {path}"
+        ) from error
     if not isinstance(payload, dict):
-        raise ValueError(f"Configuration root must be an object: {path}")
+        raise PointerPersistenceError(
+            f"Configuration root must be an object: {path}"
+        )
+
     changed = False
     for key, value in updates.items():
         if payload.get(key) != value:
             payload[key] = value
             changed = True
-    if not changed:
-        return
+    replacement_bytes = (
+        (json.dumps(payload, indent=2) + "\n").encode("utf-8")
+        if changed
+        else original_bytes
+    )
+    try:
+        replacement_payload = json.loads(replacement_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PointerPersistenceError(
+            f"Prepared replacement is not valid JSON: {path}"
+        ) from error
+    if not isinstance(replacement_payload, dict) or any(
+        replacement_payload.get(key) != value for key, value in updates.items()
+    ):
+        raise PointerPersistenceError(
+            f"Prepared replacement failed validation: {path}"
+        )
 
-    backup = path.with_suffix(path.suffix + ".pre_pointer_recovery.bak")
-    if not backup.exists():
-        backup.write_bytes(path.read_bytes())
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    backup, replacement, backup_stage, restore = _target_paths(path)
+    return _PersistenceTarget(
+        path=path,
+        original_existed=original_existed,
+        original_bytes=original_bytes,
+        replacement_bytes=replacement_bytes,
+        changed=changed,
+        backup_path=backup,
+        backup_existed=backup.exists(),
+        replacement_path=replacement,
+        backup_stage_path=backup_stage,
+        restore_path=restore,
+    )
+
+
+def _target_record(target: _PersistenceTarget) -> dict[str, object]:
+    return {
+        "path": str(target.path),
+        "original_existed": target.original_existed,
+        "original_base64": base64.b64encode(target.original_bytes).decode("ascii"),
+        "changed": target.changed,
+        "backup_existed": target.backup_existed,
+    }
+
+
+def _transaction_bytes(targets: tuple[_PersistenceTarget, ...]) -> bytes:
+    payload = {
+        "version": _POINTER_TRANSACTION_VERSION,
+        "targets": [_target_record(target) for target in targets],
+    }
+    return (json.dumps(payload, indent=2) + "\n").encode("utf-8")
+
+
+def _parse_transaction_target(value: object) -> _PersistenceTarget:
+    if not isinstance(value, dict):
+        raise PointerPersistenceError("Transaction target must be an object")
+    path_value = value.get("path")
+    original_existed = value.get("original_existed")
+    original_base64 = value.get("original_base64")
+    changed = value.get("changed")
+    backup_existed = value.get("backup_existed")
+    if (
+        not isinstance(path_value, str)
+        or not isinstance(original_existed, bool)
+        or not isinstance(original_base64, str)
+        or not isinstance(changed, bool)
+        or not isinstance(backup_existed, bool)
+    ):
+        raise PointerPersistenceError("Transaction target fields are invalid")
+    try:
+        original_bytes = base64.b64decode(
+            original_base64.encode("ascii"),
+            validate=True,
+        )
+    except (UnicodeEncodeError, ValueError) as error:
+        raise PointerPersistenceError(
+            "Transaction target original bytes are invalid"
+        ) from error
+    path = _canonical_path(path_value)
+    backup, replacement, backup_stage, restore = _target_paths(path)
+    return _PersistenceTarget(
+        path=path,
+        original_existed=original_existed,
+        original_bytes=original_bytes,
+        replacement_bytes=b"",
+        changed=changed,
+        backup_path=backup,
+        backup_existed=backup_existed,
+        replacement_path=replacement,
+        backup_stage_path=backup_stage,
+        restore_path=restore,
+    )
+
+
+def _read_transaction(
+    journal: Path,
+    expected_paths: tuple[Path, Path],
+) -> tuple[_PersistenceTarget, ...]:
+    try:
+        value = json.loads(journal.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise PointerPersistenceError(
+            f"Could not read pointer persistence journal: {journal}"
+        ) from error
+    if not isinstance(value, dict):
+        raise PointerPersistenceError("Pointer persistence journal is invalid")
+    if value.get("version") != _POINTER_TRANSACTION_VERSION:
+        raise PointerPersistenceError(
+            "Pointer persistence journal version is unsupported"
+        )
+    raw_targets = value.get("targets")
+    if not isinstance(raw_targets, list) or len(raw_targets) != 2:
+        raise PointerPersistenceError(
+            "Pointer persistence journal must contain two targets"
+        )
+    targets = tuple(_parse_transaction_target(item) for item in raw_targets)
+    if tuple(target.path for target in targets) != expected_paths:
+        raise PointerPersistenceError(
+            "Pointer persistence journal targets do not match this request"
+        )
+    return targets
+
+
+def _cleanup_target_temps(targets: tuple[_PersistenceTarget, ...]) -> None:
+    for target in targets:
+        _remove_file(target.replacement_path)
+        _remove_file(target.backup_stage_path)
+        _remove_file(target.restore_path)
+
+
+def _restore_persistence_target(target: _PersistenceTarget) -> None:
+    if target.original_existed:
+        current = target.path.read_bytes() if target.path.is_file() else None
+        if current != target.original_bytes:
+            _write_durable_file(target.restore_path, target.original_bytes)
+            _atomic_replace(target.restore_path, target.path)
+    elif target.path.exists():
+        _remove_file(target.path)
+
+    if target.changed and not target.backup_existed:
+        _remove_file(target.backup_path)
+
+
+def recover_interrupted_pointer_persistence(
+    *,
+    position_config_path: str | Path = DEFAULT_POSITION_CONFIG_PATH,
+    monster_config_path: str | Path = DEFAULT_MONSTER_CONFIG_PATH,
+) -> bool:
+    """Rollback an interrupted two-config commit, if its journal is present."""
+
+    position_path = _canonical_path(position_config_path)
+    monster_path = _canonical_path(monster_config_path)
+    if position_path == monster_path:
+        raise PointerPersistenceError(
+            "Position and monster configurations must be different files"
+        )
+    expected_paths = (position_path, monster_path)
+    journal = _journal_path(position_path)
+    journal_stage = _journal_stage_path(journal)
+    with _PERSIST_LOCK:
+        if not journal.exists():
+            _remove_file(journal_stage)
+            for path in expected_paths:
+                backup, replacement, backup_stage, restore = _target_paths(path)
+                del backup
+                _remove_file(replacement)
+                _remove_file(backup_stage)
+                _remove_file(restore)
+            return False
+
+        targets = _read_transaction(journal, expected_paths)
+        try:
+            for target in targets:
+                _restore_persistence_target(target)
+            _cleanup_target_temps(targets)
+            _remove_file(journal_stage)
+            _remove_file(journal)
+        except Exception as error:
+            raise PointerPersistenceError(
+                "Interrupted pointer persistence rollback is incomplete; "
+                f"journal retained at {journal}"
+            ) from error
+        return True
 
 
 def persist_recovered_pointer_offsets(
@@ -536,9 +812,15 @@ def persist_recovered_pointer_offsets(
     monster_config_path: str | Path = DEFAULT_MONSTER_CONFIG_PATH,
 ) -> None:
     with _PERSIST_LOCK:
-        _atomic_json_update(
-            Path(position_config_path),
-            {"pointer_offset": f"0x{recovery.player_pointer_offset:X}"},
+        position_path = _canonical_path(position_config_path)
+        monster_path = _canonical_path(monster_config_path)
+        if position_path == monster_path:
+            raise PointerPersistenceError(
+                "Position and monster configurations must be different files"
+            )
+        recover_interrupted_pointer_persistence(
+            position_config_path=position_path,
+            monster_config_path=monster_path,
         )
         monster_updates = {
             "player_pointer_offset": f"0x{recovery.player_pointer_offset:X}",
@@ -547,18 +829,105 @@ def persist_recovered_pointer_offsets(
             monster_updates["world_pointer_offset"] = (
                 f"0x{recovery.world_pointer_offset:X}"
             )
-        _atomic_json_update(Path(monster_config_path), monster_updates)
+        targets = (
+            _prepare_persistence_target(
+                position_path,
+                {"pointer_offset": f"0x{recovery.player_pointer_offset:X}"},
+            ),
+            _prepare_persistence_target(monster_path, monster_updates),
+        )
+        if not any(target.changed for target in targets):
+            return
+
+        journal = _journal_path(position_path)
+        journal_stage = _journal_stage_path(journal)
+        try:
+            for target in targets:
+                if not target.changed:
+                    continue
+                _write_durable_file(
+                    target.replacement_path,
+                    target.replacement_bytes,
+                )
+                if not target.backup_existed:
+                    _write_durable_file(
+                        target.backup_stage_path,
+                        target.original_bytes,
+                    )
+
+            # Re-read both sources only after every replacement has been
+            # prepared and validated, but before the recovery journal or any
+            # destination is touched.
+            for target in targets:
+                if (
+                    target.path.is_file() != target.original_existed
+                    or (
+                        target.original_existed
+                        and target.path.read_bytes() != target.original_bytes
+                    )
+                    or target.backup_path.exists() != target.backup_existed
+                ):
+                    raise PointerPersistenceError(
+                        "Pointer configuration changed while preparing the "
+                        f"transaction: {target.path}"
+                    )
+
+            _write_durable_file(journal_stage, _transaction_bytes(targets))
+            _atomic_replace(journal_stage, journal)
+        except Exception:
+            _cleanup_target_temps(targets)
+            _remove_file(journal_stage)
+            raise
+
+        try:
+            for target in targets:
+                if target.changed and not target.backup_existed:
+                    _atomic_replace(
+                        target.backup_stage_path,
+                        target.backup_path,
+                    )
+            for target in targets:
+                if target.changed:
+                    _atomic_replace(target.replacement_path, target.path)
+            _remove_file(journal)
+        except Exception as commit_error:
+            try:
+                recover_interrupted_pointer_persistence(
+                    position_config_path=position_path,
+                    monster_config_path=monster_path,
+                )
+            except Exception as rollback_error:
+                raise PointerPersistenceError(
+                    "Pointer configuration commit failed and rollback is "
+                    f"incomplete; recovery journal retained at {journal}"
+                ) from rollback_error
+            raise PointerPersistenceError(
+                "Pointer configuration commit failed and was rolled back"
+            ) from commit_error
 
 
 def _persist_if_requested(
     recovery: PlayerPointerRecovery,
     *,
     requested: bool,
+    position_config_path: str | Path | None = None,
+    monster_config_path: str | Path | None = None,
 ) -> None:
     if not requested:
         return
     try:
-        persist_recovered_pointer_offsets(recovery)
+        if position_config_path is None and monster_config_path is None:
+            persist_recovered_pointer_offsets(recovery)
+        elif position_config_path is None or monster_config_path is None:
+            raise ValueError(
+                "Both persistence config paths must be provided together"
+            )
+        else:
+            persist_recovered_pointer_offsets(
+                recovery,
+                position_config_path=position_config_path,
+                monster_config_path=monster_config_path,
+            )
     except Exception as error:
         print(
             "Native pointer recovery succeeded but config persistence "
@@ -653,7 +1022,10 @@ def _perform_recovery_attempt(
     control: _AttemptControl,
     status_callback: PointerRecoveryStatusCallback | None,
 ) -> tuple[PlayerPointerRecovery | None, str]:
-    readable_regions_fn = getattr(memory, "readable_regions", None)
+    readable_regions_fn = cast(
+        Callable[..., tuple[object, ...]] | None,
+        getattr(memory, "readable_regions", None),
+    )
     if not callable(readable_regions_fn):
         return None, "unavailable"
 
@@ -844,6 +1216,8 @@ def recover_local_player_pointer(
     chunk_size: int = 0x10000,
     maximum_candidates: int = 4096,
     persist: bool = False,
+    position_config_path: str | Path | None = None,
+    monster_config_path: str | Path | None = None,
     cancellation: object | None = None,
     deadline: float | None = None,
     timeout_seconds: float = DEFAULT_RECOVERY_TIMEOUT_SECONDS,
@@ -952,7 +1326,12 @@ def recover_local_player_pointer(
                 )
                 return None
             if cached_is_valid:
-                _persist_if_requested(cached, requested=bool(persist))
+                _persist_if_requested(
+                    cached,
+                    requested=bool(persist),
+                    position_config_path=position_config_path,
+                    monster_config_path=monster_config_path,
+                )
                 metrics = builder.freeze(
                     "cache_hit",
                     now=clock(),
@@ -1092,7 +1471,12 @@ def recover_local_player_pointer(
         )
         return None
 
-    _persist_if_requested(recovery, requested=persist_for_flight)
+    _persist_if_requested(
+        recovery,
+        requested=persist_for_flight,
+        position_config_path=position_config_path,
+        monster_config_path=monster_config_path,
+    )
     flight.completed.set()
     _notify(
         status_callback,

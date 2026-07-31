@@ -4,6 +4,7 @@ import struct
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from threading import RLock
 from time import monotonic
 from typing import Protocol
@@ -106,12 +107,16 @@ class NativeProcessService:
         monster_config: NativeMonsterConfig,
         *,
         position_config: NativePositionConfig | None = None,
+        position_config_path: str | Path | None = None,
+        monster_config_path: str | Path | None = None,
         owns_memory: bool = True,
         clock: Callable[[], float] = monotonic,
     ) -> None:
         self._memory = memory
         self.monster_config = monster_config
         self.position_config = position_config
+        self.position_config_path = position_config_path
+        self.monster_config_path = monster_config_path
         self._owns_memory = bool(owns_memory)
         self._clock = clock
         self._lock = RLock()
@@ -161,6 +166,8 @@ class NativeProcessService:
         monster_config: NativeMonsterConfig,
         *,
         position_config: NativePositionConfig | None = None,
+        position_config_path: str | Path | None = None,
+        monster_config_path: str | Path | None = None,
         backend: Win32MemoryBackend | None = None,
         clock: Callable[[], float] = monotonic,
     ) -> NativeProcessService:
@@ -173,6 +180,8 @@ class NativeProcessService:
                 memory,
                 monster_config,
                 position_config=position_config,
+                position_config_path=position_config_path,
+                monster_config_path=monster_config_path,
                 owns_memory=True,
                 clock=clock,
             )
@@ -303,6 +312,8 @@ class NativeProcessService:
                 state=self._recovery_state,
                 monster_config=self.monster_config,
                 persist=persist,
+                position_config_path=self.position_config_path,
+                monster_config_path=self.monster_config_path,
                 cancellation=cancellation,
                 deadline=deadline,
                 timeout_seconds=timeout_seconds,
