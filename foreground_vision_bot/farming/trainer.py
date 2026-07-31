@@ -19,7 +19,7 @@ from worker_manager import CancellationToken, WorkerCancelled
 
 from .actions import FarmingAction
 from .config import CONFIG_VERSION, FarmingRuntimeConfig
-from .control import DirectFarmingControl, FarmingKeyMap
+from .control import DirectFarmingControl, FarmingKeyMap, WindowFocusService
 from .environment import UnifiedFarmingEnv
 from .map_context import FarmingMapContext
 from .native_world import (
@@ -224,12 +224,19 @@ def build_live_farming_runtime(
     if map_context.features.is_forbidden(cell):
         raise RuntimeError("Native player pose starts inside a teleport trigger")
 
+    focus = WindowFocusService(
+        cast(Any, keyboard),
+        cancellation,
+        autofocus=config.autofocus,
+        grace_seconds=config.focus_grace_seconds,
+        poll_seconds=config.focus_poll_seconds,
+    )
     control = DirectFarmingControl(
         cast(Any, keyboard),
         cancellation,
         keymap=FarmingKeyMap.for_layout(config.keyboard_layout),
         eva_press_seconds=config.eva_press_seconds,
-        autofocus=config.autofocus,
+        focus_service=focus,
     )
     domain = UnifiedFarmingEnv(
         world_reader,

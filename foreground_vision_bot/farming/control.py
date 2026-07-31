@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from time import sleep
+from time import monotonic, sleep
 from typing import Protocol
 
 from .actions import FarmingAction, coerce_farming_action
@@ -35,6 +35,66 @@ class FarmingControlCancelled(FarmingControlError):
 
 class FarmingControlUnavailable(FarmingControlError):
     pass
+
+
+@dataclass(slots=True)
+class WindowFocusService:
+    """Bounded, cancellable ownership of FlyFF foreground acquisition."""
+
+    keyboard: FarmingKeyboard
+    cancellation: object
+    autofocus: bool = True
+    grace_seconds: float = 2.0
+    poll_seconds: float = 0.05
+    status_callback: Callable[[str], None] | None = None
+
+    def __post_init__(self) -> None:
+        if self.cancellation is None:
+            raise ValueError("The worker cancellation token is required")
+        if self.grace_seconds <= 0.0:
+            raise ValueError("focus grace_seconds must be positive")
+        if self.poll_seconds <= 0.0:
+            raise ValueError("focus poll_seconds must be positive")
+
+    def _cancelled(self) -> bool:
+        cancelled = getattr(self.cancellation, "cancelled", None)
+        if cancelled is not None:
+            return bool(cancelled() if callable(cancelled) else cancelled)
+        is_set = getattr(self.cancellation, "is_set", None)
+        return bool(is_set()) if callable(is_set) else False
+
+    def _wait(self, seconds: float) -> None:
+        wait = getattr(self.cancellation, "wait", None)
+        if callable(wait):
+            wait(max(0.0, seconds))
+        else:
+            sleep(max(0.0, seconds))
+
+    def ensure_focused(self) -> None:
+        if self._cancelled():
+            raise FarmingControlCancelled("Farming control was cancelled")
+        if self.keyboard.is_target_foreground():
+            return
+        if self.autofocus:
+            self.keyboard.focus_target_window()
+            if self.keyboard.is_target_foreground():
+                return
+
+        if self.status_callback is not None:
+            self.status_callback(
+                "FlyFF did not accept automatic focus; focus it manually to continue."
+            )
+        deadline = monotonic() + self.grace_seconds
+        while not self.keyboard.is_target_foreground():
+            if self._cancelled():
+                raise FarmingControlCancelled("Farming focus wait was cancelled")
+            remaining = deadline - monotonic()
+            if remaining <= 0.0:
+                raise FarmingControlUnavailable(
+                    "FlyFF is not the foreground window after the manual-focus grace "
+                    "period"
+                )
+            self._wait(min(self.poll_seconds, remaining))
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,7 +131,7 @@ class DirectFarmingControl:
         *,
         keymap: FarmingKeyMap | None = None,
         eva_press_seconds: float = 0.03,
-        autofocus: bool = False,
+        focus_service: WindowFocusService | None = None,
         sleeper: Callable[[float], None] = sleep,
     ) -> None:
         if cancellation is None:
@@ -82,7 +142,7 @@ class DirectFarmingControl:
         self.cancellation = cancellation
         self.keymap = keymap or FarmingKeyMap.azerty()
         self.eva_press_seconds = float(eva_press_seconds)
-        self.autofocus = bool(autofocus)
+        self.focus = focus_service or WindowFocusService(keyboard, cancellation)
         self._sleep = sleeper
         self._held_keys: tuple[int, ...] = ()
         self._held_movement: FarmingAction | None = None
@@ -114,16 +174,11 @@ class DirectFarmingControl:
         if self._closed:
             raise FarmingControlUnavailable("Farming control is closed")
         self._raise_if_cancelled()
-        if self.keyboard.is_target_foreground():
-            return
-        if self.autofocus:
-            self.keyboard.focus_target_window()
-            if self.keyboard.is_target_foreground():
-                return
-        self.release()
-        raise FarmingControlUnavailable(
-            "FlyFF is not the foreground window; movement was released"
-        )
+        try:
+            self.focus.ensure_focused()
+        except Exception:
+            self.release()
+            raise
 
     def execute(self, action: FarmingAction | int) -> None:
         selected = coerce_farming_action(action)

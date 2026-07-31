@@ -11,6 +11,7 @@ from farming.control import (
     FarmingControlCancelled,
     FarmingControlUnavailable,
     FarmingKeyMap,
+    WindowFocusService,
 )
 from farming.map_context import FarmingMapContext
 from farming.map_features import FarmingMapFeatures
@@ -59,6 +60,48 @@ class FakeKeyboard:
     def focus_target_window(self) -> bool:
         self.trace.append(("focus", None))
         return self.foreground
+
+
+def test_focus_service_autofocuses_then_allows_manual_grace() -> None:
+    keyboard = FakeKeyboard()
+    keyboard.foreground = False
+
+    class Token(FakeToken):
+        def wait(self, _seconds: float) -> bool:
+            keyboard.foreground = True
+            return False
+
+    statuses: list[str] = []
+    focus = WindowFocusService(
+        keyboard,
+        Token(),
+        grace_seconds=0.1,
+        poll_seconds=0.01,
+        status_callback=statuses.append,
+    )
+
+    focus.ensure_focused()
+
+    assert keyboard.trace == [("focus", None)]
+    assert statuses == [
+        "FlyFF did not accept automatic focus; focus it manually to continue."
+    ]
+
+
+def test_focus_service_wait_is_cancellable_and_control_releases_keys() -> None:
+    keyboard = FakeKeyboard()
+    token = FakeToken()
+    keys = FarmingKeyMap.azerty()
+    control = DirectFarmingControl(keyboard, token, keymap=keys)
+    control.execute(0)
+    keyboard.foreground = False
+    token.cancel_during_wait = True
+
+    with pytest.raises(FarmingControlCancelled, match="focus wait"):
+        control.execute(1)
+
+    assert control.held_keys == ()
+    assert keyboard.trace[-2:] == [("focus", None), ("up", keys.forward)]
 
 
 def test_shipped_config_migrates_without_using_hierarchical_navigation() -> None:
@@ -139,7 +182,18 @@ def test_direct_control_releases_on_focus_loss_and_eva_cancellation() -> None:
     keyboard = FakeKeyboard()
     token = FakeToken()
     keys = FarmingKeyMap.azerty()
-    control = DirectFarmingControl(keyboard, token, keymap=keys)
+    control = DirectFarmingControl(
+        keyboard,
+        token,
+        keymap=keys,
+        focus_service=WindowFocusService(
+            keyboard,
+            token,
+            autofocus=False,
+            grace_seconds=0.001,
+            poll_seconds=0.001,
+        ),
+    )
     control.execute(2)
     keyboard.foreground = False
 

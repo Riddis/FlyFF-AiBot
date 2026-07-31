@@ -1,6 +1,24 @@
 # Phase 04 — Input, Focus, and Camera
 
-Status: not started.
+Status: completed under fake/automated coverage; live foreground behavior remains in the consolidated manual protocol.
+
+## 2026-07-31 â€” `INPUT-002` â€” Bounded focus ownership and camera-sweep retirement
+
+- `farming.control.WindowFocusService` is the single farming focus owner. It
+  performs best-effort automatic activation, then a short cancellable manual
+  grace wait, and fails typed without replaying held movement.
+- `DirectFarmingControl` owns that service and releases its key ledger before a
+  focus failure or cancellation escapes.
+- Canonical config defaults autofocus on and validates the focus grace/poll
+  intervals. The shipped config makes the choice explicit.
+- Farming camera discovery was intentionally removed rather than migrated: the
+  canonical policy uses native heading plus the fixed Tower coordinate map and
+  has no camera-derived heading contract. Mapper camera-obstruction recovery
+  remains a separate, bounded mapper workflow.
+- Automated evidence: autofocus/manual success, cancellation during the focus
+  wait, focus-loss release, movement transitions, and EVA persistence pass in
+  the focused suite. No farming production import reaches the deleted
+  `CameraDiscoverySweep` or navigator stack.
 
 ## Pre-implementation design (`INPUT-001` through `INPUT-004`)
 
@@ -11,7 +29,7 @@ NavigatorActionExecutor`, while `Bot` owns a second executor and
 D directly. Phase 04 replaces those competing semantic ledgers after the
 canonical farming port lands.
 
-Planned package:
+Original planned package (superseded where noted above):
 
 - `game/window.py`: fail-closed typed focus state/outcomes and cancellable
   auto-focus/manual fallback; Win32 API errors are not treated as focused.

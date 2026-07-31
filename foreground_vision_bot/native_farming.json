@@ -22,5 +22,8 @@
   "teleport_jump_threshold_cells": 25.0,
   "teleport_pointer_grace_seconds": 3.0,
   "teleport_pointer_poll_seconds": 0.1,
+  "autofocus": true,
+  "focus_grace_seconds": 2.0,
+  "focus_poll_seconds": 0.05,
   "session_report_dir": "training_logs/farming/native_sessions"
 }

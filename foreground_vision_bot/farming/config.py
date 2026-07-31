@@ -57,7 +57,9 @@ class FarmingRuntimeConfig:
     kill_dedupe_seconds: float = 4.0
     eva_press_seconds: float = 0.03
     keyboard_layout: str = "azerty"
-    autofocus: bool = False
+    autofocus: bool = True
+    focus_grace_seconds: float = 2.0
+    focus_poll_seconds: float = 0.05
 
     def __post_init__(self) -> None:
         integer_fields = {
@@ -91,6 +93,8 @@ class FarmingRuntimeConfig:
             "cast_poll_seconds": self.cast_poll_seconds,
             "kill_dedupe_seconds": self.kill_dedupe_seconds,
             "eva_press_seconds": self.eva_press_seconds,
+            "focus_grace_seconds": self.focus_grace_seconds,
+            "focus_poll_seconds": self.focus_poll_seconds,
         }
         for name, value in positive_fields.items():
             if isinstance(value, bool) or not isinstance(value, Real):

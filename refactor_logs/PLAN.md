@@ -70,7 +70,7 @@ Acceptance: `reset()`/`step()` are explicit, only four actions exist, and no ver
 ## Phase 04 — Input, focus, and camera
 
 - [x] `INPUT-001` Extract one persistent key-state/direct movement executor.
-- [ ] `INPUT-002` Extract cancellable focus and camera discovery services.
+- [x] `INPUT-002` Extract cancellable focus ownership and retire the camera sweep from the native-heading farming path.
 - [x] `INPUT-003` Remove unified-runtime dependence on movement PPO/target navigation.
 - [x] `INPUT-004` Validate transitions, EVA, focus loss, cancellation, and exactly-once key release.
 
