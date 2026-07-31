@@ -11,7 +11,7 @@
 - Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through `protected/pre-codex-refactor` and `backup/pre-codex-refactor`.
 - Production route: `runtime_controller.py -> farming.trainer -> UnifiedFarmingEnv / SessionAwarePPO`.
 - Active model: `models/farming/native_strategy_ppo.zip`; SHA-256 `3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2` unchanged.
-- Latest automated acceptance: 557 passed, 1 skipped in 10.16 seconds.
+- Latest automated acceptance: 560 passed, 1 skipped in 10.65 seconds.
 - Quality: changed production/test scope passes Ruff F/I; native production BasedPyright reports zero errors (existing warning-level typing debt remains); diff hygiene passes.
 - Live evidence retained: `Neuz.exe` base `0xB0000`, size `0x943000`, 32-bit; all 4,096 legacy candidates rejected at the historical self field. GUI responsiveness, cancellation, no-input startup failure, Stop, and shutdown passed.
 - Implemented next strategy: selected species consensus, inferred current world/self actor fields, Tower spawn `(253.0, 86.0)` plus exact current/max HP ranking, stable direct/one-hop module references, and mandatory second-sample movement confirmation.
@@ -34,3 +34,6 @@
 - Implemented correction: a world target must have a stable first-word vtable inside `Neuz.exe` both before and after movement; shared readable scalars cannot qualify. Player HP/max-HP offsets are diagnostic anchor fields only, while persistence retains the independently inferred monster HP layout. Preview mob-template iteration receives cooperative cancellation between matches. Recovery backup files are ignored but retained locally as evidence.
 - Health hardening: anchored recovery persists the confirmed module-relative `layout.world_vtable_offset`; same-session, cached, and restarted ordinary snapshots require that exact identity before Native Health can report healthy.
 - Automated acceptance: 557 passed, 1 skipped in 10.16 seconds; 46 focused tests pass. Regressions reproduce a readable `0x3F800000` target with eight module references, divergent player/monster HP fields, a cancellation-blocked preview builder, and world-identity changes both before and after restart.
+- Latest live evidence: 46 actors formed one layout with four self aliases, but all 52 shared world hypotheses failed only the byte-zero vtable assumption (`world_object_reject=52`). No player stage or persistence occurred.
+- Active correction: search a bounded `0x400`-byte world prefix for a stable displaced vptr and require its referenced table to contain module-owned function pointers. Persist/recheck both field and table offsets; emit detailed best-near-world identity evidence on failure.
+- Automated acceptance: 560 passed, 1 skipped in 10.65 seconds; 49 focused tests pass. Tests prove displaced-vptr recovery through movement/health/restart, bounded/aligned config validation, and rejection of readable scalar pages and bare module literals.

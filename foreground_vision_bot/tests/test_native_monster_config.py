@@ -21,6 +21,7 @@ def test_monster_config_parses_confirmed_multislab_layout() -> None:
             "layout": {
                 "actor_stride": "0x2008",
                 "world_vtable_offset": "0x1234",
+                "world_vtable_field_offset": "0x2C",
                 "active_species_offset": "0x1DBC",
                 "self_pointer_offset": "0x1EE0",
             },
@@ -39,6 +40,7 @@ def test_monster_config_parses_confirmed_multislab_layout() -> None:
     assert config.world_pointer_chain_offsets == ()
     assert config.actor_stride == 0x2008
     assert config.world_vtable_offset == 0x1234
+    assert config.world_vtable_field_offset == 0x2C
     assert config.active_species_offset == 0x1DBC
     assert config.self_pointer_offset == 0x1EE0
     assert config.vision_radius_native == 80.0
@@ -63,3 +65,14 @@ def test_monster_config_allows_missing_world_vtable_identity() -> None:
     config = NativeMonsterConfig.from_mapping({})
 
     assert config.world_vtable_offset is None
+    assert config.world_vtable_field_offset == 0
+
+
+@pytest.mark.parametrize("field_offset", ["0x2D", "0x400"])
+def test_monster_config_rejects_invalid_world_vtable_field(
+    field_offset: str,
+) -> None:
+    with pytest.raises(MonsterConfigurationError, match="aligned and at most"):
+        NativeMonsterConfig.from_mapping(
+            {"layout": {"world_vtable_field_offset": field_offset}}
+        )

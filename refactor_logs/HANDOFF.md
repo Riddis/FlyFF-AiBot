@@ -69,6 +69,16 @@ the shutdown join budget. Preview now receives cancellation inside that loop
 and exits between template matches. The existing timeout safety behavior still
 keeps resources open if a live worker genuinely cannot stop.
 
+The following stationary retry retained the unique actor layout but rejected
+all 52 shared world hypotheses because none had a qualifying vptr at byte zero.
+No player or persistence stage ran. World identity now probes only a bounded
+`0x400`-byte prefix twice, permits a displaced aligned vptr, and verifies that
+its referenced table contains at least two module-owned function pointers.
+Both the object-relative vptr field and module-relative table identity are
+carried through movement, persistence, cached recovery, health, and restart.
+Failure logs include aggregate identity rejection reasons and the strongest
+near-world target instead of silently collapsing to `world_support=0`.
+
 The first strong result returns `movement_required` and is held only by the
 attachment's `NativeProcessService`. It is not applied or persisted. A second
 managed call resolves the same direct slot or one-hop chain and requires exact
@@ -94,8 +104,8 @@ both config files.
 
 ## Automated validation
 
-- Full canonical suite: 557 passed, 1 skipped in 10.16 seconds.
-- Focused recovery/persistence/diagnostic/preview/controller suite: 46 passed.
+- Full canonical suite: 560 passed, 1 skipped in 10.65 seconds.
+- Focused recovery/persistence/diagnostic/preview/controller suite: 49 passed.
 - Changed production/test Ruff F/I: pass.
 - Native production BasedPyright: 0 errors; existing warning-level typing debt
   remains classified.
@@ -108,7 +118,8 @@ both config files.
   invariant, null legacy player slots, duplicate direct world aliases, and
   duplicate world-rooted player fields, scalar false-world rejection,
   player/monster HP role separation, same-session and restarted world-identity
-  health rejection, config persistence, and cancellable preview construction.
+  health rejection, displaced-vptr discovery, vtable-shape validation, config
+  persistence, and cancellable preview construction.
 
 ## Provenance
 

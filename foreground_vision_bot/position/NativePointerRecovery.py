@@ -59,6 +59,7 @@ class PlayerPointerRecovery:
     world_pointer_chain_offsets: tuple[int, ...] = ()
     world_field_offset: int | None = None
     world_vtable_offset: int | None = None
+    world_vtable_field_offset: int | None = None
     self_pointer_offset: int | None = None
     species_offset: int | None = None
     active_species_offset: int | None = None
@@ -122,7 +123,19 @@ class PointerRecoveryMetrics:
     inferred_world_species_support: int = 0
     inferred_world_offset: int | None = None
     inferred_world_vtable: int | None = None
+    inferred_world_vtable_field_offset: int | None = None
     world_object_rejections: int = 0
+    world_identity_candidates: int = 0
+    world_identity_span_rejections: int = 0
+    world_identity_vtable_misses: int = 0
+    world_identity_unstable_rejections: int = 0
+    world_identity_module_pointer_fields: int = 0
+    world_near_actor_support: int = 0
+    world_near_species_support: int = 0
+    world_near_module_references: int = 0
+    world_near_field_offset: int | None = None
+    world_near_target: int | None = None
+    world_near_module_pointer_fields: int = 0
     inferred_self_actor_support: int = 0
     inferred_self_offset: int | None = None
     monster_base_hypotheses: int = 0
@@ -231,7 +244,19 @@ class _MetricsBuilder:
     inferred_world_species_support: int = 0
     inferred_world_offset: int | None = None
     inferred_world_vtable: int | None = None
+    inferred_world_vtable_field_offset: int | None = None
     world_object_rejections: int = 0
+    world_identity_candidates: int = 0
+    world_identity_span_rejections: int = 0
+    world_identity_vtable_misses: int = 0
+    world_identity_unstable_rejections: int = 0
+    world_identity_module_pointer_fields: int = 0
+    world_near_actor_support: int = 0
+    world_near_species_support: int = 0
+    world_near_module_references: int = 0
+    world_near_field_offset: int | None = None
+    world_near_target: int | None = None
+    world_near_module_pointer_fields: int = 0
     inferred_self_actor_support: int = 0
     inferred_self_offset: int | None = None
     monster_base_hypotheses: int = 0
@@ -330,7 +355,29 @@ class _MetricsBuilder:
             inferred_world_species_support=self.inferred_world_species_support,
             inferred_world_offset=self.inferred_world_offset,
             inferred_world_vtable=self.inferred_world_vtable,
+            inferred_world_vtable_field_offset=(
+                self.inferred_world_vtable_field_offset
+            ),
             world_object_rejections=self.world_object_rejections,
+            world_identity_candidates=self.world_identity_candidates,
+            world_identity_span_rejections=(
+                self.world_identity_span_rejections
+            ),
+            world_identity_vtable_misses=self.world_identity_vtable_misses,
+            world_identity_unstable_rejections=(
+                self.world_identity_unstable_rejections
+            ),
+            world_identity_module_pointer_fields=(
+                self.world_identity_module_pointer_fields
+            ),
+            world_near_actor_support=self.world_near_actor_support,
+            world_near_species_support=self.world_near_species_support,
+            world_near_module_references=self.world_near_module_references,
+            world_near_field_offset=self.world_near_field_offset,
+            world_near_target=self.world_near_target,
+            world_near_module_pointer_fields=(
+                self.world_near_module_pointer_fields
+            ),
             inferred_self_actor_support=self.inferred_self_actor_support,
             inferred_self_offset=self.inferred_self_offset,
             monster_base_hypotheses=self.monster_base_hypotheses,
@@ -1213,6 +1260,10 @@ def persist_recovered_pointer_offsets(
             layout_updates["world_vtable_offset"] = (
                 f"0x{recovery.world_vtable_offset:X}"
             )
+        if recovery.world_vtable_field_offset is not None:
+            layout_updates["world_vtable_field_offset"] = (
+                f"0x{recovery.world_vtable_field_offset:X}"
+            )
         if recovery.self_pointer_offset is not None:
             layout_updates["self_pointer_offset"] = (
                 f"0x{recovery.self_pointer_offset:X}"
@@ -1380,6 +1431,11 @@ def _verify_cached(
             if cached.world_vtable_offset is None
             else cached.world_vtable_offset
         )
+        world_vtable_field_offset = (
+            config.world_vtable_field_offset
+            if cached.world_vtable_field_offset is None
+            else cached.world_vtable_field_offset
+        )
         return (
             player == cached.player_base
             and world == cached.world_base
@@ -1388,7 +1444,10 @@ def _verify_cached(
             == cached.world_base
             and (
                 world_vtable_offset is None
-                or _u32(memory, cached.world_base)
+                or _u32(
+                    memory,
+                    cached.world_base + world_vtable_field_offset,
+                )
                 == int(module_base) + world_vtable_offset
             )
         )
@@ -1427,7 +1486,29 @@ def _record_anchor_evidence(
     metrics.inferred_world_species_support = evidence.inferred_world_species_support
     metrics.inferred_world_offset = evidence.inferred_world_offset
     metrics.inferred_world_vtable = evidence.inferred_world_vtable
+    metrics.inferred_world_vtable_field_offset = (
+        evidence.inferred_world_vtable_field_offset
+    )
     metrics.world_object_rejections = evidence.world_object_rejections
+    metrics.world_identity_candidates = evidence.world_identity_candidates
+    metrics.world_identity_span_rejections = (
+        evidence.world_identity_span_rejections
+    )
+    metrics.world_identity_vtable_misses = evidence.world_identity_vtable_misses
+    metrics.world_identity_unstable_rejections = (
+        evidence.world_identity_unstable_rejections
+    )
+    metrics.world_identity_module_pointer_fields = (
+        evidence.world_identity_module_pointer_fields
+    )
+    metrics.world_near_actor_support = evidence.world_near_actor_support
+    metrics.world_near_species_support = evidence.world_near_species_support
+    metrics.world_near_module_references = evidence.world_near_module_references
+    metrics.world_near_field_offset = evidence.world_near_field_offset
+    metrics.world_near_target = evidence.world_near_target
+    metrics.world_near_module_pointer_fields = (
+        evidence.world_near_module_pointer_fields
+    )
     metrics.inferred_self_actor_support = evidence.inferred_self_actor_support
     metrics.inferred_self_offset = evidence.inferred_self_offset
     metrics.inferred_species_offset = evidence.inferred_species_offset
@@ -1555,6 +1636,7 @@ def _anchored_recovery(
         world_pointer_chain_offsets=candidate.world_pointer_chain_offsets,
         world_field_offset=candidate.world_field_offset,
         world_vtable_offset=candidate.world_vtable - module_base,
+        world_vtable_field_offset=candidate.world_vtable_field_offset,
         self_pointer_offset=candidate.self_pointer_offset,
         species_offset=candidate.species_offset,
         active_species_offset=candidate.active_species_offset,
@@ -2254,7 +2336,19 @@ def recover_local_player_pointer(
                 f" monster_coord_reject={metrics.monster_coordinate_rejections},"
                 f" world_support={metrics.inferred_world_actor_support},"
                 f" world_vtable={None if metrics.inferred_world_vtable is None else f'0x{metrics.inferred_world_vtable:X}'},"
+                f" world_vtable_field={None if metrics.inferred_world_vtable_field_offset is None else f'0x{metrics.inferred_world_vtable_field_offset:X}'},"
                 f" world_object_reject={metrics.world_object_rejections},"
+                f" world_identity=(candidates={metrics.world_identity_candidates},"
+                f"span_reject={metrics.world_identity_span_rejections},"
+                f"vtable_miss={metrics.world_identity_vtable_misses},"
+                f"unstable={metrics.world_identity_unstable_rejections},"
+                f"module_fields={metrics.world_identity_module_pointer_fields}),"
+                f" world_near=(actors={metrics.world_near_actor_support},"
+                f"species={metrics.world_near_species_support},"
+                f"module_refs={metrics.world_near_module_references},"
+                f"actor_field={None if metrics.world_near_field_offset is None else f'0x{metrics.world_near_field_offset:X}'},"
+                f"target={None if metrics.world_near_target is None else f'0x{metrics.world_near_target:X}'},"
+                f"module_fields={metrics.world_near_module_pointer_fields}),"
                 f" self_support={metrics.inferred_self_actor_support},"
                 f" species_field={metrics.inferred_species_offset},"
                 f" active_field={metrics.inferred_active_species_offset},"

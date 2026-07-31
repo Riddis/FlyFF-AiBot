@@ -434,6 +434,7 @@ class RuntimeController:
                 f"world_chain={tuple(hex(value) for value in snapshot.world_pointer_chain_offsets)}; "
                 f"world_field={None if snapshot.world_field_offset is None else f'0x{snapshot.world_field_offset:X}'}; "
                 f"world_vtable_offset={None if snapshot.world_vtable_offset is None else f'0x{snapshot.world_vtable_offset:X}'}; "
+                f"world_vtable_field={None if snapshot.world_vtable_field_offset is None else f'0x{snapshot.world_vtable_field_offset:X}'}; "
                 f"self_field={None if snapshot.self_pointer_offset is None else f'0x{snapshot.self_pointer_offset:X}'}; "
                 f"species_field={None if snapshot.species_offset is None else f'0x{snapshot.species_offset:X}'}; "
                 f"active_field={None if snapshot.active_species_offset is None else f'0x{snapshot.active_species_offset:X}'}; "

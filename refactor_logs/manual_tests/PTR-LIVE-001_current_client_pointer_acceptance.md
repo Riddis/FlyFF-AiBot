@@ -40,17 +40,21 @@ of that exact candidate.
    `player_refs`, `player_world_chains`, and `player_ref_ambiguous` counts. A
    direct player slot or a world-rooted player chain is valid; same-target chain
    aliases are allowed, while reference ambiguity must be zero. The log must
-   also report a `world_vtable` inside `0xB0000-0x9F3000` and may report nonzero
-   `world_object_reject` for scalar impostors. `world=0x3F800000` is an explicit
-   stop condition. `hp_field` is the monster layout; `player_hp_fields` may
-   differ and must not replace it.
+   also report a `world_vtable` inside `0xB0000-0x9F3000`, an aligned
+   `world_vtable_field` within `0x0-0x3FC`, and may report nonzero
+   `world_object_reject` for scalar impostors. The vtable field may be nonzero;
+   it is accepted only when the referenced table contains module-owned
+   function pointers and remains stable. `world=0x3F800000` is an explicit stop
+   condition. `hp_field` is the monster layout; `player_hp_fields` may differ
+   and must not replace it.
    Neither JSON config may change and no recovery backup may be created yet.
 5. If the first result is anything other than `recovery_movement_required`,
    stop the protocol without retrying and return the complete log and unchanged
    configs. Do not perform the movement or a second recovery. Outcomes such as
-   monster consensus not found, actor layout
-   inconclusive, spawn player not found, ambiguity, deadline, or cancellation
-   are valid diagnostic evidence.
+   monster consensus not found, actor layout inconclusive, spawn player not
+   found, ambiguity, deadline, or cancellation are valid diagnostic evidence.
+   For world-identity failure, retain the complete `world_identity=(...)` and
+   `world_near=(...)` tuples; do not weaken or bypass the identity gate.
 6. Without restarting or reattaching, focus FlyFF and manually move the
    character 3-5 native units away from the spawn (roughly 2-3 map cells). Stop
    all movement and remain stationary. Do not return to X `253.0`, Z `86.0`.
@@ -64,13 +68,14 @@ of that exact candidate.
    Both configs must update together: matching player relative slot and player
    chain, the monster world slot/chain, and inferred `layout.world_offset` and
    `layout.self_pointer_offset`. The monster layout must also contain a
-   module-relative `layout.world_vtable_offset`. Adjacent pre-recovery backups
-   must preserve the prior files.
+   object-relative `layout.world_vtable_field_offset` and module-relative
+   `layout.world_vtable_offset`. Adjacent pre-recovery backups must preserve the
+   prior files.
 9. Click **Native Health** once. Expect `healthy`, the same module identity,
    the recovered chain/field summary including the non-null hexadecimal
-   `world_vtable_offset`, and a Tower local coordinate consistent with the
-   short movement. Any world-identity error or missing persisted vtable is a
-   stop condition; do not run dry-run.
+   `world_vtable_offset` and `world_vtable_field`, and a Tower local coordinate
+   consistent with the short movement. Any world-identity error or missing
+   persisted identity field/table is a stop condition; do not run dry-run.
 10. Put a harmless application in the foreground and start **Native Dry Run
     (No Learning)**. Native preflight must succeed before autofocus or any
     input. Let it run 10-15 seconds, then press **Stop** once. Verify prompt

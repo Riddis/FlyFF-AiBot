@@ -138,6 +138,9 @@ class AnchoredMemory:
 
 
 def _populate(memory: AnchoredMemory, config: NativeMonsterConfig) -> None:
+    memory.u32(memory.module_base_value + 0x800, memory.module_base_value + 0x1000)
+    memory.u32(memory.module_base_value + 0x804, memory.module_base_value + 0x1100)
+    memory.u32(memory.module_base_value + 0x808, memory.module_base_value + 0x1200)
     memory.u32(memory.world_base, memory.module_base_value + 0x800)
     memory.u32(
         memory.module_base_value + memory.player_slot_offset,
@@ -238,6 +241,7 @@ def test_species_spawn_hp_candidate_requires_movement_before_recovery() -> None:
     assert second.world_pointer_offset == memory.world_slot_offset
     assert second.world_field_offset == memory.new_world_offset
     assert second.world_vtable_offset == 0x800
+    assert second.world_vtable_field_offset == 0
     assert second.self_pointer_offset == memory.new_self_offset
 
 
@@ -371,6 +375,12 @@ def test_shared_float_bits_cannot_be_inferred_as_world_object() -> None:
             memory.module_base_value + slot_offset,
             memory.scalar_world_base,
         )
+    # A module-valued literal inside the readable scalar page is insufficient:
+    # it must itself lead to a table of module-owned function pointers.
+    memory.u32(
+        memory.scalar_world_base + 0x20,
+        memory.module_base_value + 0x900,
+    )
     hints = PointerRecoveryHints(
         known_species_ids=(944, 948),
         player_spawn_x=253.0,
@@ -395,7 +405,64 @@ def test_shared_float_bits_cannot_be_inferred_as_world_object() -> None:
     assert metrics is not None
     assert metrics.outcome == "movement_required"
     assert metrics.world_object_rejections >= 1
+    assert metrics.world_identity_vtable_misses >= 1
+    assert metrics.world_identity_module_pointer_fields >= 1
     assert metrics.inferred_world_offset == memory.new_world_offset
+
+
+def test_world_identity_can_use_a_displaced_vtable_field() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    displaced_field = 0x2C
+    memory.u32(memory.world_base, 0)
+    memory.u32(
+        memory.world_base + displaced_field,
+        memory.module_base_value + 0x800,
+    )
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    state = PointerRecoveryState()
+
+    assert recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    ) is None
+    first_metrics = state.metrics_for(memory.pid, memory.module_base_value)
+    assert first_metrics is not None
+    assert first_metrics.outcome == "movement_required"
+    assert first_metrics.inferred_world_vtable_field_offset == displaced_field
+
+    memory.f32(memory.player_base + config.x_offset, 258.0)
+    recovery = recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    )
+
+    assert recovery is not None
+    assert recovery.world_vtable_offset == 0x800
+    assert recovery.world_vtable_field_offset == displaced_field
 
 
 def test_player_specific_hp_field_does_not_replace_monster_hp_layout() -> None:
@@ -698,6 +765,12 @@ def test_service_rejects_changed_world_identity_after_anchored_recovery() -> Non
         discovery_chunk_bytes=0x1000,
     )
     _populate(memory, config)
+    displaced_field = 0x2C
+    memory.u32(memory.world_base, 0)
+    memory.u32(
+        memory.world_base + displaced_field,
+        memory.module_base_value + 0x800,
+    )
     hints = PointerRecoveryHints(
         known_species_ids=(944, 948),
         player_spawn_x=253.0,
@@ -713,9 +786,13 @@ def test_service_rejects_changed_world_identity_after_anchored_recovery() -> Non
     second = service.recover_pointers(hints=hints, timeout_seconds=2.0)
     assert second.outcome is NativeRecoveryOutcome.SUCCESS
     assert service.world_vtable_offset == 0x800
+    assert service.world_vtable_field_offset == displaced_field
     assert service.read_pointer_snapshot().world_base == memory.world_base
 
-    memory.u32(memory.world_base, memory.module_base_value + 0x804)
+    memory.u32(
+        memory.world_base + displaced_field,
+        memory.module_base_value + 0x804,
+    )
 
     with pytest.raises(
         NativePointerSnapshotError,
@@ -728,19 +805,26 @@ def test_service_enforces_persisted_world_identity_after_restart() -> None:
     memory = AnchoredMemory()
     discovery_config = NativeMonsterConfig(discovery_chunk_bytes=0x1000)
     _populate(memory, discovery_config)
+    displaced_field = 0x2C
+    memory.u32(memory.world_base, 0)
+    memory.u32(
+        memory.world_base + displaced_field,
+        memory.module_base_value + 0x800,
+    )
     persisted_config = replace(
         discovery_config,
         player_pointer_offset=memory.player_slot_offset,
         world_pointer_offset=memory.world_slot_offset,
         world_offset=memory.new_world_offset,
         world_vtable_offset=0x800,
+        world_vtable_field_offset=displaced_field,
         self_pointer_offset=memory.new_self_offset,
     )
     service = NativeProcessService(memory, persisted_config, owns_memory=False)
 
     assert service.read_pointer_snapshot().world_base == memory.world_base
 
-    memory.u32(memory.world_base, memory.scalar_world_base)
+    memory.u32(memory.world_base + displaced_field, memory.scalar_world_base)
 
     with pytest.raises(
         NativePointerSnapshotError,

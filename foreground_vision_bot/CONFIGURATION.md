@@ -82,11 +82,14 @@ the recovered world slot plus one bounded world-field offset when no direct
 player module slot exists; the normal one-hop chain reader handles that form.
 Only the HP offset inferred across monster actors is written to the monster
 layout. Player current/maximum HP offsets are validation evidence and may differ.
-Recovery also requires the inferred world target to retain a module-owned
-vtable through movement confirmation before any configuration write.
-Successful anchored recovery stores that identity as the module-relative
+Recovery also requires the inferred world target to retain a structurally
+validated module-owned vtable through movement confirmation before any
+configuration write. The bounded identity probe permits the vptr at any aligned
+field in the first `0x400` bytes, then requires its table to contain at least
+two module-owned function pointers. Successful anchored recovery stores the
+object-relative `layout.world_vtable_field_offset` and module-relative
 `layout.world_vtable_offset`; subsequent startup and Native Health snapshots
-must observe the same module-owned vtable before reporting a healthy world.
+must observe the same pair before reporting a healthy world.
 
 ## Maps, mobs, and model compatibility
 

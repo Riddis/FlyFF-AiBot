@@ -84,6 +84,7 @@ class NativeHealthSnapshot:
     world_pointer_chain_offsets: tuple[int, ...] = ()
     world_field_offset: int | None = None
     world_vtable_offset: int | None = None
+    world_vtable_field_offset: int | None = None
     self_pointer_offset: int | None = None
     species_offset: int | None = None
     active_species_offset: int | None = None
@@ -198,6 +199,9 @@ def collect_native_health(
     world_vtable_offset = _optional_int(
         getattr(service, "world_vtable_offset", None)
     )
+    world_vtable_field_offset = _optional_int(
+        getattr(service, "world_vtable_field_offset", None)
+    )
     self_pointer_offset = _optional_int(getattr(service, "self_pointer_offset", None))
     species_offset = _optional_int(getattr(service, "species_offset", None))
     active_species_offset = _optional_int(
@@ -237,6 +241,7 @@ def collect_native_health(
             world_pointer_chain_offsets=world_chain,
             world_field_offset=world_field_offset,
             world_vtable_offset=world_vtable_offset,
+            world_vtable_field_offset=world_vtable_field_offset,
             self_pointer_offset=self_pointer_offset,
             species_offset=species_offset,
             active_species_offset=active_species_offset,
@@ -299,6 +304,7 @@ def collect_native_health(
         world_pointer_chain_offsets=world_chain,
         world_field_offset=world_field_offset,
         world_vtable_offset=world_vtable_offset,
+        world_vtable_field_offset=world_vtable_field_offset,
         self_pointer_offset=self_pointer_offset,
         species_offset=species_offset,
         active_species_offset=active_species_offset,

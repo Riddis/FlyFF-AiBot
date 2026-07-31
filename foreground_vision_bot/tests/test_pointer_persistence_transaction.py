@@ -136,6 +136,7 @@ def _anchored_recovery() -> pointer_recovery.PlayerPointerRecovery:
         player_pointer_chain_offsets=(0x20,),
         world_field_offset=0x180,
         world_vtable_offset=0x800,
+        world_vtable_field_offset=0x2C,
         self_pointer_offset=0x1EF0,
         movement_validated=True,
     )
@@ -294,6 +295,7 @@ def test_movement_validated_anchor_persists_chain_and_inferred_layout(
     assert monster["world_pointer_chain_offsets"] == []
     assert monster["layout"]["world_offset"] == "0x180"
     assert monster["layout"]["world_vtable_offset"] == "0x800"
+    assert monster["layout"]["world_vtable_field_offset"] == "0x2C"
     assert monster["layout"]["self_pointer_offset"] == "0x1EF0"
     assert _backup(position_path).read_bytes() == POSITION_BYTES
     assert _backup(monster_path).read_bytes() == MONSTER_BYTES

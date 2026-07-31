@@ -75,6 +75,7 @@ class NativeMonsterConfig:
     z_offset: int = 0x168
     world_offset: int = 0x16C
     world_vtable_offset: int | None = None
+    world_vtable_field_offset: int = 0
     species_offset: int = 0x174
     hp_offset: int = 0x814
     active_species_offset: int = 0x1DBC
@@ -110,6 +111,7 @@ class NativeMonsterConfig:
             "y_offset",
             "z_offset",
             "world_offset",
+            "world_vtable_field_offset",
             "species_offset",
             "hp_offset",
             "active_species_offset",
@@ -121,6 +123,13 @@ class NativeMonsterConfig:
         if self.world_vtable_offset is not None and self.world_vtable_offset < 0:
             raise MonsterConfigurationError(
                 "world_vtable_offset cannot be negative"
+            )
+        if (
+            self.world_vtable_field_offset > 0x3FC
+            or self.world_vtable_field_offset % 4 != 0
+        ):
+            raise MonsterConfigurationError(
+                "world_vtable_field_offset must be aligned and at most 0x3FC"
             )
 
         if not isinstance(self.private_memory_only, bool):
@@ -227,6 +236,10 @@ class NativeMonsterConfig:
             world_vtable_offset=_parse_optional_int(
                 layout.get("world_vtable_offset"),
                 field_name="layout.world_vtable_offset",
+            ),
+            world_vtable_field_offset=_parse_int(
+                layout.get("world_vtable_field_offset", 0),
+                field_name="layout.world_vtable_field_offset",
             ),
             species_offset=_parse_int(
                 layout.get("species_offset", "0x174"),

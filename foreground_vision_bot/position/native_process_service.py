@@ -202,6 +202,9 @@ class NativeProcessService:
         )
         self._world_field_offset = int(monster_config.world_offset)
         self._world_vtable_offset = monster_config.world_vtable_offset
+        self._world_vtable_field_offset = int(
+            monster_config.world_vtable_field_offset
+        )
         self._self_pointer_offset = int(monster_config.self_pointer_offset)
         self._species_offset = int(monster_config.species_offset)
         self._active_species_offset = int(monster_config.active_species_offset)
@@ -297,6 +300,11 @@ class NativeProcessService:
             return self._world_vtable_offset
 
     @property
+    def world_vtable_field_offset(self) -> int:
+        with self._lock:
+            return self._world_vtable_field_offset
+
+    @property
     def self_pointer_offset(self) -> int:
         with self._lock:
             return self._self_pointer_offset
@@ -375,6 +383,7 @@ class NativeProcessService:
             self_pointer_offset = self._self_pointer_offset
             world_field_offset = self._world_field_offset
             world_vtable_offset = self._world_vtable_offset
+            world_vtable_field_offset = self._world_vtable_field_offset
             try:
                 player = self._resolve_pointer(player_pointer_address, player_chain)
                 world = self._resolve_pointer(world_pointer_address, world_chain)
@@ -408,7 +417,7 @@ class NativeProcessService:
                     )
                 if (
                     world_vtable_offset is not None
-                    and self._read_u32(world)
+                    and self._read_u32(world + world_vtable_field_offset)
                     != self._module_base + world_vtable_offset
                 ):
                     raise NativePointerSnapshotError(
@@ -429,7 +438,7 @@ class NativeProcessService:
                     )
                 if (
                     world_vtable_offset is not None
-                    and self._read_u32(world)
+                    and self._read_u32(world + world_vtable_field_offset)
                     != self._module_base + world_vtable_offset
                 ):
                     raise NativePointerSnapshotError(
@@ -526,6 +535,10 @@ class NativeProcessService:
                         self._world_field_offset = recovery.world_field_offset
                     if recovery.world_vtable_offset is not None:
                         self._world_vtable_offset = recovery.world_vtable_offset
+                    if recovery.world_vtable_field_offset is not None:
+                        self._world_vtable_field_offset = (
+                            recovery.world_vtable_field_offset
+                        )
                     if recovery.self_pointer_offset is not None:
                         self._self_pointer_offset = recovery.self_pointer_offset
                     if recovery.species_offset is not None:

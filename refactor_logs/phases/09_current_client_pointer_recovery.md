@@ -261,3 +261,29 @@ Automated coverage proves same-session invalidation, restart invalidation,
 config parsing/persistence, and diagnostic visibility. Together with the
 false-scalar, HP-role, and preview-cancellation regressions, the full suite
 passes with 557 passed and 1 skipped; the focused gate passes 46 tests.
+
+## Seventh anchored live result
+
+The replacement stationary run again produced one unique 46-actor layout with
+four self aliases and the expected species `0x174`, active `0x217C`, monster HP
+`0x814`, and XYZ `0x160/0x164/0x168` fields. World inference evaluated 52
+shared pointer hypotheses, but every one failed the new byte-zero vtable gate;
+no player candidate was evaluated and nothing was persisted. This isolates the
+remaining assumption to the location/shape of world-object identity rather
+than actor layout, player HP, references, or movement.
+
+World identity now reads only the first `0x400` bytes of each already-supported
+world target twice. It considers aligned module pointers at any field offset,
+then accepts one only if the referenced table contains at least two
+module-owned function pointers. The selected object-relative field and exact
+module-relative table survive movement confirmation, runtime publication,
+paired persistence, cached recovery, ordinary health, and restart. A readable
+scalar page remains rejected even when it contains a bare module-valued
+literal.
+
+If no target qualifies, diagnostics now report identity candidate, span,
+vtable-shape, stability, and module-pointer-field counts plus the strongest
+rejected target's actor/species support, module references, actor field, target,
+and module-field count. This preserves a hard semantic gate while making the
+next live result actionable. Automated coverage passes 560 tests with 1
+skipped; the focused recovery/persistence/diagnostic gate passes 49 tests.
