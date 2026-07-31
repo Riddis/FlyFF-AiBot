@@ -1,6 +1,7 @@
 # Phase 02 — Runtime and Pointer Ownership
 
-Status: validation complete; checkpoint pending (`PTR-003`, `PTR-004`).
+Status: complete at `a63e2221e20fdd56add0acdfd2add0a389b83f61`
+(`PTR-003`, `PTR-004`).
 
 ## Entry state
 
