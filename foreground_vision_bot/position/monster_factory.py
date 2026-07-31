@@ -8,6 +8,7 @@ from .MonsterConfig import (
     DEFAULT_MONSTER_CONFIG_PATH,
     load_native_monster_config,
 )
+from .native_process_service import NativeProcessService
 from .NativeFlyffMonsterProvider import NativeFlyffMonsterProvider
 from .Win32ProcessMemory import Win32MemoryBackend
 
@@ -18,10 +19,17 @@ def create_native_monster_provider(
     config_path: str | Path = DEFAULT_MONSTER_CONFIG_PATH,
     backend: Win32MemoryBackend | None = None,
     clock: Callable[[], float] = monotonic,
+    native_service: NativeProcessService | None = None,
 ) -> NativeFlyffMonsterProvider | None:
     config = load_native_monster_config(config_path)
     if not config.enabled:
         return None
+    if native_service is not None:
+        return NativeFlyffMonsterProvider.from_native_service(
+            native_service,
+            config,
+            clock=clock,
+        )
     return NativeFlyffMonsterProvider.from_window_handle(
         window_handle,
         config,

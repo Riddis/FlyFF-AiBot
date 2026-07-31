@@ -8,6 +8,10 @@ from itertools import combinations
 from statistics import median
 from time import monotonic
 
+from .native_process_service import (
+    NativePointerSnapshot,
+    NativeProcessService,
+)
 from .NativePointerRecovery import (
     PlayerPointerRecovery,
 )
@@ -60,15 +64,20 @@ class NativeFlyffPositionProvider:
         config: NativePositionConfig,
         *,
         clock: Callable[[], float] = monotonic,
+        native_service: NativeProcessService | None = None,
+        owns_memory: bool = True,
     ) -> None:
         self._memory = memory
+        self._native_service = native_service
+        self._owns_memory = bool(owns_memory)
+        self._closed = False
         self.config = config
         self._clock = clock
         self._module_base: int | None = None
         self._pointer_storage_address: int | None = None
         self._resolved_addresses = self._resolve_addresses()
         self.last_diagnostics: PositionReadDiagnostics | None = None
-        self.last_pointer_recovery: PlayerPointerRecovery | None = None
+        self._last_pointer_recovery: PlayerPointerRecovery | None = None
 
         offsets = [config.x_offset, config.y_offset, config.z_offset]
         if config.heading_offset is not None:
@@ -95,6 +104,22 @@ class NativeFlyffPositionProvider:
             memory.close()
             raise
 
+    @classmethod
+    def from_native_service(
+        cls,
+        native_service: NativeProcessService,
+        config: NativePositionConfig,
+        *,
+        clock: Callable[[], float] = monotonic,
+    ) -> NativeFlyffPositionProvider:
+        return cls(
+            native_service.memory,  # type: ignore[arg-type]
+            config,
+            clock=clock,
+            native_service=native_service,
+            owns_memory=False,
+        )
+
     @property
     def resolved_addresses(self) -> tuple[int, ...]:
         return self._resolved_addresses
@@ -105,7 +130,19 @@ class NativeFlyffPositionProvider:
 
     @property
     def pointer_storage_address(self) -> int | None:
+        if (
+            self._native_service is not None
+            and self.config.resolver == "module_pointer"
+        ):
+            return self._native_service.player_pointer_address
         return self._pointer_storage_address
+
+    @property
+    def last_pointer_recovery(self) -> PlayerPointerRecovery | None:
+        if self._native_service is not None:
+            result = self._native_service.last_recovery_result
+            return None if result is None else result.recovery
+        return self._last_pointer_recovery
 
     def _resolve_addresses(self) -> tuple[int, ...]:
         if self.config.resolver == "direct_address":
@@ -116,14 +153,25 @@ class NativeFlyffPositionProvider:
         module_name = self.config.module_name
         if module_name is None:
             raise ValueError("module_name is required")
-        self._module_base = self._memory.module_base(module_name)
+        if (
+            self._native_service is not None
+            and self.config.resolver == "module_pointer"
+        ):
+            self._module_base = self._native_service.module_base
+        else:
+            self._module_base = self._memory.module_base(module_name)
 
         if self.config.resolver == "module_pointer":
             if self.config.pointer_offset is None:
                 raise ValueError("pointer_offset is required")
-            self._pointer_storage_address = (
-                self._module_base + self.config.pointer_offset
-            )
+            if self._native_service is not None:
+                self._pointer_storage_address = (
+                    self._native_service.player_pointer_address
+                )
+            else:
+                self._pointer_storage_address = (
+                    self._module_base + self.config.pointer_offset
+                )
             # The actual transform base is read afresh on every sample.  The
             # local-player object may be recreated after login, respawn, or a
             # map transition without changing the module-relative pointer slot.
@@ -133,7 +181,22 @@ class NativeFlyffPositionProvider:
             self._module_base + offset for offset in self.config.transform_offsets
         )
 
-    def _read_pointer_target(self) -> int:
+    def _read_pointer_target(
+        self,
+        pointer_snapshot: NativePointerSnapshot | None = None,
+    ) -> int:
+        if self._native_service is not None:
+            try:
+                snapshot = (
+                    pointer_snapshot
+                    if pointer_snapshot is not None
+                    else self._native_service.read_pointer_snapshot()
+                )
+            except Exception as error:
+                raise PointerResolutionError(str(error)) from error
+            self._pointer_storage_address = snapshot.player_pointer_address
+            return snapshot.player_base
+
         pointer_storage = self._pointer_storage_address
         if pointer_storage is None:
             raise PointerResolutionError("module pointer storage is not configured")
@@ -153,10 +216,13 @@ class NativeFlyffPositionProvider:
             )
         return target
 
-    def _addresses_for_read(self) -> tuple[int, ...]:
+    def _addresses_for_read(
+        self,
+        pointer_snapshot: NativePointerSnapshot | None = None,
+    ) -> tuple[int, ...]:
         if self.config.resolver != "module_pointer":
             return self._resolved_addresses
-        target = self._read_pointer_target()
+        target = self._read_pointer_target(pointer_snapshot)
         self._resolved_addresses = (target,)
         return self._resolved_addresses
 
@@ -268,13 +334,17 @@ class NativeFlyffPositionProvider:
             )
         return best_cluster, best_delta
 
-    def read_pose(self) -> PlayerPose:
+    def read_pose(
+        self,
+        *,
+        pointer_snapshot: NativePointerSnapshot | None = None,
+    ) -> PlayerPose:
         candidates: list[_CandidatePose] = []
         failed_addresses: list[int] = []
         errors: list[str] = []
 
         try:
-            addresses = self._addresses_for_read()
+            addresses = self._addresses_for_read(pointer_snapshot)
         except Exception as error:
             failed = (
                 ()
@@ -340,4 +410,8 @@ class NativeFlyffPositionProvider:
         )
 
     def close(self) -> None:
-        self._memory.close()
+        if self._closed:
+            return
+        self._closed = True
+        if self._owns_memory:
+            self._memory.close()

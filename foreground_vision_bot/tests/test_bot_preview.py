@@ -84,6 +84,33 @@ def test_release_input_closes_native_position_provider() -> None:
     assert bot.position_provider is None
 
 
+def test_release_input_closes_shared_native_attachment_once() -> None:
+    bot = Bot.__new__(Bot)
+    closed: list[str] = []
+    bot.native_provider_attachment = SimpleNamespace(
+        close=lambda: closed.append("attachment")
+    )
+    bot.native_process_service = SimpleNamespace(
+        close=lambda: closed.append("service")
+    )
+    bot.position_provider = SimpleNamespace(
+        close=lambda: closed.append("position")
+    )
+    bot.monster_provider = SimpleNamespace(
+        close=lambda: closed.append("monster")
+    )
+    bot.action_executor = None
+    bot.keyboard = None
+
+    bot.release_input()
+
+    assert closed == ["attachment"]
+    assert bot.native_provider_attachment is None
+    assert bot.native_process_service is None
+    assert bot.position_provider is None
+    assert bot.monster_provider is None
+
+
 def test_kill_counter_preview_draws_green_tracking_rectangle() -> None:
     bot = _preview_bot()
     bot.config = {"dynamic_kill_counter": True}

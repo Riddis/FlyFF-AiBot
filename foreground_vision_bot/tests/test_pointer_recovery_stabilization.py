@@ -19,7 +19,7 @@ from position.NativeFlyffPositionProvider import (
 )
 from position.NativePointerRecovery import (
     PointerRecoveryProgress,
-    clear_pointer_recovery_state,
+    PointerRecoveryState,
     get_last_pointer_recovery_metrics,
     recover_local_player_pointer,
 )
@@ -153,11 +153,13 @@ class CheapProviderMemory:
         self.closed = True
 
 
+_RECOVERY_STATE = PointerRecoveryState()
+
+
 @pytest.fixture(autouse=True)
-def _isolate_global_recovery_state() -> None:
-    clear_pointer_recovery_state()
-    yield
-    clear_pointer_recovery_state()
+def _isolate_recovery_state() -> None:
+    global _RECOVERY_STATE
+    _RECOVERY_STATE = PointerRecoveryState()
 
 
 def _monster_config() -> NativeMonsterConfig:
@@ -205,6 +207,7 @@ def _recover(
         memory,
         module_base=memory.module_base_value,
         configured_player_pointer_offset=config.player_pointer_offset,
+        state=_RECOVERY_STATE,
         monster_config=config,
         search_radii=(0x1000,),
         chunk_size=0x1000,
@@ -420,6 +423,7 @@ def test_cancellation_stops_after_the_current_bounded_chunk() -> None:
     metrics = get_last_pointer_recovery_metrics(
         memory.pid,
         memory.module_base_value,
+        state=_RECOVERY_STATE,
     )
     assert metrics is not None
     assert metrics.outcome == "cancelled"
@@ -436,6 +440,7 @@ def test_zero_timeout_stops_before_region_enumeration() -> None:
     metrics = get_last_pointer_recovery_metrics(
         memory.pid,
         memory.module_base_value,
+        state=_RECOVERY_STATE,
     )
     assert metrics is not None
     assert metrics.outcome == "deadline"
@@ -467,6 +472,7 @@ def test_deadline_during_cache_verification_does_not_escape_private_error() -> N
     metrics = get_last_pointer_recovery_metrics(
         memory.pid,
         memory.module_base_value,
+        state=_RECOVERY_STATE,
     )
     assert metrics is not None
     assert metrics.outcome == "deadline"
@@ -484,6 +490,7 @@ def test_failed_attempt_enters_five_second_negative_cooldown() -> None:
     metrics = get_last_pointer_recovery_metrics(
         memory.pid,
         memory.module_base_value,
+        state=_RECOVERY_STATE,
     )
     assert metrics is not None
     assert metrics.outcome == "negative_cache"
@@ -526,6 +533,7 @@ def test_successful_shift_is_cached_and_persistence_remains_explicit(
     metrics = get_last_pointer_recovery_metrics(
         memory.pid,
         memory.module_base_value,
+        state=_RECOVERY_STATE,
     )
     assert metrics is not None
     assert metrics.outcome == "cache_hit"

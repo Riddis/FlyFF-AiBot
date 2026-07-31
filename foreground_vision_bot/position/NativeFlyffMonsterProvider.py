@@ -9,6 +9,10 @@ from time import monotonic, perf_counter
 from typing import Protocol
 
 from .MonsterConfig import NativeMonsterConfig
+from .native_process_service import (
+    NativePointerSnapshot,
+    NativeProcessService,
+)
 from .NativePointerRecovery import (
     PlayerPointerRecovery,
 )
@@ -92,11 +96,20 @@ class NativeFlyffMonsterProvider:
         config: NativeMonsterConfig,
         *,
         clock: Callable[[], float] = monotonic,
+        native_service: NativeProcessService | None = None,
+        owns_memory: bool = True,
     ) -> None:
         self._memory = memory
+        self._native_service = native_service
+        self._owns_memory = bool(owns_memory)
+        self._closed = False
         self.config = config
         self._clock = clock
-        self._module_base = self._memory.module_base(config.module_name)
+        self._module_base = (
+            native_service.module_base
+            if native_service is not None
+            else self._memory.module_base(config.module_name)
+        )
         self._player_pointer_address = (
             self._module_base + config.player_pointer_offset
         )
@@ -106,7 +119,7 @@ class NativeFlyffMonsterProvider:
         self._last_discovery_at = -math.inf
         self._lock = RLock()
         self.last_diagnostics: ActorPoolDiagnostics | None = None
-        self.last_pointer_recovery: PlayerPointerRecovery | None = None
+        self._last_pointer_recovery: PlayerPointerRecovery | None = None
 
     @classmethod
     def from_window_handle(
@@ -146,21 +159,48 @@ class NativeFlyffMonsterProvider:
             memory.close()
             raise
 
+    @classmethod
+    def from_native_service(
+        cls,
+        native_service: NativeProcessService,
+        config: NativeMonsterConfig,
+        *,
+        clock: Callable[[], float] = monotonic,
+    ) -> NativeFlyffMonsterProvider:
+        return cls(
+            native_service.memory,  # type: ignore[arg-type]
+            config,
+            clock=clock,
+            native_service=native_service,
+            owns_memory=False,
+        )
+
     @property
     def module_base(self) -> int:
         return self._module_base
 
     @property
     def player_pointer_address(self) -> int:
+        if self._native_service is not None:
+            return self._native_service.player_pointer_address
         return self._player_pointer_address
 
     @property
     def world_pointer_address(self) -> int:
+        if self._native_service is not None:
+            return self._native_service.world_pointer_address
         return self._world_pointer_address
 
     @property
     def discovered_slot_bases(self) -> tuple[int, ...]:
         return self._slot_bases
+
+    @property
+    def last_pointer_recovery(self) -> PlayerPointerRecovery | None:
+        if self._native_service is not None:
+            result = self._native_service.last_recovery_result
+            return None if result is None else result.recovery
+        return self._last_pointer_recovery
 
     def _read_u32(self, address: int) -> int:
         return int(struct.unpack("<I", self._memory.read(address, 4))[0])
@@ -171,7 +211,27 @@ class NativeFlyffMonsterProvider:
     def _read_float(self, address: int) -> float:
         return float(struct.unpack("<f", self._memory.read(address, 4))[0])
 
-    def read_player_base(self) -> int:
+    def _shared_pointer_snapshot(
+        self,
+        pointer_snapshot: NativePointerSnapshot | None,
+    ) -> NativePointerSnapshot | None:
+        if self._native_service is None:
+            return None
+        if pointer_snapshot is not None:
+            return pointer_snapshot
+        try:
+            return self._native_service.read_pointer_snapshot()
+        except Exception as error:
+            raise NativeMonsterReadError(str(error)) from error
+
+    def read_player_base(
+        self,
+        *,
+        pointer_snapshot: NativePointerSnapshot | None = None,
+    ) -> int:
+        shared = self._shared_pointer_snapshot(pointer_snapshot)
+        if shared is not None:
+            return shared.player_base
         base = self._read_u32(self._player_pointer_address)
         if base <= 0:
             raise NativeMonsterReadError(
@@ -185,7 +245,14 @@ class NativeFlyffMonsterProvider:
             )
         return base
 
-    def read_world_base(self) -> int:
+    def read_world_base(
+        self,
+        *,
+        pointer_snapshot: NativePointerSnapshot | None = None,
+    ) -> int:
+        shared = self._shared_pointer_snapshot(pointer_snapshot)
+        if shared is not None:
+            return shared.world_base
         base = self._read_u32(self._world_pointer_address)
         if base <= 0:
             raise NativeMonsterReadError(
@@ -222,11 +289,17 @@ class NativeFlyffMonsterProvider:
         except Exception:  # A probe outside committed/readable memory is normal.
             return False
 
-    def discover_slots(self, *, force: bool = False) -> tuple[int, ...]:
+    def discover_slots(
+        self,
+        *,
+        force: bool = False,
+        pointer_snapshot: NativePointerSnapshot | None = None,
+    ) -> tuple[int, ...]:
         with self._lock:
             now = self._clock()
-            player = self.read_player_base()
-            world = self.read_world_base()
+            shared = self._shared_pointer_snapshot(pointer_snapshot)
+            player = self.read_player_base(pointer_snapshot=shared)
+            world = self.read_world_base(pointer_snapshot=shared)
             interval = self.config.discovery_interval_seconds
             cache_valid = (
                 not force
@@ -312,10 +385,12 @@ class NativeFlyffMonsterProvider:
         allowed_species_ids: Iterable[int] | None = None,
         vision_radius_native: float | None = None,
         force_rediscovery: bool = False,
+        pointer_snapshot: NativePointerSnapshot | None = None,
     ) -> list[NativeActor]:
         with self._lock:
-            player = self.read_player_base()
-            world = self.read_world_base()
+            shared = self._shared_pointer_snapshot(pointer_snapshot)
+            player = self.read_player_base(pointer_snapshot=shared)
+            world = self.read_world_base(pointer_snapshot=shared)
             player_x = self._read_float(player + self.config.x_offset)
             player_z = self._read_float(player + self.config.z_offset)
             if not math.isfinite(player_x) or not math.isfinite(player_z):
@@ -342,7 +417,10 @@ class NativeFlyffMonsterProvider:
             unreadable = 0
             actors: list[NativeActor] = []
 
-            for base in self.discover_slots(force=force_rediscovery):
+            for base in self.discover_slots(
+                force=force_rediscovery,
+                pointer_snapshot=shared,
+            ):
                 if base == player:
                     continue
                 try:
@@ -435,10 +513,15 @@ class NativeFlyffMonsterProvider:
             )
             return actors
 
-    def capture_selected_actor(self) -> NativeActor:
+    def capture_selected_actor(
+        self,
+        *,
+        pointer_snapshot: NativePointerSnapshot | None = None,
+    ) -> NativeActor:
         with self._lock:
-            player = self.read_player_base()
-            world = self.read_world_base()
+            shared = self._shared_pointer_snapshot(pointer_snapshot)
+            player = self.read_player_base(pointer_snapshot=shared)
+            world = self.read_world_base(pointer_snapshot=shared)
             selected = self._read_u32(world + self.config.selected_actor_offset)
             if selected <= 0:
                 raise NativeMonsterReadError("No actor is currently selected")
@@ -490,4 +573,8 @@ class NativeFlyffMonsterProvider:
 
     def close(self) -> None:
         with self._lock:
-            self._memory.close()
+            if self._closed:
+                return
+            self._closed = True
+            if self._owns_memory:
+                self._memory.close()

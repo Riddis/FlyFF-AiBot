@@ -42,8 +42,8 @@ Acceptance: required pointer and shutdown tests pass; failed reads are cheap; no
 
 ## Phase 02 — Runtime and pointer ownership
 
-- [ ] `PTR-001` Define one shared pointer state/resolver owner and typed native outcomes.
-- [ ] `PTR-002` Inject shared player/monster readers and coherent per-step snapshots.
+- [x] `PTR-001` Define one shared pointer state/resolver owner and typed native outcomes.
+- [x] `PTR-002` Inject shared player/monster readers and coherent per-step snapshots.
 - [ ] `PTR-003` Add atomic, reversible, multi-sample offset persistence.
 - [ ] `PTR-004` Add supported native diagnostics and validate lifecycle/performance.
 

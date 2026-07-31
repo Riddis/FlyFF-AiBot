@@ -2,10 +2,10 @@
 
 - Current phase: `phase_02_runtime_pointer_ownership`
 - Phase status: in progress
-- Active task: `PTR-001` — define one shared pointer state/resolver owner and typed native outcomes
-- Last completed action: created the verified first stabilization commit `63651e97d6d013ac41364d912e98b70ac5c76b88`.
-- Repository state: branch `feature/adaptive-mapper`, HEAD `63651e97d6d013ac41364d912e98b70ac5c76b88` (`STAB-005 stabilize pointer recovery and runtime shutdown`). Only the pre-existing deletions `AGENTS.md`, `README.md`, and `foreground_vision_farm.json` remain outside the new journal update.
-- Runnable: yes under fake/integration coverage; 70 stabilization tests pass and canonical failures improved from four to two known unrelated baseline failures. GUI/live attach remains unverified.
-- Last test: canonical suite — 509 passed, 2 failed, 1 skipped in 5.08 s, improved from the 479/4/1 baseline. Remaining failures are the pre-existing mapper JSON mismatch and obsolete V0674 source-string assertion.
+- Active task: `PTR-003` — make the two-file recovered-offset persistence transactionally atomic and reversible
+- Last completed action: implemented and validated one attachment-owned process/pointer service, coherent player/world snapshots, shared provider injection, and exactly-once deferred-safe handle closure.
+- Repository state: branch `feature/adaptive-mapper`, HEAD `5dd1d6d113e9ec07486450a7c3ecc7f7fea3f2c3` (`LOG record stabilization checkpoint and open PTR-001`). The current journal design update and the pre-existing deletions `AGENTS.md`, `README.md`, and `foreground_vision_farm.json` are dirty; PTR-001 implementation is delegated and in progress.
+- Runnable: yes under fake/integration coverage; 65 Phase 02 focused tests pass. GUI/live attach remains unverified.
+- Last test: canonical suite — 518 passed, 2 unchanged failures, 1 skipped in 5.80 s.
 - Blockers: none. Pre-existing dirty files must be preserved and attributed before refactor edits.
-- Next action: introduce an injected shared native pointer state/resolver service with bounded lifecycle ownership, then migrate both providers without changing ordinary-read behavior.
+- Next action: commit the PTR-001/PTR-002 slice, then implement transactional paired-config persistence and a supervised diagnostics/recovery command.

@@ -1,22 +1,35 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-31T00:29:40.5599430Z",
+  "updated_at": "2026-07-31T00:50:02.3745704Z",
   "current_phase": "phase_02_runtime_pointer_ownership",
   "phase_status": "in_progress",
-  "active_task_id": "PTR-001",
+  "active_task_id": "PTR-003",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "63651e97d6d013ac41364d912e98b70ac5c76b88",
+  "head_commit": "5dd1d6d113e9ec07486450a7c3ecc7f7fea3f2c3",
   "dirty_files": [
     {"path": "AGENTS.md", "status": "D", "provenance": "pre-existing"},
     {"path": "README.md", "status": "D", "provenance": "pre-existing"},
     {"path": "foreground_vision_farm.json", "status": "D", "provenance": "pre-existing"},
-    {"path": "refactor_logs/", "status": "M", "provenance": "post-commit journal update"}
+    {"path": "foreground_vision_bot/Bot.py", "status": "M", "provenance": "PTR-001,PTR-002"},
+    {"path": "foreground_vision_bot/position/NativeFlyffMonsterProvider.py", "status": "M", "provenance": "PTR-002"},
+    {"path": "foreground_vision_bot/position/NativeFlyffPositionProvider.py", "status": "M", "provenance": "PTR-002"},
+    {"path": "foreground_vision_bot/position/NativePointerRecovery.py", "status": "M", "provenance": "PTR-001"},
+    {"path": "foreground_vision_bot/position/__init__.py", "status": "M", "provenance": "PTR-001"},
+    {"path": "foreground_vision_bot/position/factory.py", "status": "M", "provenance": "PTR-002"},
+    {"path": "foreground_vision_bot/position/monster_factory.py", "status": "M", "provenance": "PTR-002"},
+    {"path": "foreground_vision_bot/position/attachment_factory.py", "status": "??", "provenance": "PTR-001,PTR-002"},
+    {"path": "foreground_vision_bot/position/native_process_service.py", "status": "??", "provenance": "PTR-001,PTR-002"},
+    {"path": "foreground_vision_bot/tests/test_bot_preview.py", "status": "M", "provenance": "PTR-002"},
+    {"path": "foreground_vision_bot/tests/test_pointer_recovery_stabilization.py", "status": "M", "provenance": "PTR-001"},
+    {"path": "foreground_vision_bot/tests/test_native_attachment_factory.py", "status": "??", "provenance": "PTR-002"},
+    {"path": "foreground_vision_bot/tests/test_native_process_service.py", "status": "??", "provenance": "PTR-001,PTR-002"},
+    {"path": "refactor_logs/", "status": "M", "provenance": "PTR journal and future-phase design"}
   ],
   "last_known_good_commit": "63651e97d6d013ac41364d912e98b70ac5c76b88",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q <14 stabilization test modules>",
   "last_known_good_test_result": "pass: 70 stabilization tests in 1.44 seconds; canonical 509 passed, 2 pre-existing failures, 1 skipped",
   "active_blocker": null,
-  "next_action": "Implement PTR-001 shared native pointer state/resolver ownership with explicit bounded lifecycle and behavior tests.",
+  "next_action": "Commit PTR-001/PTR-002, then implement PTR-003 transactional paired-config persistence and PTR-004 supervised diagnostics.",
   "completed_milestones": [
     "BASE-001",
     "BASE-002",
@@ -35,7 +48,9 @@
     "STAB-002",
     "STAB-003",
     "STAB-004",
-    "STAB-005"
+    "STAB-005",
+    "PTR-001",
+    "PTR-002"
   ],
   "pending_migrations": [
     "Canonical unified farming environment",

@@ -2,7 +2,7 @@
 
 ## Current position
 
-The user-provided brief and tracked repository guidance were read. Baseline, Static Pass 1, Runtime Pass 2, and Phase 01 stabilization are complete and committed at `63651e97d6d013ac41364d912e98b70ac5c76b88`. Ordinary reads no longer scan, explicit recovery is bounded/single-flight/cancellable/cooldown-backed, farming startup preflights before input, and runtime events/shutdown are generation-aware and false-join safe.
+The user-provided brief and tracked repository guidance were read. Baseline, Static Pass 1, Runtime Pass 2, and Phase 01 stabilization are complete at `63651e97d6d013ac41364d912e98b70ac5c76b88`; the journal transition commit is `5dd1d6d113e9ec07486450a7c3ecc7f7fea3f2c3`. Ordinary reads no longer scan, explicit recovery is bounded/single-flight/cancellable/cooldown-backed, farming startup preflights before input, and runtime events/shutdown are generation-aware and false-join safe.
 
 ## Repository state known so far
 
@@ -23,7 +23,7 @@ The expanded stabilization suite passes 70 tests. Canonical pytest improved from
 
 ## Exact continuation
 
-In progress: Phase 02 `PTR-001`. Introduce one injected pointer state/resolver service shared by player and monster readers. Explicit recovery must be owned by a managed lifecycle boundary; ordinary provider, preview, and overlay reads remain cheap. Preserve the cooperative backend-call limitation as a typed/observable risk rather than spawning an unmanaged helper.
+In progress: Phase 02 `PTR-003`, after the ready-to-commit `PTR-001/PTR-002` slice. `NativeProcessService` owns one handle, one `PointerRecoveryState`, coherent six-read player/world snapshots, typed recovery results, and deferred-safe close. `NativeProviderAttachment` injects it into both providers and `Bot`. Commit this slice by exact path, then make paired config persistence transactional and add a supervised diagnostic/recovery command around the synchronous service API.
 
 ## Relevant files/symbols
 
@@ -41,5 +41,5 @@ In progress: Phase 02 `PTR-001`. Introduce one injected pointer state/resolver s
 - Keep: `codex_refactor_prompt_with_resume_logs.md` as the user-provided specification.
 - Keep: all modified stabilization source/test paths listed in `STATE.json`; they belong in the first refactor commit after validation.
 - Committed stabilization: `63651e97d6d013ac41364d912e98b70ac5c76b88`.
-- Keep the current journal-only post-commit update.
+- Keep and commit the current shared-native service/provider/factory/Bot/test slice and journal updates.
 - Exclude from staging: deleted `AGENTS.md`, `README.md`, and `foreground_vision_farm.json`; these remain user-owned pre-existing changes.

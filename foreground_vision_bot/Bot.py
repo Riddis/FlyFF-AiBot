@@ -20,10 +20,11 @@ from mapper.NativeCourseHeading import NativeCourseHeadingTracker
 from position import (
     NativeActor,
     NativeFlyffMonsterProvider,
+    NativeProcessService,
+    NativeProviderAttachment,
     PlayerPose,
     PositionProvider,
-    create_native_monster_provider,
-    create_native_position_provider,
+    create_native_provider_attachment,
 )
 
 if TYPE_CHECKING:
@@ -84,6 +85,8 @@ class Bot:
         self.action_executor: ActionExecutor | None = None
         self.position_provider: PositionProvider | None = None
         self.monster_provider: NativeFlyffMonsterProvider | None = None
+        self.native_process_service: NativeProcessService | None = None
+        self.native_provider_attachment: NativeProviderAttachment | None = None
 
         self._frame_lock = Lock()
         self._heading_lock = RLock()
@@ -125,23 +128,25 @@ class Bot:
     ) -> None:
         self.runtime_bus = runtime_bus
         self.capture_service = capture_service
+        self._close_native_attachment()
         self._close_position_provider()
         self._close_monster_provider()
-        position_provider = None
-        monster_provider = None
+        self._close_native_process_service()
+        native_attachment = None
         try:
-            position_provider = create_native_position_provider(window_handler)
-            monster_provider = create_native_monster_provider(window_handler)
+            native_attachment = create_native_provider_attachment(window_handler)
             keyboard = HumanKeyboard(window_handler)
             action_executor = ActionExecutor(keyboard)
         except Exception:
-            if position_provider is not None:
-                position_provider.close()
-            if monster_provider is not None:
-                monster_provider.close()
+            if native_attachment is not None:
+                native_attachment.close()
             raise
+        position_provider = native_attachment.position_provider
+        monster_provider = native_attachment.monster_provider
         self.keyboard = keyboard
         self.action_executor = action_executor
+        self.native_provider_attachment = native_attachment
+        self.native_process_service = native_attachment.service
         self.position_provider = position_provider
         self.monster_provider = monster_provider
         if monster_provider is not None:
@@ -220,12 +225,22 @@ class Bot:
         except Exception as error:  # noqa: BLE001 - still close all handles.
             first_error = error
         try:
+            self._close_native_attachment()
+        except Exception as error:  # noqa: BLE001 - finish input cleanup first.
+            if first_error is None:
+                first_error = error
+        try:
             self._close_position_provider()
         except Exception as error:  # noqa: BLE001 - finish input cleanup first.
             if first_error is None:
                 first_error = error
         try:
             self._close_monster_provider()
+        except Exception as error:  # noqa: BLE001 - finish input cleanup first.
+            if first_error is None:
+                first_error = error
+        try:
+            self._close_native_process_service()
         except Exception as error:  # noqa: BLE001 - finish input cleanup first.
             if first_error is None:
                 first_error = error
@@ -254,6 +269,22 @@ class Bot:
         self.monster_provider = None
         if provider is not None:
             provider.close()
+
+    def _close_native_attachment(self) -> None:
+        attachment = getattr(self, "native_provider_attachment", None)
+        self.native_provider_attachment = None
+        if attachment is None:
+            return
+        self.position_provider = None
+        self.monster_provider = None
+        self.native_process_service = None
+        attachment.close()
+
+    def _close_native_process_service(self) -> None:
+        service = getattr(self, "native_process_service", None)
+        self.native_process_service = None
+        if service is not None:
+            service.close()
 
     def set_config(self, **options) -> None:
         reload_templates = False

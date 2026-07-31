@@ -242,11 +242,54 @@ class _AttemptControl:
         self.check()
 
 
-_CACHE_LOCK = RLock()
-_RECOVERY_CACHE: dict[tuple[int, int], PlayerPointerRecovery] = {}
-_NEGATIVE_CACHE: dict[tuple[int, int], float] = {}
-_INFLIGHT: dict[tuple[int, int], _RecoveryFlight] = {}
-_LAST_METRICS: dict[tuple[int, int], PointerRecoveryMetrics] = {}
+class PointerRecoveryState:
+    """Per-attachment cache, cooldown, and single-flight recovery state."""
+
+    def __init__(self) -> None:
+        self.lock = RLock()
+        self.recovery_cache: dict[
+            tuple[int, int],
+            PlayerPointerRecovery,
+        ] = {}
+        self.negative_cache: dict[tuple[int, int], float] = {}
+        self.inflight: dict[tuple[int, int], _RecoveryFlight] = {}
+        self.last_metrics: dict[tuple[int, int], PointerRecoveryMetrics] = {}
+
+    def clear(
+        self,
+        *,
+        pid: int | None = None,
+        module_base: int | None = None,
+    ) -> None:
+        with self.lock:
+            if pid is None and module_base is None:
+                self.recovery_cache.clear()
+                self.negative_cache.clear()
+                self.last_metrics.clear()
+                return
+            keys = (
+                set(self.recovery_cache)
+                | set(self.negative_cache)
+                | set(self.last_metrics)
+            )
+            for key in keys:
+                if pid is not None and key[0] != int(pid):
+                    continue
+                if module_base is not None and key[1] != int(module_base):
+                    continue
+                self.recovery_cache.pop(key, None)
+                self.negative_cache.pop(key, None)
+                self.last_metrics.pop(key, None)
+
+    def metrics_for(
+        self,
+        pid: int,
+        module_base: int,
+    ) -> PointerRecoveryMetrics | None:
+        with self.lock:
+            return self.last_metrics.get((int(pid), int(module_base)))
+
+
 _PERSIST_LOCK = RLock()
 MINIMUM_NEGATIVE_COOLDOWN_SECONDS = 5.0
 DEFAULT_RECOVERY_TIMEOUT_SECONDS = 0.5
@@ -321,34 +364,29 @@ def _notify(
 
 def clear_pointer_recovery_state(
     *,
+    state: PointerRecoveryState | None = None,
     pid: int | None = None,
     module_base: int | None = None,
 ) -> None:
-    """Invalidate cached recovery state, primarily on detach/reattach or in tests."""
+    """Invalidate one explicitly owned recovery state.
 
-    with _CACHE_LOCK:
-        if pid is None and module_base is None:
-            _RECOVERY_CACHE.clear()
-            _NEGATIVE_CACHE.clear()
-            _LAST_METRICS.clear()
-            return
-        keys = set(_RECOVERY_CACHE) | set(_NEGATIVE_CACHE) | set(_LAST_METRICS)
-        for key in keys:
-            if pid is not None and key[0] != int(pid):
-                continue
-            if module_base is not None and key[1] != int(module_base):
-                continue
-            _RECOVERY_CACHE.pop(key, None)
-            _NEGATIVE_CACHE.pop(key, None)
-            _LAST_METRICS.pop(key, None)
+    Calls without ``state`` are retained as a compatibility no-op. New code
+    owns a :class:`PointerRecoveryState` for the lifetime of one attachment.
+    """
+
+    if state is not None:
+        state.clear(pid=pid, module_base=module_base)
 
 
 def get_last_pointer_recovery_metrics(
     pid: int,
     module_base: int,
+    *,
+    state: PointerRecoveryState | None = None,
 ) -> PointerRecoveryMetrics | None:
-    with _CACHE_LOCK:
-        return _LAST_METRICS.get((int(pid), int(module_base)))
+    if state is None:
+        return None
+    return state.metrics_for(pid, module_base)
 
 
 def _read_configured_world_hint(
@@ -800,6 +838,7 @@ def recover_local_player_pointer(
     *,
     module_base: int,
     configured_player_pointer_offset: int,
+    state: PointerRecoveryState | None = None,
     monster_config: NativeMonsterConfig | None = None,
     search_radii: tuple[int, ...] = (0x20000, 0x100000, 0x400000, 0x800000),
     chunk_size: int = 0x10000,
@@ -817,10 +856,11 @@ def recover_local_player_pointer(
     """Explicitly recover a shifted Neuz local-player global.
 
     Ordinary position and monster reads never call this function. Explicit
-    attempts are single-flight per ``(pid, module_base)``, enumerate and index
-    readable regions once, scan each expanding memory band at most once, and
-    stop cooperatively at the deadline or cancellation boundary. Failed
-    complete attempts enter a process-scoped cooldown to prevent retry storms.
+    attempts sharing a :class:`PointerRecoveryState` are single-flight per
+    ``(pid, module_base)``, enumerate and index readable regions once, scan each
+    expanding memory band at most once, and stop cooperatively at the deadline
+    or cancellation boundary. Failed complete attempts enter an
+    attachment-scoped cooldown to prevent retry storms.
 
     Deadline checks surround each synchronous backend call and run throughout
     CPU scanning. Python cannot preempt a backend call already in progress, so
@@ -828,6 +868,7 @@ def recover_local_player_pointer(
     must keep this diagnostic behind a bounded lifecycle owner.
     """
 
+    recovery_state = state or PointerRecoveryState()
     config = monster_config or load_native_monster_config()
     pid = int(getattr(memory, "pid", 0))
     cache_key = (pid, int(module_base))
@@ -862,8 +903,8 @@ def recover_local_player_pointer(
             control.check()
         except _AttemptStopped as stopped:
             metrics = builder.freeze(stopped.outcome, now=clock())
-            with _CACHE_LOCK:
-                _LAST_METRICS[cache_key] = metrics
+            with recovery_state.lock:
+                recovery_state.last_metrics[cache_key] = metrics
             _notify(
                 status_callback,
                 stopped.outcome,
@@ -873,16 +914,16 @@ def recover_local_player_pointer(
             return None
 
         now = clock()
-        with _CACHE_LOCK:
-            cached = _RECOVERY_CACHE.get(cache_key)
-            cooldown_until = _NEGATIVE_CACHE.get(cache_key)
-            flight = _INFLIGHT.get(cache_key)
+        with recovery_state.lock:
+            cached = recovery_state.recovery_cache.get(cache_key)
+            cooldown_until = recovery_state.negative_cache.get(cache_key)
+            flight = recovery_state.inflight.get(cache_key)
             if cooldown_until is not None and cooldown_until <= now:
-                _NEGATIVE_CACHE.pop(cache_key, None)
+                recovery_state.negative_cache.pop(cache_key, None)
                 cooldown_until = None
             if cached is None and cooldown_until is None and flight is None:
                 flight = _RecoveryFlight(persist_requested=bool(persist))
-                _INFLIGHT[cache_key] = flight
+                recovery_state.inflight[cache_key] = flight
                 owner = True
             else:
                 owner = False
@@ -901,8 +942,8 @@ def recover_local_player_pointer(
                 control.check()
             except _AttemptStopped as stopped:
                 metrics = builder.freeze(stopped.outcome, now=clock())
-                with _CACHE_LOCK:
-                    _LAST_METRICS[cache_key] = metrics
+                with recovery_state.lock:
+                    recovery_state.last_metrics[cache_key] = metrics
                 _notify(
                     status_callback,
                     stopped.outcome,
@@ -917,8 +958,8 @@ def recover_local_player_pointer(
                     now=clock(),
                     cache_hit=True,
                 )
-                with _CACHE_LOCK:
-                    _LAST_METRICS[cache_key] = metrics
+                with recovery_state.lock:
+                    recovery_state.last_metrics[cache_key] = metrics
                 _notify(
                     status_callback,
                     "cache_hit",
@@ -926,9 +967,9 @@ def recover_local_player_pointer(
                     metrics,
                 )
                 return cached
-            with _CACHE_LOCK:
-                if _RECOVERY_CACHE.get(cache_key) is cached:
-                    _RECOVERY_CACHE.pop(cache_key, None)
+            with recovery_state.lock:
+                if recovery_state.recovery_cache.get(cache_key) is cached:
+                    recovery_state.recovery_cache.pop(cache_key, None)
             continue
 
         if cooldown_until is not None:
@@ -939,8 +980,8 @@ def recover_local_player_pointer(
                 negative_cache_hit=True,
                 cooldown_remaining_seconds=remaining,
             )
-            with _CACHE_LOCK:
-                _LAST_METRICS[cache_key] = metrics
+            with recovery_state.lock:
+                recovery_state.last_metrics[cache_key] = metrics
             _notify(
                 status_callback,
                 "negative_cache",
@@ -970,8 +1011,8 @@ def recover_local_player_pointer(
                 now=clock(),
                 joined_existing_attempt=True,
             )
-            with _CACHE_LOCK:
-                _LAST_METRICS[cache_key] = metrics
+            with recovery_state.lock:
+                recovery_state.last_metrics[cache_key] = metrics
             _notify(
                 status_callback,
                 stopped.outcome,
@@ -988,8 +1029,8 @@ def recover_local_player_pointer(
             elapsed_seconds=max(0.0, clock() - started_at),
             joined_existing_attempt=True,
         )
-        with _CACHE_LOCK:
-            _LAST_METRICS[cache_key] = metrics
+        with recovery_state.lock:
+            recovery_state.last_metrics[cache_key] = metrics
         _notify(
             status_callback,
             "inflight_complete",
@@ -1024,17 +1065,19 @@ def recover_local_player_pointer(
 
     completed_at = clock()
     metrics = builder.freeze(outcome, now=completed_at)
-    with _CACHE_LOCK:
+    with recovery_state.lock:
         if recovery is not None:
-            _RECOVERY_CACHE[cache_key] = recovery
-            _NEGATIVE_CACHE.pop(cache_key, None)
+            recovery_state.recovery_cache[cache_key] = recovery
+            recovery_state.negative_cache.pop(cache_key, None)
         elif outcome in {"not_found", "deadline"}:
-            _NEGATIVE_CACHE[cache_key] = completed_at + minimum_cooldown
+            recovery_state.negative_cache[cache_key] = (
+                completed_at + minimum_cooldown
+            )
         flight.result = recovery
         flight.metrics = metrics
-        _LAST_METRICS[cache_key] = metrics
-        if _INFLIGHT.get(cache_key) is flight:
-            _INFLIGHT.pop(cache_key, None)
+        recovery_state.last_metrics[cache_key] = metrics
+        if recovery_state.inflight.get(cache_key) is flight:
+            recovery_state.inflight.pop(cache_key, None)
         persist_for_flight = bool(
             recovery is not None and flight.persist_requested
         )
