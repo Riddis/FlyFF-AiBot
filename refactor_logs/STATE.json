@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T15:46:00.0000000Z",
+  "updated_at": "2026-07-31T15:50:00.0000000Z",
   "current_phase": "phase_03_canonical_farming_environment",
-  "phase_status": "canonical_farming_legacy_deletion_broad_green",
+  "phase_status": "generated_patch_artifact_cleanup_checkpoint_ready",
   "active_task_id": "FARM-001,FARM-002,FARM-003,INPUT-001,BOUND-001",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "c37598d8e89f3ae283e5f25b4055a70edd8e3400",
+  "head_commit": "c783c72",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
@@ -20,8 +20,7 @@
   ],
   "staged_files": [],
   "checkpoint_candidate_files": [
-    "the 24 exact deleted production/test paths frozen in refactor_logs/phases/07_legacy_cleanup.md",
-    "foreground_vision_bot/tests/test_coordinate_mapper.py",
+    "the 26 exact generated .patch_backups/v0706_patch/v0707_patch/v0708_patch files reported by git ls-files",
     "refactor_logs/CHANGES.jsonl",
     "refactor_logs/COMMANDS.jsonl",
     "refactor_logs/HANDOFF.md",
@@ -40,7 +39,7 @@
   "required_model_for_next_action": "Sol 5.6 with high reasoning per the active continuation instructions",
   "human_test_pending": false,
   "known_risks": ["RISK-003", "RISK-005", "RISK-006", "RISK-007", "RISK-008", "RISK-009", "RISK-010", "RISK-011", "RISK-012", "RISK-013", "RISK-014", "RISK-015", "RISK-016", "RISK-017", "RISK-018", "RISK-019"],
-  "next_action": "Checkpoint the broad-green legacy farming deletion, then remove separately inventoried generated patch/backup artifacts and finish fake end-to-end/runtime documentation gates.",
+  "next_action": "Checkpoint the 26-file generated artifact deletion, then remove the separately inventoried movement-PPO and one-time migration stacks after extracting the shared map-mask utility.",
   "current_work": [
     "Atomic production cutover to farming.trainer",
     "Behavior-parity validation before legacy deletion"

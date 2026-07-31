@@ -54,3 +54,8 @@ baseline mapper failure was a stale assertion: the shipped JSON has explicitly
 selected the conservative `1`/`1` free-space autofill limits since the protected
 pre-Codex commit, while the test incorrectly asserted the dataclass defaults
 `12`/`4`; the test now verifies the shipped override.
+
+The subsequent artifact-only slice deletes all 26 tracked files under
+`.patch_backups`, `v0706_patch`, `v0707_patch`, and `v0708_patch`, exactly
+matching the prior `FILE_MANIFEST.csv` decisions. The two user backup archives
+at repository root remain untouched and untracked.

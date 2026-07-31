@@ -59,7 +59,8 @@ fully green: 550 passed, 1 skipped in 9.94 seconds. The old mapper mismatch was
 a stale test assertion against values that were already explicitly `1`/`1` in
 the protected baseline JSON; the corrected test documents that conservative
 shipped override. Generated `.patch_backups` and `v0706_patch`/`v0707_patch`/
-`v0708_patch` trees have not yet been deleted.
+`v0708_patch` trees are now deleted in the dirty artifact-only slice: 26 exact
+tracked files, while both user ZIP backups remain untouched.
 
 ## Validation
 
@@ -82,9 +83,9 @@ shipped override. Generated `.patch_backups` and `v0706_patch`/`v0707_patch`/
 
 ## Exact continuation
 
-1. Commit the exact broad-green production/test deletion slice.
-2. Remove only the separately inventoried generated patch/backup artifacts,
-   then finish fake end-to-end, documentation, and live-client protocol gates.
+1. Commit the exact 26-file generated artifact deletion plus journal.
+2. Extract the shared map-mask utility, remove the movement-PPO and one-time
+   migration stacks, then finish fake end-to-end, docs, and live protocol gates.
 
 ## Dirty-tree ownership
 
