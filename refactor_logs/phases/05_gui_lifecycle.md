@@ -41,3 +41,20 @@ asynchronous attach and shutdown while GUI ticks continue, stale events,
 false-join retry/finalization, background frame rendering, one composition root,
 and fake launch→attach→preview→dry-run/training→stop/session-end→save→close
 smokes with zero live managed threads.
+# Completion evidence
+
+The final GUI is a main-thread view/event adapter over `RuntimeController` and
+`RuntimeBus`. `WorkerManager` is the sole owner of non-daemon capture, preview,
+control, and diagnostic workers. High-rate frames/status are latest-only;
+bounded log draining prevents producer backpressure. Stop cancels both control
+and diagnostics and releases input. Close performs ordered, deadline-bounded
+shutdown and keeps dependencies alive after a false join.
+
+Native Health and Recover Pointers are explicit GUI commands. Health performs
+one fixed pointer sample plus cached provider/map/OCR/focus facts. Recovery is
+mutually exclusive with control, managed by the diagnostic worker, cancellable,
+deadline-bounded, and never persists offsets automatically.
+
+Acceptance: 25 GUI/runtime/diagnostic/bus/worker tests pass. Fake session tests
+also cover attach/preview/dry-run/stop and external-end training publication.
+Live Tk/Win32 behavior remains in the consolidated manual protocol.

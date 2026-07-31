@@ -78,10 +78,10 @@ Acceptance: direct control is deterministic and every terminal path releases key
 
 ## Phase 05 — GUI lifecycle
 
-- [ ] `GUI-001` Separate GUI view/event adaptation from orchestration.
-- [ ] `GUI-002` Consolidate worker supervision, status ownership, and bounded queues.
-- [ ] `GUI-003` Make Stop/close responsive for every worker and save/report path.
-- [ ] `GUI-004` Add diagnostics UI/command and lifecycle smoke tests.
+- [x] `GUI-001` Separate GUI view/event adaptation from orchestration.
+- [x] `GUI-002` Consolidate worker supervision, status ownership, and bounded queues.
+- [x] `GUI-003` Make Stop/close responsive for every worker and save/report path.
+- [x] `GUI-004` Add diagnostics UI/command and lifecycle smoke tests.
 
 Acceptance: GUI performs no blocking scan/PPO work and shutdown leaves no project threads or held keys.
 
@@ -89,8 +89,8 @@ Acceptance: GUI performs no blocking scan/PPO work and shutdown leaves no projec
 
 - [x] `BOUND-001` Isolate the active map catalog/context/transform from legacy adaptive mapping.
 - [x] `BOUND-002` Preserve Tower AoE data, teleport mask, editor, and selected-map behavior.
-- [ ] `BOUND-003` Clarify capture/preview/OCR ownership, rate limiting, and bounded queues.
-- [ ] `BOUND-004` Validate mapping, direct-path, OCR, preview, and fake end-to-end flows.
+- [x] `BOUND-003` Clarify capture/preview/OCR ownership, rate limiting, and bounded queues.
+- [x] `BOUND-004` Validate mapping, direct-path, OCR, preview, and fake end-to-end flows.
 
 Acceptance: farming dependencies are explicit and active map/editor/vision behavior is preserved.
 

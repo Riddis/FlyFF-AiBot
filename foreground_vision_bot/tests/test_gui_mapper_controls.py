@@ -41,3 +41,14 @@ def test_only_obsolete_mapper_calibration_controls_are_removed() -> None:
         "from mapper.MinimapAnchorSetup import MinimapAnchorSetup"
         in gui_source
     )
+
+
+def test_gui_exposes_managed_native_health_and_recovery_commands() -> None:
+    gui_source = (Path(__file__).resolve().parents[1] / "Gui.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'key="-NATIVE_HEALTH-"' in gui_source
+    assert 'key="-RECOVER_POINTERS-"' in gui_source
+    assert "self.controller.start_native_diagnostic(" in gui_source
+    assert "self.controller.stop_native_diagnostic()" in gui_source

@@ -58,6 +58,7 @@ class Gui:
             "mapper_status": 0,
             "capture_status": 0,
             "runtime_status": 0,
+            "native_diagnostic_status": 0,
         }
         self._last_preview_render_at = 0.0
         self._last_map_render_at = 0.0
@@ -172,10 +173,26 @@ class Gui:
             if event == "-STOP_BOT-":
                 self.__set_status("Idle", "Stopped")
                 self.controller.stop_control()
+                self.controller.stop_native_diagnostic()
                 self.runtime_bus.log(
                     "Stop requested. Waiting for the active worker to exit.",
                     "msg_blue",
                 )
+
+            if event in {"-NATIVE_HEALTH-", "-RECOVER_POINTERS-"}:
+                recover = event == "-RECOVER_POINTERS-"
+                try:
+                    self.controller.start_native_diagnostic(
+                        recover=recover,
+                        timeout=10.0 if recover else 1.0,
+                    )
+                except (RuntimeError, ValueError) as error:
+                    self.runtime_bus.log(str(error), "msg_red")
+                else:
+                    mode = "Native Recovery" if recover else "Native Health"
+                    self.__set_status(mode, f"Starting {mode.lower()}...")
+                    if recover:
+                        self.__set_rl_buttons(attached=True, running=True)
 
             # BOT OPTIONS - Video options
             if event == "-SHOW_FRAMES-":
@@ -435,6 +452,7 @@ class Gui:
             ("rl_status", "Training"),
             ("mapper_status", self._status_mode),
             ("runtime_status", "Runtime"),
+            ("native_diagnostic_status", "Native Diagnostic"),
         ):
             version, status = self.runtime_bus.read_latest(
                 key,
@@ -494,6 +512,16 @@ class Gui:
                 continue
             if completion.worker_name == "preview":
                 continue
+            if completion.worker_name in {"native-health", "native-pointer-recovery"}:
+                if completion.session_id != self.controller.diagnostic_session_id:
+                    continue
+                if completion.worker_name == "native-pointer-recovery":
+                    self.__set_rl_buttons(attached=True, running=False)
+                self.runtime_bus.log(
+                    f"{completion.worker_name} finished.",
+                    "msg_green",
+                )
+                continue
             if (
                 completion.session_id is not None
                 and completion.session_id != self.controller.control_session_id
@@ -508,6 +536,10 @@ class Gui:
         for failure in self.runtime_bus.drain_failures():
             capture_failed = failure.worker_name.startswith("capture-")
             preview_failed = failure.worker_name == "preview"
+            diagnostic_failed = failure.worker_name in {
+                "native-health",
+                "native-pointer-recovery",
+            }
             if capture_failed and not self.__is_current_capture_event(failure):
                 continue
             if (
@@ -517,17 +549,26 @@ class Gui:
             ):
                 continue
             if (
+                diagnostic_failed
+                and failure.session_id is not None
+                and failure.session_id != self.controller.diagnostic_session_id
+            ):
+                continue
+            if (
                 not capture_failed
                 and not preview_failed
+                and not diagnostic_failed
                 and failure.session_id is not None
                 and failure.session_id != self.controller.control_session_id
             ):
                 continue
-            if not preview_failed:
+            if not preview_failed and not diagnostic_failed:
                 self.__set_rl_buttons(
                     attached=not capture_failed,
                     running=False,
                 )
+            elif failure.worker_name == "native-pointer-recovery":
+                self.__set_rl_buttons(attached=True, running=False)
             self.runtime_bus.log(
                 f"{failure.worker_name} failed in "
                 f"{failure.lifecycle_state} at "
@@ -660,6 +701,10 @@ class Gui:
         self.window["-EDIT_MAP_CELLS-"].update(disabled=running)
         self.window["-RESET_MAP-"].update(disabled=running)
         self.window["-DELETE_MAP-"].update(disabled=running)
+        self.window["-NATIVE_HEALTH-"].update(disabled=not attached)
+        self.window["-RECOVER_POINTERS-"].update(
+            disabled=(not attached or running)
+        )
 
     def __set_minimap_anchor(self, bot):
         if self.controller.control_active:
@@ -1309,6 +1354,20 @@ class Gui:
                         "Calibrate Minimap (optional)",
                         disabled=True,
                         key="-SET_MINIMAP_ANCHOR-",
+                        expand_x=True,
+                    ),
+                ],
+                [
+                    sg.Button(
+                        "Native Health",
+                        disabled=True,
+                        key="-NATIVE_HEALTH-",
+                        expand_x=True,
+                    ),
+                    sg.Button(
+                        "Recover Pointers",
+                        disabled=True,
+                        key="-RECOVER_POINTERS-",
                         expand_x=True,
                     ),
                 ],
