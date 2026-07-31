@@ -1,24 +1,24 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T22:06:53.9116181Z",
+  "updated_at": "2026-07-31T22:10:47.8972819Z",
   "current_phase": "live_current_client_acceptance",
   "phase_status": "automated_player_hp_ocr_complete_awaiting_human",
   "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "a7b2b06964644f7ceeaf890c67c04f2f014974e4",
-  "head_note": "Automatic player-status HP OCR is validated and pending checkpoint.",
+  "head_commit": "d98e73904dfd829224c5310a2e9c45861e8c846e",
+  "head_note": "Validated automatic player-status HP OCR checkpoint; this journal-only reconciliation follows.",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
     "branch": "backup/pre-codex-refactor"
   },
-  "dirty_files": ["PTR-LIVE-025,PTR-LIVE-026 automatic HP OCR implementation and journals"],
+  "dirty_files": ["journal reconciliation pending checkpoint"],
   "ignored_user_backups": [
     "foreground_vision_bot.zip",
     "refactor_logs.zip"
   ],
   "staged_files": [],
-  "last_known_good_commit": "a7b2b06964644f7ceeaf890c67c04f2f014974e4",
+  "last_known_good_commit": "d98e73904dfd829224c5310a2e9c45861e8c846e",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
   "last_known_good_test_result": "568 passed, 1 skipped in 10.70 seconds",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",

@@ -11,6 +11,7 @@
 - Validated displaced structural world-identity checkpoint: `5351a4c988f31b6982f9f85e65e19118b3721857`; final journal reconciliation follows it.
 - Validated structural module-marker world-identity checkpoint: `f4903d98710f331d7aa175ffbc444fb05d1a0498`; final journal reconciliation follows it.
 - Validated selected-world structural-evidence checkpoint: `a7b2b06964644f7ceeaf890c67c04f2f014974e4`; final journal reconciliation follows it.
+- Validated automatic player-status HP-OCR checkpoint: `d98e73904dfd829224c5310a2e9c45861e8c846e`; final journal reconciliation follows it.
 - Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through `protected/pre-codex-refactor` and `backup/pre-codex-refactor`.
 - Production route: `runtime_controller.py -> farming.trainer -> UnifiedFarmingEnv / SessionAwarePPO`.
 - Active model: `models/farming/native_strategy_ppo.zip`; SHA-256 `3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2` unchanged.
