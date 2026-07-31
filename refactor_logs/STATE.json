@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T19:22:38.7004551Z",
+  "updated_at": "2026-07-31T19:35:08.3254651Z",
   "current_phase": "live_current_client_acceptance",
-  "phase_status": "automated_self_alias_correction_complete_awaiting_human",
+  "phase_status": "automated_world_rooted_player_chain_complete_awaiting_human",
   "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
   "head_commit": "5f55eaf0d1669e441d72811ae462c0c63ac0b32e",
@@ -12,7 +12,7 @@
     "annotated_tag": "protected/pre-codex-refactor",
     "branch": "backup/pre-codex-refactor"
   },
-  "dirty_files": ["final journal-only reconciliation pending checkpoint"],
+  "dirty_files": ["world-rooted player-chain implementation and journal pending checkpoint"],
   "ignored_user_backups": [
     "foreground_vision_bot.zip",
     "refactor_logs.zip"
@@ -20,12 +20,12 @@
   "staged_files": [],
   "last_known_good_commit": "5f55eaf0d1669e441d72811ae462c0c63ac0b32e",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
-  "last_known_good_test_result": "550 passed, 1 skipped in 9.72 seconds",
+  "last_known_good_test_result": "551 passed, 1 skipped in 11.38 seconds",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
-  "last_broad_test_result": "550 passed, 1 skipped in 9.72 seconds",
+  "last_broad_test_result": "551 passed, 1 skipped in 11.38 seconds",
   "last_quality_result": "Changed Ruff F/I clean; native production BasedPyright 0 errors; diff hygiene clean. Existing warning-level and repository-wide legacy debt remains classified.",
   "active_model_sha256": "3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2",
-  "active_blocker": "Human-only current FlyFF validation of the corrected self-alias handling remains.",
+  "active_blocker": "Human-only current FlyFF validation of world-rooted player-chain discovery remains.",
   "blocked_tasks": ["PTR-LIVE-001 live_client_validation"],
   "next_action": "Run one stationary first-stage recovery; continue to movement only if its outcome is movement_required.",
   "completed_milestones": [
@@ -43,7 +43,7 @@
     "DOC-001", "DOC-002", "DOC-003", "DOC-004",
     "PTR-LIVE-002", "PTR-LIVE-003", "PTR-LIVE-004", "PTR-LIVE-005", "PTR-LIVE-006",
     "PTR-LIVE-007", "PTR-LIVE-008", "PTR-LIVE-009", "PTR-LIVE-010", "PTR-LIVE-011",
-    "PTR-LIVE-012", "PTR-LIVE-013"
+    "PTR-LIVE-012", "PTR-LIVE-013", "PTR-LIVE-014", "PTR-LIVE-015"
   ],
   "pending_migrations": [],
   "pending_deletions": [],

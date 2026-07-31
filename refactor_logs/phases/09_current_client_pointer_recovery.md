@@ -180,3 +180,29 @@ Automated coverage reproduces four same-cohort self aliases through successful
 movement confirmation and separately proves that two equally supported
 species/active/HP/XYZ families still return `actor_layout_inconclusive`. The
 full suite passes with 550 passed and 1 skipped.
+
+## Fifth anchored live result
+
+The new pass found 1,229 species values and 2,406 base hypotheses. Forty-three
+actors agreed on one field family (`layout_ties=0`) and four self aliases. All
+43 agreed on the same world and self relationship. Of 53 spawn structures, 26
+shared that world, exactly one matched exact HP/player properties, and that one
+remained stable. The inferred live fields were species `0x174`, active species
+`0x217C`, HP `0x814`, and XYZ `0x160/0x164/0x168`. Recovery stopped only after
+the confirmed player failed module reference resolution; it did not persist.
+
+The old reference search first tried a direct module player slot, then examined
+only `0x100` bytes from arbitrary module-rooted holders. The confirmed world is
+itself module rooted, so it is a stronger bounded anchor. Recovery now resolves
+that world first and recognizes an exact player reference within `0x4000` bytes
+of it as a one-hop player chain. Multiple module slots containing the exact
+same target and multiple same-world fields containing the exact same player are
+treated as aliases and ranked deterministically. Generic chains from different
+roots remain ambiguous. The selected chain is still held without writing and
+must resolve the same player/world before the controlled-movement reads.
+
+Diagnostics now report raw player-reference matches, world-rooted chain aliases,
+and unresolved reference ambiguities. Automated coverage sets the legacy player
+slot to null, supplies duplicate direct world aliases and duplicate player
+fields under that world, and proves no-write first-stage plus movement-confirmed
+publication. The full suite passes with 551 passed and 1 skipped.

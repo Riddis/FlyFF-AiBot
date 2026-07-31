@@ -141,6 +141,9 @@ class PointerRecoveryMetrics:
     player_chain_candidates: int = 0
     direct_world_slot_candidates: int = 0
     world_chain_candidates: int = 0
+    player_reference_matches: int = 0
+    player_world_chain_candidates: int = 0
+    player_reference_ambiguities: int = 0
     movement_checks: int = 0
     movement_observed: int = 0
     self_mismatch_near_probed: int = 0
@@ -243,6 +246,9 @@ class _MetricsBuilder:
     player_chain_candidates: int = 0
     direct_world_slot_candidates: int = 0
     world_chain_candidates: int = 0
+    player_reference_matches: int = 0
+    player_world_chain_candidates: int = 0
+    player_reference_ambiguities: int = 0
     movement_checks: int = 0
     movement_observed: int = 0
     self_mismatch_near_probed: int = 0
@@ -335,6 +341,9 @@ class _MetricsBuilder:
             player_chain_candidates=self.player_chain_candidates,
             direct_world_slot_candidates=self.direct_world_slot_candidates,
             world_chain_candidates=self.world_chain_candidates,
+            player_reference_matches=self.player_reference_matches,
+            player_world_chain_candidates=self.player_world_chain_candidates,
+            player_reference_ambiguities=self.player_reference_ambiguities,
             movement_checks=self.movement_checks,
             movement_observed=self.movement_observed,
             self_mismatch_near_probed=self.self_mismatch_near_probed,
@@ -1408,6 +1417,9 @@ def _record_anchor_evidence(
     metrics.player_chain_candidates = evidence.player_chain_candidates
     metrics.direct_world_slot_candidates = evidence.direct_world_slot_candidates
     metrics.world_chain_candidates = evidence.world_chain_candidates
+    metrics.player_reference_matches = evidence.player_reference_matches
+    metrics.player_world_chain_candidates = evidence.player_world_chain_candidates
+    metrics.player_reference_ambiguities = evidence.player_reference_ambiguities
     metrics.movement_checks = evidence.movement_checks
     metrics.movement_observed = evidence.movement_observed
 
@@ -2215,6 +2227,9 @@ def recover_local_player_pointer(
                 f" spawn_players={metrics.spawn_player_matches},"
                 f" stable_spawn={metrics.stable_spawn_candidates},"
                 f" player_chains={metrics.player_chain_candidates},"
+                f" player_refs={metrics.player_reference_matches},"
+                f" player_world_chains={metrics.player_world_chain_candidates},"
+                f" player_ref_ambiguous={metrics.player_reference_ambiguities},"
                 f" movement={metrics.movement_observed}."
             ),
             metrics,

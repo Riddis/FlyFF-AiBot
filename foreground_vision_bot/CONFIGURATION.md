@@ -77,7 +77,9 @@ configs; species, active-species, HP, world, and self offsets are written to the
 monster layout. If several fields point back to the same complete actor cohort,
 the player must validate one of those self-field aliases before it can be
 persisted; distinct tied actor layouts remain a hard failure. Automatic
-farming-startup recovery is in-memory only.
+farming-startup recovery is in-memory only. A recovered player pointer may use
+the recovered world slot plus one bounded world-field offset when no direct
+player module slot exists; the normal one-hop chain reader handles that form.
 
 ## Maps, mobs, and model compatibility
 

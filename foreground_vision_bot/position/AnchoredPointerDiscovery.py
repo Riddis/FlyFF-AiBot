@@ -105,6 +105,9 @@ class AnchoredDiscoveryEvidence:
     player_chain_candidates: int = 0
     direct_world_slot_candidates: int = 0
     world_chain_candidates: int = 0
+    player_reference_matches: int = 0
+    player_world_chain_candidates: int = 0
+    player_reference_ambiguities: int = 0
     anchor_ambiguities: int = 0
     movement_checks: int = 0
     movement_observed: int = 0
@@ -170,6 +173,21 @@ class _InferredActorLayout:
 class _MonsterHypothesis:
     actor: _MonsterAnchor
     layout: _InferredActorLayout
+
+
+@dataclass(frozen=True, slots=True)
+class _ModuleReferenceResult:
+    slot: int | None = None
+    chain_offsets: tuple[int, ...] = ()
+    direct_candidates: int = 0
+    chained_candidates: int = 0
+    reference_matches: int = 0
+    preferred_chain_candidates: int = 0
+    ambiguous_candidates: int = 0
+
+    @property
+    def resolved(self) -> bool:
+        return self.slot is not None
 
 
 def _bounds(region: object) -> tuple[int, int]:
@@ -649,14 +667,24 @@ def _resolve_module_reference(
     cancellation: object | None,
     deadline: float,
     check: Callable[[], None],
-) -> tuple[int, tuple[int, ...], int, int] | None:
+    preferred_roots: tuple[tuple[int, int, tuple[int, ...]], ...] = (),
+    maximum_preferred_offset: int = 0,
+) -> _ModuleReferenceResult:
     direct = tuple(sorted(set(slot_refs.get(value, ()))))
     if configured_slot in direct:
-        return configured_slot, (), len(direct), 0
-    if len(direct) == 1:
-        return direct[0], (), 1, 0
-    if len(direct) > 1:
-        return None
+        return _ModuleReferenceResult(
+            slot=configured_slot,
+            direct_candidates=len(direct),
+        )
+    if direct:
+        # Every entry is a module-image slot containing this same exact target.
+        # They are direct aliases, so select the slot nearest the configured
+        # hint deterministically and let movement confirmation prove stability.
+        selected = min(direct, key=lambda slot: (abs(slot - configured_slot), slot))
+        return _ModuleReferenceResult(
+            slot=selected,
+            direct_candidates=len(direct),
+        )
 
     try:
         references = memory.find_u32(
@@ -668,10 +696,19 @@ def _resolve_module_reference(
             deadline=deadline,
         )
     except Exception:
-        return None
+        return _ModuleReferenceResult(direct_candidates=len(direct))
     chains: set[tuple[int, int]] = set()
+    preferred_chains: set[tuple[int, int]] = set()
     for reference in references[:4096]:
         check()
+        for root_value, root_slot, root_chain in preferred_roots:
+            offset = int(reference) - int(root_value)
+            if (
+                not root_chain
+                and 0 <= offset <= maximum_preferred_offset
+                and offset % 4 == 0
+            ):
+                preferred_chains.add((root_slot, offset))
         for offset in range(0, 0x104, 4):
             holder = int(reference) - offset
             for slot in slot_refs.get(holder, ()):
@@ -679,11 +716,45 @@ def _resolve_module_reference(
     configured_chains = [item for item in chains if item[0] == configured_slot]
     if len(configured_chains) == 1:
         slot, offset = configured_chains[0]
-        return slot, (offset,), 0, len(chains)
-    if len(chains) != 1:
-        return None
-    slot, offset = next(iter(chains))
-    return slot, (offset,), 0, 1
+        return _ModuleReferenceResult(
+            slot=slot,
+            chain_offsets=(offset,),
+            direct_candidates=len(direct),
+            chained_candidates=len(chains | preferred_chains),
+            reference_matches=len(references),
+            preferred_chain_candidates=len(preferred_chains),
+        )
+    if preferred_chains:
+        # Multiple fields under the same confirmed world root that all contain
+        # this exact player base are equivalent chain aliases. Select one
+        # deterministically; repeated stationary reads and the mandatory
+        # movement sample still have to prove it stable before persistence.
+        slot, offset = min(preferred_chains, key=lambda item: (item[1], item[0]))
+        return _ModuleReferenceResult(
+            slot=slot,
+            chain_offsets=(offset,),
+            direct_candidates=len(direct),
+            chained_candidates=len(chains | preferred_chains),
+            reference_matches=len(references),
+            preferred_chain_candidates=len(preferred_chains),
+        )
+    if not direct and len(chains) == 1:
+        slot, offset = next(iter(chains))
+        return _ModuleReferenceResult(
+            slot=slot,
+            chain_offsets=(offset,),
+            chained_candidates=1,
+            reference_matches=len(references),
+            preferred_chain_candidates=len(preferred_chains),
+        )
+    ambiguous = len(direct) + len(chains | preferred_chains)
+    return _ModuleReferenceResult(
+        direct_candidates=len(direct),
+        chained_candidates=len(chains | preferred_chains),
+        reference_matches=len(references),
+        preferred_chain_candidates=len(preferred_chains),
+        ambiguous_candidates=ambiguous,
+    )
 
 
 def _resolve_pointer(
@@ -910,17 +981,6 @@ def discover_anchored_pointer_candidate(
             continue
         evidence.stable_spawn_candidates += 1
 
-        player_ref = _resolve_module_reference(
-            memory,
-            base,
-            configured_slot=configured_player_slot,
-            slot_refs=slot_refs,
-            maximum_address=maximum_address,
-            chunk_size=chunk_size,
-            cancellation=cancellation,
-            deadline=deadline,
-            check=check,
-        )
         world_ref = _resolve_module_reference(
             memory,
             world_base,
@@ -932,15 +992,40 @@ def discover_anchored_pointer_candidate(
             deadline=deadline,
             check=check,
         )
-        if player_ref is None or world_ref is None:
-            evidence.anchor_ambiguities += 1
+        evidence.direct_world_slot_candidates += world_ref.direct_candidates
+        evidence.world_chain_candidates += world_ref.chained_candidates
+        evidence.anchor_ambiguities += world_ref.ambiguous_candidates
+        if not world_ref.resolved:
             continue
-        player_slot, player_chain, direct_player, chained_player = player_ref
-        world_slot, world_chain, direct_world, chained_world = world_ref
-        evidence.direct_player_slot_candidates += direct_player
-        evidence.player_chain_candidates += chained_player
-        evidence.direct_world_slot_candidates += direct_world
-        evidence.world_chain_candidates += chained_world
+        assert world_ref.slot is not None
+        world_slot = world_ref.slot
+        world_chain = world_ref.chain_offsets
+        player_ref = _resolve_module_reference(
+            memory,
+            base,
+            configured_slot=configured_player_slot,
+            slot_refs=slot_refs,
+            maximum_address=maximum_address,
+            chunk_size=chunk_size,
+            cancellation=cancellation,
+            deadline=deadline,
+            check=check,
+            preferred_roots=((world_base, world_slot, world_chain),),
+            maximum_preferred_offset=0x4000,
+        )
+        evidence.direct_player_slot_candidates += player_ref.direct_candidates
+        evidence.player_chain_candidates += player_ref.chained_candidates
+        evidence.player_reference_matches += player_ref.reference_matches
+        evidence.player_world_chain_candidates += (
+            player_ref.preferred_chain_candidates
+        )
+        evidence.player_reference_ambiguities += player_ref.ambiguous_candidates
+        evidence.anchor_ambiguities += player_ref.ambiguous_candidates
+        if not player_ref.resolved:
+            continue
+        assert player_ref.slot is not None
+        player_slot = player_ref.slot
+        player_chain = player_ref.chain_offsets
         candidate = AnchoredPointerCandidate(
             player_base=base,
             world_base=world_base,

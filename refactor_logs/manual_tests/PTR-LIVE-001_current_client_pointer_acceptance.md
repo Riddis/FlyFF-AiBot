@@ -36,7 +36,11 @@ of that exact candidate.
    spawn/player candidate, and a direct or one-hop player and world reference.
    `layout_ties` must be zero; `self_aliases` may be greater than one because
    repeated, same-cohort self fields are validated aliases, not different actor
-   layouts. It must also print the exact entered spawn/HP anchors.
+   layouts. It must also print the exact entered spawn/HP anchors and the
+   `player_refs`, `player_world_chains`, and `player_ref_ambiguous` counts. A
+   world-rooted player chain is expected when the legacy direct player slot is
+   null; same-target chain aliases are allowed, while reference ambiguity must
+   be zero.
    Neither JSON config may change and no recovery backup may be created yet.
 5. If the first result is anything other than `recovery_movement_required`,
    stop the protocol without retrying and return the complete log and unchanged

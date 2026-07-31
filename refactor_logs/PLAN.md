@@ -127,5 +127,7 @@ Acceptance: repository is runnable, evidence is captured, docs are self-containe
 - [x] `PTR-LIVE-011` Expose layout species/tie evidence, validate the live-derived single-species cohort case, and replace the protocol.
 - [x] `PTR-LIVE-012` Collapse repeated self-reference fields over the identical actor cohort into one structural layout while preserving rejection of genuinely different tied layouts.
 - [x] `PTR-LIVE-013` Require the player and movement samples to validate the selected self alias, expose alias evidence, and replace the live protocol.
+- [x] `PTR-LIVE-014` Resolve the confirmed spawn player through a bounded field of the already module-rooted shared world when no direct player slot exists.
+- [x] `PTR-LIVE-015` Distinguish same-target slot/chain aliases from different-root ambiguity, expose reference-stage evidence, and replace the live protocol.
 
 Acceptance: ordinary reads remain scan-free; recovery is bounded, cancellable, single-flight, and off Tk; accepted slots are stable and coherently validated; startup failure is concise and input-safe.

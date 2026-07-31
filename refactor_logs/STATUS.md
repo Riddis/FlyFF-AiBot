@@ -1,6 +1,6 @@
 # Refactor Status
 
-- Phase: live-derived self-field alias correction complete; awaiting one replacement `PTR-LIVE-001` pass.
+- Phase: live-derived world-rooted player-chain correction complete; awaiting one replacement `PTR-LIVE-001` pass.
 - Branch: `feature/adaptive-mapper`.
 - Validated anchored implementation checkpoint: `84559c6ce6ff63a86604a4c71aff8ae2308cdb98`; this journal reconciliation follows it.
 - Validated local actor-layout correction checkpoint: `abd8f9e1cabaa4ea033ee221dbf2145b1470fffb`; final journal reconciliation follows it.
@@ -9,7 +9,7 @@
 - Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through `protected/pre-codex-refactor` and `backup/pre-codex-refactor`.
 - Production route: `runtime_controller.py -> farming.trainer -> UnifiedFarmingEnv / SessionAwarePPO`.
 - Active model: `models/farming/native_strategy_ppo.zip`; SHA-256 `3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2` unchanged.
-- Latest automated acceptance: 550 passed, 1 skipped in 9.72 seconds.
+- Latest automated acceptance: 551 passed, 1 skipped in 11.38 seconds.
 - Quality: changed production/test scope passes Ruff F/I; native production BasedPyright reports zero errors (existing warning-level typing debt remains); diff hygiene passes.
 - Live evidence retained: `Neuz.exe` base `0xB0000`, size `0x943000`, 32-bit; all 4,096 legacy candidates rejected at the historical self field. GUI responsiveness, cancellation, no-input startup failure, Stop, and shutdown passed.
 - Implemented next strategy: selected species consensus, inferred current world/self actor fields, Tower spawn `(253.0, 86.0)` plus exact current/max HP ranking, stable direct/one-hop module references, and mandatory second-sample movement confirmation.
@@ -25,3 +25,6 @@
 - Latest live evidence: 1,500 species hits produced 2,112 base hypotheses and 55 actors of one known species. Population acceptance passed, but four equally supported records (`layout_ties=3`) stopped discovery. The layout key treated repeated self references as different layouts even when their field family and actor cohort matched; nothing reached world/player inference or persistence.
 - Implemented correction: identical-cohort self references are reported as `self_aliases` of one layout. Distinct tied species/active/HP/XYZ families still fail. The spawn player and every repeated stationary/movement read must carry the selected self alias before it can be persisted.
 - Automated acceptance: 550 passed, 1 skipped in 9.72 seconds. Exact tests prove four self aliases advance through movement confirmation while two distinct equally supported actor field families remain `actor_layout_inconclusive`.
+- Latest live evidence: actor layout and world discovery fully passed with 43 actors, `layout_ties=0`, four self aliases, inferred fields, 43-actor world support, and exactly one stable spawn/HP/player object. Recovery stopped only because no direct or legacy one-hop module reference reached that confirmed player; nothing was persisted.
+- Implemented correction: resolve the world module reference first, then search only a bounded `0x4000` field range under that exact world for references to the confirmed player. Same-target direct slots and same-world fields are aliases; unrelated multi-root chains remain ambiguous. New `player_refs`, `player_world_chains`, and `player_ref_ambiguous` metrics expose the reference stage.
+- Automated acceptance: 551 passed, 1 skipped in 11.38 seconds. The exact null-player-slot/world-rooted-chain case passes through mandatory movement with duplicate world-slot and player-field aliases.

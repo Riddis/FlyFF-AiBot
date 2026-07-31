@@ -3,7 +3,7 @@
 ## Current outcome
 
 The canonical refactor remains complete and the automated continuation for the
-current-client pointer break is implemented. `PTR-LIVE-004..013` are complete;
+current-client pointer break is implemented. `PTR-LIVE-004..015` are complete;
 `PTR-LIVE-001` stays open until the user returns one real Win32 stationary plus
 movement sample.
 
@@ -41,6 +41,16 @@ Different tied field families still fail. The spawn player, repeated stationary
 reads, and controlled movement must validate the selected alias before it is
 published or persisted.
 
+The next live pass cleared that correction: 43 actors produced one layout and
+one shared world; exact spawn/HP/player and repeated-read checks left exactly
+one stable player. It stopped only at module reference resolution because the
+legacy player slot was null and the old generic one-hop search covered just
+`0x100` bytes from an arbitrary holder. Recovery now resolves the confirmed
+world first and searches a bounded `0x4000` field range under that exact world
+for the exact player address. This produces the existing one-hop chain shape
+without broadening readers or config. Same-target module/world fields are
+aliases; unrelated chains remain ambiguous and are counted explicitly.
+
 The first strong result returns `movement_required` and is held only by the
 attachment's `NativeProcessService`. It is not applied or persisted. A second
 managed call resolves the same direct slot or one-hop chain and requires exact
@@ -66,7 +76,7 @@ both config files.
 
 ## Automated validation
 
-- Full canonical suite: 550 passed, 1 skipped in 9.72 seconds.
+- Full canonical suite: 551 passed, 1 skipped in 11.38 seconds.
 - Focused pointer/native/controller suite: 91 passed.
 - Changed production/test Ruff F/I: pass.
 - Native production BasedPyright: 0 errors; existing warning-level typing debt
@@ -77,7 +87,8 @@ both config files.
   repeated self-field alias collapse, distinct-layout tie rejection,
   spawn/exact-HP ranking, HP update after movement, stationary rejection,
   one-hop player chains, runtime publication, and the no-write-before-movement
-  invariant.
+  invariant, null legacy player slots, duplicate direct world aliases, and
+  duplicate world-rooted player fields.
 
 ## Provenance
 

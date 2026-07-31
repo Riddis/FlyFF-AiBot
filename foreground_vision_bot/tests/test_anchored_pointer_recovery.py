@@ -538,6 +538,54 @@ def test_service_applies_one_level_player_chain_after_movement() -> None:
     assert snapshot.world_base == memory.world_base
 
 
+def test_service_uses_confirmed_world_as_player_chain_root() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    player_world_offset = 0x280
+    player_world_alias_offset = 0x2A0
+    world_slot_alias_offset = 0x3200
+    memory.u32(memory.module_base_value + memory.player_slot_offset, 0)
+    memory.u32(
+        memory.module_base_value + world_slot_alias_offset,
+        memory.world_base,
+    )
+    memory.u32(memory.world_base + player_world_offset, memory.player_base)
+    memory.u32(memory.world_base + player_world_alias_offset, memory.player_base)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    service = NativeProcessService(memory, config, owns_memory=False)
+
+    first = service.recover_pointers(hints=hints, timeout_seconds=2.0)
+
+    assert first.outcome is NativeRecoveryOutcome.MOVEMENT_REQUIRED
+    first_metrics = first.metrics
+    assert first_metrics.player_reference_matches >= 1
+    assert first_metrics.player_world_chain_candidates == 2
+    memory.f32(memory.player_base + config.x_offset, 258.0)
+
+    second = service.recover_pointers(hints=hints, timeout_seconds=2.0)
+
+    assert second.outcome is NativeRecoveryOutcome.SUCCESS
+    assert second.applied
+    assert second.recovery is not None
+    assert second.recovery.player_pointer_offset == memory.world_slot_offset
+    assert second.recovery.player_pointer_chain_offsets == (player_world_offset,)
+    assert second.recovery.world_pointer_offset == memory.world_slot_offset
+    snapshot = service.read_pointer_snapshot()
+    assert snapshot.player_base == memory.player_base
+    assert snapshot.world_base == memory.world_base
+
+
 def test_service_applies_inferred_shifted_actor_layout() -> None:
     memory = AnchoredMemory()
     stale = NativeMonsterConfig(

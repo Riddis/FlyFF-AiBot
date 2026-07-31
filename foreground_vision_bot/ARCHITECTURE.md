@@ -79,7 +79,11 @@ recovery. Private regions are visited in alternating high/low address order so
 a byte cap is not silently consumed by only the low end of the process.
 An accepted candidate still requires a second, post-movement stationary sample.
 Only then may the service publish a direct module slot or one unambiguous
-pointer-chain hop and transactionally persist the inferred layout. It may be
+pointer-chain hop and transactionally persist the inferred layout. When the
+player has no direct module slot, the confirmed module-rooted world may supply
+that hop through a bounded world field. Multiple direct slots or same-world
+fields containing the exact same target are aliases; different roots/targets
+remain ambiguous. It may be
 initiated by **Recover Pointers** in the diagnostic worker or once by farming
 startup in its control worker. The latter either verifies a coherent snapshot
 or returns a clean no-input outcome before focus/environment activation.
