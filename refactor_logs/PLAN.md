@@ -111,3 +111,11 @@ Acceptance: no active reference reaches removed design code and all equivalent b
 - [x] `DOC-004` Finalize journal, tree summary, commits, and handoff.
 
 Acceptance: repository is runnable, evidence is captured, docs are self-contained, and remaining live validation is explicit.
+
+## Live correction - Current-client pointer recovery and startup
+
+- [ ] `PTR-LIVE-001` Discover the current client player/world slots with bounded, module-aware, strongly validated recovery.
+- [x] `PTR-LIVE-002` Make expected startup pointer unavailability recover or stop cleanly before focus/input/environment activation.
+- [x] `PTR-LIVE-003` Add diagnostics, transactional explicit persistence, automated regression coverage, and one focused live protocol.
+
+Acceptance: ordinary reads remain scan-free; recovery is bounded, cancellable, single-flight, and off Tk; accepted slots are stable and coherently validated; startup failure is concise and input-safe.

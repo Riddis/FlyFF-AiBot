@@ -44,6 +44,12 @@ class _DiagnosticService:
     ) -> None:
         self.memory = SimpleNamespace(pid=7123)
         self.module_base = 0x10000000
+        self.module_name = "Neuz.exe"
+        self.module_path = r"C:\FlyFF\Neuz.exe"
+        self.module_size = 0xB00000
+        self.pointer_width_bytes = 4
+        self.configured_player_pointer_offset = 0x5852B8
+        self.configured_world_pointer_offset = 0x596C6C
         self.player_pointer_address = 0x10002000
         self.world_pointer_address = 0x10002100
         self.is_closed = False
@@ -176,6 +182,9 @@ def test_health_snapshot_is_typed_and_never_starts_recovery_or_scan() -> None:
     assert report.outcome is NativeDiagnosticOutcome.HEALTH_ONLY
     assert report.before.status is NativeHealthStatus.HEALTHY
     assert report.before.pointer_generation == 4
+    assert report.before.module_name == "Neuz.exe"
+    assert report.before.module_size == 0xB00000
+    assert report.before.pointer_width_bytes == 4
     assert report.before.providers.cached_actor_slots == 3
     assert report.before.runtime.selected_map_name == "Tower AoE"
     assert report.before.runtime.map_overlay_loaded
@@ -249,7 +258,8 @@ def test_managed_recovery_uses_worker_token_deadline_and_progress() -> None:
     assert completion.result.outcome is NativeDiagnosticOutcome.RECOVERY_CANCELLED
     assert completion.result.progress_updates >= 3
     json.dumps(completion.result.to_dict())
-    assert service.recovery_kwargs["persist"] is False
+    assert service.recovery_kwargs["persist"] is True
+    assert completion.result.persistence_requested is True
     token = service.recovery_kwargs["cancellation"]
     assert token.cancelled
     assert float(service.recovery_kwargs["deadline"]) <= monotonic() + 2.0

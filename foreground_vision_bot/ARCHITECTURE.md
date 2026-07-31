@@ -31,7 +31,7 @@ GUI event adapter
 | Capture source and frame generation | `CaptureService` | One generation at a time; copied snapshots; stale generations cannot publish. |
 | Bot Vision rendering | `PreviewService` | Fixed-rate consumer; publishes only the newest frame. |
 | Native memory handle and pointers | `NativeProcessService` | One coherent player/world pointer snapshot shared by both readers. Ordinary reads never recover. |
-| Pointer diagnostics/recovery | Diagnostic worker | Health uses one fixed pointer/pose sample plus cached actor/OCR/focus facts and map conversion. Recovery is explicit, single-flight, cancellable, deadline-bounded, negatively cached, and never auto-persisted. |
+| Pointer diagnostics/recovery | Diagnostic or control worker | Health uses one fixed pointer/pose sample plus cached actor/OCR/focus facts and map conversion. Recovery is single-flight, cancellable, deadline-bounded, negatively cached, and never runs on Tk. Explicit GUI recovery persists a strongly validated pair transactionally; automatic startup recovery does not persist. |
 | Farming key state and focus | `DirectFarmingControl` / `WindowFocusService` | One held-key ledger; autofocus plus cancellable manual grace; terminal paths release it. |
 | Farming behavior | `UnifiedFarmingEnv` | Visible `reset()`/`step()`, four actions, coherent native frame per step, typed terminal outcome. |
 | Model/report publication | `farming.reporting` | Temporary file plus atomic replace; report and recovery manifest identify the published artifact. |
@@ -61,8 +61,14 @@ saves the valid model and report without training that terminal prefix.
 
 `NativeProcessService` owns the process memory object and pointer state.
 Position and monster providers consume the same pointer snapshot. A null or
-stale pointer returns a cheap typed unavailable state. Only the Native Health /
-Recover Pointers workflow may initiate recovery.
+stale pointer returns a cheap typed unavailable state. Recovery scans the
+actual module image when Win32 module metadata is available, correlates player
+and world slots independently, rejects ambiguous/unstable candidates, and
+falls back to bounded configured-slot bands only for backends without an image
+extent. It may be initiated by **Recover Pointers** in the diagnostic worker or
+once by farming startup in its control worker. The latter either verifies a
+coherent snapshot or returns a clean no-input outcome before focus/environment
+activation.
 
 `FarmingMapContext` loads the selected `MapCatalog` entry, coordinate frame,
 occupancy grid, safety mask, direct-path visibility, and buffered forbidden

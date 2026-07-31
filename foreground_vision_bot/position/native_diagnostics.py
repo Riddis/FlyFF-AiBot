@@ -73,6 +73,12 @@ class NativeHealthSnapshot:
     error: str | None
     providers: NativeProviderHealth
     runtime: NativeRuntimeFacts
+    module_name: str | None = None
+    module_path: str | None = None
+    module_size: int | None = None
+    pointer_width_bytes: int | None = None
+    configured_player_pointer_offset: int | None = None
+    configured_world_pointer_offset: int | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-friendly recursive dataclass representation."""
@@ -158,6 +164,18 @@ def collect_native_health(
 
     process_id = _optional_int(getattr(getattr(service, "memory", None), "pid", None))
     module_base = _optional_int(getattr(service, "module_base", None))
+    module_name = getattr(service, "module_name", None)
+    module_path = getattr(service, "module_path", None)
+    module_size = _optional_int(getattr(service, "module_size", None))
+    pointer_width_bytes = _optional_int(
+        getattr(service, "pointer_width_bytes", None)
+    )
+    configured_player_offset = _optional_int(
+        getattr(service, "configured_player_pointer_offset", None)
+    )
+    configured_world_offset = _optional_int(
+        getattr(service, "configured_world_pointer_offset", None)
+    )
     player_pointer_address = _optional_int(
         getattr(service, "player_pointer_address", None)
     )
@@ -178,6 +196,12 @@ def collect_native_health(
             error="Native process attachment is closed",
             providers=providers,
             runtime=_runtime_facts(bot),
+            module_name=None if module_name is None else str(module_name),
+            module_path=None if module_path is None else str(module_path),
+            module_size=module_size,
+            pointer_width_bytes=pointer_width_bytes,
+            configured_player_pointer_offset=configured_player_offset,
+            configured_world_pointer_offset=configured_world_offset,
         )
 
     pointer: NativePointerSnapshot | None = None
@@ -223,6 +247,12 @@ def collect_native_health(
         error=error_text,
         providers=providers,
         runtime=runtime,
+        module_name=None if module_name is None else str(module_name),
+        module_path=None if module_path is None else str(module_path),
+        module_size=module_size,
+        pointer_width_bytes=pointer_width_bytes,
+        configured_player_pointer_offset=configured_player_offset,
+        configured_world_pointer_offset=configured_world_offset,
     )
 
 
@@ -230,6 +260,7 @@ def run_native_diagnostic(
     bot: Any,
     *,
     recover: bool,
+    persist: bool = False,
     cancellation: object | None,
     deadline: float | None,
     timeout_seconds: float,
@@ -240,7 +271,7 @@ def run_native_diagnostic(
 
     Recovery is synchronous here by design. The runtime controller must invoke
     this function only inside its managed DIAGNOSTIC worker. Persistence is
-    deliberately disabled until a later explicit-confirmation workflow owns it.
+    permitted only when the caller explicitly requests recovery and persistence.
     """
 
     timeout = float(timeout_seconds)
@@ -293,7 +324,7 @@ def run_native_diagnostic(
         return NativeDiagnosticReport(
             outcome=NativeDiagnosticOutcome.RECOVERY_UNAVAILABLE,
             recovery_requested=True,
-            persistence_requested=False,
+            persistence_requested=bool(persist),
             before=before,
             after=before,
             recovery=None,
@@ -313,7 +344,7 @@ def run_native_diagnostic(
 
     try:
         recovery = service.recover_pointers(
-            persist=False,
+            persist=bool(persist),
             cancellation=cancellation,
             deadline=bounded_deadline,
             timeout_seconds=timeout,
@@ -331,7 +362,7 @@ def run_native_diagnostic(
         return NativeDiagnosticReport(
             outcome=NativeDiagnosticOutcome.ERROR,
             recovery_requested=True,
-            persistence_requested=False,
+            persistence_requested=bool(persist),
             before=before,
             after=after,
             recovery=None,
@@ -345,7 +376,7 @@ def run_native_diagnostic(
     return NativeDiagnosticReport(
         outcome=outcome,
         recovery_requested=True,
-        persistence_requested=False,
+        persistence_requested=bool(persist),
         before=before,
         after=after,
         recovery=recovery,

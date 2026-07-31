@@ -1,22 +1,18 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T16:26:59.1476369Z",
-  "current_phase": "phase_08_final_validation",
-  "phase_status": "automated_refactor_completed_live_validation_pending",
-  "active_task_id": "DOC-004",
+  "updated_at": "2026-07-31T17:34:55.4770620Z",
+  "current_phase": "live_current_client_correction",
+  "phase_status": "automated_correction_complete_human_acceptance_pending",
+  "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "9cbc1f938d2b7f528b5962ec466f06459e6063e4",
-  "head_note": "Validated code checkpoint; the final journal-only checkpoint follows it.",
+  "head_commit": "3ac84c8b8ba27e03dac3a0dc52d79a9010b6fd4b",
+  "head_note": "User checkpoint before current-client correction; implementation checkpoint follows this state update.",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
     "branch": "backup/pre-codex-refactor"
   },
-  "dirty_files": [
-    {"path": "AGENTS.md", "status": "D", "provenance": "user-owned pre-existing deletion; excluded"},
-    {"path": "README.md", "status": "D", "provenance": "user-owned pre-existing deletion; excluded"},
-    {"path": "foreground_vision_farm.json", "status": "D", "provenance": "user-owned pre-existing deletion; excluded"}
-  ],
+  "dirty_files": [],
   "ignored_user_backups": [
     "foreground_vision_bot.zip",
     "refactor_logs.zip"
@@ -24,14 +20,14 @@
   "staged_files": [],
   "last_known_good_commit": "9cbc1f938d2b7f528b5962ec466f06459e6063e4",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider",
-  "last_known_good_test_result": "532 passed, 1 skipped in 8.60 seconds",
+  "last_known_good_test_result": "538 passed, 1 skipped in 9.07 seconds",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider",
-  "last_broad_test_result": "532 passed, 1 skipped in 8.60 seconds",
+  "last_broad_test_result": "538 passed, 1 skipped in 9.07 seconds",
   "last_quality_result": "Canonical farming/native/runtime changed scope: compile clean, Ruff F/I clean, BasedPyright error-level 0. Repository-wide legacy mapper/GUI lint and type debt remains classified in TEST_RESULTS.md.",
   "active_model_sha256": "3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2",
-  "active_blocker": "Real FlyFF/Tk/Win32 behavior requires the consolidated human protocol.",
+  "active_blocker": "Real-client acceptance must confirm the current player/world layout or return the new bounded rejection evidence.",
   "blocked_tasks": ["live_client_validation"],
-  "next_action": "Run refactor_logs/manual_tests/DOC-003_live_client_acceptance.md once with the real client and return the requested log/report evidence.",
+  "next_action": "Run refactor_logs/manual_tests/PTR-LIVE-001_current_client_pointer_acceptance.md once against the current FlyFF client.",
   "completed_milestones": [
     "BASE-001", "BASE-002", "BASE-003", "BASE-004", "BASE-005",
     "AUD1-001", "AUD1-002", "AUD1-003", "AUD1-004",
@@ -44,13 +40,14 @@
     "GUI-001", "GUI-002", "GUI-003", "GUI-004",
     "BOUND-001", "BOUND-002", "BOUND-003", "BOUND-004",
     "CLEAN-001", "CLEAN-002", "CLEAN-003", "CLEAN-004",
-    "DOC-001", "DOC-002", "DOC-003", "DOC-004"
+    "DOC-001", "DOC-002", "DOC-003", "DOC-004",
+    "PTR-LIVE-002", "PTR-LIVE-003"
   ],
   "pending_migrations": [],
   "pending_deletions": [],
   "live_client_validation_still_required": true,
   "pending_human_tests": [
-    "refactor_logs/manual_tests/DOC-003_live_client_acceptance.md"
+    "refactor_logs/manual_tests/PTR-LIVE-001_current_client_pointer_acceptance.md"
   ],
   "known_open_risks": ["RISK-001", "RISK-002", "RISK-005", "RISK-010", "RISK-011", "RISK-012", "RISK-013", "RISK-016"],
   "current_tree_runnable": true

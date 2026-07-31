@@ -231,6 +231,10 @@ def build_live_farming_runtime(
         grace_seconds=config.focus_grace_seconds,
         poll_seconds=config.focus_poll_seconds,
     )
+    # Pointer, actor, map, and initial-frame validation above are entirely
+    # read-only. Focus is the first external side effect and is requested only
+    # after that native preflight is known-good.
+    focus.ensure_focused()
     control = DirectFarmingControl(
         cast(Any, keyboard),
         cancellation,

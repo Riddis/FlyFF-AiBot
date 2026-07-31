@@ -33,6 +33,16 @@ class MemoryRegion:
 
 
 @dataclass(frozen=True, slots=True)
+class ModuleInfo:
+    """Identity and mapped image extent for one process module."""
+
+    name: str
+    path: str
+    base_address: int
+    size: int
+
+
+@dataclass(frozen=True, slots=True)
 class MemorySearchDiagnostics:
     regions_considered: int = 0
     regions_read: int = 0
@@ -241,7 +251,7 @@ class CtypesWin32MemoryBackend:
             )
         return buffer.raw
 
-    def get_module_base(self, pid: int, module_name: str) -> int:
+    def get_module_info(self, pid: int, module_name: str) -> ModuleInfo:
         flags = TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32
         snapshot = self._kernel32.CreateToolhelp32Snapshot(flags, pid)
         snapshot_value = getattr(snapshot, "value", snapshot)
@@ -265,7 +275,17 @@ class CtypesWin32MemoryBackend:
                         raise ProcessMemoryError(
                             f"Module {module_name!r} had an invalid base address"
                         )
-                    return int(address)
+                    size = int(entry.modBaseSize)
+                    if size <= 0:
+                        raise ProcessMemoryError(
+                            f"Module {module_name!r} had an invalid image size"
+                        )
+                    return ModuleInfo(
+                        name=str(entry.szModule),
+                        path=str(entry.szExePath),
+                        base_address=int(address),
+                        size=size,
+                    )
                 entry.dwSize = ctypes.sizeof(MODULEENTRY32W)
                 success = self._kernel32.Module32NextW(
                     wintypes.HANDLE(snapshot_int),
@@ -283,6 +303,9 @@ class CtypesWin32MemoryBackend:
         finally:
             if not self._kernel32.CloseHandle(wintypes.HANDLE(snapshot_int)):
                 raise self._last_error("CloseHandle failed for module snapshot")
+
+    def get_module_base(self, pid: int, module_name: str) -> int:
+        return self.get_module_info(pid, module_name).base_address
 
     def iter_readable_regions(
         self,
@@ -398,6 +421,29 @@ class Win32ProcessMemory:
         if not module_name or not module_name.strip():
             raise ValueError("module_name cannot be empty")
         return self._backend.get_module_base(self.pid, module_name.strip())
+
+    def module_info(self, module_name: str) -> ModuleInfo:
+        if self._handle is None:
+            raise ProcessMemoryError("Process memory handle is closed")
+        if not module_name or not module_name.strip():
+            raise ValueError("module_name cannot be empty")
+        selected = module_name.strip()
+        get_info = getattr(self._backend, "get_module_info", None)
+        if callable(get_info):
+            info = get_info(self.pid, selected)
+            if not isinstance(info, ModuleInfo):
+                raise ProcessMemoryError(
+                    "The process-memory backend returned invalid module metadata"
+                )
+            return info
+        # Compatibility for injected test/alternate backends. A zero size is
+        # explicit: recovery will retain its bounded configured-slot fallback.
+        return ModuleInfo(
+            name=selected,
+            path="",
+            base_address=self._backend.get_module_base(self.pid, selected),
+            size=0,
+        )
 
     def readable_regions(
         self,

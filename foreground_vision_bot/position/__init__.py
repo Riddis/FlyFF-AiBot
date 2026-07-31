@@ -64,6 +64,7 @@ from .Win32ProcessMemory import (
     MemorySearchCancelled,
     MemorySearchDeadline,
     MemorySearchDiagnostics,
+    ModuleInfo,
     ProcessMemoryError,
     Win32ProcessMemory,
 )
@@ -79,6 +80,7 @@ __all__ = [
     "MemorySearchCancelled",
     "MemorySearchDeadline",
     "MemorySearchDiagnostics",
+    "ModuleInfo",
     "NativeActor",
     "NativeDiagnosticOutcome",
     "NativeDiagnosticProgress",

@@ -1,5 +1,29 @@
 # Refactor Handoff
 
+## Current-client correction (2026-07-31)
+
+The first real-client pass found a post-refactor compatibility gap: the configured
+player slot is null, recovery cannot find a replacement, and dry-run reports the
+expected null snapshot as a worker exception. The automated `PTR-LIVE-002..003`
+correction is complete; `PTR-LIVE-001` remains open only for real-client acceptance.
+The leading cause is the recovery algorithm's reliance on a neighborhood around
+the old player slot plus the old player/world slot spacing. The correction must
+keep ordinary reads cheap and central ownership intact, scan only in a managed
+worker, validate player and world evidence independently over repeated samples,
+persist only an explicitly requested strong result, and stop startup before any
+focus/input/environment activation when state remains unavailable.
+
+The corrected recovery scans the reported module image, correlates player and
+world globals independently, rejects ambiguous or unstable candidates, reports
+field-specific rejection counts, and yields during CPU scanning. Farming startup
+tries one managed non-persisting recovery and returns a concise input-safe outcome
+if it cannot revalidate state. Explicit GUI recovery may persist only the repeated,
+strong result through the existing paired transaction. The full automated suite
+passes with 538 passed and 1 skipped.
+
+Do not run the older consolidated manual protocol. Run only
+`refactor_logs/manual_tests/PTR-LIVE-001_current_client_pointer_acceptance.md`.
+
 ## Outcome
 
 The automated refactor is complete on `feature/adaptive-mapper`. Production

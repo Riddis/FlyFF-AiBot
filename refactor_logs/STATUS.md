@@ -1,6 +1,6 @@
 # Refactor Status
 
-- Phase: automated refactor complete; consolidated live-client acceptance pending.
+- Phase: automated current-client correction complete; `PTR-LIVE-001` real-client acceptance pending.
 - Branch: `feature/adaptive-mapper`.
 - Validated code checkpoint: `9cbc1f938d2b7f528b5962ec466f06459e6063e4`; the final journal-only checkpoint follows it.
 - Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through immutable tag `protected/pre-codex-refactor` and branch `backup/pre-codex-refactor`.
@@ -13,5 +13,9 @@
 - Tree runnable: yes under automated/fake integration coverage.
 - User-owned changes excluded: deleted root `AGENTS.md`, `README.md`, and `foreground_vision_farm.json`.
 - User backups ignored and untouched: `foreground_vision_bot.zip`, `refactor_logs.zip`.
-- Blocker: only real FlyFF/Tk/Win32 behavior and the external session edge remain unverified.
-- Next action: run `refactor_logs/manual_tests/DOC-003_live_client_acceptance.md` and return its requested logs/reports.
+- Live evidence: configured player slot `Neuz.exe+0x5852B8` resolves to absolute `0x6352B8`, is null, and expanding recovery through `0x800000` reports `not_found`; dry-run currently surfaces `NativePointerSnapshotError` from its control worker.
+- Leading diagnosis: discovery is coupled to the old slot neighborhood and old player/world slot delta. Both assumptions can reject a valid current-client layout even when actor/self/world invariants still hold.
+- Implemented: module-image discovery, independent player/world-slot correlation, ranked repeated validation, ambiguity and rejection evidence, explicit transactional persistence, GIL-yielding worker scans, and graceful managed startup recovery before focus/input/environment activation.
+- Automated acceptance: 538 passed, 1 skipped in 9.07 seconds; changed Ruff F/I, compile/diff hygiene, and native/farming BasedPyright error-level gates pass.
+- Architecture boundary: ordinary reads and Native Health remain scan-free; automatic startup recovery is managed and non-persisting; explicit GUI recovery is managed and may transactionally persist a strong result; the retired camera sweep remains absent because canonical farming uses native heading.
+- Next action: run only `refactor_logs/manual_tests/PTR-LIVE-001_current_client_pointer_acceptance.md` against the real client and return its requested evidence.

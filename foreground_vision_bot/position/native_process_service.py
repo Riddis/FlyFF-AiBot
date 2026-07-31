@@ -20,7 +20,7 @@ from .NativePointerRecovery import (
 )
 from .PositionConfig import NativePositionConfig
 from .PositionProvider import PositionProviderError
-from .Win32ProcessMemory import Win32MemoryBackend, Win32ProcessMemory
+from .Win32ProcessMemory import ModuleInfo, Win32MemoryBackend, Win32ProcessMemory
 
 
 class NativeProcessMemory(Protocol):
@@ -150,7 +150,23 @@ class NativeProcessService:
                     "pointer offset"
                 )
 
-        self._module_base = int(self._memory.module_base(module_name))
+        module_info_fn = getattr(self._memory, "module_info", None)
+        module_info: ModuleInfo | None = None
+        if callable(module_info_fn):
+            try:
+                candidate_info = module_info_fn(module_name)
+                if isinstance(candidate_info, ModuleInfo):
+                    module_info = candidate_info
+            except Exception:
+                module_info = None
+        self._module_base = int(
+            module_info.base_address
+            if module_info is not None
+            else self._memory.module_base(module_name)
+        )
+        self._module_info = module_info
+        self._module_name = module_name
+        self._pointer_width_bytes = 4
         self._configured_player_pointer_offset = int(configured_player_offset)
         self._player_pointer_address = (
             self._module_base + self._configured_player_pointer_offset
@@ -196,6 +212,34 @@ class NativeProcessService:
     @property
     def module_base(self) -> int:
         return self._module_base
+
+    @property
+    def module_name(self) -> str:
+        return self._module_name
+
+    @property
+    def module_path(self) -> str | None:
+        if self._module_info is None or not self._module_info.path:
+            return None
+        return self._module_info.path
+
+    @property
+    def module_size(self) -> int | None:
+        if self._module_info is None or self._module_info.size <= 0:
+            return None
+        return self._module_info.size
+
+    @property
+    def pointer_width_bytes(self) -> int:
+        return self._pointer_width_bytes
+
+    @property
+    def configured_player_pointer_offset(self) -> int:
+        return self._configured_player_pointer_offset
+
+    @property
+    def configured_world_pointer_offset(self) -> int:
+        return int(self.monster_config.world_pointer_offset)
 
     @property
     def player_pointer_address(self) -> int:

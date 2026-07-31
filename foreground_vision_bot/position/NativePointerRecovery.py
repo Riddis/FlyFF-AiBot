@@ -46,6 +46,7 @@ class PlayerPointerRecovery:
     configured_world_pointer_offset: int
     search_radius: int
     validated_candidates: int
+    strategy: str = "configured_neighborhood"
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +76,18 @@ class PointerRecoveryMetrics:
     joined_existing_attempt: bool = False
     cooldown_remaining_seconds: float = 0.0
     deadline_is_cooperative: bool = True
+    strategy: str = "unknown"
+    module_size: int = 0
+    layout_rejections: int = 0
+    self_mismatch_rejections: int = 0
+    world_null_rejections: int = 0
+    coordinate_rejections: int = 0
+    hp_rejections: int = 0
+    candidate_read_failures: int = 0
+    non_player_rejections: int = 0
+    missing_world_slot_rejections: int = 0
+    unstable_rejections: int = 0
+    ambiguous_candidates: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,10 +109,11 @@ class _ValidatedCandidate:
     world_base: int
     distance: int
     reference_count: int
-    paired_world_slot: int | None
+    world_pointer_slot: int | None
     pair_matches: bool
     configured_world_matches: bool
     player_like: bool
+    world_reference_count: int
 
 
 @dataclass(slots=True)
@@ -121,6 +135,18 @@ class _MetricsBuilder:
     candidate_targets: int = 0
     candidate_slots: int = 0
     candidates_validated: int = 0
+    strategy: str = "unknown"
+    module_size: int = 0
+    layout_rejections: int = 0
+    self_mismatch_rejections: int = 0
+    world_null_rejections: int = 0
+    coordinate_rejections: int = 0
+    hp_rejections: int = 0
+    candidate_read_failures: int = 0
+    non_player_rejections: int = 0
+    missing_world_slot_rejections: int = 0
+    unstable_rejections: int = 0
+    ambiguous_candidates: int = 0
 
     def freeze(
         self,
@@ -158,6 +184,18 @@ class _MetricsBuilder:
                 0.0,
                 float(cooldown_remaining_seconds),
             ),
+            strategy=self.strategy,
+            module_size=self.module_size,
+            layout_rejections=self.layout_rejections,
+            self_mismatch_rejections=self.self_mismatch_rejections,
+            world_null_rejections=self.world_null_rejections,
+            coordinate_rejections=self.coordinate_rejections,
+            hp_rejections=self.hp_rejections,
+            candidate_read_failures=self.candidate_read_failures,
+            non_player_rejections=self.non_player_rejections,
+            missing_world_slot_rejections=self.missing_world_slot_rejections,
+            unstable_rejections=self.unstable_rejections,
+            ambiguous_candidates=self.ambiguous_candidates,
         )
 
 
@@ -413,38 +451,80 @@ def _validate_candidate(
     module_base: int,
     config: NativeMonsterConfig,
     configured_world_hint: int | None,
+    slot_refs: dict[int, list[int]],
+    metrics: _MetricsBuilder,
 ) -> _ValidatedCandidate | None:
     try:
-        if _u32(memory, target_address + config.self_pointer_offset) != target_address:
-            return None
+        self_pointer = _u32(memory, target_address + config.self_pointer_offset)
+    except Exception:
+        metrics.candidate_read_failures += 1
+        return None
+    if self_pointer != target_address:
+        metrics.self_mismatch_rejections += 1
+        return None
+    try:
         world = _u32(memory, target_address + config.world_offset)
-        if world <= 0:
-            return None
+    except Exception:
+        metrics.candidate_read_failures += 1
+        return None
+    if world <= 0:
+        metrics.world_null_rejections += 1
+        return None
+    try:
         x = _f32(memory, target_address + config.x_offset)
         y = _f32(memory, target_address + config.y_offset)
         z = _f32(memory, target_address + config.z_offset)
-        if not all(math.isfinite(value) for value in (x, y, z)):
-            return None
-        limit = float(config.maximum_absolute_coordinate)
-        if any(abs(value) > limit for value in (x, y, z)):
-            return None
-
+    except Exception:
+        metrics.candidate_read_failures += 1
+        return None
+    limit = float(config.maximum_absolute_coordinate)
+    if not all(math.isfinite(value) for value in (x, y, z)) or any(
+        abs(value) > limit for value in (x, y, z)
+    ):
+        metrics.coordinate_rejections += 1
+        return None
+    try:
         species = _i32(memory, target_address + config.species_offset)
         active_species = _i32(memory, target_address + config.active_species_offset)
         hp = _i32(memory, target_address + config.hp_offset)
-        if hp <= 0:
-            return None
     except Exception:
+        metrics.candidate_read_failures += 1
+        return None
+    if hp <= 0:
+        metrics.hp_rejections += 1
         return None
 
     offset_delta = config.world_pointer_offset - config.player_pointer_offset
-    paired_world_slot = slot_address + offset_delta
-    pair_matches = False
-    if paired_world_slot > module_base:
+    historical_world_slot = slot_address + offset_delta
+    configured_world_slot = module_base + config.world_pointer_offset
+    discovered_world_slots = [
+        slot
+        for slot in slot_refs.get(world, ())
+        if slot != slot_address
+    ]
+    # Preserve direct evidence from the historical/configured locations even
+    # when an injected backend does not enumerate the world object's region.
+    # Independently moved globals are still obtained from the module scan.
+    for hinted_slot in (historical_world_slot, configured_world_slot):
+        if hinted_slot == slot_address or hinted_slot in discovered_world_slots:
+            continue
         try:
-            pair_matches = _u32(memory, paired_world_slot) == world
+            if _u32(memory, hinted_slot) == world:
+                discovered_world_slots.append(hinted_slot)
         except Exception:
-            pair_matches = False
+            pass
+    world_slots = tuple(discovered_world_slots)
+    world_pointer_slot = None
+    if world_slots:
+        world_pointer_slot = min(
+            world_slots,
+            key=lambda slot: (
+                int(slot != historical_world_slot),
+                int(slot != configured_world_slot),
+                abs(slot - configured_world_slot),
+            ),
+        )
+    pair_matches = historical_world_slot in world_slots
 
     configured_world_matches = (
         configured_world_hint is not None and configured_world_hint == world
@@ -456,10 +536,11 @@ def _validate_candidate(
         world_base=world,
         distance=abs(slot_address - configured_slot_address),
         reference_count=reference_count,
-        paired_world_slot=paired_world_slot if pair_matches else None,
+        world_pointer_slot=world_pointer_slot,
         pair_matches=pair_matches,
         configured_world_matches=configured_world_matches,
         player_like=player_like,
+        world_reference_count=len(world_slots),
     )
 
 
@@ -492,6 +573,10 @@ def _stable_candidate(
             if (
                 _u32(memory, candidate.target_address + config.world_offset)
                 != candidate.world_base
+            ):
+                return False
+            if candidate.world_pointer_slot is None or (
+                _u32(memory, candidate.world_pointer_slot) != candidate.world_base
             ):
                 return False
             coordinates = (
@@ -965,7 +1050,6 @@ def _scan_new_band(
     start: int,
     stop: int,
     chunk_size: int,
-    max_actor_span: int,
     region_index: _RegionIndex,
     slot_refs: dict[int, list[int]],
     metrics: _MetricsBuilder,
@@ -992,19 +1076,47 @@ def _scan_new_band(
             for relative in range(first, len(data) - 3, 4):
                 if (relative - first) % 0x400 == 0:
                     control.check()
+                if (relative - first) % 0x10000 == 0:
+                    # The scan is worker-owned, but explicitly yield the GIL so
+                    # Tk/preview work remains smooth during CPU-heavy chunks.
+                    sleep(0)
                 metrics.aligned_words_examined += 1
                 target = int(struct.unpack_from("<I", data, relative)[0])
                 if target <= 0x10000 or target % 4 != 0:
                     continue
                 metrics.pointer_like_words += 1
                 metrics.containment_checks += 1
-                if not region_index.contains(target, max_actor_span):
+                # Keep module references to any readable target. Player-layout
+                # containment is checked separately during candidate validation;
+                # world objects need not occupy an actor-sized region.
+                if not region_index.contains(target, 4):
                     continue
                 slot = cursor + relative
                 refs = slot_refs.setdefault(target, [])
                 if len(refs) < 8:
                     refs.append(slot)
             cursor += amount
+
+
+def _module_image_extent(
+    memory: PointerRecoveryMemory,
+    module_name: str,
+    module_base: int,
+) -> tuple[int, int] | None:
+    """Return a trustworthy module image extent when the backend exposes it."""
+
+    module_info = getattr(memory, "module_info", None)
+    if not callable(module_info):
+        return None
+    try:
+        info = module_info(module_name)
+        base = int(getattr(info, "base_address"))
+        size = int(getattr(info, "size"))
+    except Exception:
+        return None
+    if base != int(module_base) or size <= 0:
+        return None
+    return base, base + size
 
 
 def _perform_recovery_attempt(
@@ -1061,24 +1173,42 @@ def _perform_recovery_attempt(
         config.hp_offset,
         config.z_offset,
     ) + 4
-    radii = tuple(
-        sorted({max(0x1000, int(value)) for value in search_radii})
-    )
+    radii = tuple(sorted({max(0x1000, int(value)) for value in search_radii}))
+    module_extent = _module_image_extent(memory, config.module_name, module_base)
+    if module_extent is not None:
+        module_start, module_stop = module_extent
+        metrics.strategy = "module_image"
+        metrics.module_size = module_stop - module_start
+        scan_passes = (("module_image", module_start, module_stop, metrics.module_size),)
+    else:
+        metrics.strategy = "configured_neighborhood"
+        scan_passes = tuple(
+            (
+                f"configured_radius_0x{radius:X}",
+                max(int(module_base), configured_slot - radius),
+                configured_slot + radius + 4,
+                radius,
+            )
+            for radius in radii
+        )
     slot_refs: dict[int, list[int]] = {}
     validated: list[_ValidatedCandidate] = []
     inspected_pairs: set[tuple[int, int]] = set()
     previous_start: int | None = None
     previous_stop: int | None = None
 
-    for radius in radii:
+    for strategy, scan_start, scan_stop, radius in scan_passes:
         control.check()
         metrics.radii_started += 1
-        scan_start = max(int(module_base), configured_slot - radius)
-        scan_stop = configured_slot + radius + 4
         _notify(
             status_callback,
             "scanning",
-            f"Scanning new memory bands for radius 0x{radius:X}.",
+            (
+                f"Scanning {config.module_name} image "
+                f"(0x{scan_start:X}-0x{scan_stop:X})."
+                if strategy == "module_image"
+                else f"Scanning new memory bands for radius 0x{radius:X}."
+            ),
             _progress_metrics(metrics, control),
         )
 
@@ -1098,7 +1228,6 @@ def _perform_recovery_attempt(
                 start=band_start,
                 stop=band_stop,
                 chunk_size=chunk_size,
-                max_actor_span=max_actor_span,
                 region_index=region_index,
                 slot_refs=slot_refs,
                 metrics=metrics,
@@ -1111,6 +1240,9 @@ def _perform_recovery_attempt(
 
         ordered_slots: list[tuple[int, int, int]] = []
         for target, slots in slot_refs.items():
+            metrics.containment_checks += 1
+            if not region_index.contains(target, max_actor_span):
+                continue
             for slot in slots:
                 ordered_slots.append(
                     (abs(slot - configured_slot), slot, target)
@@ -1133,20 +1265,37 @@ def _perform_recovery_attempt(
                 module_base=module_base,
                 config=config,
                 configured_world_hint=configured_world_hint,
+                slot_refs=slot_refs,
+                metrics=metrics,
             )
             if candidate is not None:
                 validated.append(candidate)
+                if not candidate.player_like:
+                    metrics.non_player_rejections += 1
+                elif candidate.world_pointer_slot is None:
+                    metrics.missing_world_slot_rejections += 1
 
         strong = [
             candidate
             for candidate in validated
-            if candidate.pair_matches or candidate.configured_world_matches
+            if (
+                candidate.player_like
+                and candidate.world_pointer_slot is not None
+                and (
+                    candidate.pair_matches
+                    or candidate.configured_world_matches
+                    or (
+                        candidate.reference_count == 1
+                        and candidate.world_reference_count == 1
+                    )
+                )
+            )
         ]
         strong.sort(
             key=lambda candidate: (
                 int(candidate.pair_matches),
                 int(candidate.configured_world_matches),
-                int(candidate.player_like),
+                min(candidate.world_reference_count, 8),
                 min(candidate.reference_count, 8),
                 -candidate.distance,
             ),
@@ -1157,12 +1306,43 @@ def _perform_recovery_attempt(
             _notify(
                 status_callback,
                 "radius_complete",
-                f"No validated replacement inside radius 0x{radius:X}.",
+                (
+                    "No strongly validated player/world pair in the module image."
+                    if strategy == "module_image"
+                    else f"No validated replacement inside radius 0x{radius:X}."
+                ),
                 _progress_metrics(metrics, control),
             )
             continue
 
         selected = strong[0]
+        selected_evidence = (
+            selected.pair_matches,
+            selected.configured_world_matches,
+            min(selected.world_reference_count, 8),
+            min(selected.reference_count, 8),
+        )
+        competing_targets = {
+            candidate.target_address
+            for candidate in strong[1:]
+            if (
+                candidate.pair_matches,
+                candidate.configured_world_matches,
+                min(candidate.world_reference_count, 8),
+                min(candidate.reference_count, 8),
+            )
+            == selected_evidence
+        }
+        competing_targets.discard(selected.target_address)
+        if competing_targets:
+            metrics.ambiguous_candidates = len(competing_targets) + 1
+            _notify(
+                status_callback,
+                "ambiguous",
+                "Multiple equally supported player candidates were rejected.",
+                _progress_metrics(metrics, control),
+            )
+            continue
         if not _stable_candidate(
             memory,
             selected,
@@ -1171,6 +1351,7 @@ def _perform_recovery_attempt(
             delay_seconds=stability_delay_seconds,
             control=control,
         ):
+            metrics.unstable_rejections += 1
             _notify(
                 status_callback,
                 "radius_complete",
@@ -1180,7 +1361,7 @@ def _perform_recovery_attempt(
             continue
 
         player_offset = selected.slot_address - int(module_base)
-        world_slot = selected.paired_world_slot
+        world_slot = selected.world_pointer_slot
         world_offset = (
             None if world_slot is None else world_slot - int(module_base)
         )
@@ -1198,6 +1379,7 @@ def _perform_recovery_attempt(
                 configured_world_pointer_offset=int(config.world_pointer_offset),
                 search_radius=radius,
                 validated_candidates=len(validated),
+                strategy=strategy,
             ),
             "success",
         )
@@ -1466,7 +1648,19 @@ def recover_local_player_pointer(
         _notify(
             status_callback,
             outcome,
-            f"Pointer recovery completed with outcome {outcome}.",
+            (
+                f"Pointer recovery completed with outcome {outcome}; "
+                f"strategy={metrics.strategy}, slots={metrics.candidate_slots}, "
+                f"validated={metrics.candidates_validated}, "
+                f"self_mismatch={metrics.self_mismatch_rejections}, "
+                f"world_null={metrics.world_null_rejections}, "
+                f"coordinate_invalid={metrics.coordinate_rejections}, "
+                f"hp_invalid={metrics.hp_rejections}, "
+                f"non_player={metrics.non_player_rejections}, "
+                f"missing_world_slot={metrics.missing_world_slot_rejections}, "
+                f"unstable={metrics.unstable_rejections}, "
+                f"ambiguous={metrics.ambiguous_candidates}."
+            ),
             metrics,
         )
         return None
@@ -1481,7 +1675,10 @@ def recover_local_player_pointer(
     _notify(
         status_callback,
         "success",
-        "Native player pointer recovered and strongly validated.",
+        (
+            "Native player pointer recovered and strongly validated; "
+            f"strategy={metrics.strategy}, module_size=0x{metrics.module_size:X}."
+        ),
         metrics,
     )
     print(

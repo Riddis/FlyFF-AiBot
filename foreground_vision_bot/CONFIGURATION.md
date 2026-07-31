@@ -61,6 +61,13 @@ only one copy of a shared pointer offset. Interrupted paired updates are rolled
 back using the adjacent recovery journal/backups before factories load either
 file.
 
+The configured offsets are cheap startup hints, not recovery search bounds.
+On the real Win32 backend, managed recovery scans the reported `Neuz.exe`
+module image and discovers player/world globals independently. **Recover
+Pointers** may replace both JSON offsets only after repeated coherent validation
+and a transactional paired write; automatic farming-startup recovery is
+in-memory only.
+
 ## Maps, mobs, and model compatibility
 
 `mapper/map_profiles.json` selects **Tower AoE** by default. Its directory owns
@@ -72,4 +79,3 @@ The active policy contract is `Box(482, float32)` plus `Discrete(4)` with the
 action order documented in `ARCHITECTURE.md`. New saves embed the semantic
 contract hash. The one shipped metadata-less active model is accepted only at
 its pinned SHA-256; other metadata-less or mismatched models fail preflight.
-

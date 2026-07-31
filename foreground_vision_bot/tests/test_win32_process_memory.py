@@ -8,6 +8,7 @@ from position.Win32ProcessMemory import (
     MemoryRegion,
     MemorySearchCancelled,
     MemorySearchDeadline,
+    ModuleInfo,
     ProcessMemoryError,
     Win32ProcessMemory,
 )
@@ -96,6 +97,28 @@ def test_process_memory_resolves_module_base() -> None:
     memory = Win32ProcessMemory(backend.pid, backend=backend)
 
     assert memory.module_base("Neuz.exe") == 0x00E10000
+
+
+def test_process_memory_exposes_module_identity_and_extent() -> None:
+    class ModuleBackend(FakeBackend):
+        def get_module_info(self, pid: int, module_name: str) -> ModuleInfo:
+            assert pid == self.pid
+            assert module_name == "Neuz.exe"
+            return ModuleInfo(
+                name="Neuz.exe",
+                path=r"C:\FlyFF\Neuz.exe",
+                base_address=0x00E10000,
+                size=0xB00000,
+            )
+
+    backend = ModuleBackend()
+    memory = Win32ProcessMemory(backend.pid, backend=backend)
+
+    info = memory.module_info("Neuz.exe")
+
+    assert info.base_address == 0x00E10000
+    assert info.size == 0xB00000
+    assert info.path.endswith("Neuz.exe")
 
 
 def test_process_memory_opens_direct_process_id() -> None:

@@ -5,6 +5,16 @@ from threading import Event
 from types import ModuleType
 
 import pytest
+from position import (
+    NativePointerSnapshot,
+    NativePointerSnapshotError,
+    NativeRecoveryOutcome,
+    NativeRecoveryResult,
+)
+from position.NativePointerRecovery import (
+    PlayerPointerRecovery,
+    PointerRecoveryMetrics,
+)
 from runtime_bus import RuntimeBus
 from runtime_controller import RuntimeController
 from worker_manager import CancellationToken, WorkerKind
@@ -259,4 +269,125 @@ def test_rl_startup_enablement_belongs_to_preflighted_farming(
     controller.start_rl("dry-run")
 
     assert bot.start_calls == 1
+    assert bot.stop_calls == 1
+
+
+def test_rl_startup_pointer_failure_is_clean_and_never_enters_trainer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class UnavailableService:
+        def __init__(self) -> None:
+            self.recovery_kwargs: dict[str, object] = {}
+
+        def read_pointer_snapshot(self):
+            raise NativePointerSnapshotError("Local-player pointer is null")
+
+        def recover_pointers(self, **kwargs):
+            self.recovery_kwargs = dict(kwargs)
+            return NativeRecoveryResult(
+                outcome=NativeRecoveryOutcome.NOT_FOUND,
+                recovery=None,
+                metrics=PointerRecoveryMetrics(
+                    pid=1,
+                    module_base=0x400000,
+                    outcome="not_found",
+                    elapsed_seconds=0.1,
+                ),
+                applied=False,
+            )
+
+    bot = FakeBot()
+    service = UnavailableService()
+    bot.native_process_service = service
+    controller = RuntimeController(bot, RuntimeBus())
+    module = ModuleType("farming.trainer")
+    invoked: list[str] = []
+    module.dry_run_native_farming = lambda *_args, **_kwargs: invoked.append("dry")
+    module.run_native_farming_agent = lambda *_args, **_kwargs: invoked.append("agent")
+    module.train_native_farming = lambda *_args, **_kwargs: invoked.append("train")
+    monkeypatch.setitem(sys.modules, "farming.trainer", module)
+    monkeypatch.setattr(
+        controller,
+        "_start_control",
+        lambda _name, target: target(CancellationToken()),
+    )
+
+    controller.start_rl("dry-run")
+
+    assert invoked == []
+    assert service.recovery_kwargs["persist"] is False
+    assert bot.stop_calls == 1
+    messages = [message for _level, message in controller.bus.drain_logs()]
+    assert any("No input was activated" in message for message in messages)
+
+
+def test_rl_startup_recovery_verifies_snapshot_before_entering_trainer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class RecoveringService:
+        def __init__(self) -> None:
+            self.ready = False
+            self.recovery_kwargs: dict[str, object] = {}
+
+        def read_pointer_snapshot(self):
+            if not self.ready:
+                raise NativePointerSnapshotError("Local-player pointer is null")
+            return NativePointerSnapshot(
+                player_pointer_address=0x500000,
+                world_pointer_address=0x500100,
+                player_base=0x20000000,
+                world_base=0x24000000,
+                generation=1,
+                captured_at=1.0,
+            )
+
+        def recover_pointers(self, **kwargs):
+            self.recovery_kwargs = dict(kwargs)
+            self.ready = True
+            recovery = PlayerPointerRecovery(
+                player_pointer_address=0x500000,
+                player_pointer_offset=0x100000,
+                player_base=0x20000000,
+                world_base=0x24000000,
+                world_pointer_address=0x500100,
+                world_pointer_offset=0x100100,
+                configured_player_pointer_offset=0x80000,
+                configured_world_pointer_offset=0x80100,
+                search_radius=0x200000,
+                validated_candidates=1,
+                strategy="module_image",
+            )
+            return NativeRecoveryResult(
+                outcome=NativeRecoveryOutcome.SUCCESS,
+                recovery=recovery,
+                metrics=PointerRecoveryMetrics(
+                    pid=1,
+                    module_base=0x400000,
+                    outcome="success",
+                    elapsed_seconds=0.1,
+                    strategy="module_image",
+                ),
+                applied=True,
+            )
+
+    bot = FakeBot()
+    service = RecoveringService()
+    bot.native_process_service = service
+    controller = RuntimeController(bot, RuntimeBus())
+    module = ModuleType("farming.trainer")
+    invoked: list[str] = []
+    module.dry_run_native_farming = lambda *_args, **_kwargs: invoked.append("dry")
+    module.run_native_farming_agent = lambda *_args, **_kwargs: invoked.append("agent")
+    module.train_native_farming = lambda *_args, **_kwargs: invoked.append("train")
+    monkeypatch.setitem(sys.modules, "farming.trainer", module)
+    monkeypatch.setattr(
+        controller,
+        "_start_control",
+        lambda _name, target: target(CancellationToken()),
+    )
+
+    controller.start_rl("dry-run")
+
+    assert invoked == ["dry"]
+    assert service.recovery_kwargs["persist"] is False
     assert bot.stop_calls == 1

@@ -14,6 +14,7 @@ from mapper import Mapper
 from position import (
     NativeDiagnosticProgress,
     NativeDiagnosticReport,
+    NativePointerSnapshotError,
     run_native_diagnostic,
 )
 from preview_service import PreviewService
@@ -30,6 +31,7 @@ class RuntimeController:
     """Single owner for capture and control-worker lifecycle."""
 
     MAX_NATIVE_DIAGNOSTIC_TIMEOUT_SECONDS: float = 30.0
+    STARTUP_POINTER_RECOVERY_TIMEOUT_SECONDS: float = 10.0
 
     def __init__(self, bot, bus: RuntimeBus) -> None:
         self.bot = bot
@@ -128,6 +130,8 @@ class RuntimeController:
 
             report = self._reporter("rl_status", "rl")
             try:
+                if not self._prepare_native_pointer_startup(token, report):
+                    return {"started": False, "reason": "native_pointer_unavailable"}
                 if mode == "train":
                     return train_native_farming(
                         self.bot,
@@ -153,6 +157,63 @@ class RuntimeController:
                 self.bot.stop()
 
         self._start_control(f"rl-{mode}", run)
+
+    def _prepare_native_pointer_startup(
+        self,
+        token: CancellationToken,
+        report: Callable[[str], None],
+    ) -> bool:
+        """Resolve expected stale/null native state inside the control worker."""
+
+        service = getattr(self.bot, "native_process_service", None)
+        if service is None:
+            return True
+        try:
+            service.read_pointer_snapshot()
+            return True
+        except NativePointerSnapshotError:
+            report("Native pointers unavailable; running bounded startup recovery.")
+
+        timeout = self.STARTUP_POINTER_RECOVERY_TIMEOUT_SECONDS
+        deadline = monotonic() + timeout
+
+        def publish(progress) -> None:
+            report(progress.message)
+            self.bus.heartbeat("control")
+
+        try:
+            result = service.recover_pointers(
+                persist=False,
+                cancellation=token,
+                deadline=deadline,
+                timeout_seconds=timeout,
+                status_callback=publish,
+            )
+        except Exception as error:  # noqa: BLE001 - expected startup boundary.
+            report(
+                "Native pointer startup recovery could not complete: "
+                f"{type(error).__name__}: {error}. No input was activated."
+            )
+            return False
+        if not result.succeeded or not result.applied:
+            report(
+                "Native pointers remain unavailable after bounded recovery "
+                f"({result.outcome.value}). No input was activated."
+            )
+            return False
+        try:
+            snapshot = service.read_pointer_snapshot()
+        except NativePointerSnapshotError as error:
+            report(
+                "Recovered native pointers did not pass startup verification: "
+                f"{error}. No input was activated."
+            )
+            return False
+        report(
+            "Native pointer startup preflight ready: "
+            f"player=0x{snapshot.player_base:X}, world=0x{snapshot.world_base:X}."
+        )
+        return True
 
     def start_mapper(
         self,
@@ -324,6 +385,7 @@ class RuntimeController:
             report = run_native_diagnostic(
                 self.bot,
                 recover=bool(recover),
+                persist=bool(recover),
                 cancellation=token,
                 deadline=deadline,
                 timeout_seconds=bounded_timeout,
@@ -346,6 +408,14 @@ class RuntimeController:
             self.bus.log(
                 "Native diagnostic summary: "
                 f"health={snapshot.status.value}; {pointer}; "
+                f"pid={snapshot.process_id}; "
+                f"module={snapshot.module_name or 'unknown'}; "
+                f"module_path={snapshot.module_path or 'unknown'}; "
+                f"module_base={None if snapshot.module_base is None else f'0x{snapshot.module_base:X}'}; "
+                f"module_size={None if snapshot.module_size is None else f'0x{snapshot.module_size:X}'}; "
+                f"pointer_width={snapshot.pointer_width_bytes}; "
+                f"configured_player_offset={None if snapshot.configured_player_pointer_offset is None else f'0x{snapshot.configured_player_pointer_offset:X}'}; "
+                f"configured_world_offset={None if snapshot.configured_world_pointer_offset is None else f'0x{snapshot.configured_world_pointer_offset:X}'}; "
                 f"map={facts.selected_map_name or 'unselected'}; "
                 f"map_cell={coordinate}; "
                 f"cached_actor_slots={snapshot.providers.cached_actor_slots}; "

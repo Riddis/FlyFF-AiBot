@@ -24,6 +24,11 @@ frame, not a farming camera-discovery sweep.
 4. Wait for Bot Vision and an FPS value. Use **Native Health**; expect `healthy`, pointer generation, the selected map/local cell conversion, cached actor-slot count, OCR state, and focused input status in the log.
 5. If the window is not focused when control starts, the bot attempts activation and then gives a two-second cancellable manual-focus grace period.
 
+Farming startup first checks the shared player/world snapshot. If it is stale
+or null, the managed control worker performs one bounded recovery attempt. A
+failed or cancelled attempt stops cleanly before focus, input, or environment
+activation; it does not produce a worker traceback.
+
 ## Dry run, training, and agent
 
 - **Native Dry Run (No Learning)** runs the canonical four-action environment without loading or changing a policy.
@@ -55,9 +60,9 @@ scan. If **Native Health** reports `pointer_unavailable` after a client update:
 
 1. Stop control and keep the character stationary in a known valid Tower cell.
 2. Choose **Recover Pointers**. The operation runs in its own worker for at most ten seconds and can be cancelled with Stop.
-3. Review the before/after health outcome. Recovery does not automatically persist offsets.
-4. If recovery succeeds but the shipped offsets need updating, validate several attach/health/player/actor samples first. The position and monster JSON pair must be updated transactionally; retain their `.pre_pointer_recovery.bak` files until the next successful launch.
-5. If recovery is not found, stop. Do not retry in a loop; the resolver uses cooldown/negative caching. Capture the GUI log and native diagnostic JSON facts for analysis.
+3. Review the before/after health outcome and the logged module identity, image size, pointer width, discovery strategy, and rejection counts.
+4. A strongly validated explicit recovery persists the position and monster JSON pair transactionally. Retain their `.pre_pointer_recovery.bak` files until the next successful launch. Automatic farming-startup recovery deliberately does not persist.
+5. If recovery is not found or reports ambiguity, stop. Do not retry in a loop; the resolver uses cooldown/negative caching. Capture the GUI log and native diagnostic JSON facts for analysis. Rejection evidence distinguishes a missing module reference from stale actor-layout fields without weakening acceptance.
 
 For actor-specific inspection, with control stopped:
 
