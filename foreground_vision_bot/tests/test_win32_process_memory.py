@@ -6,6 +6,8 @@ from position.Win32ProcessMemory import (
     PROCESS_QUERY_INFORMATION,
     PROCESS_VM_READ,
     MemoryRegion,
+    MemorySearchCancelled,
+    MemorySearchDeadline,
     ProcessMemoryError,
     Win32ProcessMemory,
 )
@@ -64,9 +66,7 @@ def test_process_memory_resolves_pid_from_window_and_reads() -> None:
     result = memory.read(0x1000, 4)
 
     assert memory.pid == 2468
-    assert backend.opened == [
-        (2468, PROCESS_QUERY_INFORMATION | PROCESS_VM_READ)
-    ]
+    assert backend.opened == [(2468, PROCESS_QUERY_INFORMATION | PROCESS_VM_READ)]
     assert backend.reads == [(1357, 0x1000, 4)]
     assert result == b"\x00\x01\x02\x03"
 
@@ -135,3 +135,53 @@ def test_process_memory_finds_u32_across_chunk_boundary() -> None:
     assert matches == (0x1FFF,)
     assert memory.last_search_diagnostics.matches == 1
     assert memory.last_search_diagnostics.bytes_read == 0x2000
+
+
+def test_process_memory_search_stops_before_enumeration_when_cancelled() -> None:
+    backend = FakeBackend()
+    memory = Win32ProcessMemory(backend.pid, backend=backend)
+
+    class Cancelled:
+        cancelled = True
+
+    with pytest.raises(MemorySearchCancelled):
+        memory.find_u32(123, chunk_size=4096, cancellation=Cancelled())
+
+    assert backend.reads == []
+
+
+def test_process_memory_search_checks_cancellation_between_chunks() -> None:
+    class Token:
+        cancelled = False
+
+    token = Token()
+
+    class CancellingBackend(FakeBackend):
+        def read_process_memory(
+            self,
+            handle: int,
+            address: int,
+            size: int,
+        ) -> bytes:
+            self.reads.append((handle, address, size))
+            data = bytes(size)
+            token.cancelled = True
+            return data
+
+    backend = CancellingBackend()
+    memory = Win32ProcessMemory(backend.pid, backend=backend)
+
+    with pytest.raises(MemorySearchCancelled):
+        memory.find_u32(123, chunk_size=4096, cancellation=token)
+
+    assert len(backend.reads) == 1
+
+
+def test_process_memory_search_honours_expired_deadline() -> None:
+    backend = FakeBackend()
+    memory = Win32ProcessMemory(backend.pid, backend=backend)
+
+    with pytest.raises(MemorySearchDeadline):
+        memory.find_u32(123, chunk_size=4096, deadline=0.0)
+
+    assert backend.reads == []

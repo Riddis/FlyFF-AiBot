@@ -53,7 +53,7 @@ Acceptance: readers share one resolver, recovery has one owner, and diagnostics 
 
 - [x] `RESUME-001` Reconcile the interrupted dirty tree, provenance, model route, and newly appeared artifacts.
 - [x] `RESUME-002` Revalidate and checkpoint only the pending Phase 02 implementation and journal evidence.
-- [ ] `RESUME-003` Review and checkpoint the isolated Phase 03 farming core separately before integration.
+- [x] `RESUME-003` Review and checkpoint the isolated Phase 03 farming core separately before integration.
 
 Acceptance: every dirty/untracked path is classified, no user-owned artifact is staged, and Phase 02/isolated Phase 03 have separate runnable checkpoints.
 

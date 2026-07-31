@@ -1,6 +1,6 @@
 # Phase 03 — Canonical Farming Environment
 
-Status: not started.
+Status: in progress; isolated core committed, production integration starting.
 
 ## Pre-implementation design (`FARM-001` through `FARM-005`)
 
@@ -106,3 +106,31 @@ JSON's enclosed-area value differs from its old test expectation, and an
 obsolete V0674 test asserts a removed diagnostic source string. No corrected
 core test failed. The isolated slice is ready for its separate RESUME-003
 checkpoint; production integration has not begun.
+
+## 2026-07-31 RESUME-003 checkpoint transition
+
+The isolated core and evidence were committed as
+`ca9457639e63696352aba3bd27bd7ad76dea0f52`. The active production path remains
+unchanged at this boundary. The next slice adds typed configuration, Tower map
+context, one-snapshot native-world reads, direct persistent control, and native
+kill confirmation before the environment/trainer cutover.
+
+## 2026-07-31 canonical runtime foundation
+
+Implemented the planned foundation without switching production imports:
+
+- `config.py` validates the canonical settings and tolerates only the known
+  deprecated hierarchical-navigation keys without consuming them.
+- `map_context.py` loads and hashes the explicit Tower map, requires teleport
+  evidence, and prewarms the forbidden-distance field.
+- native actor discovery is now explicit, cancellable, deadline-bounded,
+  single-flight, revalidated before publish, and deferred safely across close;
+  ordinary cached reads never scan or recover.
+- `native_world.py` feeds pose and actors from one identical pointer snapshot.
+- `control.py` owns persistent movement and casts F1 without releasing movement.
+- `kills.py` requires two successful native absence reads after the cast window;
+  failed reads are neutral and OCR remains diagnostics-only.
+
+The focused gate is 74 passed in 0.94 seconds with clean compile, Ruff,
+BasedPyright error-level, and diff checks. The active model/config/map files are
+unchanged and production still uses the legacy patch chain.

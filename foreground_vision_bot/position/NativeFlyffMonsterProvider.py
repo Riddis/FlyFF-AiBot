@@ -4,9 +4,10 @@ import math
 import struct
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from enum import Enum
 from threading import RLock
 from time import monotonic, perf_counter
-from typing import Protocol
+from typing import Protocol, cast
 
 from .MonsterConfig import NativeMonsterConfig
 from .native_process_service import (
@@ -16,8 +17,10 @@ from .native_process_service import (
 from .NativePointerRecovery import (
     PlayerPointerRecovery,
 )
-from .PositionProvider import PositionProviderError
+from .PositionProvider import PlayerPose, PositionProviderError
 from .Win32ProcessMemory import (
+    MemorySearchCancelled,
+    MemorySearchDeadline,
     MemorySearchDiagnostics,
     Win32MemoryBackend,
     Win32ProcessMemory,
@@ -42,6 +45,8 @@ class ActorMemory(Protocol):
         maximum_address: int,
         private_only: bool,
         chunk_size: int,
+        cancellation: object | None = None,
+        deadline: float | None = None,
     ) -> tuple[int, ...]: ...
 
     def close(self) -> None: ...
@@ -57,6 +62,46 @@ class NativeActor:
     z: float
     distance_native: float
     active_species_id: int
+
+
+class ActorCacheOutcome(str, Enum):
+    REFRESHED = "refreshed"
+    CACHED = "cached"
+    READY = "ready"
+    IN_PROGRESS = "in_progress"
+    CANCELLED = "cancelled"
+    DEADLINE = "deadline"
+    WORLD_MISMATCH = "world_mismatch"
+    UNAVAILABLE = "unavailable"
+
+
+@dataclass(frozen=True, slots=True)
+class ActorCacheRefreshResult:
+    outcome: ActorCacheOutcome
+    world_base: int
+    generation: int
+    slot_count: int = 0
+    message: str = ""
+
+    @property
+    def ready(self) -> bool:
+        return self.outcome in {
+            ActorCacheOutcome.REFRESHED,
+            ActorCacheOutcome.CACHED,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CachedActorReadResult:
+    outcome: ActorCacheOutcome
+    world_base: int
+    generation: int
+    actors: tuple[NativeActor, ...] = ()
+    message: str = ""
+
+    @property
+    def ready(self) -> bool:
+        return self.outcome is ActorCacheOutcome.READY
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,14 +155,15 @@ class NativeFlyffMonsterProvider:
             if native_service is not None
             else self._memory.module_base(config.module_name)
         )
-        self._player_pointer_address = (
-            self._module_base + config.player_pointer_offset
-        )
+        self._player_pointer_address = self._module_base + config.player_pointer_offset
         self._world_pointer_address = self._module_base + config.world_pointer_offset
         self._slot_bases: tuple[int, ...] = ()
         self._cached_world: int | None = None
+        self._cached_generation: int | None = None
         self._last_discovery_at = -math.inf
         self._lock = RLock()
+        self._refresh_active = False
+        self._resources_closed = False
         self.last_diagnostics: ActorPoolDiagnostics | None = None
         self._last_pointer_recovery: PlayerPointerRecovery | None = None
 
@@ -168,7 +214,7 @@ class NativeFlyffMonsterProvider:
         clock: Callable[[], float] = monotonic,
     ) -> NativeFlyffMonsterProvider:
         return cls(
-            native_service.memory,  # type: ignore[arg-type]
+            cast(ActorMemory, cast(object, native_service.memory)),
             config,
             clock=clock,
             native_service=native_service,
@@ -271,8 +317,7 @@ class NativeFlyffMonsterProvider:
             raise
         except Exception as error:
             raise NativeMonsterReadError(
-                "Current-world pointer could not be validated against the "
-                "local player"
+                "Current-world pointer could not be validated against the local player"
             ) from error
         if player_world != base:
             raise NativeMonsterReadError(
@@ -361,6 +406,371 @@ class NativeFlyffMonsterProvider:
                 rejected_invalid_actor=invalid,
             )
             return ordered
+
+    @staticmethod
+    def _cancellation_requested(cancellation: object | None) -> bool:
+        if cancellation is None:
+            return False
+        cancelled = getattr(cancellation, "cancelled", None)
+        if cancelled is not None:
+            return bool(cancelled() if callable(cancelled) else cancelled)
+        is_set = getattr(cancellation, "is_set", None)
+        return bool(is_set()) if callable(is_set) else False
+
+    def _refresh_stop_outcome(
+        self,
+        cancellation: object | None,
+        deadline: float | None,
+    ) -> ActorCacheOutcome | None:
+        if self._cancellation_requested(cancellation):
+            return ActorCacheOutcome.CANCELLED
+        if deadline is not None and self._clock() >= float(deadline):
+            return ActorCacheOutcome.DEADLINE
+        return None
+
+    def _finish_slot_refresh(self) -> None:
+        close_memory = False
+        with self._lock:
+            self._refresh_active = False
+            if self._closed and self._owns_memory and not self._resources_closed:
+                self._resources_closed = True
+                close_memory = True
+        if close_memory:
+            self._memory.close()
+
+    def refresh_slot_cache(
+        self,
+        pointer_snapshot: NativePointerSnapshot,
+        *,
+        cancellation: object | None = None,
+        deadline: float | None = None,
+        force: bool = False,
+    ) -> ActorCacheRefreshResult:
+        """Explicitly refresh actor slots without blocking ordinary reads.
+
+        At most one refresh scans at a time. The scan runs outside the cache
+        lock, cooperatively observes cancellation/deadline boundaries, and is
+        published only if the player/world snapshot is still current.
+        """
+
+        if not isinstance(pointer_snapshot, NativePointerSnapshot):
+            raise TypeError("pointer_snapshot must be a NativePointerSnapshot")
+        now = self._clock()
+        with self._lock:
+            if self._closed:
+                return ActorCacheRefreshResult(
+                    ActorCacheOutcome.UNAVAILABLE,
+                    pointer_snapshot.world_base,
+                    pointer_snapshot.generation,
+                    message="Native actor provider is closed",
+                )
+            cache_valid = bool(
+                not force
+                and self._slot_bases
+                and self._cached_world == pointer_snapshot.world_base
+                and self._cached_generation == pointer_snapshot.generation
+                and now - self._last_discovery_at
+                < self.config.discovery_interval_seconds
+            )
+            if cache_valid:
+                return ActorCacheRefreshResult(
+                    ActorCacheOutcome.CACHED,
+                    pointer_snapshot.world_base,
+                    pointer_snapshot.generation,
+                    slot_count=len(self._slot_bases),
+                )
+            if self._refresh_active:
+                return ActorCacheRefreshResult(
+                    ActorCacheOutcome.IN_PROGRESS,
+                    pointer_snapshot.world_base,
+                    pointer_snapshot.generation,
+                    slot_count=len(self._slot_bases),
+                    message="Another actor-slot refresh is already running",
+                )
+            self._refresh_active = True
+
+        try:
+            stopped = self._refresh_stop_outcome(cancellation, deadline)
+            if stopped is not None:
+                return ActorCacheRefreshResult(
+                    stopped,
+                    pointer_snapshot.world_base,
+                    pointer_snapshot.generation,
+                )
+
+            discovery_started_at = perf_counter()
+            matches = self._memory.find_u32(
+                pointer_snapshot.world_base,
+                maximum_address=self.config.maximum_scan_address,
+                private_only=self.config.private_memory_only,
+                chunk_size=self.config.discovery_chunk_bytes,
+                cancellation=cancellation,
+                deadline=deadline,
+            )
+            discovery_elapsed = max(0.0, perf_counter() - discovery_started_at)
+            slots: set[int] = set()
+            invalid = 0
+            for world_field_address in matches:
+                stopped = self._refresh_stop_outcome(cancellation, deadline)
+                if stopped is not None:
+                    return ActorCacheRefreshResult(
+                        stopped,
+                        pointer_snapshot.world_base,
+                        pointer_snapshot.generation,
+                    )
+                base = int(world_field_address) - self.config.world_offset
+                if base <= 0 or not self._is_self_valid(base):
+                    invalid += 1
+                    continue
+                try:
+                    if (
+                        self._read_u32(base + self.config.world_offset)
+                        != pointer_snapshot.world_base
+                    ):
+                        invalid += 1
+                        continue
+                except Exception:
+                    invalid += 1
+                    continue
+                slots.add(base)
+            if self._is_self_valid(pointer_snapshot.player_base):
+                slots.add(pointer_snapshot.player_base)
+
+            try:
+                if self._native_service is not None:
+                    current = self._native_service.read_pointer_snapshot()
+                    current_matches = bool(
+                        current.player_base == pointer_snapshot.player_base
+                        and current.world_base == pointer_snapshot.world_base
+                        and current.generation == pointer_snapshot.generation
+                    )
+                else:
+                    current_matches = bool(
+                        self.read_player_base() == pointer_snapshot.player_base
+                        and self.read_world_base() == pointer_snapshot.world_base
+                    )
+            except Exception as error:
+                return ActorCacheRefreshResult(
+                    ActorCacheOutcome.UNAVAILABLE,
+                    pointer_snapshot.world_base,
+                    pointer_snapshot.generation,
+                    message=f"Could not revalidate native world: {error}",
+                )
+            if not current_matches:
+                return ActorCacheRefreshResult(
+                    ActorCacheOutcome.WORLD_MISMATCH,
+                    pointer_snapshot.world_base,
+                    pointer_snapshot.generation,
+                    message="Native player/world changed during actor discovery",
+                )
+
+            diagnostics = getattr(
+                self._memory,
+                "last_search_diagnostics",
+                MemorySearchDiagnostics(matches=len(matches)),
+            )
+            ordered = tuple(sorted(slots))
+            with self._lock:
+                if self._closed:
+                    return ActorCacheRefreshResult(
+                        ActorCacheOutcome.UNAVAILABLE,
+                        pointer_snapshot.world_base,
+                        pointer_snapshot.generation,
+                        message="Native actor provider closed during discovery",
+                    )
+                self._slot_bases = ordered
+                self._cached_world = pointer_snapshot.world_base
+                self._cached_generation = pointer_snapshot.generation
+                self._last_discovery_at = now
+                self.last_diagnostics = ActorPoolDiagnostics(
+                    player_base=pointer_snapshot.player_base,
+                    world_base=pointer_snapshot.world_base,
+                    discovered_slots=len(ordered),
+                    discovery_regions_considered=diagnostics.regions_considered,
+                    discovery_regions_read=diagnostics.regions_read,
+                    discovery_bytes_read=diagnostics.bytes_read,
+                    discovery_elapsed_seconds=discovery_elapsed,
+                    discovery_read_failures=diagnostics.read_failures,
+                    world_pointer_matches=diagnostics.matches,
+                    rejected_invalid_actor=invalid,
+                )
+            return ActorCacheRefreshResult(
+                ActorCacheOutcome.REFRESHED,
+                pointer_snapshot.world_base,
+                pointer_snapshot.generation,
+                slot_count=len(ordered),
+            )
+        except MemorySearchCancelled:
+            return ActorCacheRefreshResult(
+                ActorCacheOutcome.CANCELLED,
+                pointer_snapshot.world_base,
+                pointer_snapshot.generation,
+            )
+        except MemorySearchDeadline:
+            return ActorCacheRefreshResult(
+                ActorCacheOutcome.DEADLINE,
+                pointer_snapshot.world_base,
+                pointer_snapshot.generation,
+            )
+        except Exception as error:
+            return ActorCacheRefreshResult(
+                ActorCacheOutcome.UNAVAILABLE,
+                pointer_snapshot.world_base,
+                pointer_snapshot.generation,
+                message=f"Actor-slot refresh failed: {type(error).__name__}: {error}",
+            )
+        finally:
+            self._finish_slot_refresh()
+
+    def read_cached_active_actors(
+        self,
+        pointer_snapshot: NativePointerSnapshot,
+        player_pose: PlayerPose,
+        *,
+        allowed_species_ids: Iterable[int] | None = None,
+        vision_radius_native: float | None = None,
+    ) -> CachedActorReadResult:
+        """Read only cached actor addresses; never discover or recover."""
+
+        if not isinstance(pointer_snapshot, NativePointerSnapshot):
+            raise TypeError("pointer_snapshot must be a NativePointerSnapshot")
+        if not isinstance(player_pose, PlayerPose):
+            raise TypeError("player_pose must be a PlayerPose")
+        with self._lock:
+            if self._closed:
+                return CachedActorReadResult(
+                    ActorCacheOutcome.UNAVAILABLE,
+                    pointer_snapshot.world_base,
+                    pointer_snapshot.generation,
+                    message="Native actor provider is closed",
+                )
+            if not self._slot_bases or self._cached_world is None:
+                return CachedActorReadResult(
+                    ActorCacheOutcome.UNAVAILABLE,
+                    pointer_snapshot.world_base,
+                    pointer_snapshot.generation,
+                    message="Actor-slot cache has not been refreshed",
+                )
+            if (
+                self._cached_world != pointer_snapshot.world_base
+                or self._cached_generation != pointer_snapshot.generation
+            ):
+                return CachedActorReadResult(
+                    ActorCacheOutcome.WORLD_MISMATCH,
+                    pointer_snapshot.world_base,
+                    pointer_snapshot.generation,
+                    message="Actor-slot cache belongs to another native world",
+                )
+            slot_bases = self._slot_bases
+
+        allowed = (
+            None
+            if allowed_species_ids is None
+            else {int(value) for value in allowed_species_ids}
+        )
+        radius = (
+            self.config.vision_radius_native
+            if vision_radius_native is None
+            else float(vision_radius_native)
+        )
+        if not math.isfinite(radius) or radius <= 0.0:
+            raise ValueError("vision_radius_native must be finite and positive")
+
+        wrong_world = not_present = dead = wrong_species = too_far = unreadable = 0
+        actors: list[NativeActor] = []
+        for base in slot_bases:
+            if base == pointer_snapshot.player_base:
+                continue
+            try:
+                (
+                    actor_world,
+                    species,
+                    hp,
+                    x,
+                    y,
+                    z,
+                    distance,
+                    active_species,
+                ) = self._read_actor_fields(base, player_pose.x, player_pose.z)
+            except Exception:
+                unreadable += 1
+                continue
+            if actor_world != pointer_snapshot.world_base:
+                wrong_world += 1
+                continue
+            if species <= 0 or active_species != species:
+                not_present += 1
+                continue
+            if hp <= 0:
+                dead += 1
+                continue
+            if allowed is not None and species not in allowed:
+                wrong_species += 1
+                continue
+            if not all(math.isfinite(value) for value in (x, y, z, distance)):
+                unreadable += 1
+                continue
+            limit = self.config.maximum_absolute_coordinate
+            if any(abs(value) > limit for value in (x, y, z)):
+                unreadable += 1
+                continue
+            if distance > radius:
+                too_far += 1
+                continue
+            actors.append(
+                NativeActor(
+                    base_address=base,
+                    species_id=species,
+                    hp=hp,
+                    x=x,
+                    y=y,
+                    z=z,
+                    distance_native=distance,
+                    active_species_id=active_species,
+                )
+            )
+
+        actors.sort(key=lambda actor: (actor.distance_native, actor.base_address))
+        with self._lock:
+            previous = self.last_diagnostics
+            self.last_diagnostics = ActorPoolDiagnostics(
+                player_base=pointer_snapshot.player_base,
+                world_base=pointer_snapshot.world_base,
+                discovered_slots=len(slot_bases),
+                discovery_regions_considered=(
+                    0 if previous is None else previous.discovery_regions_considered
+                ),
+                discovery_regions_read=(
+                    0 if previous is None else previous.discovery_regions_read
+                ),
+                discovery_bytes_read=(
+                    0 if previous is None else previous.discovery_bytes_read
+                ),
+                discovery_elapsed_seconds=(
+                    0.0 if previous is None else previous.discovery_elapsed_seconds
+                ),
+                discovery_read_failures=(
+                    0 if previous is None else previous.discovery_read_failures
+                ),
+                world_pointer_matches=(
+                    0 if previous is None else previous.world_pointer_matches
+                ),
+                rejected_invalid_actor=(
+                    0 if previous is None else previous.rejected_invalid_actor
+                ),
+                rejected_wrong_world=wrong_world,
+                rejected_not_present=not_present,
+                rejected_dead=dead,
+                rejected_species=wrong_species,
+                rejected_distance=too_far,
+                unreadable_cached_slots=unreadable,
+            )
+        return CachedActorReadResult(
+            ActorCacheOutcome.READY,
+            pointer_snapshot.world_base,
+            pointer_snapshot.generation,
+            actors=tuple(actors),
+        )
 
     def _read_actor_fields(
         self,
@@ -572,9 +982,17 @@ class NativeFlyffMonsterProvider:
             )
 
     def close(self) -> None:
+        close_memory = False
         with self._lock:
             if self._closed:
                 return
             self._closed = True
-            if self._owns_memory:
-                self._memory.close()
+            if (
+                self._owns_memory
+                and not self._refresh_active
+                and not self._resources_closed
+            ):
+                self._resources_closed = True
+                close_memory = True
+        if close_memory:
+            self._memory.close()

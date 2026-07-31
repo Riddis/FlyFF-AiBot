@@ -4,10 +4,10 @@ import ctypes
 import os
 from ctypes import wintypes
 from dataclasses import dataclass
+from time import monotonic
 from typing import Protocol
 
 from .PositionProvider import PositionProviderError
-
 
 PROCESS_VM_READ = 0x0010
 PROCESS_QUERY_INFORMATION = 0x0400
@@ -43,6 +43,34 @@ class MemorySearchDiagnostics:
 
 class ProcessMemoryError(PositionProviderError):
     """A Win32 process-memory operation failed."""
+
+
+class MemorySearchCancelled(ProcessMemoryError):
+    """A cooperative process-memory search was cancelled."""
+
+
+class MemorySearchDeadline(ProcessMemoryError):
+    """A cooperative process-memory search exceeded its deadline."""
+
+
+def _cancellation_requested(cancellation: object | None) -> bool:
+    if cancellation is None:
+        return False
+    cancelled = getattr(cancellation, "cancelled", None)
+    if cancelled is not None:
+        return bool(cancelled() if callable(cancelled) else cancelled)
+    is_set = getattr(cancellation, "is_set", None)
+    return bool(is_set()) if callable(is_set) else False
+
+
+def _raise_if_search_stopped(
+    cancellation: object | None,
+    deadline: float | None,
+) -> None:
+    if _cancellation_requested(cancellation):
+        raise MemorySearchCancelled("Process-memory search was cancelled")
+    if deadline is not None and monotonic() >= float(deadline):
+        raise MemorySearchDeadline("Process-memory search exceeded its deadline")
 
 
 class Win32MemoryBackend(Protocol):
@@ -219,9 +247,7 @@ class CtypesWin32MemoryBackend:
         snapshot_value = getattr(snapshot, "value", snapshot)
         invalid_handle = ctypes.c_void_p(-1).value
         if snapshot_value is None or int(snapshot_value) == invalid_handle:
-            raise self._last_error(
-                f"CreateToolhelp32Snapshot failed for PID {pid}"
-            )
+            raise self._last_error(f"CreateToolhelp32Snapshot failed for PID {pid}")
 
         snapshot_int = int(snapshot_value)
         try:
@@ -398,6 +424,8 @@ class Win32ProcessMemory:
         maximum_address: int = 0x7FFFFFFF,
         private_only: bool = True,
         chunk_size: int = 1 << 20,
+        cancellation: object | None = None,
+        deadline: float | None = None,
     ) -> tuple[int, ...]:
         """Find every little-endian 32-bit value in readable process memory.
 
@@ -418,15 +446,21 @@ class Win32ProcessMemory:
         bytes_read = 0
         read_failures = 0
 
-        for region in self.readable_regions(
+        _raise_if_search_stopped(cancellation, deadline)
+        regions = self.readable_regions(
             maximum_address=maximum_address,
             private_only=private_only,
-        ):
+        )
+        _raise_if_search_stopped(cancellation, deadline)
+
+        for region in regions:
+            _raise_if_search_stopped(cancellation, deadline)
             regions_considered += 1
             region_read = False
             offset = 0
             carry = b""
             while offset < region.size:
+                _raise_if_search_stopped(cancellation, deadline)
                 amount = min(int(chunk_size), region.size - offset)
                 try:
                     data = self.read(region.base_address + offset, amount)
@@ -449,6 +483,7 @@ class Win32ProcessMemory:
                     start = found + 1
                 carry = haystack[-3:] if len(haystack) >= 3 else haystack
                 offset += amount
+            _raise_if_search_stopped(cancellation, deadline)
             if region_read:
                 regions_read += 1
 

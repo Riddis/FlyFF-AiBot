@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import struct
+from threading import Event, Thread
 
 import pytest
-
 from position.MonsterConfig import NativeMonsterConfig
+from position.native_process_service import NativePointerSnapshot
 from position.NativeFlyffMonsterProvider import (
+    ActorCacheOutcome,
     NativeFlyffMonsterProvider,
     NativeMonsterReadError,
 )
+from position.PositionProvider import PlayerPose
 from position.Win32ProcessMemory import MemorySearchDiagnostics
 
 
@@ -18,6 +21,7 @@ class FakeMemory:
         self.bytes: dict[int, int] = {}
         self.closed = False
         self.reads: list[tuple[int, int]] = []
+        self.search_calls = 0
         self.last_search_diagnostics = MemorySearchDiagnostics()
 
     def module_base(self, module_name: str) -> int:
@@ -51,14 +55,19 @@ class FakeMemory:
         maximum_address: int,
         private_only: bool,
         chunk_size: int,
+        cancellation: object | None = None,
+        deadline: float | None = None,
     ) -> tuple[int, ...]:
-        del private_only, chunk_size
+        del private_only, chunk_size, cancellation, deadline
+        self.search_calls += 1
         needle = struct.pack("<I", value)
         starts = sorted(
             address
             for address in self.bytes
             if address <= maximum_address
-            and all(self.bytes.get(address + index) == needle[index] for index in range(4))
+            and all(
+                self.bytes.get(address + index) == needle[index] for index in range(4)
+            )
         )
         self.last_search_diagnostics = MemorySearchDiagnostics(
             regions_considered=3,
@@ -107,7 +116,9 @@ def _write_actor(
     memory.f32(base + config.z_offset, z)
 
 
-def _provider_fixture() -> tuple[NativeFlyffMonsterProvider, FakeMemory, dict[str, int]]:
+def _provider_fixture() -> tuple[
+    NativeFlyffMonsterProvider, FakeMemory, dict[str, int]
+]:
     config = _config()
     memory = FakeMemory()
     player = 0x10000000
@@ -290,7 +301,9 @@ def test_provider_closes_memory() -> None:
     assert memory.closed
 
 
-def test_provider_can_be_created_from_process_id(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_provider_can_be_created_from_process_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     config = _config()
     memory = FakeMemory()
     captured: dict[str, int] = {}
@@ -302,9 +315,7 @@ def test_provider_can_be_created_from_process_id(monkeypatch: pytest.MonkeyPatch
 
     import importlib
 
-    provider_module = importlib.import_module(
-        "position.NativeFlyffMonsterProvider"
-    )
+    provider_module = importlib.import_module("position.NativeFlyffMonsterProvider")
     monkeypatch.setattr(
         provider_module,
         "Win32ProcessMemory",
@@ -315,3 +326,111 @@ def test_provider_can_be_created_from_process_id(monkeypatch: pytest.MonkeyPatch
 
     assert captured == {"process_id": 26304}
     assert provider.module_base == memory._module_base
+
+
+def _pointer_snapshot(
+    provider: NativeFlyffMonsterProvider,
+    addresses: dict[str, int],
+    *,
+    world: int | None = None,
+) -> NativePointerSnapshot:
+    return NativePointerSnapshot(
+        player_pointer_address=provider.player_pointer_address,
+        world_pointer_address=provider.world_pointer_address,
+        player_base=addresses["player"],
+        world_base=addresses["world"] if world is None else world,
+        generation=0,
+        captured_at=1.0,
+    )
+
+
+def test_explicit_actor_refresh_publishes_cache_and_ordinary_read_never_scans() -> None:
+    provider, memory, addresses = _provider_fixture()
+    snapshot = _pointer_snapshot(provider, addresses)
+
+    refreshed = provider.refresh_slot_cache(snapshot)
+    searches_before = memory.search_calls
+    reads_before = tuple(memory.reads)
+    result = provider.read_cached_active_actors(
+        snapshot,
+        PlayerPose(x=0.0, y=10.0, z=0.0, heading_degrees=None, timestamp=1.0),
+        allowed_species_ids={874},
+    )
+
+    assert refreshed.outcome is ActorCacheOutcome.REFRESHED
+    assert refreshed.ready
+    assert result.outcome is ActorCacheOutcome.READY
+    assert [actor.base_address for actor in result.actors] == [
+        addresses["registered_near"]
+    ]
+    assert len(memory.reads) > len(reads_before)
+    assert memory.search_calls == searches_before == 1
+    assert provider.refresh_slot_cache(snapshot).outcome is ActorCacheOutcome.CACHED
+
+
+def test_cached_actor_read_reports_world_mismatch_without_refreshing() -> None:
+    provider, _memory, addresses = _provider_fixture()
+    snapshot = _pointer_snapshot(provider, addresses)
+    assert provider.refresh_slot_cache(snapshot).ready
+
+    changed = NativePointerSnapshot(
+        player_pointer_address=snapshot.player_pointer_address,
+        world_pointer_address=snapshot.world_pointer_address,
+        player_base=snapshot.player_base,
+        world_base=snapshot.world_base + 4,
+        generation=snapshot.generation + 1,
+        captured_at=2.0,
+    )
+    result = provider.read_cached_active_actors(
+        changed,
+        PlayerPose(x=0.0, y=10.0, z=0.0, heading_degrees=None, timestamp=2.0),
+    )
+
+    assert result.outcome is ActorCacheOutcome.WORLD_MISMATCH
+    assert result.actors == ()
+
+
+def test_actor_refresh_is_single_flight_and_close_waits_for_scan() -> None:
+    provider, memory, addresses = _provider_fixture()
+    snapshot = _pointer_snapshot(provider, addresses)
+    original = memory.find_u32
+    started = Event()
+    release = Event()
+    result_box: list[object] = []
+
+    def blocking_find(*args, **kwargs):
+        started.set()
+        assert release.wait(1.0)
+        return original(*args, **kwargs)
+
+    memory.find_u32 = blocking_find  # type: ignore[method-assign]
+    thread = Thread(
+        target=lambda: result_box.append(provider.refresh_slot_cache(snapshot))
+    )
+    thread.start()
+    assert started.wait(1.0)
+
+    joined = provider.refresh_slot_cache(snapshot)
+    provider.close()
+    assert joined.outcome is ActorCacheOutcome.IN_PROGRESS
+    assert not memory.closed
+
+    release.set()
+    thread.join(1.0)
+    assert not thread.is_alive()
+    assert memory.closed
+    assert result_box
+
+
+def test_actor_refresh_honours_cancellation_before_scan() -> None:
+    provider, memory, addresses = _provider_fixture()
+    snapshot = _pointer_snapshot(provider, addresses)
+
+    class Cancelled:
+        cancelled = True
+
+    result = provider.refresh_slot_cache(snapshot, cancellation=Cancelled())
+
+    assert result.outcome is ActorCacheOutcome.CANCELLED
+    assert provider.discovered_slot_bases == ()
+    assert memory.last_search_diagnostics.matches == 0

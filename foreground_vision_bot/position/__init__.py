@@ -33,7 +33,10 @@ from .native_process_service import (
     NativeRecoveryResult,
 )
 from .NativeFlyffMonsterProvider import (
+    ActorCacheOutcome,
+    ActorCacheRefreshResult,
     ActorPoolDiagnostics,
+    CachedActorReadResult,
     NativeActor,
     NativeFlyffMonsterProvider,
     NativeMonsterReadError,
@@ -58,16 +61,23 @@ from .PositionConfig import (
 from .PositionProvider import PlayerPose, PositionProvider, PositionProviderError
 from .Win32ProcessMemory import (
     MemoryRegion,
+    MemorySearchCancelled,
+    MemorySearchDeadline,
     MemorySearchDiagnostics,
     ProcessMemoryError,
     Win32ProcessMemory,
 )
 
 __all__ = [
+    "ActorCacheOutcome",
+    "ActorCacheRefreshResult",
     "ActorPoolDiagnostics",
+    "CachedActorReadResult",
     "DEFAULT_MONSTER_CONFIG_PATH",
     "MonsterConfigurationError",
     "MemoryRegion",
+    "MemorySearchCancelled",
+    "MemorySearchDeadline",
     "MemorySearchDiagnostics",
     "NativeActor",
     "NativeDiagnosticOutcome",
