@@ -156,6 +156,7 @@ rectangle and HP label over the validated status panel.
 - Validated structural module-marker world-identity correction: `f4903d98710f331d7aa175ffbc444fb05d1a0498`.
 - Validated selected-world structural-evidence correction: `a7b2b06964644f7ceeaf890c67c04f2f014974e4`.
 - Validated automatic player-status HP-OCR correction: `d98e73904dfd829224c5310a2e9c45861e8c846e`.
+- Validated Bot Vision HP-marker and deferred structural-world selection correction: `aa78891125f040cfa479f7d33a89154481974b4b`.
 - Protected pre-refactor SHA: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`
   through both protected refs.
 - Active model SHA-256 remains
