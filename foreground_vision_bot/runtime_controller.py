@@ -378,11 +378,6 @@ class RuntimeController:
         previous_recovery_requested = self._diagnostic_recovery_requested
         self._diagnostic_session_id = session_id
         self._diagnostic_recovery_requested = bool(recover)
-        recovery_hints = self._pointer_recovery_hints(
-            player_current_hp=player_current_hp,
-            player_max_hp=player_max_hp,
-        )
-
         def run(token: CancellationToken) -> NativeDiagnosticReport:
             deadline = monotonic() + bounded_timeout
 
@@ -394,6 +389,28 @@ class RuntimeController:
                 )
                 self.bus.log(progress.message, "msg_blue")
                 self.bus.heartbeat("diagnostic")
+
+            recovery_hints = self._pointer_recovery_hints(
+                player_current_hp=player_current_hp,
+                player_max_hp=player_max_hp,
+            )
+            if recover:
+                if (
+                    recovery_hints.player_current_hp is None
+                    or recovery_hints.player_max_hp is None
+                ):
+                    self.bus.log(
+                        "Player status OCR could not read current/max HP; keep "
+                        "the full status panel visible and unobstructed.",
+                        "msg_red",
+                    )
+                else:
+                    self.bus.log(
+                        "Player status OCR read HP "
+                        f"{recovery_hints.player_current_hp}/"
+                        f"{recovery_hints.player_max_hp}.",
+                        "msg_blue",
+                    )
 
             report = run_native_diagnostic(
                 self.bot,
@@ -495,16 +512,29 @@ class RuntimeController:
             if parsed > 0:
                 species.add(parsed)
 
-        if player_current_hp is not None:
-            config["pointer_recovery_current_hp"] = int(player_current_hp)
-        if player_max_hp is not None:
-            config["pointer_recovery_max_hp"] = int(player_max_hp)
-        current_hp = config.get("pointer_recovery_current_hp")
-        maximum_hp = config.get("pointer_recovery_max_hp")
-        try:
-            current_hp = None if current_hp in (None, "") else int(current_hp)
-            maximum_hp = None if maximum_hp in (None, "") else int(maximum_hp)
-        except (TypeError, ValueError):
+        current_hp = player_current_hp
+        maximum_hp = player_max_hp
+        if current_hp is None and maximum_hp is None:
+            read_player_health = getattr(self.bot, "read_player_health", None)
+            if callable(read_player_health):
+                try:
+                    health = read_player_health()
+                except Exception:  # noqa: BLE001 - OCR failure is non-fatal.
+                    health = None
+                if isinstance(health, tuple) and len(health) == 2:
+                    try:
+                        current_hp = int(health[0])
+                        maximum_hp = int(health[1])
+                    except (TypeError, ValueError):
+                        current_hp = None
+                        maximum_hp = None
+        if (
+            current_hp is None
+            or maximum_hp is None
+            or current_hp <= 0
+            or maximum_hp <= 0
+            or current_hp > maximum_hp
+        ):
             current_hp = None
             maximum_hp = None
 

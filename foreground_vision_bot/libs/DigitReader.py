@@ -13,6 +13,10 @@ class DigitReader:
         self.threshold = threshold
         self.templates = self._load_templates(digits_dir)
         self.bracket_template = self._load_bracket_template(digits_dir)
+        self._segmented_templates = {
+            digit: self._normalise_mask(template >= 150)
+            for digit, template in self.templates.items()
+        }
 
     @staticmethod
     def _load_templates(digits_dir: Path) -> dict[str, np.ndarray]:
@@ -114,6 +118,78 @@ class DigitReader:
         number_text = "".join(match[3] for match in filtered)
 
         return int(number_text)
+
+    @staticmethod
+    def _normalise_mask(mask: np.ndarray) -> np.ndarray:
+        rows, columns = np.where(mask)
+        if rows.size == 0 or columns.size == 0:
+            return np.zeros((24, 18), dtype=bool)
+        glyph = mask[
+            int(rows.min()) : int(rows.max()) + 1,
+            int(columns.min()) : int(columns.max()) + 1,
+        ].astype(np.uint8)
+        return cv.resize(
+            glyph,
+            (18, 24),
+            interpolation=cv.INTER_NEAREST,
+        ).astype(bool)
+
+    def read_segmented_number(
+        self,
+        image: np.ndarray,
+        *,
+        bright_threshold: int = 170,
+        minimum_score: float = 0.78,
+        minimum_margin: float = 0.02,
+        maximum_digits: int = 8,
+    ) -> int | None:
+        """Read isolated bright FlyFF glyphs from a tightly bounded field.
+
+        This handles the small outlined status-panel font, whose white glyph
+        cores share the existing digit-template shapes but not their colours.
+        Large connected UI backgrounds and incomplete glyphs are rejected.
+        """
+
+        if image is None or image.size == 0:
+            return None
+        if image.ndim == 2:
+            bright = image >= int(bright_threshold)
+        elif image.ndim == 3 and image.shape[2] in (3, 4):
+            bright = np.all(image[:, :, :3] >= int(bright_threshold), axis=2)
+        else:
+            return None
+
+        count, labels, statistics, _centroids = cv.connectedComponentsWithStats(
+            bright.astype(np.uint8)
+        )
+        components: list[tuple[int, str]] = []
+        for label in range(1, count):
+            left, _top, width, height, area = (
+                int(value) for value in statistics[label]
+            )
+            if not (2 <= width <= 8 and 7 <= height <= 11 and 8 <= area <= 40):
+                continue
+            candidate = self._normalise_mask(labels == label)
+            scores = sorted(
+                (
+                    (float(np.mean(candidate == template)), digit)
+                    for digit, template in self._segmented_templates.items()
+                ),
+                reverse=True,
+            )
+            best_score, best_digit = scores[0]
+            second_score = scores[1][0]
+            if (
+                best_score < float(minimum_score)
+                or best_score - second_score < float(minimum_margin)
+            ):
+                return None
+            components.append((left, best_digit))
+
+        components.sort()
+        if not components or len(components) > int(maximum_digits):
+            return None
+        return int("".join(digit for _left, digit in components))
 
     def _find_bracket_x(
         self,

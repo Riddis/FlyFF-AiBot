@@ -52,3 +52,6 @@ def test_gui_exposes_managed_native_health_and_recovery_commands() -> None:
     assert 'key="-RECOVER_POINTERS-"' in gui_source
     assert "self.controller.start_native_diagnostic(" in gui_source
     assert "self.controller.stop_native_diagnostic()" in gui_source
+    assert "Player HP is read automatically from the status panel." in gui_source
+    assert "-POINTER-CURRENT-HP-" not in gui_source
+    assert "-POINTER-MAX-HP-" not in gui_source

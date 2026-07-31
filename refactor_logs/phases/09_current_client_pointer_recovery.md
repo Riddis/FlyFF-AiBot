@@ -310,3 +310,17 @@ hypotheses, so a live `module_marker` acceptance can be audited directly
 against the three-pointer/eight-value minimum. Automated coverage remains 562
 tests with 1 skipped; 40 focused recovery/persistence/config/diagnostic tests
 pass, and the changed native files have zero BasedPyright errors or warnings.
+
+The next live run accepted a structurally rich non-polymorphic world manager:
+the selected marker object had 55 readable pointer fields and 74 distinct
+stable values. Discovery then stopped at `spawn_hp=0` despite one spawn/world
+match. The supplied `player_status.png` independently reads `30982/30982`, the
+same values entered for that run.
+
+Player HP is now an automatic vision boundary. An event-driven reader locates
+the status panel from stable masked chrome, normalizes scale, and uses the
+existing FlyFF digit templates to classify isolated bright glyphs. Each
+recovery click obtains a fresh current/max pair inside the diagnostic worker;
+the GUI no longer accepts manual HP. Automated coverage passes 568 tests with
+1 skipped, including arbitrary panel placement, cached validation, all ten
+digits, Bot capture integration, GUI removal, and off-Tk controller use.

@@ -16,6 +16,7 @@ from libs.ComputerVision import ComputerVision as CV
 from libs.DigitReader import DigitReader
 from libs.HumanKeyboard import VKEY, HumanKeyboard
 from libs.KillCounterPanel import DynamicKillCounterReader
+from libs.PlayerStatusPanel import DynamicPlayerStatusReader
 from mapper.NativeCourseHeading import NativeCourseHeadingTracker
 from position import (
     NativeActor,
@@ -91,6 +92,7 @@ class Bot:
         self._frame_lock = Lock()
         self._heading_lock = RLock()
         self._kill_counter_lock = RLock()
+        self._player_status_lock = RLock()
         self._rl_enabled = False
         self._latest_mob_points: list[Point] = []
         self._latest_mob_points_at = 0.0
@@ -110,6 +112,9 @@ class Bot:
             threshold=0.85,
         )
         self.kill_counter_reader = DynamicKillCounterReader(
+            digit_reader=self.digit_reader,
+        )
+        self.player_status_reader = DynamicPlayerStatusReader(
             digit_reader=self.digit_reader,
         )
 
@@ -186,6 +191,8 @@ class Bot:
         self._native_course_tracker.reset()
         with self._kill_counter_lock:
             self.kill_counter_reader.invalidate()
+        with self._player_status_lock:
+            self.player_status_reader.invalidate()
         self._emit(
             "msg_yellow",
             "Background skill hotkeys are available, but this FlyFF client reads "
@@ -504,6 +511,27 @@ class Bot:
         with self._kill_counter_lock:
             reading = reader.read(frame)
         return None if reading is None else reading.penya
+
+    def read_player_health(self) -> tuple[int, int] | None:
+        """OCR current/maximum HP from the dynamically located status panel."""
+
+        gray_frame, color_frame = self._frame_snapshot()
+        frame = color_frame if color_frame is not None else gray_frame
+        if frame is None:
+            return None
+        reader = getattr(self, "player_status_reader", None)
+        if reader is None:
+            reader = DynamicPlayerStatusReader(digit_reader=self.digit_reader)
+            self.player_status_reader = reader
+        lock = getattr(self, "_player_status_lock", None)
+        if lock is None:
+            lock = RLock()
+            self._player_status_lock = lock
+        with lock:
+            reading = reader.read(frame)
+        if reading is None:
+            return None
+        return int(reading.current_hp), int(reading.maximum_hp)
 
     def execute_action(
         self,

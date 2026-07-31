@@ -1,18 +1,18 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T21:48:45.7660303Z",
+  "updated_at": "2026-07-31T22:06:53.9116181Z",
   "current_phase": "live_current_client_acceptance",
-  "phase_status": "automated_structural_world_marker_fallback_complete_awaiting_human",
+  "phase_status": "automated_player_hp_ocr_complete_awaiting_human",
   "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
   "head_commit": "a7b2b06964644f7ceeaf890c67c04f2f014974e4",
-  "head_note": "Validated selected-world structural evidence checkpoint; this journal-only reconciliation follows.",
+  "head_note": "Automatic player-status HP OCR is validated and pending checkpoint.",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
     "branch": "backup/pre-codex-refactor"
   },
-  "dirty_files": ["journal reconciliation pending checkpoint"],
+  "dirty_files": ["PTR-LIVE-025,PTR-LIVE-026 automatic HP OCR implementation and journals"],
   "ignored_user_backups": [
     "foreground_vision_bot.zip",
     "refactor_logs.zip"
@@ -20,14 +20,14 @@
   "staged_files": [],
   "last_known_good_commit": "a7b2b06964644f7ceeaf890c67c04f2f014974e4",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
-  "last_known_good_test_result": "562 passed, 1 skipped in 10.73 seconds",
+  "last_known_good_test_result": "568 passed, 1 skipped in 10.70 seconds",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
-  "last_broad_test_result": "562 passed, 1 skipped in 10.73 seconds",
+  "last_broad_test_result": "568 passed, 1 skipped in 10.70 seconds",
   "last_quality_result": "Changed Ruff F/I clean; native production BasedPyright 0 errors; diff hygiene clean. Existing warning-level and repository-wide legacy debt remains classified.",
   "active_model_sha256": "3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2",
-  "active_blocker": "Human-only current FlyFF validation of vtable-or-structural-marker world identity, movement persistence, and preview shutdown remains.",
+  "active_blocker": "Human-only current FlyFF validation of OCR-anchored player discovery, movement persistence, and preview shutdown remains.",
   "blocked_tasks": ["PTR-LIVE-001 live_client_validation"],
-  "next_action": "Run one stationary first-stage recovery; continue to movement only if its outcome is movement_required.",
+  "next_action": "Run one stationary first-stage recovery with the status panel visible; continue to movement only if its outcome is movement_required.",
   "completed_milestones": [
     "BASE-001", "BASE-002", "BASE-003", "BASE-004", "BASE-005",
     "AUD1-001", "AUD1-002", "AUD1-003", "AUD1-004",
@@ -45,7 +45,8 @@
     "PTR-LIVE-007", "PTR-LIVE-008", "PTR-LIVE-009", "PTR-LIVE-010", "PTR-LIVE-011",
     "PTR-LIVE-012", "PTR-LIVE-013", "PTR-LIVE-014", "PTR-LIVE-015",
     "PTR-LIVE-016", "PTR-LIVE-017", "PTR-LIVE-018", "PTR-LIVE-019",
-    "PTR-LIVE-020", "PTR-LIVE-021", "PTR-LIVE-022", "PTR-LIVE-023", "PTR-LIVE-024"
+    "PTR-LIVE-020", "PTR-LIVE-021", "PTR-LIVE-022", "PTR-LIVE-023", "PTR-LIVE-024",
+    "PTR-LIVE-025", "PTR-LIVE-026"
   ],
   "pending_migrations": [],
   "pending_deletions": [],

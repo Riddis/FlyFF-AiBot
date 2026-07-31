@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from threading import Event
+from threading import Event, current_thread
 from threading import enumerate as enumerate_threads
 from time import monotonic
 from types import SimpleNamespace
@@ -309,6 +309,30 @@ def test_managed_recovery_uses_worker_token_deadline_and_progress() -> None:
     assert isinstance(status, RuntimeStatus)
     assert status.session_id == session_id
     assert "finished" in status.message.lower()
+
+
+def test_managed_recovery_reads_player_hp_ocr_inside_worker() -> None:
+    service = _DiagnosticService()
+    bot = _DiagnosticBot(service)
+    ocr_threads: list[str] = []
+
+    def read_player_health() -> tuple[int, int]:
+        ocr_threads.append(current_thread().name)
+        return 30982, 30982
+
+    bot.read_player_health = read_player_health  # type: ignore[attr-defined]
+    bus = RuntimeBus()
+    controller = RuntimeController(bot, bus)
+
+    controller.start_native_diagnostic(recover=True, timeout=2.0)
+    assert controller.workers.join(WorkerKind.DIAGNOSTIC, 2.0)
+
+    hints = service.recovery_kwargs["hints"]
+    assert hints.player_current_hp == 30982
+    assert hints.player_max_hp == 30982
+    assert ocr_threads == ["flyff-native-pointer-recovery"]
+    messages = [message for _level, message in bus.drain_logs()]
+    assert "Player status OCR read HP 30982/30982." in messages
 
 
 def test_diagnostic_false_join_preserves_dependencies_until_retry() -> None:

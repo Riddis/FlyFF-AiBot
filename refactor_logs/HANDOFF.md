@@ -109,10 +109,17 @@ both config files.
 - Focus/input/environment activation still occurs only after a coherent native
   preflight.
 
+The latest live run accepted a `module_marker` world whose selected object had
+55 readable pointers and 74 distinct stable values, then stopped at
+`spawn_hp=0`. The supplied status panel reads `30982/30982`, matching the
+prior manual input. Current/max HP are now OCRed automatically from the
+dynamically located panel inside each managed diagnostic worker; manual HP
+fields have been removed.
+
 ## Automated validation
 
-- Full canonical suite: 562 passed, 1 skipped in 11.23 seconds.
-- Focused recovery/persistence/diagnostic/preview/controller suite: 51 passed.
+- Full canonical suite: 568 passed, 1 skipped in 10.70 seconds.
+- Focused player-status/diagnostic/GUI suite: 17 passed.
 - Changed production/test Ruff F/I: pass.
 - Native production BasedPyright: 0 errors; existing warning-level typing debt
   remains classified.
@@ -140,6 +147,7 @@ both config files.
 - Validated false-world/HP/preview/health-identity correction: `25ab14068cd432a72706c4caba7bc316990dfe03`.
 - Validated displaced structural world-identity correction: `5351a4c988f31b6982f9f85e65e19118b3721857`.
 - Validated structural module-marker world-identity correction: `f4903d98710f331d7aa175ffbc444fb05d1a0498`.
+- Validated selected-world structural-evidence correction: `a7b2b06964644f7ceeaf890c67c04f2f014974e4`.
 - Protected pre-refactor SHA: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`
   through both protected refs.
 - Active model SHA-256 remains
@@ -152,5 +160,5 @@ Run only
 `refactor_logs/manual_tests/PTR-LIVE-001_current_client_pointer_acceptance.md`.
 It contains the exact two-click stationary/movement sequence and evidence list.
 Do not run the older consolidated protocol first, loop recovery, edit offsets,
-or weaken validation. Return the complete GUI log, both entered HP pairs, both
+or weaken validation. Return the complete GUI log, both OCRed HP pairs, both
 current config files, and any adjacent recovery backups.

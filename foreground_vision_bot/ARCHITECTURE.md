@@ -70,6 +70,9 @@ private memory once for selected monster species and the Tower spawn X value.
 It validates multiple active monster objects, infers shared world/self fields
 by consensus, and ranks player objects by the full spawn transform, exact
 current/maximum HP, shared world, player characteristics, and repeated reads.
+The HP anchor is read automatically from the dynamically located player-status
+panel. Its stable chrome locates the panel, while the existing FlyFF digit
+templates OCR the masked current/max fields inside the diagnostic worker.
 Species hits are treated only as address anchors: nearby self references infer
 the actor base plus current species/self offsets, while duplicate species,
 transform, and HP relationships establish one multi-actor layout. Repeated

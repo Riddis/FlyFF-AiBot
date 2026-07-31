@@ -8,7 +8,8 @@ of that exact candidate.
 ## Evidence to retain
 
 - The complete GUI log from attach through close.
-- The exact current and maximum player HP entered for each recovery sample.
+- The exact current and maximum player HP OCR result logged for each recovery
+  sample.
 - `position/native_position.json` and `position/native_monsters.json` after the
   run, plus adjacent `.pre_pointer_recovery.bak` files if created.
 - Every recovery progress/outcome line, especially the old-self near-match,
@@ -23,9 +24,10 @@ of that exact candidate.
    map `(0.0, 0.0)`: native X `253.0`, Z `86.0`. Keep the character stationary.
    Ensure multiple selected monsters are active nearby. Do not stand in a
    teleport trigger.
-3. Read the character sheet and enter the exact integer **Player HP** and
-   **Max HP** in the GUI recovery fields. Record both numbers in the returned
-   log. Stop any control task, then click **Recover Pointers** exactly once.
+3. Keep the complete player-status panel visible and unobstructed. There are no
+   manual HP fields. Stop any control task, then click **Recover Pointers**
+   exactly once. The diagnostic worker must log `Player status OCR read HP
+   <current>/<maximum>` before native recovery begins.
 4. While the worker runs, move the GUI window once to confirm repainting, but do
    not move the character. Wait for completion. Expected result is
    `recovery_movement_required`; it is not a failure. The log must show at least
@@ -36,7 +38,7 @@ of that exact candidate.
    spawn/player candidate, and a direct or one-hop player and world reference.
    `layout_ties` must be zero; `self_aliases` may be greater than one because
    repeated, same-cohort self fields are validated aliases, not different actor
-   layouts. It must also print the exact entered spawn/HP anchors and the
+   layouts. It must also print the exact OCRed spawn/HP anchors and the
    `player_refs`, `player_world_chains`, and `player_ref_ambiguous` counts. A
    direct player slot or a world-rooted player chain is valid; same-target chain
    aliases are allowed, while reference ambiguity must be zero. The log must
@@ -62,9 +64,9 @@ of that exact candidate.
 6. Without restarting or reattaching, focus FlyFF and manually move the
    character 3-5 native units away from the spawn (roughly 2-3 map cells). Stop
    all movement and remain stationary. Do not return to X `253.0`, Z `86.0`.
-7. Re-read the exact current and maximum HP. Update both GUI fields if needed,
-   record them, and click **Recover Pointers** exactly once more. Do not click
-   any other diagnostic between the two samples.
+7. Keep the complete player-status panel visible and click **Recover Pointers**
+   exactly once more. The diagnostic worker must freshly OCR and log the
+   current/maximum HP. Do not click any other diagnostic between the samples.
 8. Expected second result is recovery success using
    `anchored_movement_confirmation`/`anchored_movement`, with movement observed,
    healthy after-state, nonzero coherent player/world bases, and generation
@@ -93,10 +95,10 @@ of that exact candidate.
 ## Stop conditions
 
 At any non-success outcome, do not loop recovery, edit offsets manually, or
-weaken validation. Return the complete log, both HP pairs, both current config
+weaken validation. Return the complete log, both OCRed HP pairs, both current config
 files, and any recovery backups. If HP changed after the first sample, the
-second sample must contain the updated exact current HP; an incorrect value is
-expected to invalidate the pending candidate.
+second OCR sample must contain the updated exact current HP; an unreadable or
+inconsistent panel is expected to invalidate the pending candidate.
 
 ## Acceptance
 

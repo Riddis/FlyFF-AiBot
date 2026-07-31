@@ -68,8 +68,11 @@ The configured offsets are cheap startup hints, not recovery search bounds.
 On the real Win32 backend, managed recovery scans the reported `Neuz.exe`
 module image and discovers player/world globals independently. **Recover
 Pointers** can additionally use selected monster species, Tower spawn native
-pose `(253.0, 86.0)`, and operator-supplied exact current/maximum HP to infer a
-changed actor layout. The first stable sample is retained only in attachment
+pose `(253.0, 86.0)`, and automatically OCRed exact current/maximum HP to infer
+a changed actor layout. The event-driven reader locates
+`assets/ui/player_status.png` by stable panel chrome, masks dynamic content,
+and reuses the FlyFF digit templates; there are no manual HP fields. The first
+stable sample is retained only in attachment
 memory. A later controlled-movement sample must validate the same slot/chain,
 world, inferred fields, exact HP, and stable final pose before both JSON files
 are replaced transactionally. Inferred coordinate offsets are written to both
