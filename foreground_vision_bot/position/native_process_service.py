@@ -413,9 +413,14 @@ class NativeProcessService:
                         "Local-player pointer is stale or unreadable; explicit "
                         "pointer recovery is required"
                     )
+                world_rooted_player = bool(
+                    player_pointer_address == world_pointer_address
+                    and not world_chain
+                    and len(player_chain) == 1
+                )
                 if (
-                    self._read_u32(player + world_field_offset)
-                    != world
+                    not world_rooted_player
+                    and self._read_u32(player + world_field_offset) != world
                 ):
                     raise NativePointerSnapshotError(
                         "Player and world pointers are inconsistent; explicit "

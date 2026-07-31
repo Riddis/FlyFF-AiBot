@@ -101,9 +101,12 @@ world.
 Bot Vision draws a green rectangle and current/max HP label over the validated
 status-panel anchor. This preview annotation does not alter capture frames or
 feed pointer recovery. When several actor fields lead to structurally valid
-world objects, recovery reports `world_hypotheses` and defers selection until a
-spawn/HP player carries one of them; `spawn_world_hypotheses` reports those
-cross-check matches.
+world objects, recovery reports `world_hypotheses` and first validates the
+spawn/HP player independently of the monster world field. It then accepts only
+an exact actor-field match or a bounded `0x4000` world-rooted player chain;
+`spawn_world_hypotheses` reports those cross-check matches and
+`player_world_rooted` reports the latter kind. An independent direct player
+slot without either relationship cannot be persisted.
 
 ## Maps, mobs, and model compatibility
 

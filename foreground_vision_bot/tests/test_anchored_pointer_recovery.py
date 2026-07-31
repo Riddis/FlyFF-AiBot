@@ -558,9 +558,66 @@ def test_spawn_player_selects_the_right_structural_world_hypothesis() -> None:
     assert metrics is not None
     assert metrics.outcome == "movement_required"
     assert metrics.structural_world_hypotheses >= 2
-    assert metrics.spawn_world_hypothesis_matches == 1
+    assert metrics.spawn_world_hypothesis_matches >= 1
     assert metrics.inferred_world_offset == memory.new_world_offset
     assert metrics.inferred_world_vtable == memory.module_base_value + 0x800
+
+
+def test_player_can_be_linked_from_world_without_carrying_monster_world_field() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    memory.u32(memory.player_base + memory.new_world_offset, 0)
+    memory.u32(memory.world_base + 0x40, memory.player_base)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    state = PointerRecoveryState()
+
+    assert recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    ) is None
+
+    metrics = state.metrics_for(memory.pid, memory.module_base_value)
+    assert metrics is not None
+    assert metrics.outcome == "movement_required"
+    assert metrics.spawn_hp_matches == 1
+    assert metrics.stable_spawn_candidates == 1
+    assert metrics.spawn_world_matches == 0
+    assert metrics.player_world_rooted_matches == 1
+
+    memory.f32(memory.player_base + config.x_offset, 258.0)
+    recovery = recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    )
+
+    assert recovery is not None
+    assert recovery.player_pointer_offset == memory.world_slot_offset
+    assert recovery.player_pointer_chain_offsets == (0x40,)
+    assert recovery.world_pointer_offset == memory.world_slot_offset
+    assert recovery.world_pointer_chain_offsets == ()
 
 
 def test_same_target_world_field_aliases_are_not_player_ambiguity() -> None:

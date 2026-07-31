@@ -166,6 +166,29 @@ def test_coherent_snapshot_uses_six_bounded_reads_and_never_scans() -> None:
     assert memory.readable_calls == 0
 
 
+def test_coherent_snapshot_accepts_a_world_rooted_player_chain() -> None:
+    memory = _ServiceMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x2100,
+        world_pointer_offset=0x2100,
+        player_pointer_chain_offsets=(0x40,),
+        discovery_chunk_bytes=4096,
+    )
+    player = memory.actor_base
+    world = memory.actor_base + 0x2000
+    memory.module_u32(config.world_pointer_offset, world)
+    memory.actor_u32(0x2000 + 0x40, player)
+    memory.actor_u32(config.self_pointer_offset, player)
+    memory.actor_u32(config.world_offset, 0)
+    service = NativeProcessService(memory, config)
+
+    snapshot = service.read_pointer_snapshot()
+
+    assert snapshot.player_base == player
+    assert snapshot.world_base == world
+    assert memory.readable_calls == 0
+
+
 def test_explicit_recovery_returns_typed_metrics_and_applies_shifted_state() -> None:
     memory = _ServiceMemory()
     config = _config()

@@ -104,9 +104,13 @@ field and module-relative table identity are persisted and rechecked by
 ordinary pointer snapshots, including Native Health after restart; the
 persisted identity kind distinguishes `vtable` from `module_marker`.
 All bounded structural world hypotheses survive until spawn/HP/player
-validation. Only the world actually carried by a stable player candidate is
-selected; proximity to a stale configured actor field cannot discard the
-correct world before that cross-check.
+validation. Player collection first proves transform, exact HP, self identity,
+player traits, and temporal stability without assuming that the local-player
+class carries the monster actor's world field. A world can then qualify only
+through that exact actor field or through a bounded field under the
+module-rooted world that resolves the confirmed player. Merely finding
+independent module slots is insufficient. Proximity to a stale configured
+actor field cannot discard or promote a world before this cross-check.
 Monster-layout HP
 remains distinct from the player-specific HP fields
 used by the stationary/movement anchor. Preview template detection observes its

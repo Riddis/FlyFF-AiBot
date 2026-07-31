@@ -38,12 +38,16 @@ of that exact candidate.
    distinct layout ties, the `self_aliases` count, inferred
    species/active/HP/XYZ/world/self field offsets and support, one stable
    spawn/player candidate, and a direct or one-hop player and world reference.
+   The local player does not have to carry the monster world field: an exact
+   bounded player field under the module-rooted world is also valid.
    `layout_ties` must be zero; `self_aliases` may be greater than one because
    repeated, same-cohort self fields are validated aliases, not different actor
    layouts. It must also print the exact OCRed spawn/HP anchors and the
-   `player_refs`, `player_world_chains`, and `player_ref_ambiguous` counts. A
-   direct player slot or a world-rooted player chain is valid; same-target chain
-   aliases are allowed, while reference ambiguity must be zero. The log must
+   `player_slots`, `player_refs`, `player_world_chains`, `player_world_rooted`,
+   and `player_ref_ambiguous` counts. A direct player slot is valid only when
+   the player also carries that world; otherwise a world-rooted player chain is
+   required. Same-target chain aliases are allowed, while reference ambiguity
+   must be zero. The log must
    also report a `world_vtable` inside `0xB0000-0x9F3000`, an aligned
    `world_vtable_field` within `0x0-0x3FC`, and may report nonzero
    `world_object_reject` for scalar impostors. The vtable field may be nonzero;
@@ -55,7 +59,8 @@ of that exact candidate.
    `player_hp_fields` may differ and must not replace it.
    `world_hypotheses` may be greater than one: selection is deliberately
    deferred until the spawn/HP player matches one. The log must also retain
-   `spawn_world_hypotheses`.
+   `spawn_world_hypotheses`. `spawn_world=0` is acceptable only when
+   `player_world_rooted` is nonzero; both zero is a stop condition.
    Neither JSON config may change and no recovery backup may be created yet.
 5. If the first result is anything other than `recovery_movement_required`,
    stop the protocol without retrying and return the complete log and unchanged

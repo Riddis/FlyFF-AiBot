@@ -173,6 +173,7 @@ class PointerRecoveryMetrics:
     world_chain_candidates: int = 0
     player_reference_matches: int = 0
     player_world_chain_candidates: int = 0
+    player_world_rooted_matches: int = 0
     player_reference_ambiguities: int = 0
     movement_checks: int = 0
     movement_observed: int = 0
@@ -305,6 +306,7 @@ class _MetricsBuilder:
     world_chain_candidates: int = 0
     player_reference_matches: int = 0
     player_world_chain_candidates: int = 0
+    player_world_rooted_matches: int = 0
     player_reference_ambiguities: int = 0
     movement_checks: int = 0
     movement_observed: int = 0
@@ -449,6 +451,7 @@ class _MetricsBuilder:
             world_chain_candidates=self.world_chain_candidates,
             player_reference_matches=self.player_reference_matches,
             player_world_chain_candidates=self.player_world_chain_candidates,
+            player_world_rooted_matches=self.player_world_rooted_matches,
             player_reference_ambiguities=self.player_reference_ambiguities,
             movement_checks=self.movement_checks,
             movement_observed=self.movement_observed,
@@ -1488,8 +1491,16 @@ def _verify_cached(
             player == cached.player_base
             and world == cached.world_base
             and _u32(memory, cached.player_base + self_offset) == cached.player_base
-            and _u32(memory, cached.player_base + world_field_offset)
-            == cached.world_base
+            and (
+                (
+                    cached.player_pointer_address
+                    == cached.world_pointer_address
+                    and not cached.world_pointer_chain_offsets
+                    and len(cached.player_pointer_chain_offsets) == 1
+                )
+                or _u32(memory, cached.player_base + world_field_offset)
+                == cached.world_base
+            )
             and (
                 world_vtable_offset is None
                 or _u32(
@@ -1605,6 +1616,7 @@ def _record_anchor_evidence(
     metrics.world_chain_candidates = evidence.world_chain_candidates
     metrics.player_reference_matches = evidence.player_reference_matches
     metrics.player_world_chain_candidates = evidence.player_world_chain_candidates
+    metrics.player_world_rooted_matches = evidence.player_world_rooted_matches
     metrics.player_reference_ambiguities = evidence.player_reference_ambiguities
     metrics.movement_checks = evidence.movement_checks
     metrics.movement_observed = evidence.movement_observed
@@ -2447,9 +2459,11 @@ def recover_local_player_pointer(
                 f" spawn_hp={metrics.spawn_hp_matches},"
                 f" spawn_players={metrics.spawn_player_matches},"
                 f" stable_spawn={metrics.stable_spawn_candidates},"
+                f" player_slots={metrics.direct_player_slot_candidates},"
                 f" player_chains={metrics.player_chain_candidates},"
                 f" player_refs={metrics.player_reference_matches},"
                 f" player_world_chains={metrics.player_world_chain_candidates},"
+                f" player_world_rooted={metrics.player_world_rooted_matches},"
                 f" player_ref_ambiguous={metrics.player_reference_ambiguities},"
                 f" movement={metrics.movement_observed}."
             ),

@@ -1,6 +1,6 @@
 # Refactor Status
 
-- Phase: Bot Vision HP marker and deferred structural-world selection complete; awaiting one replacement `PTR-LIVE-001` pass.
+- Phase: independent spawn-player validation and bounded world-rooted linkage complete; awaiting one replacement `PTR-LIVE-001` pass.
 - Branch: `feature/adaptive-mapper`.
 - Validated anchored implementation checkpoint: `84559c6ce6ff63a86604a4c71aff8ae2308cdb98`; this journal reconciliation follows it.
 - Validated local actor-layout correction checkpoint: `abd8f9e1cabaa4ea033ee221dbf2145b1470fffb`; final journal reconciliation follows it.
@@ -16,7 +16,7 @@
 - Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through `protected/pre-codex-refactor` and `backup/pre-codex-refactor`.
 - Production route: `runtime_controller.py -> farming.trainer -> UnifiedFarmingEnv / SessionAwarePPO`.
 - Active model: `models/farming/native_strategy_ppo.zip`; SHA-256 `3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2` unchanged.
-- Latest automated acceptance: 571 passed, 1 skipped in 13.35 seconds.
+- Latest automated acceptance: 573 passed, 1 skipped in 11.21 seconds.
 - Quality: changed production/test scope passes Ruff F/I; native production BasedPyright reports zero errors (existing warning-level typing debt remains); diff hygiene passes.
 - Live evidence retained: `Neuz.exe` base `0xB0000`, size `0x943000`, 32-bit; all 4,096 legacy candidates rejected at the historical self field. GUI responsiveness, cancellation, no-input startup failure, Stop, and shutdown passed.
 - Implemented next strategy: selected species consensus, inferred current world/self actor fields, Tower spawn `(253.0, 86.0)` plus exact current/max HP ranking, stable direct/one-hop module references, and mandatory second-sample movement confirmation.
@@ -48,3 +48,6 @@
 - HP automation: the bot dynamically locates the stable status-panel chrome, masks changing portrait/name/bar content, and OCRs current/max HP with the existing FlyFF digit templates. Each recovery stage performs a fresh read inside the managed diagnostic worker; the manual GUI fields are removed. The initial 1920x1080 scan benchmark is about 0.35 seconds and subsequent reads use a locally validated cached anchor.
 - Latest live evidence: OCR correctly read `33750/33750`; 49 actors produced four accepted structural-marker worlds, but the single world chosen before spawn validation matched none of 46 spawn structures (`spawn_world=0`). This disproves early single-world selection, not the OCR or structural identity gate.
 - Active correction: Bot Vision outlines the OCR-valid panel in green and labels its HP. Recovery carries every bounded structural world hypothesis into spawn/HP/player validation and selects only the world carried by the final stable player; the stale configured field cannot break ties. New `world_hypotheses` and `spawn_world_hypotheses` counters expose the cross-check.
+- Latest live evidence: OCR again read `33750/33750`; 39 monsters produced six structural world hypotheses, while all 46 spawn structures matched none of their monster actor fields (`spawn_world_hypotheses=0`). This proves that the local-player class does not carry the monster world field in this client; no candidate reached HP validation and nothing was persisted.
+- Active correction: spawn transform, exact HP, self alias, player traits, and repeated stability are now validated before world linkage. Each module-rooted structural world is then probed only within a bounded `0x4000` prefix for an exact player pointer. Either that world-rooted chain or an actor-field match is mandatory; an independent player slot cannot qualify. New `player_slots` and `player_world_rooted` counters expose the distinction.
+- Automated acceptance: 573 passed, 1 skipped in 11.21 seconds. Regressions cover a player that carries no monster world field, bounded world-rooted recovery through movement, scan-free ordinary health for the persisted shared-root chain, and preservation of actor-field/decoy behavior.

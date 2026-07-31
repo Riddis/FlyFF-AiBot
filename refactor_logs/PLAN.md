@@ -142,5 +142,7 @@ Acceptance: repository is runnable, evidence is captured, docs are self-containe
 - [x] `PTR-LIVE-026` Remove manual HP fields and acquire a fresh HP anchor inside each managed recovery worker.
 - [x] `PTR-LIVE-027` Draw a green current/max HP detection marker over the validated player-status panel in Bot Vision.
 - [x] `PTR-LIVE-028` Defer world selection across all structural hypotheses until spawn/HP/player cross-validation.
+- [x] `PTR-LIVE-029` Prove from live counters that the local-player class does not carry any monster-consensus world field in this client.
+- [x] `PTR-LIVE-030` Validate the spawn/HP player independently, then require either an actor-world field or a bounded player link rooted under the structurally validated world.
 
 Acceptance: ordinary reads remain scan-free; recovery is bounded, cancellable, single-flight, and off Tk; accepted slots are stable and coherently validated; startup failure is concise and input-safe.

@@ -340,3 +340,22 @@ by spawn structures as `spawn_world_hypotheses`. Bot Vision also marks the
 OCR-validated status panel with a green rectangle and HP label. Automated
 coverage passes 571 tests with 1 skipped; the 31-test focused gate and native
 core type checks pass.
+
+The next live run again OCRed `33750/33750` and found 39 actors plus six
+structurally valid world hypotheses. All 46 spawn structures failed only the
+requirement that one monster world field contain the matching world target:
+`spawn_world=0`, `spawn_world_hypotheses=0`, and HP/player counters never ran.
+This is uniform evidence that the local-player class does not expose the
+monster actor's world field, not evidence against the spawn transform or OCR.
+
+Player discovery now validates spawn X/Z, plausible Y, exact OCRed current/max
+HP, a selected self alias, player traits, and repeated stationary reads before
+testing any world relation. It resolves every structural world through the
+module image, probes only the first `0x4000` bytes of each direct world root for
+the exact confirmed player pointer, and admits either that one-hop root or the
+traditional actor-world field. Independent module slots are diagnostic-only.
+Movement confirmation and ordinary cached/restarted snapshots validate the
+shared-root topology without reading an inapplicable player world field. New
+`player_slots` and `player_world_rooted` metrics distinguish the paths.
+Automated coverage passes 573 tests with 1 skipped; focused recovery/provider
+tests, Ruff F/I, native production BasedPyright, and diff hygiene pass.

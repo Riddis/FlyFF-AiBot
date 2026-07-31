@@ -379,7 +379,16 @@ class NativeFlyffMonsterProvider:
                     "Local-player pointer is null while validating the current "
                     "world pointer"
                 )
-            player_world = self._read_u32(player + self._world_field_offset)
+            world_rooted_player = bool(
+                self._player_pointer_address == self._world_pointer_address
+                and not self.config.world_pointer_chain_offsets
+                and len(self.config.player_pointer_chain_offsets) == 1
+            )
+            player_world = (
+                base
+                if world_rooted_player
+                else self._read_u32(player + self._world_field_offset)
+            )
         except NativeMonsterReadError:
             raise
         except Exception as error:

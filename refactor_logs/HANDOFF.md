@@ -123,9 +123,18 @@ structural worlds until spawn/HP/player validation chooses one, and reports
 `world_hypotheses` plus `spawn_world_hypotheses`. Bot Vision also draws a green
 rectangle and HP label over the validated status panel.
 
+The replacement run again OCRed `33750/33750`; 39 monsters produced six
+structural worlds, but none of those monster actor fields appeared in any of 46
+spawn structures. The local-player object therefore must be validated before,
+not through, the monster world field. Recovery now proves spawn X/Z, exact HP,
+self alias, player traits, and repeated stability first. It then probes only a
+bounded `0x4000` prefix of each module-rooted structural world for an exact
+player pointer. Only that shared-root chain or an actor-field match can advance
+to movement; an unrelated direct player module slot remains insufficient.
+
 ## Automated validation
 
-- Full canonical suite: 571 passed, 1 skipped in 13.35 seconds.
+- Full canonical suite: 573 passed, 1 skipped in 11.21 seconds.
 - Focused anchored/player-status/preview suite: 31 passed.
 - Changed production/test Ruff F/I: pass.
 - Native production BasedPyright: 0 errors; existing warning-level typing debt
@@ -141,7 +150,9 @@ rectangle and HP label over the validated status panel.
   player/monster HP role separation, same-session and restarted world-identity
   health rejection, displaced-vptr discovery, vtable-shape validation, config
   persistence, pointer-rich module-marker fallback, identity-kind health, and
-  cancellable preview construction.
+  cancellable preview construction. It also covers a local-player class with
+  no monster world field and scan-free ordinary snapshots through a persisted
+  world-rooted player chain.
 
 ## Provenance
 
