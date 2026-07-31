@@ -58,6 +58,7 @@ class PlayerPointerRecovery:
     player_pointer_chain_offsets: tuple[int, ...] = ()
     world_pointer_chain_offsets: tuple[int, ...] = ()
     world_field_offset: int | None = None
+    world_vtable_offset: int | None = None
     self_pointer_offset: int | None = None
     species_offset: int | None = None
     active_species_offset: int | None = None
@@ -120,6 +121,8 @@ class PointerRecoveryMetrics:
     inferred_world_actor_support: int = 0
     inferred_world_species_support: int = 0
     inferred_world_offset: int | None = None
+    inferred_world_vtable: int | None = None
+    world_object_rejections: int = 0
     inferred_self_actor_support: int = 0
     inferred_self_offset: int | None = None
     monster_base_hypotheses: int = 0
@@ -129,6 +132,8 @@ class PointerRecoveryMetrics:
     inferred_species_offset: int | None = None
     inferred_active_species_offset: int | None = None
     inferred_hp_offset: int | None = None
+    inferred_player_hp_offset: int | None = None
+    inferred_player_max_hp_offset: int | None = None
     inferred_x_offset: int | None = None
     inferred_y_offset: int | None = None
     inferred_z_offset: int | None = None
@@ -225,6 +230,8 @@ class _MetricsBuilder:
     inferred_world_actor_support: int = 0
     inferred_world_species_support: int = 0
     inferred_world_offset: int | None = None
+    inferred_world_vtable: int | None = None
+    world_object_rejections: int = 0
     inferred_self_actor_support: int = 0
     inferred_self_offset: int | None = None
     monster_base_hypotheses: int = 0
@@ -234,6 +241,8 @@ class _MetricsBuilder:
     inferred_species_offset: int | None = None
     inferred_active_species_offset: int | None = None
     inferred_hp_offset: int | None = None
+    inferred_player_hp_offset: int | None = None
+    inferred_player_max_hp_offset: int | None = None
     inferred_x_offset: int | None = None
     inferred_y_offset: int | None = None
     inferred_z_offset: int | None = None
@@ -320,6 +329,8 @@ class _MetricsBuilder:
             inferred_world_actor_support=self.inferred_world_actor_support,
             inferred_world_species_support=self.inferred_world_species_support,
             inferred_world_offset=self.inferred_world_offset,
+            inferred_world_vtable=self.inferred_world_vtable,
+            world_object_rejections=self.world_object_rejections,
             inferred_self_actor_support=self.inferred_self_actor_support,
             inferred_self_offset=self.inferred_self_offset,
             monster_base_hypotheses=self.monster_base_hypotheses,
@@ -329,6 +340,8 @@ class _MetricsBuilder:
             inferred_species_offset=self.inferred_species_offset,
             inferred_active_species_offset=self.inferred_active_species_offset,
             inferred_hp_offset=self.inferred_hp_offset,
+            inferred_player_hp_offset=self.inferred_player_hp_offset,
+            inferred_player_max_hp_offset=self.inferred_player_max_hp_offset,
             inferred_x_offset=self.inferred_x_offset,
             inferred_y_offset=self.inferred_y_offset,
             inferred_z_offset=self.inferred_z_offset,
@@ -1196,6 +1209,10 @@ def persist_recovered_pointer_offsets(
         layout_updates: dict[str, str] = {}
         if recovery.world_field_offset is not None:
             layout_updates["world_offset"] = f"0x{recovery.world_field_offset:X}"
+        if recovery.world_vtable_offset is not None:
+            layout_updates["world_vtable_offset"] = (
+                f"0x{recovery.world_vtable_offset:X}"
+            )
         if recovery.self_pointer_offset is not None:
             layout_updates["self_pointer_offset"] = (
                 f"0x{recovery.self_pointer_offset:X}"
@@ -1337,6 +1354,7 @@ def _verify_cached(
     memory: PointerRecoveryMemory,
     cached: PlayerPointerRecovery,
     config: NativeMonsterConfig,
+    module_base: int,
 ) -> bool:
     try:
         player = _u32(memory, cached.player_pointer_address)
@@ -1357,12 +1375,22 @@ def _verify_cached(
             if cached.world_field_offset is None
             else cached.world_field_offset
         )
+        world_vtable_offset = (
+            config.world_vtable_offset
+            if cached.world_vtable_offset is None
+            else cached.world_vtable_offset
+        )
         return (
             player == cached.player_base
             and world == cached.world_base
             and _u32(memory, cached.player_base + self_offset) == cached.player_base
             and _u32(memory, cached.player_base + world_field_offset)
             == cached.world_base
+            and (
+                world_vtable_offset is None
+                or _u32(memory, cached.world_base)
+                == int(module_base) + world_vtable_offset
+            )
         )
     except Exception:
         return False
@@ -1398,6 +1426,8 @@ def _record_anchor_evidence(
     metrics.inferred_world_actor_support = evidence.inferred_world_actor_support
     metrics.inferred_world_species_support = evidence.inferred_world_species_support
     metrics.inferred_world_offset = evidence.inferred_world_offset
+    metrics.inferred_world_vtable = evidence.inferred_world_vtable
+    metrics.world_object_rejections = evidence.world_object_rejections
     metrics.inferred_self_actor_support = evidence.inferred_self_actor_support
     metrics.inferred_self_offset = evidence.inferred_self_offset
     metrics.inferred_species_offset = evidence.inferred_species_offset
@@ -1405,6 +1435,8 @@ def _record_anchor_evidence(
         evidence.inferred_active_species_offset
     )
     metrics.inferred_hp_offset = evidence.inferred_hp_offset
+    metrics.inferred_player_hp_offset = evidence.inferred_player_hp_offset
+    metrics.inferred_player_max_hp_offset = evidence.inferred_player_max_hp_offset
     metrics.inferred_x_offset = evidence.inferred_x_offset
     metrics.inferred_y_offset = evidence.inferred_y_offset
     metrics.inferred_z_offset = evidence.inferred_z_offset
@@ -1522,10 +1554,11 @@ def _anchored_recovery(
         player_pointer_chain_offsets=candidate.player_pointer_chain_offsets,
         world_pointer_chain_offsets=candidate.world_pointer_chain_offsets,
         world_field_offset=candidate.world_field_offset,
+        world_vtable_offset=candidate.world_vtable - module_base,
         self_pointer_offset=candidate.self_pointer_offset,
         species_offset=candidate.species_offset,
         active_species_offset=candidate.active_species_offset,
-        hp_offset=candidate.hp_offset,
+        hp_offset=candidate.monster_hp_offset,
         x_offset=candidate.x_offset,
         y_offset=candidate.y_offset,
         z_offset=candidate.z_offset,
@@ -2017,7 +2050,12 @@ def recover_local_player_pointer(
         if cached is not None:
             try:
                 control.check()
-                cached_is_valid = _verify_cached(memory, cached, config)
+                cached_is_valid = _verify_cached(
+                    memory,
+                    cached,
+                    config,
+                    module_base,
+                )
                 control.check()
             except _AttemptStopped as stopped:
                 metrics = builder.freeze(stopped.outcome, now=clock())
@@ -2215,10 +2253,14 @@ def recover_local_player_pointer(
                 f" monster_hp_reject={metrics.monster_hp_rejections},"
                 f" monster_coord_reject={metrics.monster_coordinate_rejections},"
                 f" world_support={metrics.inferred_world_actor_support},"
+                f" world_vtable={None if metrics.inferred_world_vtable is None else f'0x{metrics.inferred_world_vtable:X}'},"
+                f" world_object_reject={metrics.world_object_rejections},"
                 f" self_support={metrics.inferred_self_actor_support},"
                 f" species_field={metrics.inferred_species_offset},"
                 f" active_field={metrics.inferred_active_species_offset},"
                 f" hp_field={metrics.inferred_hp_offset},"
+                f" player_hp_fields=({metrics.inferred_player_hp_offset},"
+                f"{metrics.inferred_player_max_hp_offset}),"
                 f" xyz_fields=({metrics.inferred_x_offset},"
                 f"{metrics.inferred_y_offset},{metrics.inferred_z_offset}),"
                 f" spawn_structures={metrics.spawn_structure_candidates},"

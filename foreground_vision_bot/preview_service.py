@@ -18,11 +18,13 @@ class PreviewService:
         preview_builder,
         *,
         preview_fps: float = 10.0,
+        cancellable_preview_builder=None,
     ) -> None:
         self._manager = manager
         self._bus = bus
         self._capture = capture
         self._preview_builder = preview_builder
+        self._cancellable_preview_builder = cancellable_preview_builder
         self._preview_interval = 1.0 / max(1.0, preview_fps)
         self._session_id: int | None = None
 
@@ -59,7 +61,12 @@ class PreviewService:
                 started_at = monotonic()
                 color, _gray = self._capture.snapshot()
                 if color is not None:
-                    preview = self._preview_builder(color)
+                    if self._cancellable_preview_builder is None:
+                        preview = self._preview_builder(color)
+                    else:
+                        preview = self._cancellable_preview_builder(color, token)
+                    if token.cancelled:
+                        break
                     self._bus.publish_latest("debug_frame", preview)
                     self._bus.heartbeat("preview")
                     if not live:

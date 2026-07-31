@@ -80,6 +80,13 @@ persisted; distinct tied actor layouts remain a hard failure. Automatic
 farming-startup recovery is in-memory only. A recovered player pointer may use
 the recovered world slot plus one bounded world-field offset when no direct
 player module slot exists; the normal one-hop chain reader handles that form.
+Only the HP offset inferred across monster actors is written to the monster
+layout. Player current/maximum HP offsets are validation evidence and may differ.
+Recovery also requires the inferred world target to retain a module-owned
+vtable through movement confirmation before any configuration write.
+Successful anchored recovery stores that identity as the module-relative
+`layout.world_vtable_offset`; subsequent startup and Native Health snapshots
+must observe the same module-owned vtable before reporting a healthy world.
 
 ## Maps, mobs, and model compatibility
 

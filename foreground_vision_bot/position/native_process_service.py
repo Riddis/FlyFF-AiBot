@@ -201,6 +201,7 @@ class NativeProcessService:
             monster_config.world_pointer_chain_offsets
         )
         self._world_field_offset = int(monster_config.world_offset)
+        self._world_vtable_offset = monster_config.world_vtable_offset
         self._self_pointer_offset = int(monster_config.self_pointer_offset)
         self._species_offset = int(monster_config.species_offset)
         self._active_species_offset = int(monster_config.active_species_offset)
@@ -291,6 +292,11 @@ class NativeProcessService:
             return self._world_field_offset
 
     @property
+    def world_vtable_offset(self) -> int | None:
+        with self._lock:
+            return self._world_vtable_offset
+
+    @property
     def self_pointer_offset(self) -> int:
         with self._lock:
             return self._self_pointer_offset
@@ -368,6 +374,7 @@ class NativeProcessService:
             world_chain = self._world_pointer_chain_offsets
             self_pointer_offset = self._self_pointer_offset
             world_field_offset = self._world_field_offset
+            world_vtable_offset = self._world_vtable_offset
             try:
                 player = self._resolve_pointer(player_pointer_address, player_chain)
                 world = self._resolve_pointer(world_pointer_address, world_chain)
@@ -399,6 +406,15 @@ class NativeProcessService:
                         "Player and world pointers are inconsistent; explicit "
                         "pointer recovery is required"
                     )
+                if (
+                    world_vtable_offset is not None
+                    and self._read_u32(world)
+                    != self._module_base + world_vtable_offset
+                ):
+                    raise NativePointerSnapshotError(
+                        "Current-world object identity is stale or invalid; "
+                        "explicit pointer recovery is required"
+                    )
                 # A map/login transition may race the four reads above. A
                 # second slot sample makes the returned pair coherent without
                 # widening the ordinary path into discovery or recovery.
@@ -410,6 +426,14 @@ class NativeProcessService:
                 ):
                     raise NativePointerSnapshotError(
                         "Player/world pointers changed during the snapshot"
+                    )
+                if (
+                    world_vtable_offset is not None
+                    and self._read_u32(world)
+                    != self._module_base + world_vtable_offset
+                ):
+                    raise NativePointerSnapshotError(
+                        "Current-world object identity changed during the snapshot"
                     )
             except NativePointerSnapshotError:
                 raise
@@ -500,6 +524,8 @@ class NativeProcessService:
                     )
                     if recovery.world_field_offset is not None:
                         self._world_field_offset = recovery.world_field_offset
+                    if recovery.world_vtable_offset is not None:
+                        self._world_vtable_offset = recovery.world_vtable_offset
                     if recovery.self_pointer_offset is not None:
                         self._self_pointer_offset = recovery.self_pointer_offset
                     if recovery.species_offset is not None:

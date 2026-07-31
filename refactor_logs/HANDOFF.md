@@ -3,7 +3,7 @@
 ## Current outcome
 
 The canonical refactor remains complete and the automated continuation for the
-current-client pointer break is implemented. `PTR-LIVE-004..015` are complete;
+current-client pointer break is implemented. `PTR-LIVE-004..018` are complete;
 `PTR-LIVE-001` stays open until the user returns one real Win32 stationary plus
 movement sample.
 
@@ -51,6 +51,24 @@ for the exact player address. This produces the existing one-hop chain shape
 without broadening readers or config. Same-target module/world fields are
 aliases; unrelated chains remain ambiguous and are counted explicitly.
 
+The next run reached movement confirmation but exposed a semantic false world:
+`0x3F800000`, the bit pattern for float `1.0`, was readable and widely present
+in the module image, so it outscored the real world despite not being a world
+object. The same transaction exposed that player full-health matching selected
+`0x81C` while monster consensus had independently found HP at `0x814`. The
+paired JSON transaction was restored byte-for-byte from its adjacent backups
+before any control run. Recovery now requires the shared world to retain a
+first-word vtable inside `Neuz.exe` through movement, and persists only the
+monster-consensus HP offset; player current/max fields remain anchor evidence.
+That vtable is stored as a module-relative layout offset and is required by
+ordinary snapshots in the live attachment, cached recovery, and a restarted
+service, preventing Native Health from blessing a readable scalar target.
+
+Closing after the run also left preview inside expensive template work beyond
+the shutdown join budget. Preview now receives cancellation inside that loop
+and exits between template matches. The existing timeout safety behavior still
+keeps resources open if a live worker genuinely cannot stop.
+
 The first strong result returns `movement_required` and is held only by the
 attachment's `NativeProcessService`. It is not applied or persisted. A second
 managed call resolves the same direct slot or one-hop chain and requires exact
@@ -76,8 +94,8 @@ both config files.
 
 ## Automated validation
 
-- Full canonical suite: 551 passed, 1 skipped in 11.38 seconds.
-- Focused pointer/native/controller suite: 91 passed.
+- Full canonical suite: 557 passed, 1 skipped in 10.16 seconds.
+- Focused recovery/persistence/diagnostic/preview/controller suite: 46 passed.
 - Changed production/test Ruff F/I: pass.
 - Native production BasedPyright: 0 errors; existing warning-level typing debt
   remains classified.
@@ -88,7 +106,9 @@ both config files.
   spawn/exact-HP ranking, HP update after movement, stationary rejection,
   one-hop player chains, runtime publication, and the no-write-before-movement
   invariant, null legacy player slots, duplicate direct world aliases, and
-  duplicate world-rooted player fields.
+  duplicate world-rooted player fields, scalar false-world rejection,
+  player/monster HP role separation, same-session and restarted world-identity
+  health rejection, config persistence, and cancellable preview construction.
 
 ## Provenance
 

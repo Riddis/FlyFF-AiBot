@@ -392,11 +392,17 @@ class Bot:
         self._cache_mob_points(points)
         return points
 
-    def _detect_visible_mobs(self, frame: np.ndarray) -> list[Point]:
+    def _detect_visible_mobs(
+        self,
+        frame: np.ndarray,
+        cancellation=None,
+    ) -> list[Point]:
         """Detect and deduplicate mob centers without drawing annotations."""
         raw_points: list[Point] = []
 
         for template in self._mob_templates:
+            if cancellation is not None and cancellation.cancelled:
+                break
             try:
                 matches, _drawn_frame = CV.match_template_multi(
                     frame=frame,
@@ -635,19 +641,29 @@ class Bot:
             return frame, debug
         return None, None
 
-    def build_preview(self, frame: np.ndarray) -> np.ndarray:
+    def build_preview(self, frame: np.ndarray, cancellation=None) -> np.ndarray:
         now = time()
         with self._frame_lock:
             detected_at = self._latest_mob_points_at
         if now - detected_at >= self._preview_detection_interval:
             gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-            self._cache_mob_points(self._detect_visible_mobs(gray))
+            self._cache_mob_points(
+                self._detect_visible_mobs(gray, cancellation=cancellation)
+            )
+
+        if cancellation is not None and cancellation.cancelled:
+            return frame
 
         self._draw_cached_mob_overlay(frame, now)
         self._draw_heading_overlay(frame, now)
         self._draw_kill_counter_overlay(frame, now)
         self._publish_native_monster_map(now)
         return frame
+
+    def build_preview_cancellable(self, frame: np.ndarray, cancellation) -> np.ndarray:
+        """Build a preview that can stop between expensive overlay stages."""
+
+        return self.build_preview(frame, cancellation=cancellation)
 
     def _publish_native_monster_map(self, now: float) -> None:
         """Publish the persistent map with native monster markers.

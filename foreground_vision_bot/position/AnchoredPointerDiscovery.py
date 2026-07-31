@@ -88,11 +88,15 @@ class AnchoredDiscoveryEvidence:
     inferred_world_actor_support: int = 0
     inferred_world_species_support: int = 0
     inferred_world_offset: int | None = None
+    inferred_world_vtable: int | None = None
+    world_object_rejections: int = 0
     inferred_self_actor_support: int = 0
     inferred_self_offset: int | None = None
     inferred_species_offset: int | None = None
     inferred_active_species_offset: int | None = None
     inferred_hp_offset: int | None = None
+    inferred_player_hp_offset: int | None = None
+    inferred_player_max_hp_offset: int | None = None
     inferred_x_offset: int | None = None
     inferred_y_offset: int | None = None
     inferred_z_offset: int | None = None
@@ -122,8 +126,10 @@ class AnchoredPointerCandidate:
     world_pointer_address: int
     world_pointer_chain_offsets: tuple[int, ...]
     world_field_offset: int
+    world_vtable: int
     self_pointer_offset: int
     hp_offset: int
+    monster_hp_offset: int
     max_hp_offset: int
     species_offset: int
     active_species_offset: int
@@ -595,13 +601,14 @@ def _monster_anchors(
 def _infer_world(
     anchors: tuple[_MonsterAnchor, ...],
     *,
+    memory: AnchoredDiscoveryMemory,
     configured_world_offset: int,
     module_start: int,
     module_stop: int,
     slot_refs: Mapping[int, list[int]],
     readable_contains: Callable[[int, int], bool],
     evidence: AnchoredDiscoveryEvidence,
-) -> tuple[int, int] | None:
+) -> tuple[int, int, int] | None:
     support: dict[tuple[int, int], set[int]] = defaultdict(set)
     species_support: dict[tuple[int, int], set[int]] = defaultdict(set)
     for actor in anchors:
@@ -618,7 +625,7 @@ def _infer_world(
             support[key].add(actor.base)
             species_support[key].add(actor.species)
 
-    ranked: list[tuple[tuple[int, int, int, int], int, int]] = []
+    ranked: list[tuple[tuple[int, int, int, int], int, int, int]] = []
     for (offset, value), actors in support.items():
         module_refs = len(slot_refs.get(value, ()))
         distinct_species = len(species_support[(offset, value)])
@@ -626,17 +633,33 @@ def _infer_world(
             continue
         if module_refs <= 0 and (len(actors) < 3 or distinct_species < 2):
             continue
+        # A shared scalar (notably float 1.0 / 0x3F800000) can look pointer-like
+        # when that virtual address happens to be readable and the module image
+        # contains the same literal. Require an actual C++-style world object:
+        # its stable first word must be a vtable inside this module image.
+        try:
+            if not readable_contains(value, 0x100):
+                raise ValueError("world object span is not readable")
+            world_vtable = int(struct.unpack("<I", memory.read(value, 4))[0])
+            if not module_start <= world_vtable < module_stop:
+                raise ValueError("world vtable is outside the module image")
+            repeated_vtable = int(struct.unpack("<I", memory.read(value, 4))[0])
+            if repeated_vtable != world_vtable:
+                raise ValueError("world vtable is unstable")
+        except Exception:
+            evidence.world_object_rejections += 1
+            continue
         score = (
             len(actors),
             distinct_species,
             min(module_refs, 8),
             -abs(offset - configured_world_offset),
         )
-        ranked.append((score, offset, value))
+        ranked.append((score, offset, value, world_vtable))
     ranked.sort(reverse=True)
     if not ranked:
         return None
-    best_score, offset, world = ranked[0]
+    best_score, offset, world, world_vtable = ranked[0]
     tied = [item for item in ranked[1:] if item[0] == best_score]
     if tied:
         evidence.anchor_ambiguities += len(tied) + 1
@@ -644,7 +667,8 @@ def _infer_world(
     evidence.inferred_world_actor_support = best_score[0]
     evidence.inferred_world_species_support = best_score[1]
     evidence.inferred_world_offset = offset
-    return offset, world
+    evidence.inferred_world_vtable = world_vtable
+    return offset, world, world_vtable
 
 
 def _aligned_value_offsets(data: bytes, value: int) -> tuple[int, ...]:
@@ -861,6 +885,7 @@ def discover_anchored_pointer_candidate(
         )
     inferred_world = _infer_world(
         anchors,
+        memory=memory,
         configured_world_offset=configured_world_field_offset,
         module_start=module_base,
         module_stop=module_stop,
@@ -875,7 +900,7 @@ def discover_anchored_pointer_candidate(
             evidence,
             "Monster consensus did not produce unique self/world fields.",
         )
-    world_field_offset, world_base = inferred_world
+    world_field_offset, world_base, world_vtable = inferred_world
 
     player_candidates: list[
         tuple[tuple[int, int, int, float], AnchoredPointerCandidate]
@@ -1034,8 +1059,10 @@ def discover_anchored_pointer_candidate(
             world_pointer_address=world_slot,
             world_pointer_chain_offsets=world_chain,
             world_field_offset=world_field_offset,
+            world_vtable=world_vtable,
             self_pointer_offset=selected_self_offset,
             hp_offset=selected_hp_offset,
+            monster_hp_offset=actor_layout.hp_offset,
             max_hp_offset=selected_max_offset,
             species_offset=actor_layout.species_offset,
             active_species_offset=actor_layout.active_species_offset,
@@ -1078,6 +1105,8 @@ def discover_anchored_pointer_candidate(
             "Multiple equally supported spawn/HP player candidates remain.",
         )
     evidence.inferred_self_offset = candidate.self_pointer_offset
+    evidence.inferred_player_hp_offset = candidate.hp_offset
+    evidence.inferred_player_max_hp_offset = candidate.max_hp_offset
     return AnchoredDiscoveryResult(
         "movement_required",
         candidate,
@@ -1120,6 +1149,16 @@ def confirm_anchored_movement(
             None,
             evidence,
             "Pending pointer slot/chain changed before movement confirmation.",
+        )
+    try:
+        if int(struct.unpack("<I", memory.read(world, 4))[0]) != candidate.world_vtable:
+            raise ValueError("world vtable changed")
+    except Exception:
+        return AnchoredDiscoveryResult(
+            "movement_candidate_stale",
+            None,
+            evidence,
+            "Pending world object identity changed before movement confirmation.",
         )
 
     readings: list[tuple[float, float, float]] = []

@@ -88,6 +88,16 @@ initiated by **Recover Pointers** in the diagnostic worker or once by farming
 startup in its control worker. The latter either verifies a coherent snapshot
 or returns a clean no-input outcome before focus/environment activation.
 
+World consensus is semantic, not just numerical: the shared target must expose
+a stable vtable inside the attached module image. This prevents common scalar
+bits such as float `1.0` (`0x3F800000`) from masquerading as a readable world
+pointer. Its module-relative identity is persisted and rechecked by ordinary
+pointer snapshots, including Native Health after restart. Monster-layout HP
+remains distinct from the player-specific HP fields
+used by the stationary/movement anchor. Preview template detection observes its
+cancellation token between expensive matches so shutdown is not forced to wait
+for the complete template set.
+
 `FarmingMapContext` loads the selected `MapCatalog` entry, coordinate frame,
 occupancy grid, safety mask, direct-path visibility, and buffered forbidden
 teleport mask. The farming package does not import mapper RL or adaptive

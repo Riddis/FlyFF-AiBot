@@ -129,5 +129,9 @@ Acceptance: repository is runnable, evidence is captured, docs are self-containe
 - [x] `PTR-LIVE-013` Require the player and movement samples to validate the selected self alias, expose alias evidence, and replace the live protocol.
 - [x] `PTR-LIVE-014` Resolve the confirmed spawn player through a bounded field of the already module-rooted shared world when no direct player slot exists.
 - [x] `PTR-LIVE-015` Distinguish same-target slot/chain aliases from different-root ambiguity, expose reference-stage evidence, and replace the live protocol.
+- [x] `PTR-LIVE-016` Reject shared scalar bit patterns as worlds by requiring a stable module-owned world vtable through movement confirmation.
+- [x] `PTR-LIVE-017` Separate player HP anchor fields from the monster-consensus HP layout and restore the false-positive transaction from its paired backups.
+- [x] `PTR-LIVE-018` Make expensive preview template iteration cancellation-aware and cover prompt preview shutdown.
+- [x] `PTR-LIVE-019` Persist the recovered module-relative world-vtable identity and require it in ordinary snapshots, cached recovery, restart health, and diagnostics.
 
 Acceptance: ordinary reads remain scan-free; recovery is bounded, cancellable, single-flight, and off Tk; accepted slots are stable and coherently validated; startup failure is concise and input-safe.

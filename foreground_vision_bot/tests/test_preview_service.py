@@ -45,3 +45,31 @@ def test_preview_service_publishes_built_frames_and_stops() -> None:
     assert frame is not None
     assert frame[0, 0].tolist() == [0, 255, 0]
     assert service.stop(1.0)
+
+
+def test_preview_service_passes_cancellation_into_expensive_builder() -> None:
+    bus = RuntimeBus()
+    manager = WorkerManager(bus)
+    entered = Event()
+
+    def build(_frame):
+        raise AssertionError("cancellable builder should be preferred")
+
+    def build_cancellable(frame, token):
+        entered.set()
+        while not token.cancelled:
+            token.wait(0.01)
+        return frame
+
+    service = PreviewService(
+        manager,
+        bus,
+        FakeCapture(),
+        build,
+        preview_fps=30.0,
+        cancellable_preview_builder=build_cancellable,
+    )
+    service.start()
+
+    assert entered.wait(1.0)
+    assert service.stop(0.5)

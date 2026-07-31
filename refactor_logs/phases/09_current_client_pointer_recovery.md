@@ -206,3 +206,58 @@ and unresolved reference ambiguities. Automated coverage sets the legacy player
 slot to null, supplies duplicate direct world aliases and duplicate player
 fields under that world, and proves no-write first-stage plus movement-confirmed
 publication. The full suite passes with 551 passed and 1 skipped.
+
+## Sixth anchored live result
+
+The first stage finally reached `movement_required`: 52 actors agreed on one
+layout, four self aliases, and one stable exact spawn/HP player. The player had
+a direct module slot, so zero raw/chain-search counts were correct rather than a
+failure. After 13.328 native units of coherent movement, recovery applied and
+reported healthy. The resulting world was `0x3F800000`, however, with actor
+field `0x14C` and module offset `0x110014`. `0x3F800000` is the IEEE-754 bit
+pattern for float `1.0`; a common scalar had passed pointer readability and
+module-reference scoring. The transaction also changed monster HP from the
+consensus `0x814` to the player full-health match `0x81C`. These results are not
+safe despite the prior syntactic health check.
+
+Both tracked JSON files were restored byte-for-byte from the paired
+`.pre_pointer_recovery.bak` files before any dry-run/control work. The backups
+remain locally as evidence and are now ignored runtime artifacts. The restored
+configs again contain player `0x5852B8`, world `0x596C6C`, world field `0x16C`,
+monster HP `0x814`, active species `0x1DBC`, and self `0x1EE0`.
+
+World inference now requires at least `0x100` readable bytes and a stable
+first-word vtable inside the attached `Neuz.exe` image. Movement confirmation
+rechecks the exact vtable before publication. Diagnostics expose the selected
+vtable and the number of rejected shared pointer-like non-objects. The anchored
+candidate now carries separate player HP/max-HP fields and monster-consensus HP;
+only the latter enters `PlayerPointerRecovery`, runtime monster state, and the
+paired config transaction.
+
+The same session's final close timed out waiting for preview. Resources remained
+open as designed, but preview had no cancellation access while iterating costly
+template matches. `PreviewService` now supplies its token to the production
+builder, and `Bot` checks it between templates and before later overlays. A
+blocking cancellable-builder regression proves prompt preview join while the
+existing retryable shutdown safety boundary remains intact.
+
+Automated tests reproduce the exact scalar false-world shape with eight module
+references, divergent player/monster HP fields, and preview cancellation. The
+full suite passes with 554 passed and 1 skipped.
+
+## Post-run health hardening
+
+The false world also revealed that ordinary `Native Health` checked pointer
+coherence but not world-object identity, so the same scalar target could be
+reported healthy after recovery. Anchored recovery now carries and
+transactionally persists the confirmed vtable as a module-relative
+`layout.world_vtable_offset`. The shared process service checks the exact
+module-relative identity on every ordinary pointer snapshot, applies it to the
+same live attachment after recovery, and reloads it on restart. Cached recovery
+also rejects a changed identity. Diagnostics expose the persisted offset in
+hexadecimal form.
+
+Automated coverage proves same-session invalidation, restart invalidation,
+config parsing/persistence, and diagnostic visibility. Together with the
+false-scalar, HP-role, and preview-cancellation regressions, the full suite
+passes with 557 passed and 1 skipped; the focused gate passes 46 tests.

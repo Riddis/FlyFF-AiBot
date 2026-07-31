@@ -38,9 +38,12 @@ of that exact candidate.
    repeated, same-cohort self fields are validated aliases, not different actor
    layouts. It must also print the exact entered spawn/HP anchors and the
    `player_refs`, `player_world_chains`, and `player_ref_ambiguous` counts. A
-   world-rooted player chain is expected when the legacy direct player slot is
-   null; same-target chain aliases are allowed, while reference ambiguity must
-   be zero.
+   direct player slot or a world-rooted player chain is valid; same-target chain
+   aliases are allowed, while reference ambiguity must be zero. The log must
+   also report a `world_vtable` inside `0xB0000-0x9F3000` and may report nonzero
+   `world_object_reject` for scalar impostors. `world=0x3F800000` is an explicit
+   stop condition. `hp_field` is the monster layout; `player_hp_fields` may
+   differ and must not replace it.
    Neither JSON config may change and no recovery backup may be created yet.
 5. If the first result is anything other than `recovery_movement_required`,
    stop the protocol without retrying and return the complete log and unchanged
@@ -60,17 +63,22 @@ of that exact candidate.
    advanced. This call must not repeat the full module/private-memory scan.
    Both configs must update together: matching player relative slot and player
    chain, the monster world slot/chain, and inferred `layout.world_offset` and
-   `layout.self_pointer_offset`. Adjacent pre-recovery backups must preserve the
-   prior files.
+   `layout.self_pointer_offset`. The monster layout must also contain a
+   module-relative `layout.world_vtable_offset`. Adjacent pre-recovery backups
+   must preserve the prior files.
 9. Click **Native Health** once. Expect `healthy`, the same module identity,
-   the recovered chain/field summary, and a Tower local coordinate consistent
-   with the short movement.
+   the recovered chain/field summary including the non-null hexadecimal
+   `world_vtable_offset`, and a Tower local coordinate consistent with the
+   short movement. Any world-identity error or missing persisted vtable is a
+   stop condition; do not run dry-run.
 10. Put a harmless application in the foreground and start **Native Dry Run
     (No Learning)**. Native preflight must succeed before autofocus or any
     input. Let it run 10-15 seconds, then press **Stop** once. Verify prompt
     completion and released movement keys.
 11. Close the application. Expect bounded worker joins, final input release,
-    and no lingering `flyff-*` project worker.
+    and no lingering `flyff-*` project worker. In particular, preview must
+    observe cancellation between expensive template matches and join within
+    the normal shutdown budget.
 
 ## Stop conditions
 

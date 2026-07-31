@@ -1,6 +1,6 @@
 # Refactor Status
 
-- Phase: live-derived world-rooted player-chain correction complete; awaiting one replacement `PTR-LIVE-001` pass.
+- Phase: false-world/HP persistence and preview-shutdown correction complete; awaiting one replacement `PTR-LIVE-001` pass.
 - Branch: `feature/adaptive-mapper`.
 - Validated anchored implementation checkpoint: `84559c6ce6ff63a86604a4c71aff8ae2308cdb98`; this journal reconciliation follows it.
 - Validated local actor-layout correction checkpoint: `abd8f9e1cabaa4ea033ee221dbf2145b1470fffb`; final journal reconciliation follows it.
@@ -10,7 +10,7 @@
 - Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through `protected/pre-codex-refactor` and `backup/pre-codex-refactor`.
 - Production route: `runtime_controller.py -> farming.trainer -> UnifiedFarmingEnv / SessionAwarePPO`.
 - Active model: `models/farming/native_strategy_ppo.zip`; SHA-256 `3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2` unchanged.
-- Latest automated acceptance: 551 passed, 1 skipped in 11.38 seconds.
+- Latest automated acceptance: 557 passed, 1 skipped in 10.16 seconds.
 - Quality: changed production/test scope passes Ruff F/I; native production BasedPyright reports zero errors (existing warning-level typing debt remains); diff hygiene passes.
 - Live evidence retained: `Neuz.exe` base `0xB0000`, size `0x943000`, 32-bit; all 4,096 legacy candidates rejected at the historical self field. GUI responsiveness, cancellation, no-input startup failure, Stop, and shutdown passed.
 - Implemented next strategy: selected species consensus, inferred current world/self actor fields, Tower spawn `(253.0, 86.0)` plus exact current/max HP ranking, stable direct/one-hop module references, and mandatory second-sample movement confirmation.
@@ -29,3 +29,7 @@
 - Latest live evidence: actor layout and world discovery fully passed with 43 actors, `layout_ties=0`, four self aliases, inferred fields, 43-actor world support, and exactly one stable spawn/HP/player object. Recovery stopped only because no direct or legacy one-hop module reference reached that confirmed player; nothing was persisted.
 - Implemented correction: resolve the world module reference first, then search only a bounded `0x4000` field range under that exact world for references to the confirmed player. Same-target direct slots and same-world fields are aliases; unrelated multi-root chains remain ambiguous. New `player_refs`, `player_world_chains`, and `player_ref_ambiguous` metrics expose the reference stage.
 - Automated acceptance: 551 passed, 1 skipped in 11.38 seconds. The exact null-player-slot/world-rooted-chain case passes through mandatory movement with duplicate world-slot and player-field aliases.
+- Latest live evidence: movement confirmation succeeded, but the accepted world was `0x3F800000` (float `1.0` bits), world field `0x14C`, and module slot offset `0x110014`; exact HP also selected the player field `0x81C` despite monster consensus at `0x814`. The paired transaction was immediately restored byte-for-byte from its backups before control was run. Shutdown then reported a preview join timeout while preserving resources.
+- Implemented correction: a world target must have a stable first-word vtable inside `Neuz.exe` both before and after movement; shared readable scalars cannot qualify. Player HP/max-HP offsets are diagnostic anchor fields only, while persistence retains the independently inferred monster HP layout. Preview mob-template iteration receives cooperative cancellation between matches. Recovery backup files are ignored but retained locally as evidence.
+- Health hardening: anchored recovery persists the confirmed module-relative `layout.world_vtable_offset`; same-session, cached, and restarted ordinary snapshots require that exact identity before Native Health can report healthy.
+- Automated acceptance: 557 passed, 1 skipped in 10.16 seconds; 46 focused tests pass. Regressions reproduce a readable `0x3F800000` target with eight module references, divergent player/monster HP fields, a cancellation-blocked preview builder, and world-identity changes both before and after restart.

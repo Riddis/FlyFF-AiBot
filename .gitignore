@@ -35,3 +35,6 @@ training_logs/movement/
 
 # One-time layout repair backups
 migration_backups/
+
+# Transactional native-pointer recovery backups
+*.pre_pointer_recovery.bak

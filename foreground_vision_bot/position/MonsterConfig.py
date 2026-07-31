@@ -51,6 +51,12 @@ def _parse_offset_list(value: object, *, field_name: str) -> tuple[int, ...]:
     return result
 
 
+def _parse_optional_int(value: object, *, field_name: str) -> int | None:
+    if value is None:
+        return None
+    return _parse_int(value, field_name=field_name)
+
+
 @dataclass(frozen=True, slots=True)
 class NativeMonsterConfig:
     """Read-only FlyFF actor-pool layout and discovery settings."""
@@ -68,6 +74,7 @@ class NativeMonsterConfig:
     y_offset: int = 0x164
     z_offset: int = 0x168
     world_offset: int = 0x16C
+    world_vtable_offset: int | None = None
     species_offset: int = 0x174
     hp_offset: int = 0x814
     active_species_offset: int = 0x1DBC
@@ -111,6 +118,10 @@ class NativeMonsterConfig:
         for name in offset_fields:
             if getattr(self, name) < 0:
                 raise MonsterConfigurationError(f"{name} cannot be negative")
+        if self.world_vtable_offset is not None and self.world_vtable_offset < 0:
+            raise MonsterConfigurationError(
+                "world_vtable_offset cannot be negative"
+            )
 
         if not isinstance(self.private_memory_only, bool):
             raise MonsterConfigurationError(
@@ -212,6 +223,10 @@ class NativeMonsterConfig:
             world_offset=_parse_int(
                 layout.get("world_offset", "0x16C"),
                 field_name="layout.world_offset",
+            ),
+            world_vtable_offset=_parse_optional_int(
+                layout.get("world_vtable_offset"),
+                field_name="layout.world_vtable_offset",
             ),
             species_offset=_parse_int(
                 layout.get("species_offset", "0x174"),
