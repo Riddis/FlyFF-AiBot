@@ -40,3 +40,52 @@ inside the managed control worker, before focus or environment activation.
 - Ordinary reads do not scan and concurrent recovery remains single-flight.
 - Startup success proceeds only after a coherent snapshot; startup failure and cancellation create no input/focus/environment side effect or traceback.
 - Explicit recovery requests transactional persistence; automatic startup does not.
+
+## PTR-LIVE-001 live evidence
+
+The current client reported `Neuz.exe` base `0xB0000`, size `0x943000`, and
+32-bit pointers. Module-image discovery retained about 172,700 target references
+and reached the 4,096 candidate-validation cap. Every candidate failed the old
+self pointer check; no candidate reached a world-null, coordinate, HP,
+player-kind, stability, or ambiguity rejection. The GUI remained responsive
+apart from slight worker CPU lag. Cancellation, expected no-input dry-run
+failure, Stop, and shutdown were clean.
+
+This uniform result makes the old `self_pointer_offset` an unsupported entry
+gate for the current build. The next strategy must search known species actors,
+infer shared world/self fields by consensus, rank a local-player object using
+the Tower spawn `(253.0, 86.0)`, exact HP and temporal evidence, and require a
+controlled movement correlation before publishing a legacy-self-independent
+result. Repeating only the same module scan or accepting generic coordinate/HP
+objects is prohibited.
+
+## Anchored implementation and automated acceptance
+
+`AnchoredPointerDiscovery` now performs one bounded private-memory anchor pass
+for selected species and the spawn X value, then validates surrounding actor
+structure rather than treating a raw value hit as an object. Two or more active
+monster actors must establish consensus for a shared world object and a current
+self field. Player candidates must match full spawn X/Z proximity, plausible Y,
+exact current and maximum HP fields, shared world, player characteristics, and
+three stable reads. Direct module references are preferred; one unambiguous
+module-slot-to-holder hop is representable by the canonical readers.
+
+The first valid sample returns `movement_required` and remains attachment-local;
+it cannot be applied or persisted. A later call resolves only the pending
+slot/chain and requires exact updated current HP, unchanged maximum HP, coherent
+world/self/coordinates, at least 0.5 native units of displacement, and three
+stable final reads. Only `movement_confirmed` publishes and transactionally
+persists slots, chains, and inferred layout fields.
+
+Legacy candidates rejected at the historical self field now receive a separate,
+diagnostic-only structural probe for world, module-world reference, coordinates,
+HP, and player likeness. This work is capped at 1,024 candidates and cannot
+promote a legacy rejection. Anchor scanning is bounded to 1 GiB, deadline- and
+cancellation-aware, single-flight, worker-owned, and reports progress at 64 MiB
+intervals.
+
+Automated acceptance is complete: the full canonical suite reports 545 passed
+and 1 skipped. Fake current-client coverage proves shifted self/world fields,
+species consensus, spawn/HP ranking, exact HP update after movement, stationary
+rejection, one-hop player chains, service publication, and no persistence before
+movement. Real Win32 acceptance remains `PTR-LIVE-001`.

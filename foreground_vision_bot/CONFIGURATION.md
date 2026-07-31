@@ -51,10 +51,13 @@ config can be read; they are never consumed or emitted.
 ## Native memory
 
 - `position/native_position.json` defines the module-relative player pointer,
-  coordinate offsets, heading representation, and coordinate sanity bound.
+  optional one-hop `pointer_chain_offsets`, coordinate offsets, heading
+  representation, and coordinate sanity bound.
 - `position/native_monsters.json` defines the shared player/world pointers,
+  optional `player_pointer_chain_offsets` and `world_pointer_chain_offsets`,
   actor layout, selected actor field, actor radius, and explicit discovery
-  budget. Hex offsets are strings such as `"0x5852B8"`.
+  budget. Chain fields are arrays of hex offsets and contain at most one hop;
+  scalar hex offsets remain strings such as `"0x5852B8"`.
 
 Both providers are composed around one `NativeProcessService`. Never update
 only one copy of a shared pointer offset. Interrupted paired updates are rolled
@@ -64,9 +67,13 @@ file.
 The configured offsets are cheap startup hints, not recovery search bounds.
 On the real Win32 backend, managed recovery scans the reported `Neuz.exe`
 module image and discovers player/world globals independently. **Recover
-Pointers** may replace both JSON offsets only after repeated coherent validation
-and a transactional paired write; automatic farming-startup recovery is
-in-memory only.
+Pointers** can additionally use selected monster species, Tower spawn native
+pose `(253.0, 86.0)`, and operator-supplied exact current/maximum HP to infer a
+changed actor layout. The first stable sample is retained only in attachment
+memory. A later controlled-movement sample must validate the same slot/chain,
+world, inferred fields, exact HP, and stable final pose before both JSON files
+are replaced transactionally. Automatic farming-startup recovery is in-memory
+only.
 
 ## Maps, mobs, and model compatibility
 

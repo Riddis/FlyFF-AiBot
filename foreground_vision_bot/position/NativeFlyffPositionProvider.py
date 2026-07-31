@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from itertools import combinations
 from statistics import median
 from time import monotonic
+from typing import cast
 
 from .native_process_service import (
     NativePointerSnapshot,
@@ -113,7 +114,7 @@ class NativeFlyffPositionProvider:
         clock: Callable[[], float] = monotonic,
     ) -> NativeFlyffPositionProvider:
         return cls(
-            native_service.memory,  # type: ignore[arg-type]
+            cast(Win32ProcessMemory, cast(object, native_service.memory)),
             config,
             clock=clock,
             native_service=native_service,
@@ -203,9 +204,12 @@ class NativeFlyffPositionProvider:
         try:
             raw = self._memory.read(pointer_storage, 4)
             target = int(struct.unpack("<I", raw)[0])
+            for offset in self.config.pointer_chain_offsets:
+                raw = self._memory.read(target + offset, 4)
+                target = int(struct.unpack("<I", raw)[0])
         except Exception as error:
             raise PointerResolutionError(
-                f"Could not read 32-bit player pointer at 0x{pointer_storage:X}: "
+                f"Could not resolve 32-bit player pointer at 0x{pointer_storage:X}: "
                 f"{type(error).__name__}: {error}"
             ) from error
         if target == 0:

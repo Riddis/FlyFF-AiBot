@@ -65,10 +65,17 @@ stale pointer returns a cheap typed unavailable state. Recovery scans the
 actual module image when Win32 module metadata is available, correlates player
 and world slots independently, rejects ambiguous/unstable candidates, and
 falls back to bounded configured-slot bands only for backends without an image
-extent. It may be initiated by **Recover Pointers** in the diagnostic worker or
-once by farming startup in its control worker. The latter either verifies a
-coherent snapshot or returns a clean no-input outcome before focus/environment
-activation.
+extent. When the historical actor fields fail, explicit recovery can scan
+private memory once for selected monster species and the Tower spawn X value.
+It validates multiple active monster objects, infers shared world/self fields
+by consensus, and ranks player objects by the full spawn transform, exact
+current/maximum HP, shared world, player characteristics, and repeated reads.
+An accepted candidate still requires a second, post-movement stationary sample.
+Only then may the service publish a direct module slot or one unambiguous
+pointer-chain hop and transactionally persist the inferred layout. It may be
+initiated by **Recover Pointers** in the diagnostic worker or once by farming
+startup in its control worker. The latter either verifies a coherent snapshot
+or returns a clean no-input outcome before focus/environment activation.
 
 `FarmingMapContext` loads the selected `MapCatalog` entry, coordinate frame,
 occupancy grid, safety mask, direct-path visibility, and buffered forbidden

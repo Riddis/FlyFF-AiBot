@@ -41,6 +41,7 @@ class _DiagnosticService:
         *,
         wait_for_cancel: bool = False,
         ignore_cancel: bool = False,
+        forced_outcome: NativeRecoveryOutcome | None = None,
     ) -> None:
         self.memory = SimpleNamespace(pid=7123)
         self.module_base = 0x10000000
@@ -58,6 +59,7 @@ class _DiagnosticService:
         self.readable_region_calls = 0
         self.wait_for_cancel = wait_for_cancel
         self.ignore_cancel = ignore_cancel
+        self.forced_outcome = forced_outcome
         self.entered = Event()
         self.release = Event()
         self.recovery_kwargs: dict[str, object] = {}
@@ -93,7 +95,7 @@ class _DiagnosticService:
             assert cancellation.wait(2.0)
             outcome = NativeRecoveryOutcome.CANCELLED
         else:
-            outcome = NativeRecoveryOutcome.NOT_FOUND
+            outcome = self.forced_outcome or NativeRecoveryOutcome.NOT_FOUND
         metrics = _metrics(outcome.value)
         status_callback(
             PointerRecoveryProgress(
@@ -136,10 +138,13 @@ class _DiagnosticBot:
             "show_frames": False,
             "selected_map_name": "Tower AoE",
             "dynamic_kill_counter": True,
+            "selected_mobs": [{"species_id": 944}, {"species_id": 948}],
         }
         self._native_map_overlay_name = "Tower AoE"
         self._native_map_overlay = SimpleNamespace(
             coordinate_frame=SimpleNamespace(
+                origin_native_x=253.0,
+                origin_native_z=86.0,
                 to_local_cells=lambda x, z: (x / 1.6, z / 1.6)
             )
         )
@@ -208,6 +213,25 @@ def test_detached_health_is_a_typed_report() -> None:
     json.dumps(snapshot.to_dict())
 
 
+def test_movement_required_is_a_typed_non_error_diagnostic() -> None:
+    service = _DiagnosticService(
+        forced_outcome=NativeRecoveryOutcome.MOVEMENT_REQUIRED
+    )
+    bot = _DiagnosticBot(service)
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert report.outcome is NativeDiagnosticOutcome.RECOVERY_MOVEMENT_REQUIRED
+    assert report.error is None
+
+
 def test_managed_health_logs_supported_runtime_summary() -> None:
     bot = _DiagnosticBot(_DiagnosticService())
     bus = RuntimeBus()
@@ -234,7 +258,12 @@ def test_managed_recovery_uses_worker_token_deadline_and_progress() -> None:
     bus = RuntimeBus()
     controller = RuntimeController(bot, bus)
 
-    session_id = controller.start_native_diagnostic(recover=True, timeout=2.0)
+    session_id = controller.start_native_diagnostic(
+        recover=True,
+        timeout=2.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
     assert service.entered.wait(1.0)
     diagnostic_threads = [
         thread
@@ -259,6 +288,12 @@ def test_managed_recovery_uses_worker_token_deadline_and_progress() -> None:
     assert completion.result.progress_updates >= 3
     json.dumps(completion.result.to_dict())
     assert service.recovery_kwargs["persist"] is True
+    hints = service.recovery_kwargs["hints"]
+    assert hints.known_species_ids == (944, 948)
+    assert hints.player_spawn_x == 253.0
+    assert hints.player_spawn_z == 86.0
+    assert hints.player_current_hp == 5000
+    assert hints.player_max_hp == 6000
     assert completion.result.persistence_requested is True
     token = service.recovery_kwargs["cancellation"]
     assert token.cancelled

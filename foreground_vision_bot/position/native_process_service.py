@@ -9,6 +9,7 @@ from threading import RLock
 from time import monotonic
 from typing import Protocol
 
+from .AnchoredPointerDiscovery import PointerRecoveryHints
 from .MonsterConfig import NativeMonsterConfig
 from .NativePointerRecovery import (
     DEFAULT_RECOVERY_TIMEOUT_SECONDS,
@@ -57,6 +58,14 @@ class NativeRecoveryOutcome(str, Enum):
     NEGATIVE_CACHE = "negative_cache"
     ERROR = "error"
     SHARED_UNKNOWN = "shared_unknown"
+    ANCHOR_HINTS_REQUIRED = "anchor_hints_required"
+    MONSTER_CONSENSUS_NOT_FOUND = "monster_consensus_not_found"
+    ACTOR_LAYOUT_INCONCLUSIVE = "actor_layout_inconclusive"
+    SPAWN_PLAYER_NOT_FOUND = "spawn_player_not_found"
+    ANCHOR_AMBIGUOUS = "anchor_ambiguous"
+    MOVEMENT_REQUIRED = "movement_required"
+    MOVEMENT_NOT_OBSERVED = "movement_not_observed"
+    MOVEMENT_CANDIDATE_STALE = "movement_candidate_stale"
 
     @classmethod
     def from_metrics(cls, metrics: PointerRecoveryMetrics) -> NativeRecoveryOutcome:
@@ -149,6 +158,14 @@ class NativeProcessService:
                     "Position and monster configs disagree on the local-player "
                     "pointer offset"
                 )
+            if (
+                position_config.pointer_chain_offsets
+                != monster_config.player_pointer_chain_offsets
+            ):
+                raise NativeProcessServiceError(
+                    "Position and monster configs disagree on the local-player "
+                    "pointer chain"
+                )
 
         module_info_fn = getattr(self._memory, "module_info", None)
         module_info: ModuleInfo | None = None
@@ -168,12 +185,23 @@ class NativeProcessService:
         self._module_name = module_name
         self._pointer_width_bytes = 4
         self._configured_player_pointer_offset = int(configured_player_offset)
+        self._configured_world_pointer_offset = int(
+            monster_config.world_pointer_offset
+        )
         self._player_pointer_address = (
             self._module_base + self._configured_player_pointer_offset
         )
         self._world_pointer_address = (
             self._module_base + monster_config.world_pointer_offset
         )
+        self._player_pointer_chain_offsets = tuple(
+            monster_config.player_pointer_chain_offsets
+        )
+        self._world_pointer_chain_offsets = tuple(
+            monster_config.world_pointer_chain_offsets
+        )
+        self._world_field_offset = int(monster_config.world_offset)
+        self._self_pointer_offset = int(monster_config.self_pointer_offset)
 
     @classmethod
     def from_window_handle(
@@ -239,7 +267,27 @@ class NativeProcessService:
 
     @property
     def configured_world_pointer_offset(self) -> int:
-        return int(self.monster_config.world_pointer_offset)
+        return self._configured_world_pointer_offset
+
+    @property
+    def player_pointer_chain_offsets(self) -> tuple[int, ...]:
+        with self._lock:
+            return self._player_pointer_chain_offsets
+
+    @property
+    def world_pointer_chain_offsets(self) -> tuple[int, ...]:
+        with self._lock:
+            return self._world_pointer_chain_offsets
+
+    @property
+    def world_field_offset(self) -> int:
+        with self._lock:
+            return self._world_field_offset
+
+    @property
+    def self_pointer_offset(self) -> int:
+        with self._lock:
+            return self._self_pointer_offset
 
     @property
     def player_pointer_address(self) -> int:
@@ -263,6 +311,16 @@ class NativeProcessService:
     def _read_u32(self, address: int) -> int:
         return int(struct.unpack("<I", self._memory.read(address, 4))[0])
 
+    def _resolve_pointer(
+        self,
+        pointer_address: int,
+        chain_offsets: tuple[int, ...],
+    ) -> int:
+        value = self._read_u32(pointer_address)
+        for offset in chain_offsets:
+            value = self._read_u32(value + offset)
+        return value
+
     def read_pointer_snapshot(self) -> NativePointerSnapshot:
         """Read one stable player/world state without scanning or recovery."""
 
@@ -270,9 +328,13 @@ class NativeProcessService:
             self._require_open()
             player_pointer_address = self._player_pointer_address
             world_pointer_address = self._world_pointer_address
+            player_chain = self._player_pointer_chain_offsets
+            world_chain = self._world_pointer_chain_offsets
+            self_pointer_offset = self._self_pointer_offset
+            world_field_offset = self._world_field_offset
             try:
-                player = self._read_u32(player_pointer_address)
-                world = self._read_u32(world_pointer_address)
+                player = self._resolve_pointer(player_pointer_address, player_chain)
+                world = self._resolve_pointer(world_pointer_address, world_chain)
                 if player <= 0:
                     raise NativePointerSnapshotError(
                         "Local-player pointer is null; explicit pointer recovery "
@@ -285,7 +347,7 @@ class NativeProcessService:
                     )
                 if (
                     self._read_u32(
-                        player + self.monster_config.self_pointer_offset
+                        player + self_pointer_offset
                     )
                     != player
                 ):
@@ -294,7 +356,7 @@ class NativeProcessService:
                         "pointer recovery is required"
                     )
                 if (
-                    self._read_u32(player + self.monster_config.world_offset)
+                    self._read_u32(player + world_field_offset)
                     != world
                 ):
                     raise NativePointerSnapshotError(
@@ -305,8 +367,10 @@ class NativeProcessService:
                 # second slot sample makes the returned pair coherent without
                 # widening the ordinary path into discovery or recovery.
                 if (
-                    self._read_u32(player_pointer_address) != player
-                    or self._read_u32(world_pointer_address) != world
+                    self._resolve_pointer(player_pointer_address, player_chain)
+                    != player
+                    or self._resolve_pointer(world_pointer_address, world_chain)
+                    != world
                 ):
                     raise NativePointerSnapshotError(
                         "Player/world pointers changed during the snapshot"
@@ -335,6 +399,7 @@ class NativeProcessService:
         deadline: float | None = None,
         timeout_seconds: float = DEFAULT_RECOVERY_TIMEOUT_SECONDS,
         status_callback: PointerRecoveryStatusCallback | None = None,
+        hints: PointerRecoveryHints | None = None,
     ) -> NativeRecoveryResult:
         """Synchronously run explicit recovery under this attachment owner."""
 
@@ -363,6 +428,7 @@ class NativeProcessService:
                 timeout_seconds=timeout_seconds,
                 status_callback=status_callback,
                 clock=self._clock,
+                hints=hints,
             )
             metrics = self._recovery_state.metrics_for(
                 int(getattr(self._memory, "pid", 0)),
@@ -381,8 +447,25 @@ class NativeProcessService:
                 )
                 if applied and recovery is not None:
                     self._player_pointer_address = recovery.player_pointer_address
+                    self._configured_player_pointer_offset = (
+                        recovery.player_pointer_offset
+                    )
                     if recovery.world_pointer_address is not None:
                         self._world_pointer_address = recovery.world_pointer_address
+                    if recovery.world_pointer_offset is not None:
+                        self._configured_world_pointer_offset = (
+                            recovery.world_pointer_offset
+                        )
+                    self._player_pointer_chain_offsets = tuple(
+                        recovery.player_pointer_chain_offsets
+                    )
+                    self._world_pointer_chain_offsets = tuple(
+                        recovery.world_pointer_chain_offsets
+                    )
+                    if recovery.world_field_offset is not None:
+                        self._world_field_offset = recovery.world_field_offset
+                    if recovery.self_pointer_offset is not None:
+                        self._self_pointer_offset = recovery.self_pointer_offset
                     self._generation += 1
                 result = NativeRecoveryResult(
                     outcome=NativeRecoveryOutcome.from_metrics(metrics),

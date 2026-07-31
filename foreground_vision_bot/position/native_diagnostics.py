@@ -7,6 +7,7 @@ from math import isfinite
 from time import monotonic
 from typing import Any, cast
 
+from .AnchoredPointerDiscovery import PointerRecoveryHints
 from .native_process_service import (
     NativePointerSnapshot,
     NativePointerSnapshotError,
@@ -79,6 +80,10 @@ class NativeHealthSnapshot:
     pointer_width_bytes: int | None = None
     configured_player_pointer_offset: int | None = None
     configured_world_pointer_offset: int | None = None
+    player_pointer_chain_offsets: tuple[int, ...] = ()
+    world_pointer_chain_offsets: tuple[int, ...] = ()
+    world_field_offset: int | None = None
+    self_pointer_offset: int | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-friendly recursive dataclass representation."""
@@ -94,6 +99,10 @@ class NativeDiagnosticOutcome(str, Enum):
     RECOVERY_NOT_FOUND = "recovery_not_found"
     RECOVERY_DEADLINE = "recovery_deadline"
     RECOVERY_CANCELLED = "recovery_cancelled"
+    RECOVERY_HINTS_REQUIRED = "recovery_hints_required"
+    RECOVERY_MOVEMENT_REQUIRED = "recovery_movement_required"
+    RECOVERY_MOVEMENT_NOT_OBSERVED = "recovery_movement_not_observed"
+    RECOVERY_ANCHOR_INCONCLUSIVE = "recovery_anchor_inconclusive"
     ERROR = "error"
 
 
@@ -176,6 +185,10 @@ def collect_native_health(
     configured_world_offset = _optional_int(
         getattr(service, "configured_world_pointer_offset", None)
     )
+    player_chain = tuple(getattr(service, "player_pointer_chain_offsets", ()))
+    world_chain = tuple(getattr(service, "world_pointer_chain_offsets", ()))
+    world_field_offset = _optional_int(getattr(service, "world_field_offset", None))
+    self_pointer_offset = _optional_int(getattr(service, "self_pointer_offset", None))
     player_pointer_address = _optional_int(
         getattr(service, "player_pointer_address", None)
     )
@@ -202,6 +215,10 @@ def collect_native_health(
             pointer_width_bytes=pointer_width_bytes,
             configured_player_pointer_offset=configured_player_offset,
             configured_world_pointer_offset=configured_world_offset,
+            player_pointer_chain_offsets=player_chain,
+            world_pointer_chain_offsets=world_chain,
+            world_field_offset=world_field_offset,
+            self_pointer_offset=self_pointer_offset,
         )
 
     pointer: NativePointerSnapshot | None = None
@@ -253,6 +270,10 @@ def collect_native_health(
         pointer_width_bytes=pointer_width_bytes,
         configured_player_pointer_offset=configured_player_offset,
         configured_world_pointer_offset=configured_world_offset,
+        player_pointer_chain_offsets=player_chain,
+        world_pointer_chain_offsets=world_chain,
+        world_field_offset=world_field_offset,
+        self_pointer_offset=self_pointer_offset,
     )
 
 
@@ -261,6 +282,7 @@ def run_native_diagnostic(
     *,
     recover: bool,
     persist: bool = False,
+    recovery_hints: PointerRecoveryHints | None = None,
     cancellation: object | None,
     deadline: float | None,
     timeout_seconds: float,
@@ -349,6 +371,7 @@ def run_native_diagnostic(
             deadline=bounded_deadline,
             timeout_seconds=timeout,
             status_callback=pointer_status,
+            hints=recovery_hints,
         )
     except Exception as error:  # noqa: BLE001 - return typed diagnostic output.
         after = collect_native_health(bot, clock=clock)
@@ -394,6 +417,20 @@ def _diagnostic_outcome(result: NativeRecoveryResult) -> NativeDiagnosticOutcome
         return NativeDiagnosticOutcome.RECOVERY_CANCELLED
     if result.outcome is NativeRecoveryOutcome.DEADLINE:
         return NativeDiagnosticOutcome.RECOVERY_DEADLINE
+    if result.outcome is NativeRecoveryOutcome.ANCHOR_HINTS_REQUIRED:
+        return NativeDiagnosticOutcome.RECOVERY_HINTS_REQUIRED
+    if result.outcome is NativeRecoveryOutcome.MOVEMENT_REQUIRED:
+        return NativeDiagnosticOutcome.RECOVERY_MOVEMENT_REQUIRED
+    if result.outcome is NativeRecoveryOutcome.MOVEMENT_NOT_OBSERVED:
+        return NativeDiagnosticOutcome.RECOVERY_MOVEMENT_NOT_OBSERVED
+    if result.outcome in {
+        NativeRecoveryOutcome.MONSTER_CONSENSUS_NOT_FOUND,
+        NativeRecoveryOutcome.ACTOR_LAYOUT_INCONCLUSIVE,
+        NativeRecoveryOutcome.SPAWN_PLAYER_NOT_FOUND,
+        NativeRecoveryOutcome.ANCHOR_AMBIGUOUS,
+        NativeRecoveryOutcome.MOVEMENT_CANDIDATE_STALE,
+    }:
+        return NativeDiagnosticOutcome.RECOVERY_ANCHOR_INCONCLUSIVE
     if result.outcome in {
         NativeRecoveryOutcome.NOT_FOUND,
         NativeRecoveryOutcome.NEGATIVE_CACHE,

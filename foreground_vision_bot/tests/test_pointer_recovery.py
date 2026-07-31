@@ -246,3 +246,47 @@ def test_module_scan_rejects_actor_like_false_positive() -> None:
     metrics = state.metrics_for(memory.pid, memory.module_base_value)
     assert metrics is not None
     assert metrics.non_player_rejections == 1
+
+
+def test_self_mismatch_records_bounded_structural_near_match() -> None:
+    memory = RecoveryMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x800,
+        world_pointer_offset=0x900,
+        discovery_chunk_bytes=4096,
+    )
+    memory.write_module_u32(0x2A80, memory.actor_base)
+    memory.write_module_u32(0x3B40, memory.world_base)
+    # Deliberately leave the configured self field stale while preserving an
+    # otherwise coherent player-shaped actor at the old layout.
+    memory.write_actor_u32(config.self_pointer_offset, 0)
+    memory.write_actor_u32(config.world_offset, memory.world_base)
+    memory.write_actor_i32(config.species_offset, 1)
+    memory.write_actor_i32(config.active_species_offset, 0)
+    memory.write_actor_i32(config.hp_offset, 1000)
+    memory.write_actor_f32(config.x_offset, 10.0)
+    memory.write_actor_f32(config.y_offset, 20.0)
+    memory.write_actor_f32(config.z_offset, 30.0)
+    state = PointerRecoveryState()
+
+    result = recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        chunk_size=0x1000,
+        timeout_seconds=1.0,
+    )
+
+    assert result is None
+    metrics = state.metrics_for(memory.pid, memory.module_base_value)
+    assert metrics is not None
+    assert metrics.self_mismatch_rejections == 1
+    assert metrics.self_mismatch_near_probed == 1
+    assert metrics.self_mismatch_world_nonzero == 1
+    assert metrics.self_mismatch_world_module_ref == 1
+    assert metrics.self_mismatch_coordinate_plausible == 1
+    assert metrics.self_mismatch_hp_positive == 1
+    assert metrics.self_mismatch_player_like == 1
+    assert metrics.self_mismatch_full_near_matches == 1

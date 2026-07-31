@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from position.MonsterConfig import (
     MonsterConfigurationError,
     NativeMonsterConfig,
@@ -15,6 +14,8 @@ def test_monster_config_parses_confirmed_multislab_layout() -> None:
             "module_name": "Neuz.exe",
             "player_pointer_offset": "0x5852B8",
             "world_pointer_offset": "0x596C6C",
+            "player_pointer_chain_offsets": ["0x20"],
+            "world_pointer_chain_offsets": [],
             "selected_actor_offset": "0x20",
             "vision_radius_native": 80,
             "layout": {
@@ -33,6 +34,8 @@ def test_monster_config_parses_confirmed_multislab_layout() -> None:
 
     assert config.player_pointer_offset == 0x5852B8
     assert config.world_pointer_offset == 0x596C6C
+    assert config.player_pointer_chain_offsets == (0x20,)
+    assert config.world_pointer_chain_offsets == ()
     assert config.actor_stride == 0x2008
     assert config.active_species_offset == 0x1DBC
     assert config.self_pointer_offset == 0x1EE0

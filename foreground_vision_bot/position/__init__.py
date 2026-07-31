@@ -1,3 +1,4 @@
+from .AnchoredPointerDiscovery import PointerRecoveryHints
 from .attachment_factory import (
     NativeProviderAttachment,
     create_native_provider_attachment,
@@ -103,6 +104,7 @@ __all__ = [
     "NativeRecoveryResult",
     "NativeRuntimeFacts",
     "PointerPersistenceError",
+    "PointerRecoveryHints",
     "PointerResolutionError",
     "PoseConsensusError",
     "PositionReadDiagnostics",

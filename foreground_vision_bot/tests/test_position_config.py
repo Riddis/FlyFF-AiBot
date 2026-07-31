@@ -127,6 +127,7 @@ def test_position_config_accepts_module_pointer(tmp_path: Path) -> None:
                 "resolver": "module_pointer",
                 "module_name": "Neuz.exe",
                 "pointer_offset": "0x5852B8",
+                "pointer_chain_offsets": ["0x20"],
                 "layout": {
                     "x_offset": "0x160",
                     "y_offset": "0x164",
@@ -142,6 +143,7 @@ def test_position_config_accepts_module_pointer(tmp_path: Path) -> None:
     assert config.resolver == "module_pointer"
     assert config.module_name == "Neuz.exe"
     assert config.pointer_offset == 0x5852B8
+    assert config.pointer_chain_offsets == (0x20,)
     assert (config.x_offset, config.y_offset, config.z_offset) == (
         0x160,
         0x164,

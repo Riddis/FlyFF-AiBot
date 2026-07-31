@@ -58,11 +58,14 @@ typed terminal and the direct controller releases its tracked movement keys.
 Normal attach, preview, overlay, and farming reads never launch a broad pointer
 scan. If **Native Health** reports `pointer_unavailable` after a client update:
 
-1. Stop control and keep the character stationary in a known valid Tower cell.
-2. Choose **Recover Pointers**. The operation runs in its own worker for at most ten seconds and can be cancelled with Stop.
-3. Review the before/after health outcome and the logged module identity, image size, pointer width, discovery strategy, and rejection counts.
-4. A strongly validated explicit recovery persists the position and monster JSON pair transactionally. Retain their `.pre_pointer_recovery.bak` files until the next successful launch. Automatic farming-startup recovery deliberately does not persist.
-5. If recovery is not found or reports ambiguity, stop. Do not retry in a loop; the resolver uses cooldown/negative caching. Capture the GUI log and native diagnostic JSON facts for analysis. Rejection evidence distinguishes a missing module reference from stale actor-layout fields without weakening acceptance.
+1. Stop control, select **Tower AoE**, select both known Tower species, and place the character exactly at the Tower spawn. Keep it stationary with nearby selected monsters active.
+2. Enter the exact current and maximum player HP in the two recovery fields, then choose **Recover Pointers**. The managed operation has a 30-second bound and can be cancelled with Stop.
+3. A first anchored result of `recovery_movement_required` is intentional. Nothing is applied or persisted. Move the character manually at least 3-5 native units, stop, update the current-HP field if it changed, and choose **Recover Pointers** once more without reattaching or restarting.
+4. The second call reads only the pending slot/chain and player fields. It must observe coherent movement, repeated stationary coordinates, exact current/maximum HP, and the inferred world/self relationship before applying and transactionally persisting the position/monster JSON pair. Retain their `.pre_pointer_recovery.bak` files until the next successful launch. Automatic farming-startup recovery deliberately does not persist.
+5. Review the logged module identity, image size, pointer width, strategy, inferred field offsets/support, direct/chain counts, and old-self near-match counters. If monster consensus, player ranking, movement, or ambiguity is inconclusive, stop and capture the complete log; do not loop recovery or weaken validation.
+
+The authoritative current-client sequence is
+`refactor_logs/manual_tests/PTR-LIVE-001_current_client_pointer_acceptance.md`.
 
 For actor-specific inspection, with control stopped:
 

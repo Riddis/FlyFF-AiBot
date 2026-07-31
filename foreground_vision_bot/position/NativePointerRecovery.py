@@ -13,6 +13,14 @@ from threading import Event, RLock
 from time import monotonic, sleep
 from typing import Protocol, cast
 
+from .AnchoredPointerDiscovery import (
+    AnchoredDiscoveryEvidence,
+    AnchoredDiscoveryMemory,
+    AnchoredPointerCandidate,
+    PointerRecoveryHints,
+    confirm_anchored_movement,
+    discover_anchored_pointer_candidate,
+)
 from .MonsterConfig import (
     DEFAULT_MONSTER_CONFIG_PATH,
     NativeMonsterConfig,
@@ -47,6 +55,11 @@ class PlayerPointerRecovery:
     search_radius: int
     validated_candidates: int
     strategy: str = "configured_neighborhood"
+    player_pointer_chain_offsets: tuple[int, ...] = ()
+    world_pointer_chain_offsets: tuple[int, ...] = ()
+    world_field_offset: int | None = None
+    self_pointer_offset: int | None = None
+    movement_validated: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +101,33 @@ class PointerRecoveryMetrics:
     missing_world_slot_rejections: int = 0
     unstable_rejections: int = 0
     ambiguous_candidates: int = 0
+    anchor_bytes_scanned: int = 0
+    species_value_matches: int = 0
+    spawn_x_matches: int = 0
+    monster_candidates: int = 0
+    inferred_world_actor_support: int = 0
+    inferred_world_species_support: int = 0
+    inferred_world_offset: int | None = None
+    inferred_self_actor_support: int = 0
+    inferred_self_offset: int | None = None
+    spawn_structure_candidates: int = 0
+    spawn_world_matches: int = 0
+    spawn_hp_matches: int = 0
+    spawn_player_matches: int = 0
+    stable_spawn_candidates: int = 0
+    direct_player_slot_candidates: int = 0
+    player_chain_candidates: int = 0
+    direct_world_slot_candidates: int = 0
+    world_chain_candidates: int = 0
+    movement_checks: int = 0
+    movement_observed: int = 0
+    self_mismatch_near_probed: int = 0
+    self_mismatch_world_nonzero: int = 0
+    self_mismatch_world_module_ref: int = 0
+    self_mismatch_coordinate_plausible: int = 0
+    self_mismatch_hp_positive: int = 0
+    self_mismatch_player_like: int = 0
+    self_mismatch_full_near_matches: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,6 +187,33 @@ class _MetricsBuilder:
     missing_world_slot_rejections: int = 0
     unstable_rejections: int = 0
     ambiguous_candidates: int = 0
+    anchor_bytes_scanned: int = 0
+    species_value_matches: int = 0
+    spawn_x_matches: int = 0
+    monster_candidates: int = 0
+    inferred_world_actor_support: int = 0
+    inferred_world_species_support: int = 0
+    inferred_world_offset: int | None = None
+    inferred_self_actor_support: int = 0
+    inferred_self_offset: int | None = None
+    spawn_structure_candidates: int = 0
+    spawn_world_matches: int = 0
+    spawn_hp_matches: int = 0
+    spawn_player_matches: int = 0
+    stable_spawn_candidates: int = 0
+    direct_player_slot_candidates: int = 0
+    player_chain_candidates: int = 0
+    direct_world_slot_candidates: int = 0
+    world_chain_candidates: int = 0
+    movement_checks: int = 0
+    movement_observed: int = 0
+    self_mismatch_near_probed: int = 0
+    self_mismatch_world_nonzero: int = 0
+    self_mismatch_world_module_ref: int = 0
+    self_mismatch_coordinate_plausible: int = 0
+    self_mismatch_hp_positive: int = 0
+    self_mismatch_player_like: int = 0
+    self_mismatch_full_near_matches: int = 0
 
     def freeze(
         self,
@@ -196,6 +263,37 @@ class _MetricsBuilder:
             missing_world_slot_rejections=self.missing_world_slot_rejections,
             unstable_rejections=self.unstable_rejections,
             ambiguous_candidates=self.ambiguous_candidates,
+            anchor_bytes_scanned=self.anchor_bytes_scanned,
+            species_value_matches=self.species_value_matches,
+            spawn_x_matches=self.spawn_x_matches,
+            monster_candidates=self.monster_candidates,
+            inferred_world_actor_support=self.inferred_world_actor_support,
+            inferred_world_species_support=self.inferred_world_species_support,
+            inferred_world_offset=self.inferred_world_offset,
+            inferred_self_actor_support=self.inferred_self_actor_support,
+            inferred_self_offset=self.inferred_self_offset,
+            spawn_structure_candidates=self.spawn_structure_candidates,
+            spawn_world_matches=self.spawn_world_matches,
+            spawn_hp_matches=self.spawn_hp_matches,
+            spawn_player_matches=self.spawn_player_matches,
+            stable_spawn_candidates=self.stable_spawn_candidates,
+            direct_player_slot_candidates=self.direct_player_slot_candidates,
+            player_chain_candidates=self.player_chain_candidates,
+            direct_world_slot_candidates=self.direct_world_slot_candidates,
+            world_chain_candidates=self.world_chain_candidates,
+            movement_checks=self.movement_checks,
+            movement_observed=self.movement_observed,
+            self_mismatch_near_probed=self.self_mismatch_near_probed,
+            self_mismatch_world_nonzero=self.self_mismatch_world_nonzero,
+            self_mismatch_world_module_ref=self.self_mismatch_world_module_ref,
+            self_mismatch_coordinate_plausible=(
+                self.self_mismatch_coordinate_plausible
+            ),
+            self_mismatch_hp_positive=self.self_mismatch_hp_positive,
+            self_mismatch_player_like=self.self_mismatch_player_like,
+            self_mismatch_full_near_matches=(
+                self.self_mismatch_full_near_matches
+            ),
         )
 
 
@@ -294,6 +392,9 @@ class PointerRecoveryState:
         self.negative_cache: dict[tuple[int, int], float] = {}
         self.inflight: dict[tuple[int, int], _RecoveryFlight] = {}
         self.last_metrics: dict[tuple[int, int], PointerRecoveryMetrics] = {}
+        self.pending_candidates: dict[
+            tuple[int, int], AnchoredPointerCandidate
+        ] = {}
 
     def clear(
         self,
@@ -306,11 +407,13 @@ class PointerRecoveryState:
                 self.recovery_cache.clear()
                 self.negative_cache.clear()
                 self.last_metrics.clear()
+                self.pending_candidates.clear()
                 return
             keys = (
                 set(self.recovery_cache)
                 | set(self.negative_cache)
                 | set(self.last_metrics)
+                | set(self.pending_candidates)
             )
             for key in keys:
                 if pid is not None and key[0] != int(pid):
@@ -320,6 +423,7 @@ class PointerRecoveryState:
                 self.recovery_cache.pop(key, None)
                 self.negative_cache.pop(key, None)
                 self.last_metrics.pop(key, None)
+                self.pending_candidates.pop(key, None)
 
     def metrics_for(
         self,
@@ -441,6 +545,82 @@ def _read_configured_world_hint(
     return value if value > 0 else None
 
 
+_SELF_MISMATCH_NEAR_MATCH_LIMIT = 1024
+
+
+def _record_self_mismatch_near_match(
+    memory: PointerRecoveryMemory,
+    *,
+    target_address: int,
+    config: NativeMonsterConfig,
+    slot_refs: dict[int, list[int]],
+    metrics: _MetricsBuilder,
+) -> None:
+    """Continue bounded structural validation after the legacy self check fails.
+
+    These counters are diagnostic evidence only.  They never make a legacy
+    candidate acceptable; anchored discovery must independently infer the
+    current layout before a pointer can be applied or persisted.
+    """
+
+    if metrics.self_mismatch_near_probed >= _SELF_MISMATCH_NEAR_MATCH_LIMIT:
+        return
+
+    offsets = (
+        config.world_offset,
+        config.x_offset,
+        config.y_offset,
+        config.z_offset,
+        config.species_offset,
+        config.active_species_offset,
+        config.hp_offset,
+    )
+    first_offset = min(offsets)
+    last_offset = max(offsets) + 4
+    try:
+        sample = memory.read(
+            target_address + first_offset,
+            last_offset - first_offset,
+        )
+        world = struct.unpack_from("<I", sample, config.world_offset - first_offset)[0]
+        x = struct.unpack_from("<f", sample, config.x_offset - first_offset)[0]
+        y = struct.unpack_from("<f", sample, config.y_offset - first_offset)[0]
+        z = struct.unpack_from("<f", sample, config.z_offset - first_offset)[0]
+        species = struct.unpack_from(
+            "<i", sample, config.species_offset - first_offset
+        )[0]
+        active_species = struct.unpack_from(
+            "<i", sample, config.active_species_offset - first_offset
+        )[0]
+        hp = struct.unpack_from("<i", sample, config.hp_offset - first_offset)[0]
+    except Exception:
+        metrics.candidate_read_failures += 1
+        return
+
+    metrics.self_mismatch_near_probed += 1
+    world_nonzero = world > 0
+    world_module_ref = bool(slot_refs.get(world)) if world_nonzero else False
+    limit = float(config.maximum_absolute_coordinate)
+    coordinates_plausible = all(
+        math.isfinite(value) and abs(value) <= limit for value in (x, y, z)
+    )
+    hp_positive = hp > 0
+    player_like = not (species > 0 and active_species == species)
+
+    metrics.self_mismatch_world_nonzero += int(world_nonzero)
+    metrics.self_mismatch_world_module_ref += int(world_module_ref)
+    metrics.self_mismatch_coordinate_plausible += int(coordinates_plausible)
+    metrics.self_mismatch_hp_positive += int(hp_positive)
+    metrics.self_mismatch_player_like += int(player_like)
+    metrics.self_mismatch_full_near_matches += int(
+        world_nonzero
+        and world_module_ref
+        and coordinates_plausible
+        and hp_positive
+        and player_like
+    )
+
+
 def _validate_candidate(
     memory: PointerRecoveryMemory,
     *,
@@ -461,6 +641,13 @@ def _validate_candidate(
         return None
     if self_pointer != target_address:
         metrics.self_mismatch_rejections += 1
+        _record_self_mismatch_near_match(
+            memory,
+            target_address=target_address,
+            config=config,
+            slot_refs=slot_refs,
+            metrics=metrics,
+        )
         return None
     try:
         world = _u32(memory, target_address + config.world_offset)
@@ -681,7 +868,7 @@ def _remove_file(path: Path) -> None:
 
 def _prepare_persistence_target(
     path: Path,
-    updates: dict[str, str],
+    updates: dict[str, object],
 ) -> _PersistenceTarget:
     if not path.parent.is_dir():
         raise PointerPersistenceError(
@@ -704,7 +891,16 @@ def _prepare_persistence_target(
 
     changed = False
     for key, value in updates.items():
-        if payload.get(key) != value:
+        if key == "layout" and isinstance(value, dict):
+            layout = payload.get("layout")
+            if not isinstance(layout, dict):
+                layout = {}
+                payload["layout"] = layout
+            for layout_key, layout_value in value.items():
+                if layout.get(layout_key) != layout_value:
+                    layout[layout_key] = layout_value
+                    changed = True
+        elif payload.get(key) != value:
             payload[key] = value
             changed = True
     replacement_bytes = (
@@ -718,8 +914,17 @@ def _prepare_persistence_target(
         raise PointerPersistenceError(
             f"Prepared replacement is not valid JSON: {path}"
         ) from error
+    def update_matches(key: str, value: object) -> bool:
+        if key != "layout" or not isinstance(value, dict):
+            return replacement_payload.get(key) == value
+        layout = replacement_payload.get("layout")
+        return isinstance(layout, dict) and all(
+            layout.get(layout_key) == layout_value
+            for layout_key, layout_value in value.items()
+        )
+
     if not isinstance(replacement_payload, dict) or any(
-        replacement_payload.get(key) != value for key, value in updates.items()
+        not update_matches(key, value) for key, value in updates.items()
     ):
         raise PointerPersistenceError(
             f"Prepared replacement failed validation: {path}"
@@ -896,6 +1101,10 @@ def persist_recovered_pointer_offsets(
     position_config_path: str | Path = DEFAULT_POSITION_CONFIG_PATH,
     monster_config_path: str | Path = DEFAULT_MONSTER_CONFIG_PATH,
 ) -> None:
+    if recovery.strategy == "anchored_movement" and not recovery.movement_validated:
+        raise PointerPersistenceError(
+            "Anchored pointer recovery requires movement validation before persistence"
+        )
     with _PERSIST_LOCK:
         position_path = _canonical_path(position_config_path)
         monster_path = _canonical_path(monster_config_path)
@@ -907,17 +1116,45 @@ def persist_recovered_pointer_offsets(
             position_config_path=position_path,
             monster_config_path=monster_path,
         )
-        monster_updates = {
+        monster_updates: dict[str, object] = {
             "player_pointer_offset": f"0x{recovery.player_pointer_offset:X}",
         }
+        if recovery.strategy == "anchored_movement":
+            monster_updates["player_pointer_chain_offsets"] = [
+                f"0x{offset:X}" for offset in recovery.player_pointer_chain_offsets
+            ]
+            monster_updates["world_pointer_chain_offsets"] = [
+                f"0x{offset:X}" for offset in recovery.world_pointer_chain_offsets
+            ]
         if recovery.world_pointer_offset is not None:
             monster_updates["world_pointer_offset"] = (
                 f"0x{recovery.world_pointer_offset:X}"
             )
+        layout_updates: dict[str, str] = {}
+        if recovery.world_field_offset is not None:
+            layout_updates["world_offset"] = f"0x{recovery.world_field_offset:X}"
+        if recovery.self_pointer_offset is not None:
+            layout_updates["self_pointer_offset"] = (
+                f"0x{recovery.self_pointer_offset:X}"
+            )
+        if layout_updates:
+            monster_updates["layout"] = layout_updates
         targets = (
             _prepare_persistence_target(
                 position_path,
-                {"pointer_offset": f"0x{recovery.player_pointer_offset:X}"},
+                {
+                    "pointer_offset": f"0x{recovery.player_pointer_offset:X}",
+                    **(
+                        {
+                            "pointer_chain_offsets": [
+                                f"0x{offset:X}"
+                                for offset in recovery.player_pointer_chain_offsets
+                            ]
+                        }
+                        if recovery.strategy == "anchored_movement"
+                        else {}
+                    ),
+                },
             ),
             _prepare_persistence_target(monster_path, monster_updates),
         )
@@ -1026,11 +1263,29 @@ def _verify_cached(
     config: NativeMonsterConfig,
 ) -> bool:
     try:
+        player = _u32(memory, cached.player_pointer_address)
+        for offset in cached.player_pointer_chain_offsets:
+            player = _u32(memory, player + offset)
+        if cached.world_pointer_address is None:
+            return False
+        world = _u32(memory, cached.world_pointer_address)
+        for offset in cached.world_pointer_chain_offsets:
+            world = _u32(memory, world + offset)
+        self_offset = (
+            config.self_pointer_offset
+            if cached.self_pointer_offset is None
+            else cached.self_pointer_offset
+        )
+        world_field_offset = (
+            config.world_offset
+            if cached.world_field_offset is None
+            else cached.world_field_offset
+        )
         return (
-            _u32(memory, cached.player_pointer_address) == cached.player_base
-            and _u32(memory, cached.player_base + config.self_pointer_offset)
-            == cached.player_base
-            and _u32(memory, cached.player_base + config.world_offset)
+            player == cached.player_base
+            and world == cached.world_base
+            and _u32(memory, cached.player_base + self_offset) == cached.player_base
+            and _u32(memory, cached.player_base + world_field_offset)
             == cached.world_base
         )
     except Exception:
@@ -1042,6 +1297,32 @@ def _progress_metrics(
     control: _AttemptControl,
 ) -> PointerRecoveryMetrics:
     return builder.freeze("running", now=control.clock())
+
+
+def _record_anchor_evidence(
+    metrics: _MetricsBuilder,
+    evidence: AnchoredDiscoveryEvidence,
+) -> None:
+    metrics.anchor_bytes_scanned = evidence.anchor_bytes_scanned
+    metrics.species_value_matches = evidence.species_value_matches
+    metrics.spawn_x_matches = evidence.spawn_x_matches
+    metrics.monster_candidates = evidence.monster_candidates
+    metrics.inferred_world_actor_support = evidence.inferred_world_actor_support
+    metrics.inferred_world_species_support = evidence.inferred_world_species_support
+    metrics.inferred_world_offset = evidence.inferred_world_offset
+    metrics.inferred_self_actor_support = evidence.inferred_self_actor_support
+    metrics.inferred_self_offset = evidence.inferred_self_offset
+    metrics.spawn_structure_candidates = evidence.spawn_structure_candidates
+    metrics.spawn_world_matches = evidence.spawn_world_matches
+    metrics.spawn_hp_matches = evidence.spawn_hp_matches
+    metrics.spawn_player_matches = evidence.spawn_player_matches
+    metrics.stable_spawn_candidates = evidence.stable_spawn_candidates
+    metrics.direct_player_slot_candidates = evidence.direct_player_slot_candidates
+    metrics.player_chain_candidates = evidence.player_chain_candidates
+    metrics.direct_world_slot_candidates = evidence.direct_world_slot_candidates
+    metrics.world_chain_candidates = evidence.world_chain_candidates
+    metrics.movement_checks = evidence.movement_checks
+    metrics.movement_observed = evidence.movement_observed
 
 
 def _scan_new_band(
@@ -1119,6 +1400,34 @@ def _module_image_extent(
     return base, base + size
 
 
+def _anchored_recovery(
+    candidate: AnchoredPointerCandidate,
+    *,
+    module_base: int,
+    configured_player_pointer_offset: int,
+    configured_world_pointer_offset: int,
+    validated_candidates: int,
+) -> PlayerPointerRecovery:
+    return PlayerPointerRecovery(
+        player_pointer_address=candidate.player_pointer_address,
+        player_pointer_offset=candidate.player_pointer_address - module_base,
+        player_base=candidate.player_base,
+        world_base=candidate.world_base,
+        world_pointer_address=candidate.world_pointer_address,
+        world_pointer_offset=candidate.world_pointer_address - module_base,
+        configured_player_pointer_offset=configured_player_pointer_offset,
+        configured_world_pointer_offset=configured_world_pointer_offset,
+        search_radius=0,
+        validated_candidates=validated_candidates,
+        strategy="anchored_movement",
+        player_pointer_chain_offsets=candidate.player_pointer_chain_offsets,
+        world_pointer_chain_offsets=candidate.world_pointer_chain_offsets,
+        world_field_offset=candidate.world_field_offset,
+        self_pointer_offset=candidate.self_pointer_offset,
+        movement_validated=True,
+    )
+
+
 def _perform_recovery_attempt(
     memory: PointerRecoveryMemory,
     *,
@@ -1133,13 +1442,58 @@ def _perform_recovery_attempt(
     metrics: _MetricsBuilder,
     control: _AttemptControl,
     status_callback: PointerRecoveryStatusCallback | None,
-) -> tuple[PlayerPointerRecovery | None, str]:
+    hints: PointerRecoveryHints | None,
+    pending_candidate: AnchoredPointerCandidate | None,
+) -> tuple[
+    PlayerPointerRecovery | None,
+    str,
+    AnchoredPointerCandidate | None,
+]:
     readable_regions_fn = cast(
         Callable[..., tuple[object, ...]] | None,
         getattr(memory, "readable_regions", None),
     )
     if not callable(readable_regions_fn):
-        return None, "unavailable"
+        return None, "unavailable", None
+
+    if pending_candidate is not None:
+        if hints is None:
+            return None, "anchor_hints_required", pending_candidate
+        metrics.strategy = "anchored_movement_confirmation"
+        confirmation = confirm_anchored_movement(
+            cast(AnchoredDiscoveryMemory, cast(object, memory)),
+            pending_candidate,
+            hints,
+            x_offset=config.x_offset,
+            y_offset=config.y_offset,
+            z_offset=config.z_offset,
+            check=control.check,
+        )
+        _record_anchor_evidence(metrics, confirmation.evidence)
+        _notify(
+            status_callback,
+            confirmation.outcome,
+            confirmation.message,
+            _progress_metrics(metrics, control),
+        )
+        if confirmation.outcome != "movement_confirmed":
+            retained = (
+                pending_candidate
+                if confirmation.outcome == "movement_not_observed"
+                else None
+            )
+            return None, confirmation.outcome, retained
+        return (
+            _anchored_recovery(
+                pending_candidate,
+                module_base=module_base,
+                configured_player_pointer_offset=configured_player_pointer_offset,
+                configured_world_pointer_offset=config.world_pointer_offset,
+                validated_candidates=metrics.candidates_validated,
+            ),
+            "success",
+            None,
+        )
 
     control.check()
     configured_slot = int(module_base) + int(configured_player_pointer_offset)
@@ -1155,7 +1509,7 @@ def _perform_recovery_attempt(
             )
         )
     except Exception:
-        return None, "region_error"
+        return None, "region_error", None
     control.check()
 
     metrics.region_count = len(regions)
@@ -1382,9 +1736,70 @@ def _perform_recovery_attempt(
                 strategy=strategy,
             ),
             "success",
+            None,
         )
 
-    return None, "not_found"
+    if hints is None:
+        return None, "not_found", None
+    if module_extent is None:
+        return None, "anchor_module_metadata_required", None
+    metrics.strategy = "known_species_spawn_anchor"
+    _notify(
+        status_callback,
+        "anchor_scanning",
+        "Scanning private memory once for known species and Tower spawn anchors.",
+        _progress_metrics(metrics, control),
+    )
+
+    def anchor_progress(evidence: AnchoredDiscoveryEvidence) -> None:
+        _record_anchor_evidence(metrics, evidence)
+        _notify(
+            status_callback,
+            "anchor_scanning",
+            (
+                f"Anchor scan read {evidence.anchor_bytes_scanned / (1 << 20):.0f} "
+                f"MiB; species_hits={evidence.species_value_matches}, "
+                f"spawn_hits={evidence.spawn_x_matches}."
+            ),
+            _progress_metrics(metrics, control),
+        )
+
+    anchored = discover_anchored_pointer_candidate(
+        cast(AnchoredDiscoveryMemory, cast(object, memory)),
+        regions=regions,
+        slot_refs=slot_refs,
+        hints=hints,
+        module_base=module_extent[0],
+        module_stop=module_extent[1],
+        configured_player_slot=configured_slot,
+        configured_world_slot=module_base + config.world_pointer_offset,
+        species_offset=config.species_offset,
+        active_species_offset=config.active_species_offset,
+        hp_offset=config.hp_offset,
+        x_offset=config.x_offset,
+        y_offset=config.y_offset,
+        z_offset=config.z_offset,
+        configured_world_field_offset=config.world_offset,
+        configured_self_offset=config.self_pointer_offset,
+        coordinate_limit=config.maximum_absolute_coordinate,
+        maximum_address=config.maximum_scan_address,
+        chunk_size=max(config.discovery_chunk_bytes, chunk_size),
+        cancellation=control.cancellation,
+        deadline=control.deadline,
+        readable_contains=region_index.contains,
+        check=control.check,
+        stability_samples=stability_samples,
+        stability_delay_seconds=stability_delay_seconds,
+        progress_callback=anchor_progress,
+    )
+    _record_anchor_evidence(metrics, anchored.evidence)
+    _notify(
+        status_callback,
+        anchored.outcome,
+        anchored.message,
+        _progress_metrics(metrics, control),
+    )
+    return None, anchored.outcome, anchored.candidate
 
 
 def recover_local_player_pointer(
@@ -1408,6 +1823,7 @@ def recover_local_player_pointer(
     clock: Callable[[], float] = monotonic,
     stability_samples: int = 3,
     stability_delay_seconds: float = 0.03,
+    hints: PointerRecoveryHints | None = None,
 ) -> PlayerPointerRecovery | None:
     """Explicitly recover a shifted Neuz local-player global.
 
@@ -1601,9 +2017,12 @@ def recover_local_player_pointer(
         return flight.result
 
     recovery: PlayerPointerRecovery | None = None
+    with recovery_state.lock:
+        pending_candidate = recovery_state.pending_candidates.get(cache_key)
+    next_pending: AnchoredPointerCandidate | None = pending_candidate
     outcome = "not_found"
     try:
-        recovery, outcome = _perform_recovery_attempt(
+        recovery, outcome, next_pending = _perform_recovery_attempt(
             memory,
             module_base=int(module_base),
             configured_player_pointer_offset=int(
@@ -1618,6 +2037,8 @@ def recover_local_player_pointer(
             metrics=builder,
             control=control,
             status_callback=status_callback,
+            hints=hints,
+            pending_candidate=pending_candidate,
         )
     except _AttemptStopped as stopped:
         outcome = stopped.outcome
@@ -1630,7 +2051,13 @@ def recover_local_player_pointer(
         if recovery is not None:
             recovery_state.recovery_cache[cache_key] = recovery
             recovery_state.negative_cache.pop(cache_key, None)
-        elif outcome in {"not_found", "deadline"}:
+            recovery_state.pending_candidates.pop(cache_key, None)
+        elif next_pending is not None:
+            recovery_state.pending_candidates[cache_key] = next_pending
+            recovery_state.negative_cache.pop(cache_key, None)
+        else:
+            recovery_state.pending_candidates.pop(cache_key, None)
+        if recovery is None and outcome in {"not_found", "deadline"}:
             recovery_state.negative_cache[cache_key] = (
                 completed_at + minimum_cooldown
             )
@@ -1653,6 +2080,13 @@ def recover_local_player_pointer(
                 f"strategy={metrics.strategy}, slots={metrics.candidate_slots}, "
                 f"validated={metrics.candidates_validated}, "
                 f"self_mismatch={metrics.self_mismatch_rejections}, "
+                f"self_near_probed={metrics.self_mismatch_near_probed}, "
+                f"self_near_world={metrics.self_mismatch_world_nonzero}, "
+                f"self_near_world_ref={metrics.self_mismatch_world_module_ref}, "
+                f"self_near_coords={metrics.self_mismatch_coordinate_plausible}, "
+                f"self_near_hp={metrics.self_mismatch_hp_positive}, "
+                f"self_near_player={metrics.self_mismatch_player_like}, "
+                f"self_near_full={metrics.self_mismatch_full_near_matches}, "
                 f"world_null={metrics.world_null_rejections}, "
                 f"coordinate_invalid={metrics.coordinate_rejections}, "
                 f"hp_invalid={metrics.hp_rejections}, "
@@ -1660,6 +2094,18 @@ def recover_local_player_pointer(
                 f"missing_world_slot={metrics.missing_world_slot_rejections}, "
                 f"unstable={metrics.unstable_rejections}, "
                 f"ambiguous={metrics.ambiguous_candidates}."
+                f" anchor_bytes={metrics.anchor_bytes_scanned},"
+                f" species_matches={metrics.species_value_matches},"
+                f" monsters={metrics.monster_candidates},"
+                f" world_support={metrics.inferred_world_actor_support},"
+                f" self_support={metrics.inferred_self_actor_support},"
+                f" spawn_structures={metrics.spawn_structure_candidates},"
+                f" spawn_world={metrics.spawn_world_matches},"
+                f" spawn_hp={metrics.spawn_hp_matches},"
+                f" spawn_players={metrics.spawn_player_matches},"
+                f" stable_spawn={metrics.stable_spawn_candidates},"
+                f" player_chains={metrics.player_chain_candidates},"
+                f" movement={metrics.movement_observed}."
             ),
             metrics,
         )

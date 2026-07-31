@@ -257,6 +257,28 @@ class NativeFlyffMonsterProvider:
     def _read_float(self, address: int) -> float:
         return float(struct.unpack("<f", self._memory.read(address, 4))[0])
 
+    def _resolve_pointer(
+        self,
+        address: int,
+        chain_offsets: tuple[int, ...],
+    ) -> int:
+        value = self._read_u32(address)
+        for offset in chain_offsets:
+            value = self._read_u32(value + offset)
+        return value
+
+    @property
+    def _world_field_offset(self) -> int:
+        if self._native_service is not None:
+            return self._native_service.world_field_offset
+        return self.config.world_offset
+
+    @property
+    def _self_field_offset(self) -> int:
+        if self._native_service is not None:
+            return self._native_service.self_pointer_offset
+        return self.config.self_pointer_offset
+
     def _shared_pointer_snapshot(
         self,
         pointer_snapshot: NativePointerSnapshot | None,
@@ -278,7 +300,10 @@ class NativeFlyffMonsterProvider:
         shared = self._shared_pointer_snapshot(pointer_snapshot)
         if shared is not None:
             return shared.player_base
-        base = self._read_u32(self._player_pointer_address)
+        base = self._resolve_pointer(
+            self._player_pointer_address,
+            self.config.player_pointer_chain_offsets,
+        )
         if base <= 0:
             raise NativeMonsterReadError(
                 "Local-player pointer is null; explicit pointer recovery is "
@@ -299,20 +324,26 @@ class NativeFlyffMonsterProvider:
         shared = self._shared_pointer_snapshot(pointer_snapshot)
         if shared is not None:
             return shared.world_base
-        base = self._read_u32(self._world_pointer_address)
+        base = self._resolve_pointer(
+            self._world_pointer_address,
+            self.config.world_pointer_chain_offsets,
+        )
         if base <= 0:
             raise NativeMonsterReadError(
                 "Current-world pointer is null; explicit pointer recovery is "
                 "required after login/map transition checks complete"
             )
         try:
-            player = self._read_u32(self._player_pointer_address)
+            player = self._resolve_pointer(
+                self._player_pointer_address,
+                self.config.player_pointer_chain_offsets,
+            )
             if player <= 0:
                 raise NativeMonsterReadError(
                     "Local-player pointer is null while validating the current "
                     "world pointer"
                 )
-            player_world = self._read_u32(player + self.config.world_offset)
+            player_world = self._read_u32(player + self._world_field_offset)
         except NativeMonsterReadError:
             raise
         except Exception as error:
@@ -330,7 +361,7 @@ class NativeFlyffMonsterProvider:
         if base <= 0:
             return False
         try:
-            return self._read_u32(base + self.config.self_pointer_offset) == base
+            return self._read_u32(base + self._self_field_offset) == base
         except Exception:  # A probe outside committed/readable memory is normal.
             return False
 
@@ -366,12 +397,12 @@ class NativeFlyffMonsterProvider:
             slots: set[int] = set()
             invalid = 0
             for world_field_address in matches:
-                base = int(world_field_address) - self.config.world_offset
+                base = int(world_field_address) - self._world_field_offset
                 if base <= 0 or not self._is_self_valid(base):
                     invalid += 1
                     continue
                 try:
-                    if self._read_u32(base + self.config.world_offset) != world:
+                    if self._read_u32(base + self._world_field_offset) != world:
                         invalid += 1
                         continue
                 except Exception:
@@ -518,13 +549,13 @@ class NativeFlyffMonsterProvider:
                         pointer_snapshot.world_base,
                         pointer_snapshot.generation,
                     )
-                base = int(world_field_address) - self.config.world_offset
+                base = int(world_field_address) - self._world_field_offset
                 if base <= 0 or not self._is_self_valid(base):
                     invalid += 1
                     continue
                 try:
                     if (
-                        self._read_u32(base + self.config.world_offset)
+                        self._read_u32(base + self._world_field_offset)
                         != pointer_snapshot.world_base
                     ):
                         invalid += 1
@@ -779,7 +810,7 @@ class NativeFlyffMonsterProvider:
         player_z: float,
     ) -> tuple[int, int, int, float, float, float, float, int]:
         config = self.config
-        world = self._read_u32(base + config.world_offset)
+        world = self._read_u32(base + self._world_field_offset)
         species = self._read_i32(base + config.species_offset)
         active_species = self._read_i32(base + config.active_species_offset)
         hp = self._read_i32(base + config.hp_offset)

@@ -3,10 +3,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from .PositionProvider import PositionProviderError
-
 
 DEFAULT_POSITION_CONFIG_PATH = Path(__file__).with_name("native_position.json")
 HeadingUnit = Literal["degrees", "radians"]
@@ -85,6 +84,7 @@ class NativePositionConfig:
     module_name: str | None = None
     transform_offsets: tuple[int, ...] = ()
     pointer_offset: int | None = None
+    pointer_chain_offsets: tuple[int, ...] = ()
     minimum_consensus_sources: int = 1
     consensus_tolerance: float = 0.05
     x_offset: int = 0
@@ -131,6 +131,10 @@ class NativePositionConfig:
             if self.minimum_consensus_sources != 1:
                 raise PositionConfigurationError(
                     "minimum_consensus_sources must be 1 for module_pointer resolver"
+                )
+            if len(self.pointer_chain_offsets) > 1:
+                raise PositionConfigurationError(
+                    "module_pointer supports at most one additional indirection"
                 )
 
         if self.minimum_consensus_sources < 1:
@@ -196,7 +200,7 @@ class NativePositionConfig:
 
         return cls(
             enabled=enabled,
-            resolver=resolver.strip().lower(),  # type: ignore[arg-type]
+            resolver=cast(ResolverKind, resolver.strip().lower()),
             transform_address=_parse_address(
                 payload.get("transform_address"),
                 field_name="transform_address",
@@ -208,6 +212,9 @@ class NativePositionConfig:
             pointer_offset=_parse_offset(
                 payload.get("pointer_offset"),
                 field_name="pointer_offset",
+            ),
+            pointer_chain_offsets=_parse_transform_offsets(
+                payload.get("pointer_chain_offsets")
             ),
             minimum_consensus_sources=int(minimum_consensus or 1),
             consensus_tolerance=consensus_tolerance,
@@ -224,7 +231,7 @@ class NativePositionConfig:
                 layout.get("heading_offset"),
                 field_name="heading_offset",
             ),
-            heading_unit=heading_unit.strip().lower(),  # type: ignore[arg-type]
+            heading_unit=cast(HeadingUnit, heading_unit.strip().lower()),
             maximum_absolute_coordinate=maximum,
         )
 

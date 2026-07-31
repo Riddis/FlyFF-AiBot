@@ -15,6 +15,7 @@ from position import (
     NativeDiagnosticProgress,
     NativeDiagnosticReport,
     NativePointerSnapshotError,
+    PointerRecoveryHints,
     run_native_diagnostic,
 )
 from preview_service import PreviewService
@@ -188,6 +189,7 @@ class RuntimeController:
                 deadline=deadline,
                 timeout_seconds=timeout,
                 status_callback=publish,
+                hints=self._pointer_recovery_hints(),
             )
         except Exception as error:  # noqa: BLE001 - expected startup boundary.
             report(
@@ -345,6 +347,8 @@ class RuntimeController:
         *,
         recover: bool = False,
         timeout: float = 1.0,
+        player_current_hp: int | None = None,
+        player_max_hp: int | None = None,
     ) -> int:
         """Start bounded native health/recovery work without blocking the caller."""
 
@@ -369,6 +373,10 @@ class RuntimeController:
         previous_recovery_requested = self._diagnostic_recovery_requested
         self._diagnostic_session_id = session_id
         self._diagnostic_recovery_requested = bool(recover)
+        recovery_hints = self._pointer_recovery_hints(
+            player_current_hp=player_current_hp,
+            player_max_hp=player_max_hp,
+        )
 
         def run(token: CancellationToken) -> NativeDiagnosticReport:
             deadline = monotonic() + bounded_timeout
@@ -390,6 +398,7 @@ class RuntimeController:
                 deadline=deadline,
                 timeout_seconds=bounded_timeout,
                 status_callback=publish,
+                recovery_hints=recovery_hints,
             )
             snapshot = report.after
             facts = snapshot.runtime
@@ -416,6 +425,10 @@ class RuntimeController:
                 f"pointer_width={snapshot.pointer_width_bytes}; "
                 f"configured_player_offset={None if snapshot.configured_player_pointer_offset is None else f'0x{snapshot.configured_player_pointer_offset:X}'}; "
                 f"configured_world_offset={None if snapshot.configured_world_pointer_offset is None else f'0x{snapshot.configured_world_pointer_offset:X}'}; "
+                f"player_chain={tuple(hex(value) for value in snapshot.player_pointer_chain_offsets)}; "
+                f"world_chain={tuple(hex(value) for value in snapshot.world_pointer_chain_offsets)}; "
+                f"world_field={None if snapshot.world_field_offset is None else f'0x{snapshot.world_field_offset:X}'}; "
+                f"self_field={None if snapshot.self_pointer_offset is None else f'0x{snapshot.self_pointer_offset:X}'}; "
                 f"map={facts.selected_map_name or 'unselected'}; "
                 f"map_cell={coordinate}; "
                 f"cached_actor_slots={snapshot.providers.cached_actor_slots}; "
@@ -448,6 +461,52 @@ class RuntimeController:
             self._diagnostic_recovery_requested = previous_recovery_requested
             raise
         return session_id
+
+    def _pointer_recovery_hints(
+        self,
+        *,
+        player_current_hp: int | None = None,
+        player_max_hp: int | None = None,
+    ) -> PointerRecoveryHints:
+        config = getattr(self.bot, "config", {})
+        species: set[int] = set()
+        for entry in config.get("selected_mobs", ()):
+            if not isinstance(entry, dict):
+                continue
+            value = entry.get("species_id")
+            if isinstance(value, bool):
+                continue
+            try:
+                parsed = int(value)
+            except (TypeError, ValueError):
+                continue
+            if parsed > 0:
+                species.add(parsed)
+
+        if player_current_hp is not None:
+            config["pointer_recovery_current_hp"] = int(player_current_hp)
+        if player_max_hp is not None:
+            config["pointer_recovery_max_hp"] = int(player_max_hp)
+        current_hp = config.get("pointer_recovery_current_hp")
+        maximum_hp = config.get("pointer_recovery_max_hp")
+        try:
+            current_hp = None if current_hp in (None, "") else int(current_hp)
+            maximum_hp = None if maximum_hp in (None, "") else int(maximum_hp)
+        except (TypeError, ValueError):
+            current_hp = None
+            maximum_hp = None
+
+        overlay = getattr(self.bot, "_native_map_overlay", None)
+        frame = getattr(overlay, "coordinate_frame", None)
+        spawn_x = getattr(frame, "origin_native_x", None)
+        spawn_z = getattr(frame, "origin_native_z", None)
+        return PointerRecoveryHints(
+            known_species_ids=tuple(sorted(species)),
+            player_spawn_x=None if spawn_x is None else float(spawn_x),
+            player_spawn_z=None if spawn_z is None else float(spawn_z),
+            player_current_hp=current_hp,
+            player_max_hp=maximum_hp,
+        )
 
     def stop_native_diagnostic(self) -> bool:
         """Request cancellation of the current managed native diagnostic."""

@@ -1,21 +1,16 @@
 # Refactor Status
 
-- Phase: automated current-client correction complete; `PTR-LIVE-001` real-client acceptance pending.
+- Phase: automated anchored current-client discovery complete; awaiting the single `PTR-LIVE-001` Win32 movement-correlation protocol.
 - Branch: `feature/adaptive-mapper`.
-- Validated current-client correction checkpoint: `d26ff8de14037be740a9cdb009fbda22b9eaa176`.
-- Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through immutable tag `protected/pre-codex-refactor` and branch `backup/pre-codex-refactor`.
+- Current pre-checkpoint HEAD: `bba876bfe482fb55b26014e90a7350787e96dcf1`; the anchored implementation checkpoint and journal reconciliation follow.
+- Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through `protected/pre-codex-refactor` and `backup/pre-codex-refactor`.
 - Production route: `runtime_controller.py -> farming.trainer -> UnifiedFarmingEnv / SessionAwarePPO`.
-- Legacy farming monkeypatch, movement PPO, target/orbit/navigation, patch backup, installer, and generated-log paths: removed.
 - Active model: `models/farming/native_strategy_ppo.zip`; SHA-256 `3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2` unchanged.
-- Final automated test: 532 passed, 1 skipped in 8.60 seconds.
-- Quality: canonical farming/native/runtime changed scope compiles and passes Ruff F/I plus error-level BasedPyright. Repository-wide legacy mapper/test import-order debt and PySimpleGUI typing debt are classified, not introduced by this refactor.
-- Static gates: no versioned farming patch or removed navigator/executor production reference; no movement model file; both protected refs peel to the protected SHA.
-- Tree runnable: yes under automated/fake integration coverage.
-- User-owned changes excluded: deleted root `AGENTS.md`, `README.md`, and `foreground_vision_farm.json`.
-- User backups ignored and untouched: `foreground_vision_bot.zip`, `refactor_logs.zip`.
-- Live evidence: configured player slot `Neuz.exe+0x5852B8` resolves to absolute `0x6352B8`, is null, and expanding recovery through `0x800000` reports `not_found`; dry-run currently surfaces `NativePointerSnapshotError` from its control worker.
-- Leading diagnosis: discovery is coupled to the old slot neighborhood and old player/world slot delta. Both assumptions can reject a valid current-client layout even when actor/self/world invariants still hold.
-- Implemented: module-image discovery, independent player/world-slot correlation, ranked repeated validation, ambiguity and rejection evidence, explicit transactional persistence, GIL-yielding worker scans, and graceful managed startup recovery before focus/input/environment activation.
-- Automated acceptance: 538 passed, 1 skipped in 9.07 seconds; changed Ruff F/I, compile/diff hygiene, and native/farming BasedPyright error-level gates pass.
-- Architecture boundary: ordinary reads and Native Health remain scan-free; automatic startup recovery is managed and non-persisting; explicit GUI recovery is managed and may transactionally persist a strong result; the retired camera sweep remains absent because canonical farming uses native heading.
-- Next action: run only `refactor_logs/manual_tests/PTR-LIVE-001_current_client_pointer_acceptance.md` against the real client and return its requested evidence.
+- Latest automated acceptance: 545 passed, 1 skipped in 9.27 seconds.
+- Quality: changed production/test scope passes Ruff F/I; native production BasedPyright reports zero errors (existing warning-level typing debt remains); diff hygiene passes.
+- Live evidence retained: `Neuz.exe` base `0xB0000`, size `0x943000`, 32-bit; all 4,096 legacy candidates rejected at the historical self field. GUI responsiveness, cancellation, no-input startup failure, Stop, and shutdown passed.
+- Implemented next strategy: selected species consensus, inferred current world/self actor fields, Tower spawn `(253.0, 86.0)` plus exact current/max HP ranking, stable direct/one-hop module references, and mandatory second-sample movement confirmation.
+- Safety boundary: ordinary reads and Native Health are scan-free; recovery is managed, bounded, cancellable, single-flight, and off Tk. The first anchored sample cannot apply or persist anything. Only exact HP plus coherent movement and stable repeated reads authorize transactional persistence.
+- Diagnostic extension: legacy self mismatches receive up to 1,024 read-only world/reference/coordinate/HP/player near-match probes; those counters cannot promote a rejected candidate.
+- User-owned deletions remain excluded. `foreground_vision_bot.zip` and `refactor_logs.zip` remain ignored and untouched.
+- Open task: `PTR-LIVE-001` only. Run `refactor_logs/manual_tests/PTR-LIVE-001_current_client_pointer_acceptance.md` and return the requested log/config evidence.

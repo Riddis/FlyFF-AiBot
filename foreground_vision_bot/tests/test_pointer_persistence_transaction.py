@@ -120,6 +120,26 @@ def _recovery() -> pointer_recovery.PlayerPointerRecovery:
     )
 
 
+def _anchored_recovery() -> pointer_recovery.PlayerPointerRecovery:
+    return pointer_recovery.PlayerPointerRecovery(
+        player_pointer_address=0x10003000,
+        player_pointer_offset=0x3000,
+        player_base=0x30000000,
+        world_base=0x34000000,
+        world_pointer_address=0x10003100,
+        world_pointer_offset=0x3100,
+        configured_player_pointer_offset=0x2000,
+        configured_world_pointer_offset=0x2100,
+        search_radius=0,
+        validated_candidates=2,
+        strategy="anchored_movement",
+        player_pointer_chain_offsets=(0x20,),
+        world_field_offset=0x180,
+        self_pointer_offset=0x1EF0,
+        movement_validated=True,
+    )
+
+
 def _backup(path: Path) -> Path:
     return path.with_suffix(path.suffix + ".pre_pointer_recovery.bak")
 
@@ -250,6 +270,31 @@ def test_successful_pair_update_keeps_exact_reversible_backups(
     assert _backup(position_path).read_bytes() == POSITION_BYTES
     assert _backup(monster_path).read_bytes() == MONSTER_BYTES
     assert _transaction_artifacts(tmp_path) == []
+
+
+def test_movement_validated_anchor_persists_chain_and_inferred_layout(
+    tmp_path: Path,
+) -> None:
+    position_path, monster_path = _paths(tmp_path)
+
+    pointer_recovery.persist_recovered_pointer_offsets(
+        _anchored_recovery(),
+        position_config_path=position_path,
+        monster_config_path=monster_path,
+    )
+
+    position = json.loads(position_path.read_text(encoding="utf-8"))
+    monster = json.loads(monster_path.read_text(encoding="utf-8"))
+    assert position["pointer_offset"] == "0x3000"
+    assert position["pointer_chain_offsets"] == ["0x20"]
+    assert monster["player_pointer_offset"] == "0x3000"
+    assert monster["world_pointer_offset"] == "0x3100"
+    assert monster["player_pointer_chain_offsets"] == ["0x20"]
+    assert monster["world_pointer_chain_offsets"] == []
+    assert monster["layout"]["world_offset"] == "0x180"
+    assert monster["layout"]["self_pointer_offset"] == "0x1EF0"
+    assert _backup(position_path).read_bytes() == POSITION_BYTES
+    assert _backup(monster_path).read_bytes() == MONSTER_BYTES
 
 
 def test_missing_second_config_never_touches_first_or_creates_markers(

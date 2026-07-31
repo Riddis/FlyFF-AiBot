@@ -117,5 +117,8 @@ Acceptance: repository is runnable, evidence is captured, docs are self-containe
 - [ ] `PTR-LIVE-001` Discover the current client player/world slots with bounded, module-aware, strongly validated recovery.
 - [x] `PTR-LIVE-002` Make expected startup pointer unavailability recover or stop cleanly before focus/input/environment activation.
 - [x] `PTR-LIVE-003` Add diagnostics, transactional explicit persistence, automated regression coverage, and one focused live protocol.
+- [x] `PTR-LIVE-004` Infer current actor/world relationships from known monster species and the Tower spawn/HP anchor without requiring the stale historical self field.
+- [x] `PTR-LIVE-005` Add a stable two-sample movement-correlation gate and direct-slot/pointer-chain publication for legacy-self-independent candidates.
+- [x] `PTR-LIVE-006` Validate the anchored strategy automatically, update diagnostics/docs, and replace the live protocol with one exact continuation.
 
 Acceptance: ordinary reads remain scan-free; recovery is bounded, cancellable, single-flight, and off Tk; accepted slots are stable and coherently validated; startup failure is concise and input-safe.

@@ -181,10 +181,29 @@ class Gui:
 
             if event in {"-NATIVE_HEALTH-", "-RECOVER_POINTERS-"}:
                 recover = event == "-RECOVER_POINTERS-"
+                current_hp: int | None = None
+                maximum_hp: int | None = None
+                if recover:
+                    try:
+                        current_hp = int(str(values.get("-POINTER-CURRENT-HP-", "")))
+                        maximum_hp = int(str(values.get("-POINTER-MAX-HP-", "")))
+                        if current_hp <= 0 or maximum_hp <= 0:
+                            raise ValueError
+                        if current_hp > maximum_hp:
+                            raise ValueError
+                    except (TypeError, ValueError):
+                        self.runtime_bus.log(
+                            "Enter positive current/max player HP before anchored "
+                            "pointer recovery (current cannot exceed maximum).",
+                            "msg_red",
+                        )
+                        continue
                 try:
                     self.controller.start_native_diagnostic(
                         recover=recover,
-                        timeout=10.0 if recover else 1.0,
+                        timeout=30.0 if recover else 1.0,
+                        player_current_hp=current_hp,
+                        player_max_hp=maximum_hp,
                     )
                 except (RuntimeError, ValueError) as error:
                     self.runtime_bus.log(str(error), "msg_red")
@@ -1355,6 +1374,22 @@ class Gui:
                         disabled=True,
                         key="-SET_MINIMAP_ANCHOR-",
                         expand_x=True,
+                    ),
+                ],
+                [
+                    sg.Text("Player HP"),
+                    sg.InputText(
+                        "",
+                        key="-POINTER-CURRENT-HP-",
+                        size=(9, 1),
+                        tooltip="Exact current HP at the Tower spawn",
+                    ),
+                    sg.Text("Max HP"),
+                    sg.InputText(
+                        "",
+                        key="-POINTER-MAX-HP-",
+                        size=(9, 1),
+                        tooltip="Exact maximum player HP",
                     ),
                 ],
                 [

@@ -7,7 +7,6 @@ from typing import Any
 
 from .PositionProvider import PositionProviderError
 
-
 DEFAULT_MONSTER_CONFIG_PATH = Path(__file__).with_name("native_monsters.json")
 
 
@@ -36,6 +35,22 @@ def _parse_int(value: object, *, field_name: str, minimum: int = 0) -> int:
     return result
 
 
+def _parse_offset_list(value: object, *, field_name: str) -> tuple[int, ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise MonsterConfigurationError(f"{field_name} must be a JSON array")
+    result = tuple(
+        _parse_int(item, field_name=f"{field_name}[{index}]")
+        for index, item in enumerate(value)
+    )
+    if len(result) > 1:
+        raise MonsterConfigurationError(
+            f"{field_name} supports at most one additional indirection"
+        )
+    return result
+
+
 @dataclass(frozen=True, slots=True)
 class NativeMonsterConfig:
     """Read-only FlyFF actor-pool layout and discovery settings."""
@@ -44,6 +59,8 @@ class NativeMonsterConfig:
     module_name: str = "Neuz.exe"
     player_pointer_offset: int = 0x5852B8
     world_pointer_offset: int = 0x596C6C
+    player_pointer_chain_offsets: tuple[int, ...] = ()
+    world_pointer_chain_offsets: tuple[int, ...] = ()
     selected_actor_offset: int = 0x20
 
     actor_stride: int = 0x2008
@@ -162,6 +179,14 @@ class NativeMonsterConfig:
                 payload.get("world_pointer_offset", "0x596C6C"),
                 field_name="world_pointer_offset",
                 minimum=1,
+            ),
+            player_pointer_chain_offsets=_parse_offset_list(
+                payload.get("player_pointer_chain_offsets"),
+                field_name="player_pointer_chain_offsets",
+            ),
+            world_pointer_chain_offsets=_parse_offset_list(
+                payload.get("world_pointer_chain_offsets"),
+                field_name="world_pointer_chain_offsets",
             ),
             selected_actor_offset=_parse_int(
                 payload.get("selected_actor_offset", "0x20"),

@@ -1,66 +1,79 @@
-# PTR-LIVE-001 - Current-client pointer acceptance
+# PTR-LIVE-001 - Anchored current-client pointer acceptance
 
-Run this protocol once against the same current FlyFF client that reported
-absolute player slot `0x6352B8` as null. Do not run the older consolidated live
-protocol first. Keep the character logged in, alive, stationary, and outside a
-Tower teleport cell.
+Run this protocol once against the same current FlyFF client. Do not restart,
+reattach, run dry-run, or invoke recovery a third time between the two recovery
+samples. The first sample discovers a candidate; the second confirms movement
+of that exact candidate.
 
 ## Evidence to retain
 
 - The complete GUI log from attach through close.
+- The exact current and maximum player HP entered for each recovery sample.
 - `position/native_position.json` and `position/native_monsters.json` after the
-  run, plus any adjacent `.pre_pointer_recovery.bak` files.
-- The exact outcome and rejection-summary line from **Recover Pointers**.
-- If dry-run starts, the first native preflight line and the final Stop line.
+  run, plus adjacent `.pre_pointer_recovery.bak` files if created.
+- Every recovery progress/outcome line, especially the old-self near-match,
+  monster consensus, inferred field, spawn, direct/chain, and movement counts.
 
-## Procedure
+## Exact protocol
 
-1. Launch the application normally, select **Tower AoE** and at least one known
-   monster species, then attach the correct FlyFF window. Confirm Bot Vision and
-   FPS remain responsive.
-2. Click **Native Health**. Record the summary containing PID, module name/path,
-   module base/size, pointer width, configured relative offsets, absolute slots,
-   health, map cell, actor-cache count, OCR state, and focus state.
-3. If health is already `healthy`, continue to step 6. Otherwise click **Recover
-   Pointers** exactly once. While it runs, move the GUI window and confirm it
-   repaints. Do not click recovery again.
-4. Expected successful discovery evidence:
-   - strategy is `module_image`;
-   - the result is `recovery_succeeded` and after-health is `healthy`;
-   - player and world bases are nonzero and generation advances;
-   - there is no ambiguity/instability outcome;
-   - both JSON files contain the same recovered player relative offset, and the
-     monster JSON contains the independently recovered world relative offset;
-   - both writes completed together and the pre-recovery backups remain.
-5. If recovery reports `not_found`, `deadline`, or `ambiguous`, stop this
-   protocol without retrying. Return the final summary with `strategy`, scanned
-   bytes/slots, validated count, and the self/world/coordinate/HP/non-player/
-   missing-world/unstable/ambiguous rejection counts. This is a valid diagnostic
-   result and must not be worked around by weakening validation.
-6. Click **Native Health** once more. Expect `healthy` with the same module
-   identity, coherent player/world bases, and the new current absolute slots.
-7. Put another harmless application in the foreground, then start **Native Dry
-   Run (No Learning)**. Expected order is: cheap pointer preflight (or one
-   bounded non-persisting startup recovery), verified native state, focus
-   acquisition/manual grace, actor/map environment preflight, then control.
-   There must be no camera-discovery sweep and no input before native state is
-   verified.
-8. If startup recovery cannot resolve state, expect one concise
-   `No input was activated` status and a normal control-worker completion. A
-   `NativePointerSnapshotError` traceback is a failure.
-9. If dry-run starts, let it run for 10-15 seconds, confirm native position and
-   actors update, then press **Stop** once. Verify movement keys are released and
-   completion is prompt.
-10. Start **Recover Pointers** once more and immediately press **Stop**. Expect a
-    cancelled or cache-hit completion promptly, no GUI freeze, no second scan,
-    and no partial config write.
-11. Close the application. Expect bounded worker joins, one final input release,
+1. Start FlyFF and the bot normally. Select **Tower AoE** and select both
+   **Captain Asterius** (species 944) and **Captain Dantalian** (species 948).
+   Attach the correct FlyFF window and verify Bot Vision/FPS remain responsive.
+2. In FlyFF, place the character at the Tower AoE native spawn corresponding to
+   map `(0.0, 0.0)`: native X `253.0`, Z `86.0`. Keep the character stationary.
+   Ensure multiple selected monsters are active nearby. Do not stand in a
+   teleport trigger.
+3. Read the character sheet and enter the exact integer **Player HP** and
+   **Max HP** in the GUI recovery fields. Record both numbers in the returned
+   log. Stop any control task, then click **Recover Pointers** exactly once.
+4. While the worker runs, move the GUI window once to confirm repainting, but do
+   not move the character. Wait for completion. Expected result is
+   `recovery_movement_required`; it is not a failure. The log must show at least
+   two validated monster candidates, inferred world/self field offsets and
+   support, one stable spawn/player candidate, and a direct or one-hop player
+   and world reference. Neither JSON config may change and no recovery backup
+   may be created yet.
+5. If the first result is anything other than `recovery_movement_required`,
+   stop the protocol without retrying and return the complete log and unchanged
+   configs. Outcomes such as monster consensus not found, actor layout
+   inconclusive, spawn player not found, ambiguity, deadline, or cancellation
+   are valid diagnostic evidence.
+6. Without restarting or reattaching, focus FlyFF and manually move the
+   character 3-5 native units away from the spawn (roughly 2-3 map cells). Stop
+   all movement and remain stationary. Do not return to X `253.0`, Z `86.0`.
+7. Re-read the exact current and maximum HP. Update both GUI fields if needed,
+   record them, and click **Recover Pointers** exactly once more. Do not click
+   any other diagnostic between the two samples.
+8. Expected second result is recovery success using
+   `anchored_movement_confirmation`/`anchored_movement`, with movement observed,
+   healthy after-state, nonzero coherent player/world bases, and generation
+   advanced. This call must not repeat the full module/private-memory scan.
+   Both configs must update together: matching player relative slot and player
+   chain, the monster world slot/chain, and inferred `layout.world_offset` and
+   `layout.self_pointer_offset`. Adjacent pre-recovery backups must preserve the
+   prior files.
+9. Click **Native Health** once. Expect `healthy`, the same module identity,
+   the recovered chain/field summary, and a Tower local coordinate consistent
+   with the short movement.
+10. Put a harmless application in the foreground and start **Native Dry Run
+    (No Learning)**. Native preflight must succeed before autofocus or any
+    input. Let it run 10-15 seconds, then press **Stop** once. Verify prompt
+    completion and released movement keys.
+11. Close the application. Expect bounded worker joins, final input release,
     and no lingering `flyff-*` project worker.
+
+## Stop conditions
+
+At any non-success outcome, do not loop recovery, edit offsets manually, or
+weaken validation. Return the complete log, both HP pairs, both current config
+files, and any recovery backups. If HP changed after the first sample, the
+second sample must contain the updated exact current HP; an incorrect value is
+expected to invalidate the pending candidate.
 
 ## Acceptance
 
-Pass when attach/health remain responsive; module-image discovery either
-produces a stable, unambiguous, transactionally persisted player/world pair or
-produces actionable rejection evidence; a healthy pair permits dry-run only
-after native validation and focus ordering; expected startup failure is clean
-and input-safe; cancellation, Stop, and close are prompt.
+Pass only when the first call is movement-gated with no write, the second call
+confirms the same candidate without rescanning and performs one transactional
+write, Native Health becomes healthy, dry-run activates no input before native
+validation, and Stop/close remain prompt. Until this live evidence is returned,
+`PTR-LIVE-001` remains open.
