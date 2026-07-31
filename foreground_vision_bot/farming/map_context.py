@@ -12,10 +12,9 @@ from mapper.CoordinateFrame import CoordinateFrame
 from mapper.MapCatalog import MapCatalog
 from mapper.OccupancyGrid import OccupancyGrid
 from mapper.rl.LayoutSources import load_real_map
-from mapper.rl.NavigatorCore import inflate_navigation_masks
-from mapper.rl.ProceduralDungeon import DungeonLayout
 
 from .map_features import Cell, FarmingMapFeatures
+from .map_masks import inflate_map_masks
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,24 +73,15 @@ class FarmingMapContext:
                 f"{profile.name!r} has no mapped teleport/forbidden cells"
             )
 
-        spawn_y, spawn_x = free_points[0]
-        layout = DungeonLayout(
-            traversable=data.traversable.copy(),
-            forbidden=forbidden.copy(),
-            spawn=(int(spawn_x), int(spawn_y)),
-            source_name=f"live:{profile.name}",
-        )
-        masks = inflate_navigation_masks(
-            layout,
+        masks = inflate_map_masks(
+            data.traversable,
+            forbidden,
             obstacle_radius_cells=int(obstacle_buffer_radius_cells),
             teleport_radius_cells=int(buffer_radius),
         )
-        layout_forbidden = layout.forbidden
-        if layout_forbidden is None:
-            layout_forbidden = np.zeros_like(layout.traversable)
         features = FarmingMapFeatures(
-            traversable=layout.traversable,
-            forbidden=layout_forbidden,
+            traversable=data.traversable,
+            forbidden=forbidden,
             safe_traversable=masks.safe_traversable,
             teleport_buffer_radius_cells=buffer_radius,
         )

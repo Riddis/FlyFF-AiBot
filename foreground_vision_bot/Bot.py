@@ -425,7 +425,8 @@ class Bot:
         """
         Read the current total from the in-game kill counter.
 
-        Delta calculation belongs to FlyffEnv, so this method is stateless.
+        Session delta calculation belongs to the canonical farming environment,
+        so this capture helper remains stateless.
         """
         frame, _ = self._frame_snapshot()
 

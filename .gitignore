@@ -16,6 +16,8 @@ mapper/adaptive_motion.invalid_*.json
 
 # Temporary archives produced during development
 mapper.zip
+foreground_vision_bot.zip
+refactor_logs.zip
 
 # Persistent learned map data (keep locally; map_profiles.json is tracked)
 mapper/maps/
@@ -29,6 +31,7 @@ training_logs/farming/*
 !training_logs/farming/.gitkeep
 training_logs/mapping/*
 !training_logs/mapping/.gitkeep
+training_logs/movement/
 
 # One-time layout repair backups
 migration_backups/

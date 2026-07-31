@@ -62,6 +62,14 @@ shipped override. Generated `.patch_backups` and `v0706_patch`/`v0707_patch`/
 `v0708_patch` trees are now deleted in the dirty artifact-only slice: 26 exact
 tracked files, while both user ZIP backups remain untouched.
 
+That artifact slice is checkpointed at `aa4b104527239ef523d5b085a3821f2340ac7458`.
+The current broad-green cleanup extracts mask inflation into
+`farming/map_masks.py`, removes the now-unreachable movement PPO, Box(125)
+visual farming, one-time migration/cleanup, unused utility stacks, legacy model,
+and 30 generated logs/reports. The pointer recovery test is behavior-renamed.
+The suite is 525 passed, 1 skipped in 11.28 seconds and the active unified model
+SHA remains unchanged.
+
 ## Validation
 
 - Phase 02 resume gate: 92 passed in 2.44 seconds.
@@ -83,9 +91,9 @@ tracked files, while both user ZIP backups remain untouched.
 
 ## Exact continuation
 
-1. Commit the exact 26-file generated artifact deletion plus journal.
-2. Extract the shared map-mask utility, remove the movement-PPO and one-time
-   migration stacks, then finish fake end-to-end, docs, and live protocol gates.
+1. Audit and commit the current broad-green movement/visual/migration cleanup.
+2. Add required fake end-to-end session smoke, then finish GUI/diagnostic/docs
+   and live-client protocol gates.
 
 ## Dirty-tree ownership
 

@@ -14,10 +14,6 @@ MAPPING_TRAINING_LOGS_DIR = TRAINING_LOGS_DIR / "mapping"
 
 TESTS_DIR = APP_ROOT / "tests"
 
-FARMING_MODEL_RELATIVE = Path("models") / "farming" / "flyff_ppo"
-FARMING_CHECKPOINTS_RELATIVE = Path("models") / "farming" / "checkpoints"
-FARMING_TRAINING_LOGS_RELATIVE = Path("training_logs") / "farming"
-
 MAPPING_MODEL_RELATIVE = Path("models") / "mapping" / "mapper_explorer_ppo"
 MAPPING_CHECKPOINTS_RELATIVE = Path("models") / "mapping" / "checkpoints"
 MAPPING_BEST_RELATIVE = Path("models") / "mapping" / "best"

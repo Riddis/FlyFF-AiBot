@@ -59,3 +59,20 @@ The subsequent artifact-only slice deletes all 26 tracked files under
 `.patch_backups`, `v0706_patch`, `v0707_patch`, and `v0708_patch`, exactly
 matching the prior `FILE_MANIFEST.csv` decisions. The two user backup archives
 at repository root remain untouched and untracked.
+
+## Movement-policy, visual-farming, and migration cleanup
+
+The only generic runtime dependency on `NavigatorCore` was wall/teleport mask
+inflation. It now lives in the small canonical `farming/map_masks.py` module
+with direct behavior coverage. This makes the goal-conditioned movement PPO
+core, Gym wrapper, trainer, travel-cost layer, five configs, CLI, executor,
+and tests fully unreachable. The same slice removes the older Box(125) visual
+farming trainer/environment/builder/model, unused mouse/util modules, one-time
+layout/cleanup scripts, and their migration test. `test_v0708_pointer_recovery`
+is retained under the behavior name `test_pointer_recovery`.
+
+All 30 tracked generated run logs/reports are removed; directory `.gitkeep`
+files remain. `.gitignore` now excludes movement logs and both user ZIP backup
+names. The active unified policy remains byte-identical at SHA-256
+`3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2`.
+The broad suite after this slice is 525 passed and 1 skipped in 11.28 seconds.

@@ -6,9 +6,6 @@ import project_paths
 
 
 def test_default_model_folders_are_separated() -> None:
-    assert project_paths.FARMING_MODEL_RELATIVE == Path(
-        "models/farming/flyff_ppo"
-    )
     assert project_paths.MAPPING_MODEL_RELATIVE == Path(
         "models/mapping/mapper_explorer_ppo"
     )

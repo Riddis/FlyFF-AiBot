@@ -87,8 +87,8 @@ Acceptance: GUI performs no blocking scan/PPO work and shutdown leaves no projec
 
 ## Phase 06 — Mapping/native/vision boundaries
 
-- [ ] `BOUND-001` Isolate the active map catalog/context/transform from legacy adaptive mapping.
-- [ ] `BOUND-002` Preserve Tower AoE data, teleport mask, editor, and selected-map behavior.
+- [x] `BOUND-001` Isolate the active map catalog/context/transform from legacy adaptive mapping.
+- [x] `BOUND-002` Preserve Tower AoE data, teleport mask, editor, and selected-map behavior.
 - [ ] `BOUND-003` Clarify capture/preview/OCR ownership, rate limiting, and bounded queues.
 - [ ] `BOUND-004` Validate mapping, direct-path, OCR, preview, and fake end-to-end flows.
 
@@ -97,7 +97,7 @@ Acceptance: farming dependencies are explicit and active map/editor/vision behav
 ## Phase 07 — Legacy cleanup
 
 - [ ] `CLEAN-001` Finalize evidence-backed keep/merge/archive/delete manifest.
-- [ ] `CLEAN-002` Remove obsolete movement-PPO/target/orbit/version-patch code and replace coverage.
+- [x] `CLEAN-002` Remove obsolete movement-PPO/target/orbit/version-patch code and replace coverage.
 - [x] `CLEAN-003` Remove generated artifacts and update ignore rules.
 - [ ] `CLEAN-004` Normalize production/test names without compatibility layers.
 

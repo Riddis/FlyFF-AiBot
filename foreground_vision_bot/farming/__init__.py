@@ -1,9 +1,4 @@
-"""Canonical, dependency-light farming domain primitives.
-
-The live environment is composed in a later migration step.  Modules in this
-package deliberately avoid importing the legacy farming environment, Bot
-facade, versioned patch installers, or movement-policy stack.
-"""
+"""Canonical farming domain primitives and explicit live runtime."""
 
 from .actions import ACTION_COUNT, ACTION_NAMES, FarmingAction, coerce_farming_action
 from .map_features import DirectPathState, FarmingMapFeatures
