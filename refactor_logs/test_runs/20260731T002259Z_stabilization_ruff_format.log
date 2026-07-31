@@ -1,0 +1,5 @@
+Command: .venv\Scripts\ruff.exe format --check .
+Exit code: 1
+Result: 107 files would be reformatted; 150 files already formatted.
+Baseline: 97 files would be reformatted before journal/profile/test additions.
+Classification: repository-wide pre-existing formatting debt plus new journal harnesses; not a stabilization behavior regression.

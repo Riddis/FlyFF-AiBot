@@ -10,6 +10,8 @@ from worker_manager import WorkerManager
 
 
 class FakeCapture:
+    generation = 1
+
     def snapshot(self):
         frame = np.zeros((8, 8, 3), dtype=np.uint8)
         return frame, None

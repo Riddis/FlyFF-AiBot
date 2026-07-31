@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from math import hypot
-from pathlib import Path
-from time import monotonic, sleep
-from typing import Callable
+from time import monotonic
 
 from project_paths import resolve_app_path
 from worker_manager import CancellationToken
@@ -42,7 +41,7 @@ class CameraDiscoveryConfig:
             raise ValueError("focus_settle_seconds cannot be negative")
 
     @classmethod
-    def from_mapper_config(cls) -> "CameraDiscoveryConfig":
+    def from_mapper_config(cls) -> CameraDiscoveryConfig:
         path = resolve_app_path("mapper/coordinate_mapper.json")
         if not path.is_file():
             return cls()
@@ -74,6 +73,8 @@ class CameraDiscoverySweep:
         self._completed = False
 
     def should_run(self, *, active_actor_count: int) -> bool:
+        if self.cancellation.cancelled or not self.bot.rl_enabled:
+            return False
         provider = self.bot.monster_provider
         pose = self.bot.get_player_pose()
         if provider is None or pose is None:
@@ -95,14 +96,20 @@ class CameraDiscoverySweep:
         return distance >= self.config.repeat_distance_native
 
     def run(self, *, force: bool = False, active_actor_count: int = 0) -> bool:
+        if self.cancellation.cancelled or not self.bot.rl_enabled:
+            return False
         if not force and not self.should_run(active_actor_count=active_actor_count):
             return False
         keyboard = self.bot.keyboard
         provider = self.bot.monster_provider
         pose = self.bot.get_player_pose()
         if keyboard is None or provider is None or pose is None:
-            raise RuntimeError("Camera discovery requires attached input and native readers")
+            raise RuntimeError(
+                "Camera discovery requires attached input and native readers"
+            )
         if not self._wait_for_target_focus(keyboard):
+            return False
+        if self.cancellation.cancelled or not self.bot.rl_enabled:
             return False
 
         self._status(
@@ -124,10 +131,18 @@ class CameraDiscoverySweep:
             except Exception:
                 pass
 
+        if self.cancellation.cancelled or not self.bot.rl_enabled:
+            return False
         provider.discover_slots(force=True)
+        if self.cancellation.cancelled or not self.bot.rl_enabled:
+            return False
         final_pose = self.bot.get_player_pose() or pose
+        if self.cancellation.cancelled or not self.bot.rl_enabled:
+            return False
         self._last_position = (float(final_pose.x), float(final_pose.z))
         self._last_world = provider.read_world_base()
+        if self.cancellation.cancelled or not self.bot.rl_enabled:
+            return False
         self._completed = True
         self._status(
             f"Camera discovery complete; {len(provider.discovered_slot_bases)} "
@@ -136,6 +151,8 @@ class CameraDiscoverySweep:
         return True
 
     def _wait_for_target_focus(self, keyboard) -> bool:
+        if self.cancellation.cancelled or not self.bot.rl_enabled:
+            return False
         is_foreground = getattr(keyboard, "is_target_foreground", lambda: True)
         if is_foreground():
             return True
@@ -171,9 +188,7 @@ class CameraDiscoverySweep:
             if self.cancellation.cancelled or not self.bot.rl_enabled:
                 return False
             if is_foreground():
-                self._status(
-                    "FlyFF focus detected; camera discovery begins shortly."
-                )
+                self._status("FlyFF focus detected; camera discovery begins shortly.")
                 self._wait(self.config.focus_settle_seconds)
                 return not self.cancellation.cancelled and self.bot.rl_enabled
             now = monotonic()
@@ -203,4 +218,6 @@ class CameraDiscoverySweep:
         while monotonic() < deadline:
             if self.cancellation.cancelled or not self.bot.rl_enabled:
                 return
-            sleep(min(0.02, max(0.0, deadline - monotonic())))
+            interval = min(0.02, max(0.0, deadline - monotonic()))
+            if self.cancellation.wait(interval):
+                return

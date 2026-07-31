@@ -1,0 +1,498 @@
+Command: Get-Content -Raw -LiteralPath 'docs/runtime_architecture.md'
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+
+Exit code: 0
+Wall time: 2.5 seconds
+Output:
+# Runtime architecture
+
+This document describes the runtime introduced by the
+`refactor/runtime-stability` migration. The governing rule is explicit
+ownership: the GUI issues commands and renders state, while
+`RuntimeController` owns every long-running worker through one
+`WorkerManager`.
+
+## Thread diagram
+
+```mermaid
+flowchart LR
+    subgraph Main["Main GUI thread"]
+        GUI["Gui event loop<br/>PySimpleGUI only"]
+        RC["RuntimeController"]
+        BUS["RuntimeBus consumer"]
+        DIALOGS["Dialogs and heading confirmation"]
+        GUI --> RC
+        BUS --> GUI
+        GUI --> DIALOGS
+    end
+
+    subgraph Managed["WorkerManager-owned threads"]
+        CAP["Capture worker<br/>exactly one"]
+        CTRL["Control worker<br/>zero or one"]
+        RL["RL training or trained agent"]
+        MAP["Mapper"]
+        CAL["Manual calibration"]
+        CTRL --> RL
+        CTRL --> MAP
+        CTRL --> CAL
+    end
+
+    RC -->|start / cancel / join| CAP
+    RC -->|start / cancel / join| CTRL
+    CAP -->|latest preview, FPS, heartbeat| BUS
+    RL -->|status, log, completion/failure| BUS
+    MAP -->|latest map, status, log| BUS
+    CAL -->|status and confirmation request| BUS
+    DIALOGS -->|confirmation response| BUS
+
+    CAP --> WC["WindowCapture<br/>Win32 GDI/DC ownership"]
+    RL --> BOT["Bot / FlyffEnv / ActionExecutor"]
+    MAP --> KEY["MappingController / HumanKeyboard"]
+    CAL --> KEY
+```
+
+The GUI thread is the only thread permitted to call PySimpleGUI. Workers never
+call `window[...]`, `sg.cprint`, popups, or dialogs.
+
+## Worker ownership
+
+`WorkerManager` has two worker slots, keyed by `WorkerKind`:
+
+| Worker kind | Cardinality | Typical names | Owner |
+| --- | ---: | --- | --- |
+| `CAPTURE` | Exactly one while attached | `capture-1`, `capture-2` | `RuntimeController` through `CaptureService` |
+| `CONTROL` | Zero or one | `rl-train`, `rl-agent`, `mapper`, `calibration` | `RuntimeController` |
+
+The manager rejects a start when a live worker already occupies the requested
+kind. All managed threads are non-daemon and receive a unique
+`CancellationToken`.
+
+The GUI does not store thread objects, cancellation events, active mapper
+objects, or parallel running flags. It asks `RuntimeController` for current
+state and reacts to `RuntimeBus` lifecycle messages.
+
+## Cancellation flow
+
+```mermaid
+flowchart TD
+    CMD["GUI Stop command"] --> RC["RuntimeController.stop_control"]
+    RC --> BOTSTOP["Bot.stop<br/>disable RL + release ActionExecutor movement"]
+    RC --> WM["WorkerManager.stop(CONTROL)"]
+    WM --> STATE["State = STOPPING"]
+    WM --> TOKEN["CancellationToken.cancel()"]
+    WM --> HOOK["stop_hook = Bot.stop_movement"]
+
+    TOKEN --> RL["PPO callback / agent loop observes token"]
+    TOKEN --> MAP["Mapper loop and frame waits observe token"]
+    TOKEN --> CAL["Manual or nested calibration observes same token"]
+    TOKEN --> CONF["Pending heading confirmation returns None"]
+
+    RL --> FINALLY["Worker cleanup / finally"]
+    MAP --> FINALLY
+    CAL --> FINALLY
+    FINALLY --> TERMINAL["COMPLETED or FAILED event"]
+```
+
+Cancellation is cooperative. `CancellationToken.wait(timeout)` replaces
+uninterruptible sleeps in mapping and calibration paths. Mapper-created
+recovery calibration receives the mapper's existing token; it is not a second
+managed worker and cannot outlive its mapper.
+
+`stop()` requests cancellation but does not synchronously wait. Full shutdown
+uses bounded joins.
+
+## Startup flow
+
+1. `foreground_vision_farm.py` constructs `Gui` and `Bot`.
+2. `Gui.loop()` constructs one `RuntimeController(bot, runtime_bus)`.
+3. `RuntimeController` constructs:
+   - one `WorkerManager`;
+   - one `CaptureService` using that manager;
+   - a `WindowCapture` factory and Bot preview callback.
+4. No worker starts until the user attaches a FlyFF window.
+5. Attach starts the capture generation and prepares `HumanKeyboard` and
+   `ActionExecutor`.
+6. A control command is accepted only when capture is active and no other
+   control worker occupies the control slot.
+
+## Shutdown flow
+
+`RuntimeController.shutdown()` owns shutdown ordering:
+
+1. Call `Bot.stop()` to disable RL control and release persistent movement.
+2. Mark the manager as shutting down so new starts are rejected.
+3. Cancel every active worker.
+4. Invoke worker stop hooks, including movement release and capture close.
+5. Join control first, then capture, within one bounded deadline.
+6. Release Bot keyboard/input ownership.
+7. Close `RuntimeBus`, resolving all pending heading confirmations with
+   `None`.
+8. The GUI closes the main window after the loop exits; the secondary log
+   window belongs to the same GUI lifetime.
+
+The manager returns a result for each worker kind so a join timeout can be
+reported rather than mistaken for a clean exit.
+
+## RuntimeBus message types
+
+`RuntimeBus` separates high-rate state from reliable lifecycle delivery.
+
+### Latest-only values
+
+Each key stores `(version, value)`. Publishing replaces the previous value;
+the GUI reads only versions newer than the version it last rendered.
+
+| Key | Producer | Consumer | Intended rate |
+| --- | --- | --- | ---: |
+| `debug_frame` | `CaptureService` or Bot diagnostic publication | Bot Vision | Capture publish â‰¤12 FPS; GUI render â‰¤10 FPS |
+| `map_frame` | Mapper callback | Live Map | Mapper/GUI approximately 4 FPS |
+| `video_fps` | `CaptureService` | Status panel | 2 updates/second |
+| `rl_status` | RL reporter | Status panel | On status change |
+| `mapper_status` | Mapper/calibration reporter | Status panel | On status change |
+
+Latest-only values may be dropped freely. This prevents slow GUI rendering
+from applying backpressure to capture or control.
+
+### Bounded logs
+
+Logs are `(level, message)` records in a bounded deque. When full, the oldest
+entry is discarded and `dropped_logs` is incremented. The GUI drains a bounded
+batch at a controlled rate and mirrors new messages into the secondary log
+window.
+
+### Reliable lifecycle messages
+
+These low-rate deques have no silent `maxlen` eviction:
+
+- `TaskCompletion`: worker name, result, and UTC completion timestamp.
+- `WorkerFailure`: worker name, lifecycle state, cancellation status, full
+  traceback, and UTC failure timestamp.
+- `ConfirmationRequest`: unique request ID, frame, detected angle,
+  confidence, context, completion event, and result.
+
+### Heartbeats
+
+Workers publish their last `time.monotonic()` heartbeat by name. Reading
+heartbeats returns a snapshot and never exposes the internal dictionary.
+
+### Heading confirmation
+
+A calibration worker enqueues one `ConfirmationRequest` and waits in short,
+cancellable intervals. The GUI pops the request, displays the dialog on the
+main thread, then resolves it explicitly. Bus close, timeout, or cancellation
+resolves/cancels the request instead of silently dropping it.
+
+## CaptureService lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Detached
+    Detached --> Starting: attach(handle)
+    Starting --> Capturing: manager accepts CAPTURE slot
+    Starting --> Detached: source/start failure; source.close()
+    Capturing --> Stopping: stop or reattach
+    Stopping --> Detached: cancellation + close + successful join
+    Stopping --> Stopping: join timeout; reattach rejected
+    Detached --> Starting: next generation
+```
+
+Important invariants:
+
+- Each successful attach increments a generation number.
+- A new `FrameSource` is not created until the prior generation has joined.
+- Reattach fails if the prior capture generation cannot exit within the
+  timeout.
+- A stale generation is forbidden from publishing frames.
+- Color and grayscale snapshots are protected by a lock and copied for
+  consumers.
+- Preview publication is disabled when Bot Vision is disabled.
+- Preview frames are latest-only and may be dropped.
+- `WindowCapture.get_frame()` releases window DCs, compatible DCs, and bitmap
+  handles from a `finally` block.
+- Capture source close is safe when invoked by both the stop hook and worker
+  cleanup.
+
+## WorkerManager state machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> STARTING: start()
+    STARTING --> RUNNING: thread enters wrapper
+    RUNNING --> STOPPING: stop()
+    RUNNING --> COMPLETED: target returns
+    RUNNING --> COMPLETED: WorkerCancelled
+    RUNNING --> FAILED: target raises Exception
+    STOPPING --> COMPLETED: target observes cancellation and exits
+    STOPPING --> FAILED: cleanup or target fails
+    COMPLETED --> STARTING: later replacement of same worker kind
+    FAILED --> STARTING: later replacement of same worker kind
+```
+
+`WorkerManager.start()` records the worker before starting its thread, closing
+the duplicate-start race. The wrapper contains worker exceptions and publishes
+a structured `WorkerFailure`; unexpected worker exceptions cannot silently
+terminate the process.
+
+`stop_hook` exists for immediate safety actions that cannot wait for cooperative
+cancellation, notably movement release and capture close. Hook failures are
+also converted into structured failure events.
+
+Terminal records remain available as `WorkerSnapshot` data until a later
+generation replaces that worker kind.
+
+## RuntimeController responsibilities
+
+`RuntimeController` is the runtime faÃ§ade used by the GUI. It:
+
+- constructs and owns `WorkerManager` and `CaptureService`;
+- enforces the one-capture/one-control policy;
+- rejects reattach while a control worker is active;
+- releases old input ownership before an allowed reattach;
+- starts RL training and trained-agent execution;
+- starts mapper and manual calibration workers;
+- supplies shared cancellation tokens;
+- connects worker status, map, heartbeat, and confirmation callbacks to
+  `RuntimeBus`;
+- requests control cancellation;
+- owns bounded shutdown ordering;
+- releases movement and keyboard ownership on terminal paths.
+
+It does not render GUI elements, perform dialogs, detect mobs, calculate
+rewards, or implement mapper algorithms.
+
+## Mapper ownership
+
+The mapper runs inside the single managed `CONTROL` worker. It owns:
+
+- `MappingController` and its finite AZERTY movement pulses;
+- `MotionTracker`;
+- `MinimapHeadingDetector`;
+- `OccupancyGrid`;
+- `Explorer`;
+- `PangDetector`;
+- `MapLogger`;
+- the mapping output directory.
+
+The mapper does not own a thread. `RuntimeController` supplies its thread and
+cancellation token.
+
+The complete `Mapper.run()` is resource-safe. Countdown cancellation, initial
+heading failure, normal stop, exception, and teleport exit all pass through
+cleanup that stops movement, saves the grid, and closes the logger.
+
+Repeated heading mismatch may construct a `RotationCalibrator` synchronously
+inside the mapper worker. That calibrator receives the mapper's token and
+therefore remains part of the same ownership and cancellation scope.
+
+## Calibration ownership
+
+Manual calibration occupies the managed `CONTROL` slot. Recovery calibration
+is a child operation inside the mapper control worker.
+
+Both forms:
+
+- use `MappingController` for short, finite turns;
+- share the controlling worker's `CancellationToken`;
+- stop movement before/after measurements and in cleanup;
+- use strict multi-sample heading reads;
+- discard rejected readings instead of blending them into state;
+- use interruptible waits;
+- attempt to restore the original heading;
+- save accepted calibration output.
+
+Visual confirmation is requested through `RuntimeBus`. The GUI alone creates
+and reads the PySimpleGUI confirmation window.
+
+## Sequence diagrams
+
+### Attach
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant GUI
+    participant RC as RuntimeController
+    participant Bot
+    participant CS as CaptureService
+    participant WM as WorkerManager
+    participant WC as WindowCapture
+    participant Bus as RuntimeBus
+
+    User->>GUI: Attach Window
+    GUI->>RC: attach(hwnd)
+    RC->>RC: reject if control_active
+    RC->>Bot: release_input()
+    RC->>CS: attach(hwnd)
+    alt previous capture active
+        CS->>WM: stop_and_join(CAPTURE, 5s)
+        alt join timeout
+            CS-->>RC: RuntimeError
+            RC-->>GUI: clear error message
+        end
+    end
+    CS->>WC: create frame source
+    CS->>WM: start(capture-N, CAPTURE)
+    WM-->>CS: generation token
+    RC->>Bot: prepare_window(hwnd, bus, capture)
+    Bot->>Bot: create HumanKeyboard + ActionExecutor
+    WM->>WC: get_frame() loop
+    WM->>Bus: latest preview/FPS + heartbeat
+    RC-->>GUI: generation number
+    GUI->>GUI: enable control buttons
+```
+
+### Start Training
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant GUI
+    participant RC as RuntimeController
+    participant WM as WorkerManager
+    participant Bot
+    participant Train as train_agent
+    participant Env as FlyffEnv
+    participant Bus as RuntimeBus
+
+    User->>GUI: Start Training
+    GUI->>RC: start_rl("train")
+    RC->>RC: require capture_active
+    RC->>WM: start(rl-train, CONTROL, target)
+    WM->>WM: STARTING â†’ RUNNING
+    WM->>Bot: start()
+    WM->>Train: train_agent(bot, token, reporter)
+    Train->>Env: build live environment
+    loop PPO steps
+        Env->>Bot: observe and execute action
+        Train->>Bus: status/log/heartbeat
+        Train->>Train: callback checks token and bot.rl_enabled
+    end
+    Train->>Env: close() / release movement
+    WM->>Bot: stop()
+    alt successful return or cancellation
+        WM->>Bus: TaskCompletion
+        WM->>WM: COMPLETED
+    else exception
+        WM->>Bus: WorkerFailure with traceback
+        WM->>WM: FAILED
+    end
+    GUI->>Bus: drain lifecycle messages
+    GUI->>GUI: restore idle controls
+```
+
+### Start Mapper
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant GUI
+    participant RC as RuntimeController
+    participant WM as WorkerManager
+    participant Mapper
+    participant Cal as Recovery Calibration
+    participant Bus as RuntimeBus
+
+    User->>GUI: Map Area
+    GUI->>RC: start_mapper()
+    RC->>RC: require capture_active
+    RC->>WM: start(mapper, CONTROL, target)
+    WM->>Mapper: construct with token and callbacks
+    WM->>Mapper: run()
+    loop Mapping
+        Mapper->>Mapper: cancellable wait / move / observe
+        Mapper->>Bus: map_frame + status + heartbeat
+        opt repeated heading mismatch
+            Mapper->>Cal: construct with same token
+            Cal->>Cal: strict heading + interruptible turns
+            Cal-->>Mapper: updated calibration
+        end
+        opt teleport confirmed
+            Mapper->>Mapper: stop movement + mark zone + save
+        end
+    end
+    Mapper->>Mapper: finally stop, save, close logger
+    Mapper-->>WM: output directory
+    WM->>Bus: TaskCompletion or WorkerFailure
+    GUI->>Bus: drain lifecycle message
+    GUI->>GUI: restore idle controls
+```
+
+### Stop
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant GUI
+    participant RC as RuntimeController
+    participant Bot
+    participant WM as WorkerManager
+    participant Token as CancellationToken
+    participant Worker as Active control worker
+    participant Bus as RuntimeBus
+
+    User->>GUI: Stop
+    GUI->>RC: stop_control()
+    RC->>Bot: stop()
+    Bot->>Bot: disable RL + release movement
+    RC->>WM: stop(CONTROL)
+    WM->>WM: state = STOPPING
+    WM->>Token: cancel()
+    WM->>Bot: stop_movement() hook
+    Token-->>Worker: cancellation observed
+    Worker->>Worker: task-specific cleanup
+    alt clean exit
+        WM->>Bus: TaskCompletion
+    else failure during exit
+        WM->>Bus: WorkerFailure
+    end
+    GUI->>Bus: drain result
+    GUI->>GUI: enable start controls
+```
+
+### Shutdown
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant GUI
+    participant RC as RuntimeController
+    participant Bot
+    participant WM as WorkerManager
+    participant Control as Control worker
+    participant Capture as Capture worker
+    participant Bus as RuntimeBus
+
+    User->>GUI: Exit / close window
+    GUI->>RC: shutdown(8s)
+    RC->>Bot: stop()
+    RC->>WM: shutdown(8s)
+    WM->>WM: reject future starts
+    WM->>Control: cancel + movement stop hook
+    WM->>Capture: cancel + source.close hook
+    WM->>Control: join within shared deadline
+    WM->>Capture: join with remaining deadline
+    WM-->>RC: join result by worker kind
+    RC->>Bot: release_input()
+    RC->>Bus: close()
+    Bus->>Bus: resolve pending confirmations as None
+    RC-->>GUI: shutdown results
+    GUI->>GUI: end GUI lifetime and close main window
+```
+
+## Operational invariants
+
+- No PySimpleGUI access occurs outside the GUI thread.
+- Capture never waits for GUI rendering.
+- Preview and map publication cannot create unbounded queues.
+- A capture generation is never replaced while its thread is alive.
+- Reattach never silently stops a control task.
+- Only one control worker can own movement at a time.
+- Nested calibration shares mapper cancellation and thread ownership.
+- Movement release is attempted on stop, completion, exception, teleport,
+  reattach, and shutdown.
+- Worker failures are contained and retain their complete traceback.
+- Static validation does not replace live FlyFF lifecycle and long-duration
+  testing.
+
+__COMMAND_EXIT_CODE__=
+

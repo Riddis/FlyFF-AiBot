@@ -5,7 +5,7 @@ from time import monotonic
 
 import numpy as np
 from capture_service import CaptureService
-from runtime_bus import RuntimeBus
+from runtime_bus import RuntimeBus, RuntimeStatus
 from worker_manager import WorkerKind, WorkerManager
 
 
@@ -27,6 +27,23 @@ class FakeSource:
             raise RuntimeError("transient capture failure")
         if self.block_after_first and self.frames > 1:
             self.closed.wait(5.0)
+        frame = np.zeros((4, 4, 3), dtype=np.uint8)
+        gray = np.zeros((4, 4), dtype=np.uint8)
+        return frame, gray
+
+    def close(self) -> None:
+        self.closed.set()
+
+
+class OneFrameThenFailSource:
+    def __init__(self) -> None:
+        self.closed = Event()
+        self.frames = 0
+
+    def get_frame(self):
+        self.frames += 1
+        if self.frames > 1:
+            raise RuntimeError("window no longer exists")
         frame = np.zeros((4, 4, 3), dtype=np.uint8)
         gray = np.zeros((4, 4), dtype=np.uint8)
         return frame, gray
@@ -112,3 +129,34 @@ def test_transient_capture_failure_is_retried_without_detaching() -> None:
     assert logs[0][0] == "msg_red"
     assert "transient capture failure" in logs[0][1]
     assert service.stop(1.0)
+
+
+def test_repeated_capture_failure_becomes_terminal_and_clears_stale_frame() -> None:
+    source = OneFrameThenFailSource()
+    bus = RuntimeBus()
+    manager = WorkerManager(bus)
+    service = CaptureService(
+        manager,
+        bus,
+        lambda _handle: source,
+        retry_delay=0.0,
+        maximum_consecutive_failures=3,
+    )
+
+    assert service.attach(123) == 1
+    assert _wait_until(lambda: not service.active)
+
+    color, gray = service.snapshot()
+    assert color is None
+    assert gray is None
+    assert service.sample() is None
+    assert source.closed.is_set()
+
+    failures = bus.drain_failures()
+    assert len(failures) == 1
+    assert failures[0].worker_name == "capture-1"
+    assert failures[0].session_id == 1
+    assert "lost after 3 consecutive failures" in failures[0].traceback
+
+    _version, status = bus.read_latest("capture_status")
+    assert status == RuntimeStatus(message="lost", session_id=1)

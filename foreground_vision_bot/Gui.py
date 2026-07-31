@@ -8,7 +8,7 @@ import PySimpleGUI as sg
 from mapper.ManualMapEditor import ManualMapEditorSession
 from mapper.MapCatalog import MapCatalog
 from mapper.OccupancyGrid import OccupancyGrid
-from runtime_bus import RuntimeBus
+from runtime_bus import RuntimeBus, RuntimeStatus
 from runtime_controller import RuntimeController
 from utils.helpers import get_window_handlers, hex_variant
 
@@ -56,6 +56,8 @@ class Gui:
             "video_fps": 0,
             "rl_status": 0,
             "mapper_status": 0,
+            "capture_status": 0,
+            "runtime_status": 0,
         }
         self._last_preview_render_at = 0.0
         self._last_map_render_at = 0.0
@@ -89,8 +91,9 @@ class Gui:
 
             # ACTIONS - Button events
             if event == "Exit" or event == sg.WIN_CLOSED:
-                self.__shutdown(bot)
-                break
+                if self.__shutdown(bot):
+                    break
+                continue
             if event == "-ATTACH_WINDOW-":
                 game_window_name, game_window_handler = self.__attach_window_popup()
                 if game_window_name and game_window_handler:
@@ -431,6 +434,7 @@ class Gui:
         for key, mode in (
             ("rl_status", "Training"),
             ("mapper_status", self._status_mode),
+            ("runtime_status", "Runtime"),
         ):
             version, status = self.runtime_bus.read_latest(
                 key,
@@ -438,7 +442,32 @@ class Gui:
             )
             if status is not None:
                 self._last_versions[key] = version
-                self.__set_status(mode, status)
+                if isinstance(status, RuntimeStatus):
+                    if not self.__is_current_status(key, status):
+                        continue
+                    status = status.message
+                self.__set_status(mode, str(status))
+
+        version, capture_status = self.runtime_bus.read_latest(
+            "capture_status",
+            self._last_versions["capture_status"],
+        )
+        if capture_status is not None:
+            self._last_versions["capture_status"] = version
+            if isinstance(capture_status, RuntimeStatus) and self.__is_current_status(
+                "capture_status",
+                capture_status,
+            ):
+                if capture_status.message == "degraded":
+                    self.__set_status(
+                        "Capture",
+                        "Capture degraded; retrying the attached window.",
+                    )
+                elif capture_status.message == "lost":
+                    self.__set_status(
+                        "Capture lost",
+                        "The attached window stopped producing frames.",
+                    )
 
         # Bounded log draining at <=5 FPS.
         if now - self._last_log_render_at >= 0.20:
@@ -455,6 +484,8 @@ class Gui:
 
         for completion in self.runtime_bus.drain_completions():
             if completion.worker_name.startswith("capture-"):
+                if not self.__is_current_capture_event(completion):
+                    continue
                 self.__set_rl_buttons(attached=False, running=False)
                 self.runtime_bus.log(
                     "Capture stopped; attach the Flyff window again.",
@@ -462,6 +493,11 @@ class Gui:
                 )
                 continue
             if completion.worker_name == "preview":
+                continue
+            if (
+                completion.session_id is not None
+                and completion.session_id != self.controller.control_session_id
+            ):
                 continue
             self.__set_rl_buttons(attached=True, running=False)
             self.runtime_bus.log(
@@ -472,6 +508,21 @@ class Gui:
         for failure in self.runtime_bus.drain_failures():
             capture_failed = failure.worker_name.startswith("capture-")
             preview_failed = failure.worker_name == "preview"
+            if capture_failed and not self.__is_current_capture_event(failure):
+                continue
+            if (
+                preview_failed
+                and failure.session_id is not None
+                and failure.session_id != self.controller.capture.generation
+            ):
+                continue
+            if (
+                not capture_failed
+                and not preview_failed
+                and failure.session_id is not None
+                and failure.session_id != self.controller.control_session_id
+            ):
+                continue
             if not preview_failed:
                 self.__set_rl_buttons(
                     attached=not capture_failed,
@@ -547,12 +598,52 @@ class Gui:
         finally:
             window.close()
 
-    def __shutdown(self, bot):
+    def __shutdown(self, bot) -> bool:
+        del bot
         self.__set_status("Stopping", "Stopping workers safely…")
-        self.controller.shutdown(timeout=8.0)
+        results = self.controller.shutdown(timeout=8.0)
+        timed_out = [kind.value for kind, stopped in results.items() if not stopped]
+        if not timed_out:
+            return True
+
+        message = (
+            "Shutdown timed out while waiting for "
+            f"{', '.join(timed_out)}. Resources remain open; close again after "
+            "the worker reports completion."
+        )
+        self.__set_status("Shutdown blocked", message)
+        self.runtime_bus.log(message, "msg_red")
+        self.__set_rl_buttons(attached=False, running=False)
+        self.window["-ATTACH_WINDOW-"].update(disabled=True)
+        return False
+
+    def __is_current_status(self, key: str, status: RuntimeStatus) -> bool:
+        if status.session_id is None:
+            return True
+        if key in {"capture_status", "preview_status"}:
+            return status.session_id == self.controller.capture.generation
+        if key in {"rl_status", "mapper_status"}:
+            return status.session_id == self.controller.control_session_id
+        return True
+
+    def __is_current_capture_event(self, event) -> bool:
+        session_id = getattr(event, "session_id", None)
+        generation = self.controller.capture.generation
+        if session_id is not None:
+            return session_id == generation
+        return not self.controller.capture_active
 
     def __set_rl_buttons(self, attached, running):
         """Keep the RL action buttons in a consistent state."""
+        if (
+            self.controller.shutdown_requested
+            and not self.controller.shutdown_finalized
+        ):
+            # A timed-out shutdown leaves the worker manager permanently
+            # closed to new work. Late completion/failure events must not
+            # re-enable controls while the live worker is winding down.
+            attached = False
+            running = True
         self.window["-DRY_RUN-"].update(disabled=(not attached or running))
         self.window["-START_BOT-"].update(disabled=(not attached or running))
         self.window["-RUN_AGENT-"].update(disabled=(not attached or running))
@@ -643,7 +734,8 @@ class Gui:
             )
 
     def close(self):
-        self.runtime_bus.close()
+        if self.controller is None:
+            self.runtime_bus.close()
         self.window.close()
 
     def show_error(self, message: str) -> None:

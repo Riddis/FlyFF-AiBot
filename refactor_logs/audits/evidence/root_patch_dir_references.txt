@@ -1,0 +1,9 @@
+Command: rg -n --hidden --glob '!foreground_vision_bot/.patch_backups/**' --glob '!foreground_vision_bot/v0706_patch/**' --glob '!foreground_vision_bot/v0707_patch/**' --glob '!foreground_vision_bot/v0708_patch/**' --glob '!refactor_logs/**' "\.patch_backups|v0706_patch|v0707_patch|v0708_patch" .
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+
+Exit code: 0
+Wall time: 5.7 seconds
+Output:
+.\codex_refactor_prompt_with_resume_logs.md:362:- Patch installer directories/scripts and `.patch_backups` after a verified git checkpoint.
+__COMMAND_EXIT_CODE__=0
+

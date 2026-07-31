@@ -1,0 +1,16 @@
+Command: rg -n --glob '*.py' --glob '*.json' --glob '!foreground_vision_bot/.patch_backups/**' --glob '!foreground_vision_bot/v*/**' "ClusterDetector|GameInterface|human_mouse|SyncedTimer|utils\.decorators|repair_test_layout|migrate_project_layout" foreground_vision_bot
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+
+Exit code: 0
+Wall time: 2 seconds
+Output:
+foreground_vision_bot\migrate_project_layout.py:32:def migrate_project_layout(*, dry_run: bool = False) -> MigrationReport:
+foreground_vision_bot\migrate_project_layout.py:285:    report = migrate_project_layout(dry_run=args.dry_run)
+foreground_vision_bot\utils\SyncedTimer.py:4:class SyncedTimer:
+foreground_vision_bot\libs\ClusterDetector.py:16:class ClusterDetector:
+foreground_vision_bot\libs\human_mouse\HumanCurve.py:5:from libs.human_mouse._beziercurve import BezierCurve
+foreground_vision_bot\libs\human_mouse\HumanCurve.py:6:from libs.human_mouse._utils import isListOfPoints, isNumeric
+foreground_vision_bot\libs\human_mouse\HumanMouse.py:7:from libs.human_mouse.HumanCurve import HumanCurve
+foreground_vision_bot\tests\test_project_layout_migration.py:5:import migrate_project_layout as migration
+__COMMAND_EXIT_CODE__=0
+

@@ -1,0 +1,14 @@
+models/farming/.gitkeep	0 bytes
+models/farming/flyff_ppo.zip	329176 bytes	legacy/pre-unified candidate
+models/farming/native_strategy_ppo.zip	891095 bytes	active unified model; preserve
+models/mapping/.gitkeep	0 bytes
+mapper/maps/tower_aoe/.skip_legacy_import	76 bytes
+mapper/maps/tower_aoe/coordinate_frame.json	106 bytes
+mapper/maps/tower_aoe/FINAL_MAP_REPORT.json	471 bytes
+mapper/maps/tower_aoe/map.json	2295 bytes
+mapper/maps/tower_aoe/map_local.png	2179 bytes
+mapper/maps/tower_aoe/map_overview.png	55712 bytes
+mapper/maps/tower_aoe/map_preview.png	31471 bytes
+mapper/maps/tower_aoe/occupancy.npy	1002129 bytes
+mapper/maps/tower_aoe/visits.npy	2004130 bytes
+

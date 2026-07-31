@@ -62,10 +62,47 @@ def test_failure_contains_full_traceback() -> None:
     def fail(_token):
         raise ValueError("worker exploded")
 
-    manager.start(name="agent", kind=WorkerKind.CONTROL, target=fail)
+    manager.start(
+        name="agent",
+        kind=WorkerKind.CONTROL,
+        target=fail,
+        session_id=41,
+    )
     assert manager.join(WorkerKind.CONTROL, 1.0)
 
     failures = bus.drain_failures()
     assert len(failures) == 1
     assert failures[0].worker_name == "agent"
+    assert failures[0].session_id == 41
     assert "ValueError: worker exploded" in failures[0].traceback
+
+
+def test_repeated_stop_does_not_repeat_the_stop_hook() -> None:
+    bus = RuntimeBus()
+    manager = WorkerManager(bus)
+    started = Event()
+    release = Event()
+    hook_calls = 0
+
+    def run(_token):
+        started.set()
+        release.wait(5.0)
+
+    def stop_hook() -> None:
+        nonlocal hook_calls
+        hook_calls += 1
+
+    manager.start(
+        name="stuck",
+        kind=WorkerKind.CONTROL,
+        target=run,
+        stop_hook=stop_hook,
+    )
+    assert started.wait(1.0)
+
+    assert manager.stop(WorkerKind.CONTROL)
+    assert manager.stop(WorkerKind.CONTROL)
+    assert hook_calls == 1
+
+    release.set()
+    assert manager.join(WorkerKind.CONTROL, 1.0)

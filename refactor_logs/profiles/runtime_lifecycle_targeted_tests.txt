@@ -1,0 +1,18 @@
+Command:
+.\.venv\Scripts\python.exe -m pytest -q foreground_vision_bot/tests/test_runtime_controller.py foreground_vision_bot/tests/test_capture_service.py foreground_vision_bot/tests/test_preview_service.py foreground_vision_bot/tests/test_v0706_camera_focus_regressions.py
+
+Result:
+...........                                                              [100%]
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\Ridd\Documents\Repos\Flyff RL\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\Ridd\Documents\Repos\Flyff RL\.pytest_cache\v\cache\nodeids: [WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+11 passed, 1 warning in 0.47s
+
+Interpretation:
+The focused tests verify their existing narrow contracts. They do not exercise
+generation-aware GUI completion handling, a permanently failing capture source,
+a preview/native callback that ignores cancellation, resource closing after a
+failed join, duplicate top-level shutdown, or focus loss after unified control
+has started.

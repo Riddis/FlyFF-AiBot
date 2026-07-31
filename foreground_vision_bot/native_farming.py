@@ -6,11 +6,12 @@ from collections import Counter, deque
 from collections.abc import Callable
 from dataclasses import dataclass, fields
 from datetime import datetime, timezone
+from math import isfinite
 from pathlib import Path
 from time import monotonic, sleep
 
+import gymnasium as gym
 import numpy as np
-
 from libs.CameraDiscoverySweep import CameraDiscoverySweep
 from libs.LiveNavigatorController import LiveNavigatorConfig, LiveNavigatorController
 from libs.NativeFarmingEnv import NativeFarmingEnv, NativeFarmingEnvConfig
@@ -19,30 +20,71 @@ from libs.NativeFarmingObservation import (
     NativeFarmingObservationConfig,
 )
 from libs.NativeMapContext import NativeMapContext
-from project_paths import resolve_app_path
-from worker_manager import CancellationToken
-
 from libs.V0672NativeFarmingFixes import install_v0672_fixes
-
-install_v0672_fixes()
-
 from libs.V0673EvaMovementFix import install_v0673_fixes
-
-install_v0673_fixes()
-
 from libs.V0674OrbitGuard import install_v0674_fixes
-
-install_v0674_fixes()
-
 from libs.V0700UnifiedFarming import install_v0700_unified_farming
-
-install_v0700_unified_farming()
-
 from libs.V0707TeleportSafety import install_v0707_teleport_safety
-
-install_v0707_teleport_safety()
+from position import (
+    InvalidPlayerPoseError,
+    NativeMonsterReadError,
+    PlayerPose,
+    PointerResolutionError,
+    PoseConsensusError,
+    PositionProviderError,
+    ProcessMemoryError,
+)
+from project_paths import resolve_app_path
+from worker_manager import CancellationToken, WorkerCancelled
 
 StatusCallback = Callable[[str], None]
+
+
+def _install_runtime_farming_patches() -> None:
+    """Install the live farming composition immediately before construction.
+
+    Importing this module is also required for configuration, preflight, and
+    cancellation helpers.  Those read-only uses must not mutate the shared
+    ``NativeFarmingEnv`` class and silently change base-environment semantics
+    elsewhere in the process.
+    """
+
+    install_v0672_fixes()
+    install_v0673_fixes()
+    install_v0674_fixes()
+    install_v0700_unified_farming()
+    install_v0707_teleport_safety()
+
+
+@dataclass(frozen=True, slots=True)
+class NativeStartupState:
+    player_pose: PlayerPose
+    player_base: int
+    world_base: int
+
+
+class _NativeStartupUnavailable(RuntimeError):
+    pass
+
+
+class _CancellationGuardEnv(gym.Wrapper):
+    """Prevent SB3 from entering an environment call after user cancellation."""
+
+    def __init__(self, env: gym.Env, cancellation: CancellationToken) -> None:
+        super().__init__(env)
+        self._cancellation = cancellation
+
+    def _raise_if_cancelled(self) -> None:
+        if self._cancellation.cancelled:
+            raise WorkerCancelled
+
+    def reset(self, **kwargs):
+        self._raise_if_cancelled()
+        return self.env.reset(**kwargs)
+
+    def step(self, selected_action):
+        self._raise_if_cancelled()
+        return self.env.step(selected_action)
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,6 +169,88 @@ def _status(callback: StatusCallback | None, message: str) -> None:
     print(message, flush=True)
     if callback is not None:
         callback(message)
+
+
+def _raise_if_cancelled(cancellation: CancellationToken) -> None:
+    if cancellation.cancelled:
+        raise WorkerCancelled
+
+
+def _preflight_native_startup(
+    bot,
+    cancellation: CancellationToken,
+    *,
+    status_callback: StatusCallback | None = None,
+) -> NativeStartupState:
+    """Verify the already-resolved native state before enabling farming input.
+
+    Position and monster providers own pointer resolution. Their ordinary read
+    APIs must be bounded and must not initiate recovery; farming deliberately
+    does not duplicate pointer-slot knowledge or invoke a recovery API here.
+    """
+
+    _raise_if_cancelled(cancellation)
+    position_provider = getattr(bot, "position_provider", None)
+    monster_provider = getattr(bot, "monster_provider", None)
+    if position_provider is None or monster_provider is None:
+        message = (
+            "Native farming startup preflight failed before movement was enabled: "
+            "position and monster readers must both be attached."
+        )
+        _status(status_callback, message)
+        raise RuntimeError(message)
+
+    try:
+        pose = bot.get_player_pose()
+        _raise_if_cancelled(cancellation)
+        if pose is None:
+            raise _NativeStartupUnavailable("native player pose is unavailable")
+        coordinates = (
+            float(pose.x),
+            float(pose.y),
+            float(pose.z),
+        )
+        if not all(isfinite(value) for value in coordinates):
+            raise _NativeStartupUnavailable(
+                f"native player pose is not finite: {coordinates!r}"
+            )
+
+        player_base = int(monster_provider.read_player_base())
+        _raise_if_cancelled(cancellation)
+        world_base = int(monster_provider.read_world_base())
+        _raise_if_cancelled(cancellation)
+        if player_base <= 0 or world_base <= 0:
+            raise _NativeStartupUnavailable(
+                "native player/world actor pointers are not currently resolved"
+            )
+    except WorkerCancelled:
+        raise
+    except (
+        InvalidPlayerPoseError,
+        NativeMonsterReadError,
+        PointerResolutionError,
+        PoseConsensusError,
+        PositionProviderError,
+        ProcessMemoryError,
+        _NativeStartupUnavailable,
+    ) as error:
+        message = (
+            "Native farming startup preflight failed before movement was enabled: "
+            f"{type(error).__name__}: {error}"
+        )
+        _status(status_callback, message)
+        raise RuntimeError(message) from error
+
+    _status(
+        status_callback,
+        "Native farming startup preflight passed; player pose and actor world "
+        "are available.",
+    )
+    return NativeStartupState(
+        player_pose=pose,
+        player_base=player_base,
+        world_base=world_base,
+    )
 
 
 def _require_dependencies():
@@ -232,6 +356,12 @@ def build_live_native_env(
     if not map_name:
         raise RuntimeError("Select a completed coordinate map before farming.")
 
+    _preflight_native_startup(
+        bot,
+        cancellation,
+        status_callback=status_callback,
+    )
+    _raise_if_cancelled(cancellation)
     map_context = NativeMapContext.load(map_name)
     observation_builder = NativeFarmingObservationBuilder(
         map_context,
@@ -241,6 +371,8 @@ def build_live_native_env(
             eva_radius_cells=config.eva_radius_cells,
         ),
     )
+    _raise_if_cancelled(cancellation)
+    _install_runtime_farming_patches()
     navigator = LiveNavigatorController(
         bot,
         map_context,
@@ -299,44 +431,46 @@ def dry_run_native_farming(
         status_callback=status_callback,
         cancellation=cancellation,
     )
-    bot.start()
-    observation, info = env.reset()
-    del observation
-    if bool(info.get("session_ended", False)):
-        _status(
-            status_callback,
-            "FARM SESSION ENDED | "
-            f"reason={info.get('session_end_reason', 'unknown')} "
-            f"details={info.get('session_end_details', {})}",
-        )
-        env.close()
-        return
-    started = monotonic()
-    last_report = started
-    total_kills = 0
-    total_reward = 0.0
-    action_counts: Counter[str] = Counter()
-    if env.kill_counter_status.startswith("OK:"):
-        _status(
-            status_callback,
-            f"Kill counter baseline acquired: {env.kill_counter_status}.",
-        )
-    else:
-        _status(
-            status_callback,
-            "WARNING: Kill counter baseline was not acquired after retries. "
-            "The dry run will continue for movement testing, but kills cannot "
-            "be rewarded until the log reports counter=OK. In Bot Vision, an "
-            "absent green rectangle means panel-anchor detection failed; a "
-            "present rectangle with counter=MISSING means digit OCR failed.",
-        )
-    _status(
-        status_callback,
-        "Unified native systems-check started. No policy weights will be changed. "
-        "Direct movement control, native monsters, EVA timing, kill tracking, "
-        "and mapped obstacle observations are live.",
-    )
     try:
+        _raise_if_cancelled(cancellation)
+        bot.start()
+        _raise_if_cancelled(cancellation)
+        observation, info = env.reset()
+        del observation
+        if bool(info.get("session_ended", False)):
+            _status(
+                status_callback,
+                "FARM SESSION ENDED | "
+                f"reason={info.get('session_end_reason', 'unknown')} "
+                f"details={info.get('session_end_details', {})}",
+            )
+            return
+
+        started = monotonic()
+        last_report = started
+        total_kills = 0
+        total_reward = 0.0
+        action_counts: Counter[str] = Counter()
+        if env.kill_counter_status.startswith("OK:"):
+            _status(
+                status_callback,
+                f"Kill counter baseline acquired: {env.kill_counter_status}.",
+            )
+        else:
+            _status(
+                status_callback,
+                "WARNING: Kill counter baseline was not acquired after retries. "
+                "The dry run will continue for movement testing, but kills cannot "
+                "be rewarded until the log reports counter=OK. In Bot Vision, an "
+                "absent green rectangle means panel-anchor detection failed; a "
+                "present rectangle with counter=MISSING means digit OCR failed.",
+            )
+        _status(
+            status_callback,
+            "Unified native systems-check started. No policy weights will be changed. "
+            "Direct movement control, native monsters, EVA timing, kill tracking, "
+            "and mapped obstacle observations are live.",
+        )
         while (
             bot.rl_enabled
             and not cancellation.cancelled
@@ -346,8 +480,9 @@ def dry_run_native_farming(
                 minimum_cast_targets=config.minimum_dry_run_cast_targets
             )
             # v0.7.0 uses four direct actions; never pass legacy TARGET_n actions.
-            if getattr(env, '_v0700_unified_mode', False):
+            if getattr(env, "_v0700_unified_mode", False):
                 action = int(env.choose_unified_dry_run_action())
+            _raise_if_cancelled(cancellation)
             _observation, reward, _terminated, truncated, info = env.step(action)
             total_reward += float(reward)
             total_kills += int(info.get("kill_delta", 0))
@@ -395,7 +530,10 @@ def dry_run_native_farming(
                     f"details={info.get('session_end_details', {})}",
                 )
                 break
+            if cancellation.cancelled or not bot.rl_enabled:
+                break
             if truncated:
+                _raise_if_cancelled(cancellation)
                 _observation, info = env.reset()
         _status(
             status_callback,
@@ -405,6 +543,8 @@ def dry_run_native_farming(
             f"session={info.get('session_end_reason', '--')} "
             f"actions={dict(action_counts)}",
         )
+    except WorkerCancelled:
+        _status(status_callback, "Native dry run cancelled; movement is stopped.")
     finally:
         env.close()
 
@@ -424,6 +564,7 @@ def train_native_farming(
         status_callback=status_callback,
         cancellation=cancellation,
     )
+    training_env = _CancellationGuardEnv(env, cancellation)
     model_path = resolve_app_path(config.model_path)
     model_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_dir = resolve_app_path(config.checkpoint_dir)
@@ -518,14 +659,16 @@ def train_native_farming(
             return True
 
     try:
+        _raise_if_cancelled(cancellation)
         bot.start()
+        _raise_if_cancelled(cancellation)
         saved_model = model_path.with_suffix(".zip")
         if saved_model.is_file():
             _status(status_callback, f"Resuming native farming policy {saved_model}.")
             try:
                 model = PPO.load(
                     str(model_path),
-                    env=env,
+                    env=training_env,
                     tensorboard_log=str(tensorboard_dir),
                 )
             except Exception as error:
@@ -539,7 +682,7 @@ def train_native_farming(
             _status(status_callback, "Creating a new unified farming PPO policy.")
             model = PPO(
                 "MlpPolicy",
-                env,
+                training_env,
                 verbose=1,
                 tensorboard_log=str(tensorboard_dir),
                 n_steps=256,
@@ -550,6 +693,7 @@ def train_native_farming(
                 ent_coef=0.01,
             )
             reset_num_timesteps = True
+        _raise_if_cancelled(cancellation)
 
         session_callback = SessionEndCallback()
         stats_callback = StatsCallback()
@@ -572,13 +716,20 @@ def train_native_farming(
             "Unified native farming training started. PPO directly controls forward, "
             "left, right, and EVA actions.",
         )
-        model.learn(
-            total_timesteps=int(config.total_timesteps),
-            callback=callbacks,
-            reset_num_timesteps=reset_num_timesteps,
-            tb_log_name="native_strategy_ppo",
-            progress_bar=False,
-        )
+        try:
+            model.learn(
+                total_timesteps=int(config.total_timesteps),
+                callback=callbacks,
+                reset_num_timesteps=reset_num_timesteps,
+                tb_log_name="native_strategy_ppo",
+                progress_bar=False,
+            )
+        except WorkerCancelled:
+            _status(
+                status_callback,
+                "Native farming cancellation acknowledged; saving the current "
+                "model and session report.",
+            )
         stats_callback.completed_target = bool(
             not session_callback.detected
             and not cancellation.cancelled
@@ -605,6 +756,12 @@ def train_native_farming(
         else:
             _status(status_callback, f"Training session report saved to {report_path}.")
         return saved_model
+    except WorkerCancelled:
+        _status(
+            status_callback,
+            "Native farming training cancelled before a policy rollout started.",
+        )
+        raise
     except Exception as error:
         _status(
             status_callback,
@@ -638,26 +795,29 @@ def run_native_farming_agent(
         status_callback=status_callback,
         cancellation=cancellation,
     )
-    model = PPO.load(str(model_path), env=env)
-    bot.start()
-    observation, _info = env.reset()
-    if bool(_info.get("session_ended", False)):
-        _status(
-            status_callback,
-            "FARM SESSION ENDED | "
-            f"reason={_info.get('session_end_reason', 'unknown')} "
-            f"details={_info.get('session_end_details', {})}",
-        )
-        env.close()
-        return
-    started = monotonic()
-    kills = 0
-    last_report = started
-    _status(status_callback, f"Loaded native farming agent {saved_model}.")
+    guarded_env = _CancellationGuardEnv(env, cancellation)
     try:
+        _raise_if_cancelled(cancellation)
+        model = PPO.load(str(model_path), env=guarded_env)
+        _raise_if_cancelled(cancellation)
+        bot.start()
+        _raise_if_cancelled(cancellation)
+        observation, _info = guarded_env.reset()
+        if bool(_info.get("session_ended", False)):
+            _status(
+                status_callback,
+                "FARM SESSION ENDED | "
+                f"reason={_info.get('session_end_reason', 'unknown')} "
+                f"details={_info.get('session_end_details', {})}",
+            )
+            return
+        started = monotonic()
+        kills = 0
+        last_report = started
+        _status(status_callback, f"Loaded native farming agent {saved_model}.")
         while bot.rl_enabled and not cancellation.cancelled:
             action, _state = model.predict(observation, deterministic=deterministic)
-            observation, reward, _terminated, truncated, info = env.step(
+            observation, reward, _terminated, truncated, info = guarded_env.step(
                 int(np.asarray(action).item())
             )
             kills += int(info.get("kill_delta", 0))
@@ -683,9 +843,14 @@ def run_native_farming_agent(
                     f"details={info.get('session_end_details', {})}",
                 )
                 break
+            if cancellation.cancelled or not bot.rl_enabled:
+                break
             if truncated:
-                observation, _info = env.reset()
+                _raise_if_cancelled(cancellation)
+                observation, _info = guarded_env.reset()
             sleep(0.001)
+    except WorkerCancelled:
+        _status(status_callback, "Native farming agent cancellation acknowledged.")
     finally:
         env.close()
         _status(status_callback, "Native farming agent stopped.")

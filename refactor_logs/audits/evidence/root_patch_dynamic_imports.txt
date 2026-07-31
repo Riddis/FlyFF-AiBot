@@ -1,0 +1,202 @@
+Command: rg -n --glob '*.py' --glob '!foreground_vision_bot/v*/**' --glob '!foreground_vision_bot/.patch_backups/**' "V0[0-9]+|install_|import_module|__import__|monkey|patched_" foreground_vision_bot
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+
+Exit code: 0
+Wall time: 2.4 seconds
+Output:
+foreground_vision_bot\repair_test_layout.py:34:    patched_files: list[str] = field(default_factory=list)
+foreground_vision_bot\repair_test_layout.py:115:    report.patched_files.append(str(path.name))
+foreground_vision_bot\repair_test_layout.py:138:        report.patched_files.append(str(path.name))
+foreground_vision_bot\repair_test_layout.py:217:    if report.patched_files:
+foreground_vision_bot\repair_test_layout.py:218:        print("  canonicalised: " + ", ".join(report.patched_files))
+foreground_vision_bot\native_farming.py:25:from libs.V0672NativeFarmingFixes import install_v0672_fixes
+foreground_vision_bot\native_farming.py:27:install_v0672_fixes()
+foreground_vision_bot\native_farming.py:29:from libs.V0673EvaMovementFix import install_v0673_fixes
+foreground_vision_bot\native_farming.py:31:install_v0673_fixes()
+foreground_vision_bot\native_farming.py:33:from libs.V0674OrbitGuard import install_v0674_fixes
+foreground_vision_bot\native_farming.py:35:install_v0674_fixes()
+foreground_vision_bot\native_farming.py:37:from libs.V0700UnifiedFarming import install_v0700_unified_farming
+foreground_vision_bot\native_farming.py:39:install_v0700_unified_farming()
+foreground_vision_bot\native_farming.py:41:from libs.V0707TeleportSafety import install_v0707_teleport_safety
+foreground_vision_bot\native_farming.py:43:install_v0707_teleport_safety()
+foreground_vision_bot\tests\test_human_keyboard.py:10:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_human_keyboard.py:12:    module = importlib.import_module("libs.HumanKeyboard")
+foreground_vision_bot\tests\test_human_keyboard.py:15:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_human_keyboard.py:20:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_human_keyboard.py:29:    monkeypatch.setattr(module, "sleep", interrupt)
+foreground_vision_bot\tests\test_human_keyboard.py:38:def test_background_key_messages_include_scan_and_transition_bits(monkeypatch):
+foreground_vision_bot\tests\test_human_keyboard.py:39:    module = importlib.import_module("libs.HumanKeyboard")
+foreground_vision_bot\tests\test_human_keyboard.py:41:    monkeypatch.setattr(module.win32api, "MapVirtualKey", lambda key, mode: 0x2C, raising=False)
+foreground_vision_bot\tests\test_human_keyboard.py:42:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_human_keyboard.py:62:def test_repeat_message_marks_previous_key_state(monkeypatch):
+foreground_vision_bot\tests\test_human_keyboard.py:63:    module = importlib.import_module("libs.HumanKeyboard")
+foreground_vision_bot\tests\test_human_keyboard.py:65:    monkeypatch.setattr(module.win32api, "MapVirtualKey", lambda key, mode: key, raising=False)
+foreground_vision_bot\tests\test_human_keyboard.py:66:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_helpers.py:6:def test_window_enumeration_accepts_unicode_titles(monkeypatch) -> None:
+foreground_vision_bot\tests\test_helpers.py:17:    monkeypatch.setattr(helpers.win32gui, "EnumWindows", enumerate_windows)
+foreground_vision_bot\tests\test_helpers.py:18:    monkeypatch.setattr(helpers.win32gui, "IsWindowVisible", lambda _handle: True)
+foreground_vision_bot\tests\test_helpers.py:19:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_motion_tracker.py:175:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_motion_tracker.py:180:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_motion_tracker.py:200:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_motion_tracker.py:205:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_motion_tracker.py:228:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_motion_tracker.py:233:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_motion_tracker.py:257:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_motion_tracker.py:262:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_motion_tracker.py:282:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_motion_tracker.py:287:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_motion_tracker.py:307:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_motion_tracker.py:316:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_minimap_heading.py:201:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_minimap_heading.py:204:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_minimap_heading.py:223:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_minimap_heading.py:229:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_minimap_heading.py:640:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_minimap_heading.py:657:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_minimap_heading.py:662:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_minimap_heading.py:853:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_minimap_heading.py:866:    monkeypatch.setattr(detector, "save_debug", reasons.append)
+foreground_vision_bot\tests\test_minimap_heading.py:943:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_minimap_heading.py:961:    monkeypatch.setattr(detector, "_read_arrow", lambda *_args, **_kwargs: None)
+foreground_vision_bot\tests\test_minimap_heading.py:967:    monkeypatch.setattr(detector, "_relocate_anchor", relocate)
+foreground_vision_bot\tests\test_mapping_controller.py:67:def test_controller_can_install_validated_policy_without_resetting_history() -> None:
+foreground_vision_bot\tests\test_mapper_forward_safety.py:17:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_mapper_forward_safety.py:65:    monkeypatch.setattr(mapper, "controller", Controller(), raising=False)
+foreground_vision_bot\tests\test_mapper_forward_safety.py:67:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_mapper_forward_safety.py:74:    monkeypatch.setattr(mapper, "tracker", tracker, raising=False)
+foreground_vision_bot\tests\test_mapper_forward_safety.py:78:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_project_layout_migration.py:68:    monkeypatch,
+foreground_vision_bot\tests\test_project_layout_migration.py:75:    monkeypatch.setattr(migration, "MAPPING_TRAINING_LOGS_DIR", target)
+foreground_vision_bot\tests\test_project_layout_migration.py:76:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_project_layout_migration.py:91:    monkeypatch,
+foreground_vision_bot\tests\test_project_layout_migration.py:98:    monkeypatch.setattr(migration, "FARMING_TRAINING_LOGS_DIR", target)
+foreground_vision_bot\tests\test_project_layout_migration.py:99:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_project_layout_migration.py:114:    monkeypatch,
+foreground_vision_bot\tests\test_project_layout_migration.py:125:    monkeypatch.setattr(migration, "TESTS_DIR", tests_dir)
+foreground_vision_bot\tests\test_native_monster_provider.py:293:def test_provider_can_be_created_from_process_id(monkeypatch: pytest.MonkeyPatch) -> None:
+foreground_vision_bot\tests\test_native_monster_provider.py:305:    provider_module = importlib.import_module(
+foreground_vision_bot\tests\test_native_monster_provider.py:308:    monkeypatch.setattr(
+foreground_vision_bot\tools\cleanup_legacy_mapping.py:9:    "install_obstacle_vision_v2_1.py",
+foreground_vision_bot\tools\cleanup_legacy_mapping.py:10:    "uninstall_obstacle_vision_v2_1.py",
+foreground_vision_bot\tests\test_v0700_unified_farming_regressions.py:10:    assert "install_v0700_unified_farming()" in source
+foreground_vision_bot\tests\test_v0700_unified_farming_regressions.py:11:    assert source.index("install_v0673_fixes()") < source.index("install_v0700_unified_farming()")
+foreground_vision_bot\tests\test_v0700_unified_farming_regressions.py:15:    source = (ROOT / "libs" / "V0700UnifiedFarming.py").read_text(encoding="utf-8")
+foreground_vision_bot\tests\test_v0700_unified_farming_regressions.py:26:    source = (ROOT / "libs" / "V0700UnifiedFarming.py").read_text(encoding="utf-8")
+foreground_vision_bot\tests\test_v0700_unified_farming_regressions.py:36:    source = (ROOT / "libs" / "V0700UnifiedFarming.py").read_text(encoding="utf-8")
+foreground_vision_bot\tests\test_v0700_unified_farming_regressions.py:59:    source = (ROOT / "libs" / "V0700UnifiedFarming.py").read_text(encoding="utf-8")
+foreground_vision_bot\tests\test_bot_native_monster_map_publish.py:21:    monkeypatch,
+foreground_vision_bot\tests\test_bot_native_monster_map_publish.py:25:    monkeypatch.setitem(sys.modules, "win32api", SimpleNamespace())
+foreground_vision_bot\tests\test_bot_native_monster_map_publish.py:26:    monkeypatch.setitem(
+foreground_vision_bot\tests\test_bot_native_monster_map_publish.py:35:    overlay_module = importlib.import_module("mapper.NativeMonsterMapOverlay")
+foreground_vision_bot\tests\test_bot_native_monster_map_publish.py:51:    monkeypatch.setattr(overlay_module, "NativeMonsterMapOverlay", _Overlay)
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:45:def install_v0672_fixes() -> None:
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:62:    def patched_init(self, *args: Any, **kwargs: Any) -> None:
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:85:    def patched_navigate(
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:117:    def patched_backward(self, *args: Any, **kwargs: Any) -> None:
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:160:    def patched_record_outcome(
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:189:    LiveNavigatorController.__init__ = patched_init
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:190:    LiveNavigatorController.navigate_toward_cell = patched_navigate
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:191:    LiveNavigatorController._backward_recovery = patched_backward
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:192:    LiveNavigatorController._record_outcome = patched_record_outcome
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:200:    def patched_init(self, *args: Any, **kwargs: Any) -> None:
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:209:    def patched_reset(self, *args: Any, **kwargs: Any):
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:218:    def patched_info(self, *args: Any, **kwargs: Any) -> dict[str, object]:
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:267:    NativeFarmingEnv.__init__ = patched_init
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:268:    NativeFarmingEnv.reset = patched_reset
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:269:    NativeFarmingEnv.step = _patched_step
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:271:    NativeFarmingEnv._info = patched_info
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:274:def _patched_step(self, action: int):
+foreground_vision_bot\tests\test_v0704_exact_map_adapter_regressions.py:20:    from libs.V0700UnifiedFarming import _MapAdapter, _ensure_map_context
+foreground_vision_bot\libs\V0674OrbitGuard.py:29:from . import V0672NativeFarmingFixes as v0672
+foreground_vision_bot\libs\V0674OrbitGuard.py:55:def install_v0674_fixes() -> None:
+foreground_vision_bot\libs\V0674OrbitGuard.py:71:    def patched_init(self, *args: Any, **kwargs: Any) -> None:
+foreground_vision_bot\libs\V0674OrbitGuard.py:82:    def patched_navigate(
+foreground_vision_bot\libs\V0674OrbitGuard.py:253:    LiveNavigatorController.__init__ = patched_init
+foreground_vision_bot\libs\V0674OrbitGuard.py:254:    LiveNavigatorController.navigate_toward_cell = patched_navigate
+foreground_vision_bot\libs\V0674OrbitGuard.py:260:    def patched_resolve(env, snapshot, requested_index: int):
+foreground_vision_bot\libs\V0674OrbitGuard.py:302:    v0672._resolve_navigation_target = patched_resolve
+foreground_vision_bot\libs\V0674OrbitGuard.py:310:    def patched_init(self, *args: Any, **kwargs: Any) -> None:
+foreground_vision_bot\libs\V0674OrbitGuard.py:315:    def patched_reset(self, *args: Any, **kwargs: Any):
+foreground_vision_bot\libs\V0674OrbitGuard.py:320:    def patched_info(self, *args: Any, **kwargs: Any) -> dict[str, object]:
+foreground_vision_bot\libs\V0674OrbitGuard.py:359:    NativeFarmingEnv.__init__ = patched_init
+foreground_vision_bot\libs\V0674OrbitGuard.py:360:    NativeFarmingEnv.reset = patched_reset
+foreground_vision_bot\libs\V0674OrbitGuard.py:361:    NativeFarmingEnv._info = patched_info
+foreground_vision_bot\tests\test_v0703_map_context_regressions.py:9:    source = (ROOT / "libs" / "V0700UnifiedFarming.py").read_text(encoding="utf-8")
+foreground_vision_bot\tests\test_v0703_map_context_regressions.py:18:    source = (ROOT / "libs" / "V0700UnifiedFarming.py").read_text(encoding="utf-8")
+foreground_vision_bot\tests\test_v0703_map_context_regressions.py:24:    module = (ROOT / "libs" / "V0700UnifiedFarming.py").read_text(encoding="utf-8")
+foreground_vision_bot\tests\test_v0703_map_context_regressions.py:35:    module = (ROOT / "libs" / "V0700UnifiedFarming.py").read_text(encoding="utf-8")
+foreground_vision_bot\tests\test_coordinate_mapper.py:541:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_coordinate_mapper.py:554:    monkeypatch.setattr("mapper.CoordinateFrame.os.replace", unexpected_replace)
+foreground_vision_bot\tests\test_coordinate_mapper.py:565:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_coordinate_mapper.py:573:    real_replace = __import__("os").replace
+foreground_vision_bot\tests\test_coordinate_mapper.py:583:    monkeypatch.setattr("mapper.CoordinateFrame.os.replace", flaky_replace)
+foreground_vision_bot\tests\test_coordinate_mapper.py:584:    monkeypatch.setattr("mapper.CoordinateFrame.time.sleep", lambda _seconds: None)
+foreground_vision_bot\tests\test_v0707_teleport_session_regressions.py:15:    from libs.V0700UnifiedFarming import _MapAdapter
+foreground_vision_bot\tests\test_v0707_teleport_session_regressions.py:16:    from libs.V0707TeleportSafety import (
+foreground_vision_bot\tests\test_v0707_teleport_session_regressions.py:34:    assert "install_v0707_teleport_safety()" in source
+foreground_vision_bot\tests\test_v0707_teleport_session_regressions.py:35:    assert source.index("install_v0700_unified_farming()") < source.index(
+foreground_vision_bot\tests\test_v0707_teleport_session_regressions.py:36:        "install_v0707_teleport_safety()"
+foreground_vision_bot\tests\test_camera_obstruction_recovery_v193.py:199:    monkeypatch,
+foreground_vision_bot\tests\test_camera_obstruction_recovery_v193.py:330:    monkeypatch.setattr(mapper, "_wait_for_frame_sample", lambda **_kwargs: next(frames))
+foreground_vision_bot\tests\test_camera_obstruction_recovery_v193.py:331:    monkeypatch.setattr(mapper, "_save_motion_debug", lambda *_args, **_kwargs: "debug.json")
+foreground_vision_bot\tests\test_camera_obstruction_recovery_v193.py:332:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_rotation_calibration.py:133:    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+foreground_vision_bot\tests\test_rotation_calibration.py:138:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_rotation_calibration.py:379:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_rotation_calibration.py:403:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_rotation_calibration.py:407:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_rotation_calibration.py:467:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_rotation_calibration.py:490:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_rotation_calibration.py:511:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_rotation_calibration.py:534:    monkeypatch.setattr(
+foreground_vision_bot\tests\test_rotation_calibration.py:778:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_rotation_calibration.py:809:    monkeypatch.setattr(calibrator, "_turn_burst", burst)
+foreground_vision_bot\tests\test_rotation_calibration.py:870:    monkeypatch: pytest.MonkeyPatch,
+foreground_vision_bot\tests\test_rotation_calibration.py:883:    monkeypatch.setattr(
+foreground_vision_bot\libs\V0673EvaMovementFix.py:36:def install_v0673_fixes() -> None:
+foreground_vision_bot\libs\V0673EvaMovementFix.py:59:    def patched_init(self, *args: Any, **kwargs: Any) -> None:
+foreground_vision_bot\libs\V0673EvaMovementFix.py:67:    def patched_navigate(
+foreground_vision_bot\libs\V0673EvaMovementFix.py:90:    def patched_cast_eva(self, *args: Any, **kwargs: Any):
+foreground_vision_bot\libs\V0673EvaMovementFix.py:148:    LiveNavigatorController.__init__ = patched_init
+foreground_vision_bot\libs\V0673EvaMovementFix.py:149:    LiveNavigatorController.navigate_toward_cell = patched_navigate
+foreground_vision_bot\libs\V0673EvaMovementFix.py:150:    LiveNavigatorController.cast_eva = patched_cast_eva
+foreground_vision_bot\libs\V0673EvaMovementFix.py:156:    def patched_info(self, *args: Any, **kwargs: Any) -> dict[str, object]:
+foreground_vision_bot\libs\V0673EvaMovementFix.py:180:    NativeFarmingEnv._info = patched_info
+foreground_vision_bot\tests\test_runtime_controller.py:73:def test_attach_failure_stops_the_capture_worker(monkeypatch) -> None:
+foreground_vision_bot\tests\test_runtime_controller.py:89:    monkeypatch.setattr(
+foreground_vision_bot\libs\V0707TeleportSafety.py:23:from . import V0700UnifiedFarming as v0700
+foreground_vision_bot\libs\V0707TeleportSafety.py:39:def install_v0707_teleport_safety() -> None:
+foreground_vision_bot\libs\V0707TeleportSafety.py:50:    def patched_init(self: NativeFarmingEnv, *args: Any, **kwargs: Any) -> None:
+foreground_vision_bot\libs\V0707TeleportSafety.py:55:    def patched_reset(self: NativeFarmingEnv, *args: Any, **kwargs: Any):
+foreground_vision_bot\libs\V0707TeleportSafety.py:79:    def patched_step(self: NativeFarmingEnv, action: int):
+foreground_vision_bot\libs\V0707TeleportSafety.py:193:    NativeFarmingEnv.__init__ = patched_init
+foreground_vision_bot\libs\V0707TeleportSafety.py:194:    NativeFarmingEnv.reset = patched_reset
+foreground_vision_bot\libs\V0707TeleportSafety.py:195:    NativeFarmingEnv.step = patched_step
+foreground_vision_bot\libs\V0707TeleportSafety.py:205:    def patched_control_interval(env: NativeFarmingEnv) -> float:
+foreground_vision_bot\libs\V0707TeleportSafety.py:211:    v0700._control_interval = patched_control_interval
+foreground_vision_bot\tests\test_v0674_orbit_guard_regressions.py:10:    assert source.index("install_v0673_fixes()") < source.index("install_v0674_fixes()")
+foreground_vision_bot\tests\test_v0674_orbit_guard_regressions.py:14:    source = (ROOT / "libs" / "V0674OrbitGuard.py").read_text(encoding="utf-8")
+foreground_vision_bot\tests\test_v0672_live_farming_regressions.py:10:    assert "install_v0672_fixes()" in source
+foreground_vision_bot\tests\test_v0672_live_farming_regressions.py:14:    source = (ROOT / "libs" / "V0672NativeFarmingFixes.py").read_text(
+foreground_vision_bot\tests\test_v0672_live_farming_regressions.py:23:    source = (ROOT / "libs" / "V0672NativeFarmingFixes.py").read_text(
+foreground_vision_bot\libs\V0700UnifiedFarming.py:33:from . import V0672NativeFarmingFixes as v0672
+foreground_vision_bot\libs\V0700UnifiedFarming.py:71:def install_v0700_unified_farming() -> None:
+foreground_vision_bot\libs\V0700UnifiedFarming.py:85:    def patched_init(self, *args: Any, **kwargs: Any) -> None:
+foreground_vision_bot\libs\V0700UnifiedFarming.py:91:    def patched_reset(self, *args: Any, **kwargs: Any):
+foreground_vision_bot\libs\V0700UnifiedFarming.py:107:    def patched_close(self) -> None:
+foreground_vision_bot\libs\V0700UnifiedFarming.py:113:    NativeFarmingEnv.__init__ = patched_init
+foreground_vision_bot\libs\V0700UnifiedFarming.py:114:    NativeFarmingEnv.reset = patched_reset
+foreground_vision_bot\libs\V0700UnifiedFarming.py:117:    NativeFarmingEnv.close = patched_close
+foreground_vision_bot\tests\test_v0705_unified_executor_only_regressions.py:50:def test_executor_only_controller_never_loads_frozen_model(monkeypatch) -> None:
+foreground_vision_bot\tests\test_v0705_unified_executor_only_regressions.py:54:    monkeypatch.setattr(_PolicyAdapter, "load", classmethod(fail_load))
+foreground_vision_bot\tests\test_assets_mob_info.py:10:def _redirect_assets(monkeypatch, tmp_path: Path) -> Path:
+foreground_vision_bot\tests\test_assets_mob_info.py:14:    monkeypatch.setattr(assets_module, "__file__", str(assets_dir / "Assets.py"))
+foreground_vision_bot\tests\test_assets_mob_info.py:19:    monkeypatch,
+foreground_vision_bot\tests\test_assets_mob_info.py:22:    assets_dir = _redirect_assets(monkeypatch, tmp_path)
+foreground_vision_bot\tests\test_assets_mob_info.py:41:    monkeypatch,
+foreground_vision_bot\tests\test_assets_mob_info.py:44:    assets_dir = _redirect_assets(monkeypatch, tmp_path)
+foreground_vision_bot\tests\test_v0673_eva_movement_regressions.py:10:    assert source.index("install_v0672_fixes()") < source.index("install_v0673_fixes()")
+foreground_vision_bot\tests\test_v0673_eva_movement_regressions.py:14:    source = (ROOT / "libs" / "V0673EvaMovementFix.py").read_text(encoding="utf-8")
+__COMMAND_EXIT_CODE__=0
+

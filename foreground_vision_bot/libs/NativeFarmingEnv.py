@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import isfinite
 from time import monotonic, sleep
 from typing import ClassVar
 
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
-
 from mapper.rl.NavigatorCore import compute_distance_field
 from mapper.rl.TravelCost import TravelCostField
+from worker_manager import WorkerCancelled
 
 from .CameraDiscoverySweep import CameraDiscoverySweep
 from .LiveNavigatorController import LiveNavigatorController, NavigationBurstResult
@@ -117,6 +116,7 @@ class NativeFarmingEnv(gym.Env):
         del options
         super().reset(seed=seed)
         self.navigator.stop()
+        self._raise_if_control_inactive()
         self._episode_started_at = monotonic()
         self._last_cast_at = None
         self._episode_reward = 0.0
@@ -124,14 +124,19 @@ class NativeFarmingEnv(gym.Env):
         self._episode_steps = 0
 
         initial_actors = self.bot.get_native_monsters()
+        self._raise_if_control_inactive()
         if self.config.camera_sweep_on_first_reset and not self._camera_warmed:
-            self.camera_sweep.run(
+            completed = self.camera_sweep.run(
                 force=True,
                 active_actor_count=len(initial_actors),
             )
-            self._camera_warmed = True
+            self._raise_if_control_inactive()
+            self._camera_warmed = bool(completed)
+        self._raise_if_control_inactive()
         self._previous_kills = self._acquire_initial_kill_count()
+        self._raise_if_control_inactive()
         self._snapshot = self._read_snapshot()
+        self._raise_if_control_inactive()
         return self._snapshot.vector, self._info(
             action_name="RESET",
             kill_delta=0,
@@ -439,6 +444,25 @@ class NativeFarmingEnv(gym.Env):
             "time": 0.0,
         }
 
-    @staticmethod
-    def _wait(seconds: float) -> None:
-        sleep(max(0.0, float(seconds)))
+    def _raise_if_control_inactive(self) -> None:
+        cancellation = getattr(self.navigator, "cancellation", None)
+        if bool(getattr(cancellation, "cancelled", False)) or not bool(
+            getattr(self.bot, "rl_enabled", False)
+        ):
+            raise WorkerCancelled
+
+    def _wait(self, seconds: float) -> None:
+        deadline = monotonic() + max(0.0, float(seconds))
+        cancellation = getattr(self.navigator, "cancellation", None)
+        wait = getattr(cancellation, "wait", None)
+        while True:
+            self._raise_if_control_inactive()
+            remaining = deadline - monotonic()
+            if remaining <= 0.0:
+                return
+            interval = min(0.02, remaining)
+            if callable(wait):
+                if wait(interval):
+                    raise WorkerCancelled
+            else:
+                sleep(interval)

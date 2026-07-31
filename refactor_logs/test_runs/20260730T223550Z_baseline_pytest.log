@@ -1,0 +1,48 @@
+Command: .venv/Scripts/python.exe -m pytest -q
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+Environment: .venv Python 3.14.3
+
+Exit code: 0
+Wall time: 4.4 seconds
+Output:
+
+=================================== ERRORS ====================================
+_ ERROR collecting foreground_vision_bot/v0706_patch/files/tests/test_v0706_camera_focus_regressions.py _
+import file mismatch:
+imported module 'test_v0706_camera_focus_regressions' has this __file__ attribute:
+  C:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\tests\test_v0706_camera_focus_regressions.py
+which is not the same as the test file we want to collect:
+  C:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\v0706_patch\files\tests\test_v0706_camera_focus_regressions.py
+HINT: remove __pycache__ / .pyc files and/or use a unique basename for your test file modules
+_ ERROR collecting foreground_vision_bot/v0707_patch/files/tests/test_v0707_teleport_session_regressions.py _
+import file mismatch:
+imported module 'test_v0707_teleport_session_regressions' has this __file__ attribute:
+  C:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\tests\test_v0707_teleport_session_regressions.py
+which is not the same as the test file we want to collect:
+  C:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\v0707_patch\files\tests\test_v0707_teleport_session_regressions.py
+HINT: remove __pycache__ / .pyc files and/or use a unique basename for your test file modules
+_ ERROR collecting foreground_vision_bot/v0708_patch/payload/tests/test_v0708_pointer_recovery.py _
+import file mismatch:
+imported module 'test_v0708_pointer_recovery' has this __file__ attribute:
+  C:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\tests\test_v0708_pointer_recovery.py
+which is not the same as the test file we want to collect:
+  C:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\v0708_patch\payload\tests\test_v0708_pointer_recovery.py
+HINT: remove __pycache__ / .pyc files and/or use a unique basename for your test file modules
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\Ridd\Documents\Repos\Flyff RL\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\Ridd\Documents\Repos\Flyff RL\.pytest_cache\v\cache\nodeids: [WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+.venv\Lib\site-packages\_pytest\cacheprovider.py:423
+  C:\Users\Ridd\Documents\Repos\Flyff RL\.venv\Lib\site-packages\_pytest\cacheprovider.py:423: PytestCacheWarning: could not create cache path C:\Users\Ridd\Documents\Repos\Flyff RL\.pytest_cache\v\cache\lastfailed: [WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/lastfailed", self.lastfailed)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+ERROR foreground_vision_bot/v0706_patch/files/tests/test_v0706_camera_focus_regressions.py
+ERROR foreground_vision_bot/v0707_patch/files/tests/test_v0707_teleport_session_regressions.py
+ERROR foreground_vision_bot/v0708_patch/payload/tests/test_v0708_pointer_recovery.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!
+2 warnings, 3 errors in 2.26s
+__ACTUAL_EXIT_CODE__=2
+

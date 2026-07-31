@@ -1,0 +1,6 @@
+Command: .venv\Scripts\basedpyright.exe
+Exit code: 1
+Result: 1062 errors, 7632 warnings.
+Baseline: nonzero with broad existing diagnostics.
+Representative debt: implicit-relative imports, untyped legacy facades,
+camel-case module layout, mapper dynamic imports, and journal fake harness types.

@@ -37,6 +37,7 @@ class TaskCompletion:
     worker_name: str
     result: Any
     completed_at: datetime
+    session_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,15 @@ class WorkerFailure:
     cancellation_requested: bool
     traceback: str
     failed_at: datetime
+    session_id: int | None = None
+
+
+@dataclass(frozen=True)
+class RuntimeStatus:
+    """One user-facing status value scoped to a runtime session."""
+
+    message: str
+    session_id: int | None = None
 
 
 class RuntimeBus:
@@ -104,6 +114,21 @@ class RuntimeBus:
             self._versions[key] = version
             self._latest[key] = (version, value)
 
+    def publish_status(
+        self,
+        key: str,
+        message: str,
+        *,
+        session_id: int | None = None,
+    ) -> None:
+        self.publish_latest(
+            key,
+            RuntimeStatus(
+                message=str(message),
+                session_id=session_id,
+            ),
+        )
+
     def read_latest(
         self,
         key: str,
@@ -132,11 +157,18 @@ class RuntimeBus:
                 items.append(self._logs.popleft())
         return items
 
-    def complete(self, worker_name: str, result: Any = None) -> None:
+    def complete(
+        self,
+        worker_name: str,
+        result: Any = None,
+        *,
+        session_id: int | None = None,
+    ) -> None:
         completion = TaskCompletion(
             worker_name=worker_name,
             result=result,
             completed_at=datetime.now(timezone.utc),
+            session_id=session_id,
         )
         with self._lock:
             if not self._closed:

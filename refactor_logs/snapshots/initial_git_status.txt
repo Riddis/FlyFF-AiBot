@@ -1,0 +1,26 @@
+Baseline commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`
+Branch: `feature/adaptive-mapper`
+Commit subject: `Backup before refactor`
+Commit timestamp: `2026-07-31T00:29:57+02:00`
+
+Pre-journal observation from `git status --short`:
+
+ D AGENTS.md
+ D README.md
+ D foreground_vision_farm.json
+?? codex_refactor_prompt_with_resume_logs.md
+
+Post-journal `git status --porcelain=v2 --branch`:
+
+```text
+# branch.oid 174208614c7c8a916bd7c0dce5cbbb5f2a4e5239
+# branch.head feature/adaptive-mapper
+1 .D N... 100644 100644 000000 7b998ca4189c7c5102eaeee4796e77588aef0898 7b998ca4189c7c5102eaeee4796e77588aef0898 AGENTS.md
+1 .D N... 100644 100644 000000 240cf482ee3fe7ef3cfb140ce9a43096a9829929 240cf482ee3fe7ef3cfb140ce9a43096a9829929 README.md
+1 .D N... 100644 100644 000000 303b14bc72fc1224dc5778c74ea137adb01a5643 303b14bc72fc1224dc5778c74ea137adb01a5643 foreground_vision_farm.json
+? codex_refactor_prompt_with_resume_logs.md
+? refactor_logs/
+```
+
+The three deletions and prompt predate the journal. `refactor_logs/` is refactor-created.
+

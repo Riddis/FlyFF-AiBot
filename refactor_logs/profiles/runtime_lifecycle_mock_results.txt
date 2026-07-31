@@ -1,0 +1,26 @@
+Runtime lifecycle mock exercise
+Date: 2026-07-31
+Interpreter: .venv/Scripts/python.exe
+Scope: isolated RuntimeController/CaptureService/WorkerManager instances only;
+no real FlyFF window, process, input, native reader, map, model, or asset.
+
+{'case': 'reattach_stale_completion', 'generations': [1, 2], 'capture_active': True, 'preview_active': True, 'queued_completions': ['preview', 'capture-1']}
+{'case': 'reattach_shutdown', 'results': {'control': True, 'preview': True, 'capture': True}}
+{'case': 'shutdown_noncooperative', 'elapsed_s': 0.0369, 'join': False, 'alive_after_return': True, 'bus_closed': True, 'release_calls': 1}
+{'case': 'double_shutdown', 'second_join': True, 'stop_calls': 2, 'release_calls': 2}
+{'case': 'permanent_capture_failure', 'capture_active': True, 'preview_active': True, 'source_calls': 3, 'error_logs': 3}
+{'case': 'preview_builder_ignores_cancel', 'join': False, 'alive_after_stop': True, 'cancellation_requested': True}
+
+Interpretation:
+- Reattach leaves capture-1 completion queued while capture generation 2 and
+  preview are active. Gui.__refresh_runtime has no generation check and treats
+  that completion as a current detach.
+- RuntimeController.shutdown returns after its WorkerManager timeout even when
+  a non-daemon control worker remains alive, then closes the bus and releases
+  resources.
+- Calling shutdown a second time repeats Bot.stop and Bot.release_input.
+- A permanently failing capture source remains an active capture worker and
+  keeps retrying; no terminal capture failure/completion is emitted.
+- Preview cancellation is observed only between preview-builder calls. A
+  blocked builder leaves the non-daemon preview worker alive after its bounded
+  stop/join returns false.

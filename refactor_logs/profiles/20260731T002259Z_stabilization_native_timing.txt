@@ -1,0 +1,4 @@
+Environment: Python 3.14.3, fake process memory, 1,000 ordinary reads.
+null_position_ms avg=0.003494 p99=0.008097 max=0.049800 regions=0
+null_monster_ms avg=0.000870 p99=0.002000 max=0.021700 regions=0 find=0
+zero_deadline_recovery_ms=0.067400 result=None regions=0

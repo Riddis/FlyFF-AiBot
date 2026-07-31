@@ -62,6 +62,7 @@ StopHook = Callable[[], None]
 class WorkerSnapshot:
     name: str
     kind: WorkerKind
+    session_id: int | None
     state: WorkerState
     cancellation_requested: bool
     alive: bool
@@ -73,11 +74,13 @@ class WorkerSnapshot:
 class _WorkerRecord:
     name: str
     kind: WorkerKind
+    session_id: int | None
     token: CancellationToken
     thread: Thread
     state: WorkerState
     started_at: float
     stop_hook: StopHook | None = None
+    stop_hook_called: bool = False
     stopped_at: float | None = None
 
 
@@ -97,6 +100,7 @@ class WorkerManager:
         kind: WorkerKind,
         target: WorkerTarget,
         stop_hook: StopHook | None = None,
+        session_id: int | None = None,
     ) -> CancellationToken:
         with self._lock:
             if self._shutting_down:
@@ -110,13 +114,14 @@ class WorkerManager:
             token = CancellationToken()
             thread = Thread(
                 target=self._run_worker,
-                args=(kind, name, token, target),
+                args=(kind, name, session_id, token, target),
                 name=f"flyff-{name}",
                 daemon=False,
             )
             record = _WorkerRecord(
                 name=name,
                 kind=kind,
+                session_id=session_id,
                 token=token,
                 thread=thread,
                 state=WorkerState.STARTING,
@@ -131,6 +136,7 @@ class WorkerManager:
         self,
         kind: WorkerKind,
         name: str,
+        session_id: int | None,
         token: CancellationToken,
         target: WorkerTarget,
     ) -> None:
@@ -139,7 +145,7 @@ class WorkerManager:
             result = target(token)
         except WorkerCancelled:
             self._set_state(kind, name, WorkerState.COMPLETED)
-            self._bus.complete(name)
+            self._bus.complete(name, session_id=session_id)
         except Exception:  # noqa: BLE001 - worker boundary must contain failures.
             failure = WorkerFailure(
                 worker_name=name,
@@ -147,12 +153,13 @@ class WorkerManager:
                 cancellation_requested=token.cancelled,
                 traceback=traceback.format_exc(),
                 failed_at=datetime.now(timezone.utc),
+                session_id=session_id,
             )
             self._set_state(kind, name, WorkerState.FAILED)
             self._bus.fail(failure)
         else:
             self._set_state(kind, name, WorkerState.COMPLETED)
-            self._bus.complete(name, result)
+            self._bus.complete(name, result, session_id=session_id)
 
     def _set_state(
         self,
@@ -175,7 +182,11 @@ class WorkerManager:
                 return False
             record.state = WorkerState.STOPPING
             record.token.cancel()
-            stop_hook = record.stop_hook
+            if record.stop_hook_called:
+                stop_hook = None
+            else:
+                record.stop_hook_called = True
+                stop_hook = record.stop_hook
 
         if stop_hook is not None:
             try:
@@ -188,6 +199,7 @@ class WorkerManager:
                         cancellation_requested=True,
                         traceback=traceback.format_exc(),
                         failed_at=datetime.now(timezone.utc),
+                        session_id=record.session_id,
                     )
                 )
         return True
@@ -212,6 +224,7 @@ class WorkerManager:
             return WorkerSnapshot(
                 name=record.name,
                 kind=record.kind,
+                session_id=record.session_id,
                 state=record.state,
                 cancellation_requested=record.token.cancelled,
                 alive=record.thread.is_alive(),
@@ -224,12 +237,12 @@ class WorkerManager:
         return snapshot is not None and snapshot.alive
 
     def shutdown(self, timeout: float = 5.0) -> dict[WorkerKind, bool]:
+        deadline = monotonic() + max(0.0, timeout)
         with self._lock:
             self._shutting_down = True
         for kind in WorkerKind:
             self.stop(kind)
 
-        deadline = monotonic() + max(0.0, timeout)
         results: dict[WorkerKind, bool] = {}
         for kind in (
             WorkerKind.CONTROL,

@@ -8,11 +8,10 @@ from itertools import combinations
 from statistics import median
 from time import monotonic
 
-from .PositionConfig import NativePositionConfig
 from .NativePointerRecovery import (
     PlayerPointerRecovery,
-    recover_local_player_pointer,
 )
+from .PositionConfig import NativePositionConfig
 from .PositionProvider import PlayerPose, PositionProviderError
 from .Win32ProcessMemory import Win32MemoryBackend, Win32ProcessMemory
 
@@ -147,37 +146,11 @@ class NativeFlyffPositionProvider:
                 f"{type(error).__name__}: {error}"
             ) from error
         if target == 0:
-            module_base = self._module_base
-            configured_offset = self.config.pointer_offset
-            recovery = None
-            if module_base is not None and configured_offset is not None:
-                recovery = recover_local_player_pointer(
-                    self._memory,
-                    module_base=module_base,
-                    configured_player_pointer_offset=configured_offset,
-                )
-            if recovery is not None:
-                self.last_pointer_recovery = recovery
-                self._pointer_storage_address = recovery.player_pointer_address
-                pointer_storage = recovery.player_pointer_address
-                try:
-                    target = int(
-                        struct.unpack(
-                            "<I",
-                            self._memory.read(pointer_storage, 4),
-                        )[0]
-                    )
-                except Exception as error:
-                    raise PointerResolutionError(
-                        "Recovered player pointer could not be reread at "
-                        f"0x{pointer_storage:X}: {type(error).__name__}: {error}"
-                    ) from error
-            if target == 0:
-                raise PointerResolutionError(
-                    f"Player pointer at 0x{pointer_storage:X} is null; "
-                    "the character may not be fully logged in yet, or the "
-                    "client update changed the configured pointer offset"
-                )
+            raise PointerResolutionError(
+                f"Player pointer at 0x{pointer_storage:X} is null; "
+                "explicit pointer recovery is required after login/map "
+                "transition checks complete"
+            )
         return target
 
     def _addresses_for_read(self) -> tuple[int, ...]:

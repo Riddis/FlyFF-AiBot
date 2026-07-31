@@ -1,0 +1,57 @@
+Command: rg -n --glob '*.py' --glob '!foreground_vision_bot/v*/**' --glob '!foreground_vision_bot/.patch_backups/**' "__main__|ArgumentParser|argparse|def main\(" foreground_vision_bot
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+
+Exit code: 0
+Wall time: 2.6 seconds
+Output:
+foreground_vision_bot\foreground_vision_farm.py:19:def main():
+foreground_vision_bot\foreground_vision_farm.py:44:if __name__ == "__main__":
+foreground_vision_bot\inspect_native_monsters.py:3:import argparse
+foreground_vision_bot\inspect_native_monsters.py:21:def _resolve_window(args: argparse.Namespace) -> tuple[str, int]:
+foreground_vision_bot\inspect_native_monsters.py:66:def _build_parser() -> argparse.ArgumentParser:
+foreground_vision_bot\inspect_native_monsters.py:67:    parser = argparse.ArgumentParser(
+foreground_vision_bot\inspect_native_monsters.py:109:def main() -> int:
+foreground_vision_bot\inspect_native_monsters.py:248:if __name__ == "__main__":
+foreground_vision_bot\migrate_project_layout.py:3:import argparse
+foreground_vision_bot\migrate_project_layout.py:275:def main() -> None:
+foreground_vision_bot\migrate_project_layout.py:276:    parser = argparse.ArgumentParser(
+foreground_vision_bot\migrate_project_layout.py:291:if __name__ == "__main__":
+foreground_vision_bot\repair_test_layout.py:3:import argparse
+foreground_vision_bot\repair_test_layout.py:225:def main() -> None:
+foreground_vision_bot\repair_test_layout.py:226:    parser = argparse.ArgumentParser(
+foreground_vision_bot\repair_test_layout.py:239:if __name__ == "__main__":
+foreground_vision_bot\train_mapper_offline.py:3:import argparse
+foreground_vision_bot\train_mapper_offline.py:18:def build_parser() -> argparse.ArgumentParser:
+foreground_vision_bot\train_mapper_offline.py:19:    parser = argparse.ArgumentParser(
+foreground_vision_bot\train_mapper_offline.py:67:def main() -> int:
+foreground_vision_bot\train_mapper_offline.py:95:        else:  # pragma: no cover - argparse guarantees a known command.
+foreground_vision_bot\train_mapper_offline.py:105:if __name__ == "__main__":
+foreground_vision_bot\train_navigator_offline.py:3:import argparse
+foreground_vision_bot\train_navigator_offline.py:18:def build_parser() -> argparse.ArgumentParser:
+foreground_vision_bot\train_navigator_offline.py:19:    parser = argparse.ArgumentParser(
+foreground_vision_bot\train_navigator_offline.py:54:def main() -> int:
+foreground_vision_bot\train_navigator_offline.py:91:if __name__ == "__main__":
+foreground_vision_bot\tools\probe_native_position.py:3:import argparse
+foreground_vision_bot\tools\probe_native_position.py:26:        raise argparse.ArgumentTypeError(
+foreground_vision_bot\tools\probe_native_position.py:30:        raise argparse.ArgumentTypeError("value must be greater than zero")
+foreground_vision_bot\tools\probe_native_position.py:38:        raise argparse.ArgumentTypeError(
+foreground_vision_bot\tools\probe_native_position.py:42:        raise argparse.ArgumentTypeError("value cannot be negative")
+foreground_vision_bot\tools\probe_native_position.py:46:def build_parser() -> argparse.ArgumentParser:
+foreground_vision_bot\tools\probe_native_position.py:47:    parser = argparse.ArgumentParser(
+foreground_vision_bot\tools\probe_native_position.py:99:    args: argparse.Namespace,
+foreground_vision_bot\tools\probe_native_position.py:129:def main(argv: list[str] | None = None) -> int:
+foreground_vision_bot\tools\probe_native_position.py:190:if __name__ == "__main__":
+foreground_vision_bot\tools\apply_v0_5_5_cleanup.py:10:def main() -> None:
+foreground_vision_bot\tools\apply_v0_5_5_cleanup.py:21:if __name__ == "__main__":
+foreground_vision_bot\tools\apply_v0_5_2_cleanup.py:10:def main() -> None:
+foreground_vision_bot\tools\apply_v0_5_2_cleanup.py:32:if __name__ == "__main__":
+foreground_vision_bot\tools\apply_v0_4_cleanup.py:15:def main() -> None:
+foreground_vision_bot\tools\apply_v0_4_cleanup.py:33:if __name__ == "__main__":
+foreground_vision_bot\tools\apply_v0_5_3_cleanup.py:10:def main() -> None:
+foreground_vision_bot\tools\apply_v0_5_3_cleanup.py:34:if __name__ == "__main__":
+foreground_vision_bot\tools\apply_v0_5_cleanup.py:15:def main() -> None:
+foreground_vision_bot\tools\apply_v0_5_cleanup.py:26:if __name__ == "__main__":
+foreground_vision_bot\tools\cleanup_legacy_mapping.py:78:def main() -> int:
+foreground_vision_bot\tools\cleanup_legacy_mapping.py:118:if __name__ == "__main__":
+__COMMAND_EXIT_CODE__=0
+

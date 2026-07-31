@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from threading import Event, Thread
 
-from runtime_bus import RuntimeBus
+from runtime_bus import RuntimeBus, RuntimeStatus
 
 
 def test_latest_values_replace_older_values() -> None:
@@ -29,12 +29,23 @@ def test_log_overflow_is_bounded_and_counted() -> None:
 def test_all_completions_are_delivered() -> None:
     bus = RuntimeBus()
     for index in range(100):
-        bus.complete(f"worker-{index}", index)
+        bus.complete(f"worker-{index}", index, session_id=index)
 
     completions = bus.drain_completions()
 
     assert len(completions) == 100
     assert completions[-1].result == 99
+    assert completions[-1].session_id == 99
+
+
+def test_status_payload_can_carry_session_identity() -> None:
+    bus = RuntimeBus()
+
+    bus.publish_status("capture_status", "live", session_id=7)
+
+    version, status = bus.read_latest("capture_status")
+    assert version == 1
+    assert status == RuntimeStatus(message="live", session_id=7)
 
 
 def test_confirmation_can_be_cancelled_without_waiting_for_timeout() -> None:

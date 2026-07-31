@@ -1,0 +1,93 @@
+Command: $rows = foreach ($file in (git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' ls-files '*.py')) { if (Test-Path -LiteralPath $file) { $item = Get-Item -LiteralPath $file; $lines = (Get-Content -LiteralPath $file | Measure-Object -Line).Lines; [PSCustomObject]@{Lines=$lines; Bytes=$item.Length; Path=$file} } }; $rows | Sort-Object Lines -Descending | Select-Object -First 80 | Format-Table -AutoSize
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+
+Exit code: 0
+Wall time: 3.5 seconds
+Output:
+
+Lines  Bytes Path                                                                                              
+-----  ----- ----                                                                                              
+ 3104 138248 foreground_vision_bot/mapper/Calibration.py                                                       
+ 2449 106092 foreground_vision_bot/mapper/MinimapHeading.py                                                    
+ 2182 100790 foreground_vision_bot/mapper/CoordinateMapper.py                                                  
+ 2068  90461 foreground_vision_bot/mapper/AdaptiveMapper.py                                                    
+ 1935  79542 foreground_vision_bot/Gui.py                                                                      
+ 1649  65284 foreground_vision_bot/mapper/OccupancyGrid.py                                                     
+ 1403  57657 foreground_vision_bot/mapper/RotationModel.py                                                     
+ 1248  54790 foreground_vision_bot/mapper/rl/NavigatorCore.py                                                  
+ 1036  42603 foreground_vision_bot/libs/V0700UnifiedFarming.py                                                 
+  922  37363 foreground_vision_bot/.patch_backups/v0704_20260730T194622Z/libs/V0700UnifiedFarming.py           
+  889  34493 foreground_vision_bot/tests/test_rotation_calibration.py                                          
+  873  33950 foreground_vision_bot/tests/test_minimap_heading.py                                               
+  872  37334 foreground_vision_bot/mapper/Mapper.py                                                            
+  809  34074 foreground_vision_bot/Bot.py                                                                      
+  751  32189 foreground_vision_bot/mapper/rl/NavigatorTraining.py                                              
+  742  31809 foreground_vision_bot/mapper/rl/SimulatorCore.py                                                  
+  701  29256 foreground_vision_bot/tests/test_coordinate_mapper.py                                             
+  644  27125 foreground_vision_bot/native_farming.py                                                           
+  644  27125 foreground_vision_bot/v0707_patch/files/native_farming.py                                         
+  615  23993 foreground_vision_bot/mapper/rl/OfflineTraining.py                                                
+  599  25048 foreground_vision_bot/libs/V0707TeleportSafety.py                                                 
+  599  25048 foreground_vision_bot/v0707_patch/files/libs/V0707TeleportSafety.py                               
+  576  23614 foreground_vision_bot/libs/V0672NativeFarmingFixes.py                                             
+  565  23243 foreground_vision_bot/mapper/ForwardCalibration.py                                                
+  533  20774 foreground_vision_bot/mapper/AdaptiveRunMotionBaseline.py                                         
+  501  20783 foreground_vision_bot/mapper/AdaptiveMotionModel.py                                               
+  484  18222 foreground_vision_bot/mapper/AdaptiveMotionTracker.py                                             
+  482  20078 foreground_vision_bot/train.py                                                                    
+  447  18538 foreground_vision_bot/.patch_backups/v0707_20260730_232234/native_farming.py                      
+  446  18511 foreground_vision_bot/.patch_backups/v0705_20260730_215605/native_farming.py                      
+  445  19480 foreground_vision_bot/libs/V0674OrbitGuard.py                                                     
+  443  18292 foreground_vision_bot/position/NativeFlyffMonsterProvider.py                                      
+  442  18254 foreground_vision_bot/.patch_backups/v0704_20260730T194622Z/native_farming.py                     
+  427  18977 foreground_vision_bot/mapper/ManualDriveMapper.py                                                 
+  419  18589 foreground_vision_bot/libs/LiveNavigatorController.py                                             
+  410  16397 foreground_vision_bot/.patch_backups/v0708_20260731_000616/position/NativeFlyffMonsterProvider.py 
+  410  15559 foreground_vision_bot/tests/test_rotation_model.py                                                
+  407  17981 foreground_vision_bot/.patch_backups/v0705_20260730_215605/libs/LiveNavigatorController.py        
+  407  16251 foreground_vision_bot/position/Win32ProcessMemory.py                                              
+  407  17564 foreground_vision_bot/libs/FlyffEnv.py                                                            
+  407  16749 foreground_vision_bot/libs/NativeFarmingEnv.py                                                    
+  393  16290 foreground_vision_bot/libs/KillCounterPanel.py                                                    
+  386  15106 foreground_vision_bot/position/NativePointerRecovery.py                                           
+  386  15106 foreground_vision_bot/v0708_patch/payload/position/NativePointerRecovery.py                       
+  364  16324 foreground_vision_bot/tests/test_navigator_training.py                                            
+  353  16388 foreground_vision_bot/mapper/AdaptiveTurnControl.py                                               
+  345  12692 foreground_vision_bot/libs/HumanKeyboard.py                                                       
+  345  12692 foreground_vision_bot/v0706_patch/files/libs/HumanKeyboard.py                                     
+  328  12901 foreground_vision_bot/mapper/rl/LayoutSources.py                                                  
+  327  11505 foreground_vision_bot/tests/test_camera_obstruction_recovery_v193.py                              
+  324  14316 foreground_vision_bot/position/NativeFlyffPositionProvider.py                                     
+  315  13934 foreground_vision_bot/mapper/TurnControl.py                                                       
+  300  10513 foreground_vision_bot/.patch_backups/v0706_20260730_220637/libs/HumanKeyboard.py                  
+  300  11686 foreground_vision_bot/mapper/MotionTracker.py                                                     
+  298   9780 foreground_vision_bot/tests/test_forward_calibration.py                                           
+  292  12450 foreground_vision_bot/.patch_backups/v0708_20260731_000616/position/NativeFlyffPositionProvider.py
+  287  10080 foreground_vision_bot/tests/test_native_position_provider.py                                      
+  276  10316 foreground_vision_bot/tests/test_motion_tracker.py                                                
+  269  12539 foreground_vision_bot/libs/ComputerVision.py                                                      
+  263  12106 foreground_vision_bot/mapper/CalibrationSchema.py                                                 
+  262   9265 foreground_vision_bot/tests/test_native_monster_provider.py                                       
+  258  10086 foreground_vision_bot/runtime_controller.py                                                       
+  258  10835 foreground_vision_bot/mapper/MapCatalog.py                                                        
+  254   9531 foreground_vision_bot/runtime_bus.py                                                              
+  253  10059 foreground_vision_bot/libs/V0673EvaMovementFix.py                                                 
+  252   9300 foreground_vision_bot/tests/test_turn_control.py                                                  
+  251  10436 foreground_vision_bot/mapper/rl/OpenArena.py                                                      
+  250   8845 foreground_vision_bot/migrate_project_layout.py                                                   
+  246   9790 foreground_vision_bot/tests/test_mapper_rl_simulator.py                                           
+  241   9075 foreground_vision_bot/tests/test_offline_mapper_training.py                                       
+  229   8866 foreground_vision_bot/inspect_native_monsters.py                                                  
+  225   8793 foreground_vision_bot/mapper/FreeSpaceInference.py                                                
+  222   9185 foreground_vision_bot/position/MonsterConfig.py                                                   
+  222   8244 foreground_vision_bot/mapper/ManualMapEditor.py                                                   
+  212   9593 foreground_vision_bot/position/PositionConfig.py                                                  
+  208   7923 foreground_vision_bot/libs/NativeFarmingObservation.py                                            
+  204   7439 foreground_vision_bot/worker_manager.py                                                           
+  201   8166 foreground_vision_bot/mapper/CompletionGuard.py                                                   
+  198   8282 foreground_vision_bot/repair_test_layout.py                                                       
+  195   8704 foreground_vision_bot/mapper/WallInference.py                                                     
+
+
+__COMMAND_EXIT_CODE__=0
+

@@ -1,0 +1,119 @@
+Command: .venv/Scripts/python.exe -m pytest -q foreground_vision_bot/tests
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+Environment: .venv Python 3.14.3
+
+Exit code: 0
+Wall time: 6.8 seconds
+Output:
+..........................................................F............. [ 14%]
+........................................................................ [ 29%]
+........................................................................ [ 44%]
+.....s........................FF........................................ [ 59%]
+........................................................................ [ 74%]
+........................................................................ [ 89%]
+...F................................................                     [100%]
+================================== FAILURES ===================================
+_____ test_shipped_coordinate_mapper_config_loads_without_schema_mismatch _____
+
+    def test_shipped_coordinate_mapper_config_loads_without_schema_mismatch() -> None:
+        config_path = Path(__file__).parents[1] / "mapper" / "coordinate_mapper.json"
+    
+        config = load_mapper_config(config_path)
+    
+        assert config.teleport_distance_units == pytest.approx(50.0)
+        assert config.teleport_vertical_distance_units == pytest.approx(25.0)
+        assert config.eva_settle_seconds == pytest.approx(0.40)
+        assert config.eva_retry_settle_seconds == pytest.approx(0.25)
+        assert config.slide_min_forward_alignment == pytest.approx(0.70)
+        assert config.pause_when_unfocused is True
+        assert config.backward_seconds == pytest.approx(0.18)
+        assert config.backward_retry_seconds == pytest.approx(0.28)
+        assert config.backward_blocked_distance_units == pytest.approx(0.05)
+        assert config.backward_partial_distance_units == pytest.approx(0.35)
+        assert config.minimap_heading_enabled is True
+        assert config.heading_collision_guard_degrees == pytest.approx(18.0)
+        assert config.free_space_autofill_enabled is True
+>       assert config.free_space_autofill_max_enclosed_area_cells == 12
+E       assert 1 == 12
+E        +  where 1 = MapperConfig(forward_seconds=0.12, backward_seconds=0.18, backward_retry_seconds=0.28, turn_left_90_seconds=0.38, turn...autofill_max_enclosed_span_cells=1, free_space_autofill_max_line_length_cells=40, free_space_autofill_interval_steps=5).free_space_autofill_max_enclosed_area_cells
+
+foreground_vision_bot\tests\test_coordinate_mapper.py:154: AssertionError
+______ test_native_farming_target_action_hands_goal_to_frozen_navigator _______
+
+    def test_native_farming_target_action_hands_goal_to_frozen_navigator() -> None:
+        env, _bot, navigator = _environment()
+>       observation, _info = env.reset()
+                             ^^^^^^^^^^^
+
+foreground_vision_bot\tests\test_native_farming_env.py:121: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+foreground_vision_bot\libs\V0707TeleportSafety.py:58: in patched_reset
+    observation, info = original_reset(self, *args, **kwargs)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+foreground_vision_bot\libs\V0700UnifiedFarming.py:100: in patched_reset
+    _execute_movement(self, NavigatorAction.RUN_FORWARD)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+env = <libs.NativeFarmingEnv.NativeFarmingEnv object at 0x000002536F798590>
+action = <NavigatorAction.RUN_FORWARD: 0>
+
+    def _execute_movement(env: NativeFarmingEnv, action: Any) -> None:
+        executor = getattr(env.navigator, "executor", None)
+        execute = getattr(executor, "execute", None)
+        if not callable(execute):
+>           raise RuntimeError("Live navigator executor does not expose execute(action)")
+E           RuntimeError: Live navigator executor does not expose execute(action)
+
+foreground_vision_bot\libs\V0700UnifiedFarming.py:361: RuntimeError
+____________ test_native_farming_eva_rewards_every_confirmed_kill _____________
+
+    def test_native_farming_eva_rewards_every_confirmed_kill() -> None:
+        env, bot, navigator = _environment()
+>       env.reset()
+
+foreground_vision_bot\tests\test_native_farming_env.py:136: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+foreground_vision_bot\libs\V0707TeleportSafety.py:58: in patched_reset
+    observation, info = original_reset(self, *args, **kwargs)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+foreground_vision_bot\libs\V0700UnifiedFarming.py:100: in patched_reset
+    _execute_movement(self, NavigatorAction.RUN_FORWARD)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+env = <libs.NativeFarmingEnv.NativeFarmingEnv object at 0x000002536F7A51D0>
+action = <NavigatorAction.RUN_FORWARD: 0>
+
+    def _execute_movement(env: NativeFarmingEnv, action: Any) -> None:
+        executor = getattr(env.navigator, "executor", None)
+        execute = getattr(executor, "execute", None)
+        if not callable(execute):
+>           raise RuntimeError("Live navigator executor does not expose execute(action)")
+E           RuntimeError: Live navigator executor does not expose execute(action)
+
+foreground_vision_bot\libs\V0700UnifiedFarming.py:361: RuntimeError
+________________ test_v0674_dry_run_reports_orbit_diagnostics _________________
+
+    def test_v0674_dry_run_reports_orbit_diagnostics() -> None:
+        source = (ROOT / "native_farming.py").read_text(encoding="utf-8")
+>       assert "orbit={navigation.get('orbit_event', '--')}" in source
+E       assert "orbit={navigation.get('orbit_event', '--')}" in 'from __future__ import annotations\n\nimport json\nimport traceback\nfrom collections import Counter, deque\nfrom col...  sleep(0.001)\n    finally:\n        env.close()\n        _status(status_callback, "Native farming agent stopped.")\n'
+
+foreground_vision_bot\tests\test_v0674_orbit_guard_regressions.py:23: AssertionError
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\Ridd\Documents\Repos\Flyff RL\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\Ridd\Documents\Repos\Flyff RL\.pytest_cache\v\cache\nodeids: [WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+.venv\Lib\site-packages\_pytest\cacheprovider.py:423
+  C:\Users\Ridd\Documents\Repos\Flyff RL\.venv\Lib\site-packages\_pytest\cacheprovider.py:423: PytestCacheWarning: could not create cache path C:\Users\Ridd\Documents\Repos\Flyff RL\.pytest_cache\v\cache\lastfailed: [WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/lastfailed", self.lastfailed)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED foreground_vision_bot/tests/test_coordinate_mapper.py::test_shipped_coordinate_mapper_config_loads_without_schema_mismatch
+FAILED foreground_vision_bot/tests/test_native_farming_env.py::test_native_farming_target_action_hands_goal_to_frozen_navigator
+FAILED foreground_vision_bot/tests/test_native_farming_env.py::test_native_farming_eva_rewards_every_confirmed_kill
+FAILED foreground_vision_bot/tests/test_v0674_orbit_guard_regressions.py::test_v0674_dry_run_reports_orbit_diagnostics
+4 failed, 479 passed, 1 skipped, 2 warnings in 4.79s
+__ACTUAL_EXIT_CODE__=1
+

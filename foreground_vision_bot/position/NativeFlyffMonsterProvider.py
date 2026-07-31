@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import math
 import struct
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from threading import RLock
 from time import monotonic, perf_counter
-from typing import Callable, Iterable, Protocol
+from typing import Protocol
 
 from .MonsterConfig import NativeMonsterConfig
 from .NativePointerRecovery import (
     PlayerPointerRecovery,
-    recover_local_player_pointer,
 )
 from .PositionProvider import PositionProviderError
 from .Win32ProcessMemory import (
@@ -171,44 +171,46 @@ class NativeFlyffMonsterProvider:
     def _read_float(self, address: int) -> float:
         return float(struct.unpack("<f", self._memory.read(address, 4))[0])
 
-    def _recover_pointer_slots(self) -> PlayerPointerRecovery | None:
-        recovery = recover_local_player_pointer(
-            self._memory,
-            module_base=self._module_base,
-            configured_player_pointer_offset=self.config.player_pointer_offset,
-            monster_config=self.config,
-        )
-        if recovery is None:
-            return None
-        self.last_pointer_recovery = recovery
-        self._player_pointer_address = recovery.player_pointer_address
-        if recovery.world_pointer_address is not None:
-            self._world_pointer_address = recovery.world_pointer_address
-        return recovery
-
     def read_player_base(self) -> int:
         base = self._read_u32(self._player_pointer_address)
         if base <= 0:
-            recovery = self._recover_pointer_slots()
-            if recovery is not None:
-                base = self._read_u32(self._player_pointer_address)
-        if base <= 0:
             raise NativeMonsterReadError(
-                "Local-player pointer is null and automatic offset recovery "
-                "did not find a validated replacement"
+                "Local-player pointer is null; explicit pointer recovery is "
+                "required after login/map transition checks complete"
+            )
+        if not self._is_self_valid(base):
+            raise NativeMonsterReadError(
+                "Local-player pointer is stale or unreadable; explicit pointer "
+                "recovery is required"
             )
         return base
 
     def read_world_base(self) -> int:
         base = self._read_u32(self._world_pointer_address)
         if base <= 0:
-            recovery = self._recover_pointer_slots()
-            if recovery is not None:
-                base = self._read_u32(self._world_pointer_address)
-        if base <= 0:
             raise NativeMonsterReadError(
-                "Current-world pointer is null and automatic offset recovery "
-                "did not find a validated replacement"
+                "Current-world pointer is null; explicit pointer recovery is "
+                "required after login/map transition checks complete"
+            )
+        try:
+            player = self._read_u32(self._player_pointer_address)
+            if player <= 0:
+                raise NativeMonsterReadError(
+                    "Local-player pointer is null while validating the current "
+                    "world pointer"
+                )
+            player_world = self._read_u32(player + self.config.world_offset)
+        except NativeMonsterReadError:
+            raise
+        except Exception as error:
+            raise NativeMonsterReadError(
+                "Current-world pointer could not be validated against the "
+                "local player"
+            ) from error
+        if player_world != base:
+            raise NativeMonsterReadError(
+                "Current-world pointer is stale or inconsistent with the "
+                "local player; explicit pointer recovery is required"
             )
         return base
 

@@ -1,0 +1,70 @@
+Command: rg -n --glob '*.py' --glob '!foreground_vision_bot/v*/**' --glob '!foreground_vision_bot/.patch_backups/**' "Thread\(|threading\.|start_worker|\.join\(|Queue\(|deque\(|maxsize|stop_event|cancel_event" foreground_vision_bot
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+
+Exit code: 0
+Wall time: 2.4 seconds
+Output:
+foreground_vision_bot\capture_service.py:163:        frame_times: deque[float] = deque(maxlen=30)
+foreground_vision_bot\Bot.py:169:                address_text = ", ".join(f"0x{value:X}" for value in addresses)
+foreground_vision_bot\inspect_native_monsters.py:42:    lines = "\n".join(
+foreground_vision_bot\inspect_native_monsters.py:205:                names = ", ".join(registered.get(species_id, [])) or "unregistered"
+foreground_vision_bot\inspect_native_monsters.py:212:            names = ", ".join(registered.get(actor.species_id, [])) or "unregistered"
+foreground_vision_bot\Gui.py:729:        mob_text = ", ".join(allowed_names) if allowed_names else "No registered mobs"
+foreground_vision_bot\mapper\AdaptiveMotionModel.py:405:                "forward evidence failed: " + "; ".join(failures),
+foreground_vision_bot\mapper\AdaptiveMapper.py:764:        combined_error = "; ".join(error for error in errors if error) or None
+foreground_vision_bot\runtime_bus.py:62:        self._logs: deque[tuple[str, str]] = deque(maxlen=max_logs)
+foreground_vision_bot\runtime_bus.py:67:        self._completions: deque[TaskCompletion] = deque()
+foreground_vision_bot\runtime_bus.py:68:        self._failures: deque[WorkerFailure] = deque()
+foreground_vision_bot\runtime_bus.py:69:        self._confirmations: deque[ConfirmationRequest] = deque()
+foreground_vision_bot\runtime_bus.py:70:        self._mapper_recoveries: deque[MapperRecoveryRequest] = deque()
+foreground_vision_bot\repair_test_layout.py:216:        print("  removed redundant tests: " + ", ".join(report.removed_redundant_files))
+foreground_vision_bot\repair_test_layout.py:218:        print("  canonicalised: " + ", ".join(report.patched_files))
+foreground_vision_bot\worker_manager.py:111:            thread = Thread(
+foreground_vision_bot\worker_manager.py:200:        record.thread.join(max(0.0, timeout))
+foreground_vision_bot\worker_manager.py:205:        return self.join(kind, timeout)
+foreground_vision_bot\worker_manager.py:240:            results[kind] = self.join(kind, remaining)
+foreground_vision_bot\mapper\AdaptiveRunMotionBaseline.py:111:            lambda: deque(maxlen=self.MAX_SAMPLES_PER_HEADING)
+foreground_vision_bot\libs\HumanKeyboard.py:251:            thread = Thread(
+foreground_vision_bot\libs\HumanKeyboard.py:379:            thread.join(timeout=0.5)
+foreground_vision_bot\libs\DigitReader.py:114:        number_text = "".join(match[3] for match in filtered)
+foreground_vision_bot\utils\helpers.py:28:    best_point = deque(maxlen=2)
+foreground_vision_bot\utils\helpers.py:75:    return "#" + "".join([hex(i)[2:] for i in new_rgb_int])
+foreground_vision_bot\utils\decorators.py:27:        signature = ", ".join(args_repr + kwargs_repr)
+foreground_vision_bot\tools\probe_native_position.py:143:    addresses = ", ".join(f"0x{value:X}" for value in provider.resolved_addresses)
+foreground_vision_bot\position\NativeFlyffPositionProvider.py:286:            values = ", ".join(
+foreground_vision_bot\train.py:193:            self.episode_rewards = deque(maxlen=10)
+foreground_vision_bot\train.py:194:            self.episode_kills = deque(maxlen=10)
+foreground_vision_bot\train.py:381:            reward_summary = " ".join(
+foreground_vision_bot\native_farming.py:479:            self.episode_rewards = deque(maxlen=10)
+foreground_vision_bot\mapper\CompletionGuard.py:140:        queue: deque[tuple[int, int]] = deque()
+foreground_vision_bot\mapper\CompletionGuard.py:208:            queue: deque[tuple[int, int]] = deque([(sx, sy)])
+foreground_vision_bot\mapper\CoordinateMapLogger.py:61:                "Coordinate map row contains unknown fields: " + ", ".join(unknown)
+foreground_vision_bot\tests\test_coordinate_mapper.py:73:        self._poses = deque(poses)
+foreground_vision_bot\mapper\CoordinateMapper.py:281:            "Unknown coordinate mapper config fields: " + ", ".join(unknown)
+foreground_vision_bot\mapper\CoordinateMapper.py:2200:                summary = "; ".join(
+foreground_vision_bot\mapper\FreeSpaceInference.py:167:        queue: deque[tuple[int, int]] = deque([(start_gx, start_gy)])
+foreground_vision_bot\mapper\ManualDriveMapper.py:456:                details = "; ".join(
+foreground_vision_bot\mapper\MapCatalog.py:53:            available = ", ".join(self.names())
+foreground_vision_bot\mapper\MapCatalog.py:197:        clean_name = " ".join(str(name).strip().split())
+foreground_vision_bot\mapper\MapLogger.py:112:                + ", ".join(unknown)
+foreground_vision_bot\mapper\NativeCourseHeading.py:45:        self._samples: deque[PlayerPose] = deque(maxlen=max(3, int(maximum_samples)))
+foreground_vision_bot\mapper\OccupancyGrid.py:1161:        queue = deque([start])
+foreground_vision_bot\mapper\OccupancyGrid.py:1205:        queue = deque([start])
+foreground_vision_bot\mapper\OccupancyGrid.py:1632:            count_text = "  ".join(
+foreground_vision_bot\mapper\rl\LayoutSources.py:256:        transform = "+".join(transform_parts) or "identity"
+foreground_vision_bot\mapper\rl\LayoutSources.py:333:    queue: deque[tuple[int, int]] = deque([(x, y)])
+foreground_vision_bot\mapper\rl\NavigatorTraining.py:791:        raise ValueError(f"Unknown {cls.__name__} fields: {', '.join(sorted(unknown))}")
+foreground_vision_bot\mapper\rl\OfflineTraining.py:641:            f"Unknown {cls.__name__} fields: {', '.join(sorted(unknown))}"
+foreground_vision_bot\mapper\rl\OfflineTraining.py:655:            + ", ".join(sorted(unknown))
+foreground_vision_bot\mapper\rl\OpenArena.py:237:        queue: deque[tuple[int, int]] = deque([(int(seed_x), int(seed_y))])
+foreground_vision_bot\mapper\rl\SimulatorCore.py:537:        queue: deque[tuple[int, int]] = deque([start])
+foreground_vision_bot\tests\test_runtime_bus.py:45:    thread = Thread(
+foreground_vision_bot\tests\test_runtime_bus.py:58:    thread.join(timeout=1.0)
+foreground_vision_bot\tests\test_runtime_bus_mapper_recovery.py:24:    worker = Thread(target=request)
+foreground_vision_bot\tests\test_runtime_bus_mapper_recovery.py:37:    worker.join(timeout=1.0)
+foreground_vision_bot\tests\test_runtime_controller.py:119:    assert controller.workers.join(WorkerKind.CONTROL, 1.0)
+foreground_vision_bot\tests\test_turn_control.py:124:    queued = deque(readings)
+foreground_vision_bot\tests\test_turn_control.py:176:    queued = deque(
+foreground_vision_bot\tests\test_worker_manager.py:66:    assert manager.join(WorkerKind.CONTROL, 1.0)
+__COMMAND_EXIT_CODE__=0
+

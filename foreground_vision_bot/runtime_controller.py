@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import traceback
-
-import cv2 as cv
 from collections.abc import Callable
+from threading import Lock
+from time import monotonic
 from typing import cast
 
+import cv2 as cv
 from capture_service import CaptureService, FrameSource
 from libs.WindowCapture import WindowCapture
 from mapper import Mapper
@@ -38,6 +39,13 @@ class RuntimeController:
             self.capture,
             bot.build_preview,
         )
+        self._next_control_session_id = 1
+        self._control_session_id: int | None = None
+        self._shutdown_lock = Lock()
+        self._shutdown_requested = False
+        self._shutdown_finalized = False
+        self._shutdown_results = {kind: True for kind in WorkerKind}
+        self._shutdown_timed_out: tuple[WorkerKind, ...] = ()
 
     @property
     def capture_active(self) -> bool:
@@ -50,14 +58,30 @@ class RuntimeController:
     def control_snapshot(self) -> WorkerSnapshot | None:
         return self.workers.snapshot(WorkerKind.CONTROL)
 
+    @property
+    def control_session_id(self) -> int | None:
+        return self._control_session_id
+
+    @property
+    def shutdown_requested(self) -> bool:
+        return self._shutdown_requested
+
+    @property
+    def shutdown_finalized(self) -> bool:
+        return self._shutdown_finalized
+
+    @property
+    def shutdown_timed_out(self) -> tuple[WorkerKind, ...]:
+        return self._shutdown_timed_out
+
     def attach(self, window_handle: int) -> int:
         if self.control_active:
             raise RuntimeError(
                 "Cannot reattach while a control task is active. Stop it first."
             )
-        self.bot.release_input()
         if not self.preview.stop(3.0):
             raise RuntimeError("Previous preview worker did not stop.")
+        self.bot.release_input()
         generation = self.capture.attach(window_handle)
         try:
             self.bot.prepare_window(window_handle, self.bus, self.capture)
@@ -77,7 +101,6 @@ class RuntimeController:
             )
 
             report = self._reporter("rl_status", "rl")
-            self.bot.start()
             try:
                 if mode == "train":
                     return train_native_farming(
@@ -237,12 +260,21 @@ class RuntimeController:
     ) -> None:
         if not self.capture_active:
             raise RuntimeError("Attach the Flyff window first.")
-        self.workers.start(
-            name=name,
-            kind=WorkerKind.CONTROL,
-            target=target,
-            stop_hook=self.bot.stop_movement,
-        )
+        session_id = self._next_control_session_id
+        self._next_control_session_id += 1
+        previous_session_id = self._control_session_id
+        self._control_session_id = session_id
+        try:
+            self.workers.start(
+                name=name,
+                kind=WorkerKind.CONTROL,
+                target=target,
+                stop_hook=self.bot.stop_movement,
+                session_id=session_id,
+            )
+        except Exception:
+            self._control_session_id = previous_session_id
+            raise
 
     def stop_control(self) -> bool:
         # Cancel first so a release failure cannot prevent the worker from
@@ -260,30 +292,69 @@ class RuntimeController:
         return stopping
 
     def shutdown(self, timeout: float = 8.0) -> dict[WorkerKind, bool]:
-        try:
-            self.bot.stop()
-        except Exception:  # noqa: BLE001 - shutdown must continue.
-            self.bus.log(
-                "Bot input cleanup reported an error during shutdown.\n"
-                f"{traceback.format_exc()}",
-                "msg_red",
+        timeout = max(0.0, float(timeout))
+        deadline = monotonic() + timeout
+        if not self._shutdown_lock.acquire(timeout=timeout):
+            results = {kind: not self.workers.is_active(kind) for kind in WorkerKind}
+            self._shutdown_timed_out = tuple(
+                kind for kind, stopped in results.items() if not stopped
             )
-        results = self.workers.shutdown(timeout)
+            return results
+
         try:
-            self.bot.release_input()
-        except Exception:  # noqa: BLE001 - close the runtime bus regardless.
-            self.bus.log(
-                "Final input release reported an error during shutdown.\n"
-                f"{traceback.format_exc()}",
-                "msg_red",
+            self._shutdown_requested = True
+            if self._shutdown_finalized:
+                return dict(self._shutdown_results)
+
+            remaining = max(0.0, deadline - monotonic())
+            results = self.workers.shutdown(remaining)
+            self._shutdown_results = dict(results)
+            self._shutdown_timed_out = tuple(
+                kind for kind, stopped in results.items() if not stopped
             )
+            if self._shutdown_timed_out:
+                names = ", ".join(kind.value for kind in self._shutdown_timed_out)
+                message = (
+                    "Shutdown timed out while waiting for: "
+                    f"{names}. Runtime resources remain open so live workers "
+                    "are not invalidated."
+                )
+                self.bus.publish_status("runtime_status", message)
+                self.bus.log(message, "msg_red")
+                return dict(results)
+
+            try:
+                self.bot.stop()
+            except Exception:  # noqa: BLE001 - final release must still run.
+                self.bus.log(
+                    "Bot input cleanup reported an error during shutdown.\n"
+                    f"{traceback.format_exc()}",
+                    "msg_red",
+                )
+            try:
+                self.bot.release_input()
+            except Exception:  # noqa: BLE001 - workers are stopped; finish closure.
+                self.bus.log(
+                    "Final input release reported an error during shutdown.\n"
+                    f"{traceback.format_exc()}",
+                    "msg_red",
+                )
+            finally:
+                self.bus.close()
+                self._shutdown_finalized = True
+            return dict(results)
         finally:
-            self.bus.close()
-        return results
+            self._shutdown_lock.release()
 
     def _reporter(self, status_key: str, worker: str):
+        session_id = self._control_session_id
+
         def report(message: str) -> None:
-            self.bus.publish_latest(status_key, str(message))
+            self.bus.publish_status(
+                status_key,
+                str(message),
+                session_id=session_id,
+            )
             self.bus.log(str(message), "msg_blue")
             self.bus.heartbeat(worker)
 

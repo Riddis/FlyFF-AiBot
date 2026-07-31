@@ -1,0 +1,136 @@
+Command: rg -n --glob '*.py' --glob '*.json' --glob '!foreground_vision_bot/.patch_backups/**' --glob '!foreground_vision_bot/v*/**' "movement_model|navigator_ppo|train_navigator|LiveNavigatorController|ObservationBuilder|FlyffEnv|orbit|target_action|navigate_toward_cell" foreground_vision_bot
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+
+Exit code: 0
+Wall time: 2 seconds
+Output:
+foreground_vision_bot\Bot.py:397:        Delta calculation belongs to FlyffEnv, so this method is stateless.
+foreground_vision_bot\libs\FlyffEnv.py:13:from libs.ObservationBuilder import ObservationBuilder
+foreground_vision_bot\libs\FlyffEnv.py:20:class FlyffEnvConfig:
+foreground_vision_bot\libs\FlyffEnv.py:51:class FlyffEnv(gym.Env):
+foreground_vision_bot\libs\FlyffEnv.py:57:        observation_builder: ObservationBuilder,
+foreground_vision_bot\libs\FlyffEnv.py:60:        config: FlyffEnvConfig | None = None,
+foreground_vision_bot\libs\FlyffEnv.py:67:        self.config = config or FlyffEnvConfig()
+foreground_vision_bot\libs\LiveNavigatorController.py:29:    model_path: str = "models/movement/navigator_ppo_final_offline.zip"
+foreground_vision_bot\libs\LiveNavigatorController.py:114:class LiveNavigatorController:
+foreground_vision_bot\libs\LiveNavigatorController.py:210:        return self.navigate_toward_cell(
+foreground_vision_bot\libs\LiveNavigatorController.py:215:    def navigate_toward_cell(
+foreground_vision_bot\libs\NativeFarmingEnv.py:16:from .LiveNavigatorController import LiveNavigatorController, NavigationBurstResult
+foreground_vision_bot\libs\NativeFarmingEnv.py:19:    NativeFarmingObservationBuilder,
+foreground_vision_bot\libs\NativeFarmingEnv.py:78:        observation_builder: NativeFarmingObservationBuilder,
+foreground_vision_bot\libs\NativeFarmingEnv.py:79:        navigator: LiveNavigatorController,
+foreground_vision_bot\libs\NativeFarmingEnv.py:177:                navigation = self.navigator.navigate_toward_cell(
+foreground_vision_bot\libs\NativeFarmingObservation.py:68:class NativeFarmingObservationBuilder:
+foreground_vision_bot\libs\ObservationBuilder.py:57:class ObservationBuilder:
+foreground_vision_bot\libs\V0673EvaMovementFix.py:18:from .LiveNavigatorController import LiveNavigatorController
+foreground_vision_bot\libs\V0673EvaMovementFix.py:48:    original_init = LiveNavigatorController.__init__
+foreground_vision_bot\libs\V0673EvaMovementFix.py:49:    original_navigate = LiveNavigatorController.navigate_toward_cell
+foreground_vision_bot\libs\V0673EvaMovementFix.py:50:    original_cast_eva = getattr(LiveNavigatorController, "cast_eva", None)
+foreground_vision_bot\libs\V0673EvaMovementFix.py:51:    original_stop = LiveNavigatorController.stop
+foreground_vision_bot\libs\V0673EvaMovementFix.py:55:            "v0.6.7.3 requires LiveNavigatorController.cast_eva(). "
+foreground_vision_bot\libs\V0673EvaMovementFix.py:148:    LiveNavigatorController.__init__ = patched_init
+foreground_vision_bot\libs\V0673EvaMovementFix.py:149:    LiveNavigatorController.navigate_toward_cell = patched_navigate
+foreground_vision_bot\libs\V0673EvaMovementFix.py:150:    LiveNavigatorController.cast_eva = patched_cast_eva
+foreground_vision_bot\libs\V0673EvaMovementFix.py:183:def _track_executor_actions(controller: LiveNavigatorController) -> None:
+foreground_vision_bot\libs\V0673EvaMovementFix.py:208:    controller: LiveNavigatorController,
+foreground_vision_bot\libs\V0673EvaMovementFix.py:264:def _cancelled_or_disabled(controller: LiveNavigatorController) -> bool:
+foreground_vision_bot\libs\V0700UnifiedFarming.py:34:from .LiveNavigatorController import LiveNavigatorController
+foreground_vision_bot\libs\V0700UnifiedFarming.py:64:# is no orbit guard, forced steering, target latching, or target blacklist.
+foreground_vision_bot\libs\V0700UnifiedFarming.py:144:    env.target_action_count = 0
+foreground_vision_bot\libs\V0700UnifiedFarming.py:660:        "orbit_event": "disabled:unified",
+foreground_vision_bot\libs\V0700UnifiedFarming.py:661:        "orbit_correction": "--",
+foreground_vision_bot\libs\V0700UnifiedFarming.py:663:        "orbit_count": 0,
+foreground_vision_bot\libs\V0700UnifiedFarming.py:697:        "orbit_blacklist_size": 0,
+foreground_vision_bot\libs\V0674OrbitGuard.py:27:from .LiveNavigatorController import LiveNavigatorController
+foreground_vision_bot\libs\V0674OrbitGuard.py:56:    """Install the v0.6.7.4 orbit guard once per Python process."""
+foreground_vision_bot\libs\V0674OrbitGuard.py:68:    original_init = LiveNavigatorController.__init__
+foreground_vision_bot\libs\V0674OrbitGuard.py:69:    original_navigate = LiveNavigatorController.navigate_toward_cell
+foreground_vision_bot\libs\V0674OrbitGuard.py:74:        self._v0674_orbit_count = 0
+foreground_vision_bot\libs\V0674OrbitGuard.py:210:                # reset the best-distance timer or conceal a long orbit.
+foreground_vision_bot\libs\V0674OrbitGuard.py:228:            self._v0674_orbit_count = int(
+foreground_vision_bot\libs\V0674OrbitGuard.py:229:                getattr(self, "_v0674_orbit_count", 0)
+foreground_vision_bot\libs\V0674OrbitGuard.py:231:            self._v0674_last_event = "abandon_orbit"
+foreground_vision_bot\libs\V0674OrbitGuard.py:253:    LiveNavigatorController.__init__ = patched_init
+foreground_vision_bot\libs\V0674OrbitGuard.py:254:    LiveNavigatorController.navigate_toward_cell = patched_navigate
+foreground_vision_bot\libs\V0674OrbitGuard.py:297:            # a replacement actor after an orbit abandonment.
+foreground_vision_bot\libs\V0674OrbitGuard.py:327:                    "orbit_event": getattr(
+foreground_vision_bot\libs\V0674OrbitGuard.py:330:                    "orbit_correction": getattr(
+foreground_vision_bot\libs\V0674OrbitGuard.py:333:                    "orbit_count": int(
+foreground_vision_bot\libs\V0674OrbitGuard.py:334:                        getattr(navigator, "_v0674_orbit_count", 0)
+foreground_vision_bot\libs\V0674OrbitGuard.py:342:                    "orbit_bad_bursts": int(
+foreground_vision_bot\libs\V0674OrbitGuard.py:349:                "orbit_blacklisted_target": getattr(
+foreground_vision_bot\libs\V0674OrbitGuard.py:352:                "orbit_blacklist_size": len(
+foreground_vision_bot\libs\V0674OrbitGuard.py:364:def _reset_goal_state(controller: LiveNavigatorController, goal) -> None:
+foreground_vision_bot\libs\V0674OrbitGuard.py:383:    controller: LiveNavigatorController,
+foreground_vision_bot\libs\V0674OrbitGuard.py:474:def _execute_safely(controller: LiveNavigatorController, action: Any) -> None:
+foreground_vision_bot\native_farming.json:17:  "movement_model_path": "models/movement/navigator_ppo_final_offline.zip",
+foreground_vision_bot\native_farming.py:15:from libs.LiveNavigatorController import LiveNavigatorConfig, LiveNavigatorController
+foreground_vision_bot\native_farming.py:18:    NativeFarmingObservationBuilder,
+foreground_vision_bot\native_farming.py:66:    movement_model_path: str = "models/movement/navigator_ppo_final_offline.zip"
+foreground_vision_bot\native_farming.py:236:    observation_builder = NativeFarmingObservationBuilder(
+foreground_vision_bot\native_farming.py:244:    navigator = LiveNavigatorController(
+foreground_vision_bot\native_farming.py:248:            model_path=config.movement_model_path,
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:20:from .LiveNavigatorController import LiveNavigatorController
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:57:    original_init = LiveNavigatorController.__init__
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:58:    original_navigate = LiveNavigatorController.navigate_toward_cell
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:59:    original_backward = LiveNavigatorController._backward_recovery
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:60:    original_record_outcome = LiveNavigatorController._record_outcome
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:112:            # side key makes the character orbit a nearby destination.  Straighten
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:189:    LiveNavigatorController.__init__ = patched_init
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:190:    LiveNavigatorController.navigate_toward_cell = patched_navigate
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:191:    LiveNavigatorController._backward_recovery = patched_backward
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:192:    LiveNavigatorController._record_outcome = patched_record_outcome
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:320:            navigation = self.navigator.navigate_toward_cell(
+foreground_vision_bot\libs\V0672NativeFarmingFixes.py:447:            # Every target is close. Pick the farthest one to avoid orbiting a
+foreground_vision_bot\train.py:11:from libs.FlyffEnv import FlyffEnv, FlyffEnvConfig
+foreground_vision_bot\train.py:12:from libs.ObservationBuilder import ObservationBuilder, ObservationConfig
+foreground_vision_bot\train.py:87:) -> FlyffEnv:
+foreground_vision_bot\train.py:107:    observation_builder = ObservationBuilder(
+foreground_vision_bot\train.py:117:    env_config = FlyffEnvConfig(
+foreground_vision_bot\train.py:141:    return FlyffEnv(
+foreground_vision_bot\train_navigator_offline.py:13:    train_navigator,
+foreground_vision_bot\train_navigator_offline.py:69:                    train_navigator(
+foreground_vision_bot\mapper\rl\navigator_training_farming_mix.json:88:    "model": "models/movement/navigator_ppo",
+foreground_vision_bot\mapper\rl\navigator_training_farming_mix.json:90:    "best": "models/movement/best/navigator_ppo",
+foreground_vision_bot\mapper\rl\navigator_training_farming_mix.json:93:    "last": "models/movement/last/navigator_ppo"
+foreground_vision_bot\mapper\rl\navigator_training_short_holdout.json:88:    "model": "models/movement/navigator_ppo",
+foreground_vision_bot\mapper\rl\navigator_training_short_holdout.json:90:    "best": "models/movement/best/navigator_ppo",
+foreground_vision_bot\mapper\rl\navigator_training_short_holdout.json:93:    "last": "models/movement/last/navigator_ppo"
+foreground_vision_bot\mapper\rl\navigator_training.json:88:    "model": "models/movement/navigator_ppo",
+foreground_vision_bot\mapper\rl\navigator_training.json:90:    "best": "models/movement/best/navigator_ppo",
+foreground_vision_bot\mapper\rl\navigator_training.json:93:    "last": "models/movement/last/navigator_ppo"
+foreground_vision_bot\mapper\rl\navigator_training_short_holdout_fresh.json:88:    "model": "models/movement/navigator_ppo",
+foreground_vision_bot\mapper\rl\navigator_training_short_holdout_fresh.json:90:    "best": "models/movement/best/navigator_ppo",
+foreground_vision_bot\mapper\rl\navigator_training_short_holdout_fresh.json:93:    "last": "models/movement/last/navigator_ppo"
+foreground_vision_bot\mapper\rl\navigator_training_farming_mix_holdout.json:88:    "model": "models/movement/navigator_ppo",
+foreground_vision_bot\mapper\rl\navigator_training_farming_mix_holdout.json:90:    "best": "models/movement/best/navigator_ppo",
+foreground_vision_bot\mapper\rl\navigator_training_farming_mix_holdout.json:93:    "last": "models/movement/last/navigator_ppo"
+foreground_vision_bot\mapper\rl\NavigatorTraining.py:94:    model: str = "models/movement/navigator_ppo"
+foreground_vision_bot\mapper\rl\NavigatorTraining.py:95:    last: str = "models/movement/last/navigator_ppo"
+foreground_vision_bot\mapper\rl\NavigatorTraining.py:97:    best: str = "models/movement/best/navigator_ppo"
+foreground_vision_bot\mapper\rl\NavigatorTraining.py:309:def train_navigator(
+foreground_vision_bot\mapper\rl\NavigatorTraining.py:504:                name_prefix="navigator_ppo",
+foreground_vision_bot\tests\test_native_farming_observation.py:8:    NativeFarmingObservationBuilder,
+foreground_vision_bot\tests\test_native_farming_observation.py:56:    builder = NativeFarmingObservationBuilder(context, config)
+foreground_vision_bot\tests\test_native_farming_env.py:10:    NativeFarmingObservationBuilder,
+foreground_vision_bot\tests\test_native_farming_env.py:62:    def navigate_toward_cell(self, goal, *, duration_seconds=None):
+foreground_vision_bot\tests\test_native_farming_env.py:91:    builder = NativeFarmingObservationBuilder(
+foreground_vision_bot\tests\test_native_farming_env.py:119:def test_native_farming_target_action_hands_goal_to_frozen_navigator() -> None:
+foreground_vision_bot\tests\test_navigator_training.py:441:    assert config.output.last.endswith("models/movement/last/navigator_ppo")
+foreground_vision_bot\tests\test_v0674_orbit_guard_regressions.py:13:def test_v0674_reverses_bad_arcs_and_abandons_orbits() -> None:
+foreground_vision_bot\tests\test_v0674_orbit_guard_regressions.py:16:    assert "abandon_orbit" in source
+foreground_vision_bot\tests\test_v0674_orbit_guard_regressions.py:21:def test_v0674_dry_run_reports_orbit_diagnostics() -> None:
+foreground_vision_bot\tests\test_v0674_orbit_guard_regressions.py:23:    assert "orbit={navigation.get('orbit_event', '--')}" in source
+foreground_vision_bot\tests\test_v0674_orbit_guard_regressions.py:24:    assert "correction={navigation.get('orbit_correction', '--')}" in source
+foreground_vision_bot\tests\test_v0674_orbit_guard_regressions.py:25:    assert "blacklist={info.get('orbit_blacklist_size', 0)}" in source
+foreground_vision_bot\tests\test_v0671_fluid_counter_regressions.py:10:    source = (ROOT / "libs" / "LiveNavigatorController.py").read_text(
+foreground_vision_bot\tests\test_v0700_unified_farming_regressions.py:30:    assert "navigate_toward_cell" not in source
+foreground_vision_bot\tests\test_v0700_unified_farming_regressions.py:50:def test_v0702_dry_run_never_forwards_legacy_target_actions() -> None:
+foreground_vision_bot\tests\test_v0705_unified_executor_only_regressions.py:9:# LiveNavigatorController imports the Windows keyboard implementation even
+foreground_vision_bot\tests\test_v0705_unified_executor_only_regressions.py:22:from libs.LiveNavigatorController import LiveNavigatorController, _PolicyAdapter
+foreground_vision_bot\tests\test_v0705_unified_executor_only_regressions.py:46:    constructor = source[source.index("navigator = LiveNavigatorController(") :]
+foreground_vision_bot\tests\test_v0705_unified_executor_only_regressions.py:55:    controller = LiveNavigatorController(
+foreground_vision_bot\tests\test_v0705_unified_executor_only_regressions.py:66:    controller = LiveNavigatorController(
+foreground_vision_bot\tests\test_v0705_unified_executor_only_regressions.py:72:        controller.navigate_toward_cell((1, 1))
+__COMMAND_EXIT_CODE__=0
+
