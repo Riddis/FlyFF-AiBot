@@ -73,3 +73,13 @@ This measurement excludes worker start/GUI rendering and verifies the core
 health command cannot accidentally enter scan or persistence. Managed-worker
 cancellation, reciprocal control exclusion, and false-join shutdown are covered
 by the Phase 02 integration suite.
+
+## Final automated gate â€” 2026-07-31
+
+The canonical root suite completes 532 passing tests plus one skip in 8.60
+seconds. Fake end-to-end session coverage completes both required lifecycles
+without queue growth or a live client. Capture/preview remain latest-only and
+the GUI renders at bounded 10/4 FPS cadences. Native Health adds one fixed pose
+read and map conversion to the fixed pointer snapshot; tests prove it performs
+no recovery/readable-region scan. The earlier ordinary-null p99 and managed
+health measurements remain the applicable regression budgets.

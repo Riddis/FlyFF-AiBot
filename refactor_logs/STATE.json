@@ -1,78 +1,57 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T15:56:08.9789689Z",
-  "current_phase": "phase_03_canonical_farming_environment",
-  "phase_status": "movement_visual_farming_migration_cleanup_broad_green",
-  "active_task_id": "FARM-001,FARM-002,FARM-003,INPUT-001,BOUND-001",
+  "updated_at": "2026-07-31T16:26:59.1476369Z",
+  "current_phase": "phase_08_final_validation",
+  "phase_status": "automated_refactor_completed_live_validation_pending",
+  "active_task_id": "DOC-004",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "aa4b104527239ef523d5b085a3821f2340ac7458",
+  "head_commit": "9cbc1f938d2b7f528b5962ec466f06459e6063e4",
+  "head_note": "Validated code checkpoint; the final journal-only checkpoint follows it.",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
     "branch": "backup/pre-codex-refactor"
   },
   "dirty_files": [
-    {"path": "AGENTS.md", "status": "D", "provenance": "pre-existing"},
-    {"path": "README.md", "status": "D", "provenance": "pre-existing"},
-    {"path": "foreground_vision_farm.json", "status": "D", "provenance": "pre-existing"},
-    {"path": "foreground_vision_bot.zip", "status": "??", "provenance": "user-confirmed backup archive; ignore and exclude"},
-    {"path": "refactor_logs.zip", "status": "??", "provenance": "user-confirmed backup archive; ignore and exclude"}
+    {"path": "AGENTS.md", "status": "D", "provenance": "user-owned pre-existing deletion; excluded"},
+    {"path": "README.md", "status": "D", "provenance": "user-owned pre-existing deletion; excluded"},
+    {"path": "foreground_vision_farm.json", "status": "D", "provenance": "user-owned pre-existing deletion; excluded"}
+  ],
+  "ignored_user_backups": [
+    "foreground_vision_bot.zip",
+    "refactor_logs.zip"
   ],
   "staged_files": [],
-  "checkpoint_candidate_files": [
-    "67 exact obsolete movement/visual-farming/migration/generated-log deletions excluding the three user-owned historical deletions",
-    ".gitignore",
-    "foreground_vision_bot/Bot.py",
-    "foreground_vision_bot/farming/__init__.py",
-    "foreground_vision_bot/farming/map_context.py",
-    "foreground_vision_bot/farming/map_masks.py",
-    "foreground_vision_bot/mapper/rl/__init__.py",
-    "foreground_vision_bot/native_farming.json",
-    "foreground_vision_bot/project_paths.py",
-    "foreground_vision_bot/tests/test_farming_map_masks.py",
-    "foreground_vision_bot/tests/test_pointer_recovery.py",
-    "foreground_vision_bot/tests/test_project_paths.py",
-    "refactor_logs/CHANGES.jsonl",
-    "refactor_logs/COMMANDS.jsonl",
-    "refactor_logs/HANDOFF.md",
-    "refactor_logs/PLAN.md",
-    "refactor_logs/STATE.json",
-    "refactor_logs/STATUS.md",
-    "refactor_logs/phases/07_legacy_cleanup.md"
-  ],
-  "last_known_good_commit": "c37598d8e89f3ae283e5f25b4055a70edd8e3400",
-  "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q <10 exact farming/native foundation modules>",
-  "last_known_good_test_result": "74 passed in 0.94 seconds; compileall, Ruff F/I, BasedPyright error level, Tower preflight, and diff check pass",
-  "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q foreground_vision_bot/tests --junitxml=refactor_logs/test_runs/20260731T_phase03_canonical.xml",
-  "last_broad_test_result": "525 passed, 1 skipped in 11.28 seconds; zero failures after movement/visual/migration cleanup",
-  "active_blocker": null,
-  "blocked_tasks": [],
-  "required_model_for_next_action": "Sol 5.6 with high reasoning per the active continuation instructions",
-  "human_test_pending": false,
-  "known_risks": ["RISK-003", "RISK-005", "RISK-006", "RISK-007", "RISK-008", "RISK-009", "RISK-010", "RISK-011", "RISK-012", "RISK-013", "RISK-014", "RISK-015", "RISK-016", "RISK-017", "RISK-018", "RISK-019"],
-  "next_action": "Checkpoint the broad-green movement/visual/migration cleanup, then add the required fake end-to-end live-session smoke and finish GUI/diagnostic/documentation validation.",
-  "current_work": [
-    "Atomic production cutover to farming.trainer",
-    "Behavior-parity validation before legacy deletion"
-  ],
+  "last_known_good_commit": "9cbc1f938d2b7f528b5962ec466f06459e6063e4",
+  "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider",
+  "last_known_good_test_result": "532 passed, 1 skipped in 8.60 seconds",
+  "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider",
+  "last_broad_test_result": "532 passed, 1 skipped in 8.60 seconds",
+  "last_quality_result": "Canonical farming/native/runtime changed scope: compile clean, Ruff F/I clean, BasedPyright error-level 0. Repository-wide legacy mapper/GUI lint and type debt remains classified in TEST_RESULTS.md.",
+  "active_model_sha256": "3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2",
+  "active_blocker": "Real FlyFF/Tk/Win32 behavior requires the consolidated human protocol.",
+  "blocked_tasks": ["live_client_validation"],
+  "next_action": "Run refactor_logs/manual_tests/DOC-003_live_client_acceptance.md once with the real client and return the requested log/report evidence.",
   "completed_milestones": [
     "BASE-001", "BASE-002", "BASE-003", "BASE-004", "BASE-005",
     "AUD1-001", "AUD1-002", "AUD1-003", "AUD1-004",
     "AUD2-001", "AUD2-002", "AUD2-003", "AUD2-004",
     "STAB-001", "STAB-002", "STAB-003", "STAB-004", "STAB-005",
     "PTR-001", "PTR-002", "PTR-003", "PTR-004",
-    "RESUME-001", "RESUME-002", "RESUME-003"
+    "RESUME-001", "RESUME-002", "RESUME-003",
+    "FARM-001", "FARM-002", "FARM-003", "FARM-004", "FARM-005",
+    "INPUT-001", "INPUT-002", "INPUT-003", "INPUT-004",
+    "GUI-001", "GUI-002", "GUI-003", "GUI-004",
+    "BOUND-001", "BOUND-002", "BOUND-003", "BOUND-004",
+    "CLEAN-001", "CLEAN-002", "CLEAN-003", "CLEAN-004",
+    "DOC-001", "DOC-002", "DOC-003", "DOC-004"
   ],
-  "pending_migrations": [
-    "Integrate canonical farming core into visible reset/step environment",
-    "Replace patch-version farming tests and installers",
-    "Direct input/focus/camera ownership",
-    "GUI lifecycle cleanup",
-    "Mapping/native/vision boundaries",
-    "Legacy removal and repository cleanup"
-  ],
+  "pending_migrations": [],
   "pending_deletions": [],
   "live_client_validation_still_required": true,
-  "pending_human_tests": [],
+  "pending_human_tests": [
+    "refactor_logs/manual_tests/DOC-003_live_client_acceptance.md"
+  ],
+  "known_open_risks": ["RISK-001", "RISK-002", "RISK-005", "RISK-010", "RISK-011", "RISK-012", "RISK-013", "RISK-016"],
   "current_tree_runnable": true
 }

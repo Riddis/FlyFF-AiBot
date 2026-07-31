@@ -1,29 +1,17 @@
 # Refactor Status
 
-- Current phase: Phase 05/06 lifecycle acceptance and Phase 08 documentation
-- Phase status: obsolete policy/migration cleanup is committed at `60d1e33`; fake live-session acceptance is broad-green and checkpoint-ready
-- Active task: `GUI-003,BOUND-004,DOC-002`
-- Branch/HEAD: `feature/adaptive-mapper` at `60d1e33`
-- Known checkpoints: stabilization `63651e97d6d013ac41364d912e98b70ac5c76b88`; shared native ownership `a0304c72089980f6028e2e4c7baef70909687f63`; completed Phase 02 `a63e2221e20fdd56add0acdfd2add0a389b83f61`
-- Protected pre-Codex commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`; annotated tag `protected/pre-codex-refactor`; branch `backup/pre-codex-refactor`
-- Latest checkpoint: `ca9457639e63696352aba3bd27bd7ad76dea0f52` (`RESUME-003 freeze canonical farming core contracts`)
-- Runtime foundation checkpoint: `8c7d8362a85a98e29f099c07325995c07b70f9d4` (`FARM-003 establish canonical farming runtime foundations`)
-- Environment/trainer checkpoint: `d4617eaa24363774f3200dfcb227ea9c638fba1a` (`FARM-004 establish explicit live session trainer`)
-- Production dispatch checkpoint: `c37598d8e89f3ae283e5f25b4055a70edd8e3400` (`FARM-005 cut production to canonical trainer`)
-- Legacy farming cleanup checkpoint: `c783c72` (`CLEAN-002 remove legacy farming patch chain`)
-- Generated artifact checkpoint: `aa4b104` (`CLEAN-003 remove generated patch artifacts`)
-- Staged files: generated-log/legacy-model deletions only; the complete exact cleanup plus journal will be audited before commit
-- Phase 03: dependency-light core and five behavior tests are committed, validated, and ready for production integration
-- Foundation slice: explicit cached actor refresh, coherent scan-free frame reads, Tower context, direct persistent input, and native kill confirmation pass 74 focused tests
-- User-owned/pre-existing: deleted `AGENTS.md`, deleted `README.md`, deleted root `foreground_vision_farm.json`
-- User-confirmed ignored backups: untracked `foreground_vision_bot.zip` and `refactor_logs.zip`; leave untouched and exclude from checkpoints
-- Environment/trainer gate: 89 tests pass in 4.68 s; compileall, Ruff F/I, and BasedPyright error-level pass. Real SB3 tests prove policy-prefix training once, external/cancel prefix discard, and metadata-safe resume.
-- Production dispatch: `runtime_controller.py` imports the three live modes directly from `farming.trainer`; 68 controller/farming tests pass after cutover. Patch modules remain present but unreachable pending their recorded deletion slice.
-- Canonical broad gate after deletion: 550 passed, 1 skipped, zero failures in 9.94 s. Ten dead production modules and fourteen implementation-detail tests are removed.
-- Post-movement/visual cleanup gate: 525 passed, 1 skipped, zero failures in 11.28 s. Active unified model SHA is unchanged.
-- Fake live-session acceptance gate: 528 passed, 1 skipped in 7.99 s. Launch/attach/preview/dry-run/stop and launch/attach/train/external-stop/publish are covered without a client process; fatal sessions preserve the last-known-good model.
-- Runnable: yes under fake/integration coverage on the canonical farming route
-- Last checkpoint gate: 37 corrected focused tests passed in 0.40 s; canonical suite reached 569 passed, 2 known legacy failures, and 1 skipped in 6.02 s; compile/Ruff/BasedPyright/diff gates pass
-- Final Sol checkpoint audit: no remaining isolated-core correctness, contract, reachability, or candidate-boundary blocker
-- Blockers: none; live FlyFF validation is deferred until automated cutover and cleanup are complete
-- Next action: checkpoint fake session acceptance, then finish GUI/diagnostic boundary evidence, naming cleanup, final manifest, documentation, and final validation
+- Phase: automated refactor complete; consolidated live-client acceptance pending.
+- Branch: `feature/adaptive-mapper`.
+- Validated code checkpoint: `9cbc1f938d2b7f528b5962ec466f06459e6063e4`; the final journal-only checkpoint follows it.
+- Protected pre-refactor commit: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239` through immutable tag `protected/pre-codex-refactor` and branch `backup/pre-codex-refactor`.
+- Production route: `runtime_controller.py -> farming.trainer -> UnifiedFarmingEnv / SessionAwarePPO`.
+- Legacy farming monkeypatch, movement PPO, target/orbit/navigation, patch backup, installer, and generated-log paths: removed.
+- Active model: `models/farming/native_strategy_ppo.zip`; SHA-256 `3ACB0437EA1B7F7BF42DFCDF4DA3B4C097540A702EC856F5AA59BA2D76FADFF2` unchanged.
+- Final automated test: 532 passed, 1 skipped in 8.60 seconds.
+- Quality: canonical farming/native/runtime changed scope compiles and passes Ruff F/I plus error-level BasedPyright. Repository-wide legacy mapper/test import-order debt and PySimpleGUI typing debt are classified, not introduced by this refactor.
+- Static gates: no versioned farming patch or removed navigator/executor production reference; no movement model file; both protected refs peel to the protected SHA.
+- Tree runnable: yes under automated/fake integration coverage.
+- User-owned changes excluded: deleted root `AGENTS.md`, `README.md`, and `foreground_vision_farm.json`.
+- User backups ignored and untouched: `foreground_vision_bot.zip`, `refactor_logs.zip`.
+- Blocker: only real FlyFF/Tk/Win32 behavior and the external session edge remain unverified.
+- Next action: run `refactor_logs/manual_tests/DOC-003_live_client_acceptance.md` and return its requested logs/reports.

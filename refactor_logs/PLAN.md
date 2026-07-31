@@ -106,8 +106,8 @@ Acceptance: no active reference reaches removed design code and all equivalent b
 ## Phase 08 — Final validation and documentation
 
 - [x] `DOC-001` Write `ARCHITECTURE.md`, `RUNBOOK.md`, and config reference.
-- [ ] `DOC-002` Run the complete relevant test/lint/type/smoke suite and compare performance.
+- [x] `DOC-002` Run the complete relevant test/lint/type/smoke suite and compare performance.
 - [x] `DOC-003` Record live-client validation gaps and model/config migration notes.
-- [ ] `DOC-004` Finalize journal, tree summary, commits, and handoff.
+- [x] `DOC-004` Finalize journal, tree summary, commits, and handoff.
 
 Acceptance: repository is runnable, evidence is captured, docs are self-contained, and remaining live validation is explicit.
