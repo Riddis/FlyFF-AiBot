@@ -97,6 +97,7 @@ both config files.
 - Validated local actor-layout correction: `abd8f9e1cabaa4ea033ee221dbf2145b1470fffb`.
 - Validated unique single-species cohort correction: `ba77d834815c33b1efa5243fab3eb82a10254c26`.
 - Validated self-field alias correction: `5f55eaf0d1669e441d72811ae462c0c63ac0b32e`.
+- Validated world-rooted player-chain correction: `fc24bb4e8a66a64e4af992837f2dec505066f92a`.
 - Protected pre-refactor SHA: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`
   through both protected refs.
 - Active model SHA-256 remains

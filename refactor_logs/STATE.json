@@ -5,20 +5,20 @@
   "phase_status": "automated_world_rooted_player_chain_complete_awaiting_human",
   "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "5f55eaf0d1669e441d72811ae462c0c63ac0b32e",
-  "head_note": "Validated self-field alias correction checkpoint; this final journal-only reconciliation follows.",
+  "head_commit": "fc24bb4e8a66a64e4af992837f2dec505066f92a",
+  "head_note": "Validated world-rooted player-chain correction checkpoint; this final journal-only reconciliation follows.",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
     "branch": "backup/pre-codex-refactor"
   },
-  "dirty_files": ["world-rooted player-chain implementation and journal pending checkpoint"],
+  "dirty_files": ["final journal-only reconciliation pending checkpoint"],
   "ignored_user_backups": [
     "foreground_vision_bot.zip",
     "refactor_logs.zip"
   ],
   "staged_files": [],
-  "last_known_good_commit": "5f55eaf0d1669e441d72811ae462c0c63ac0b32e",
+  "last_known_good_commit": "fc24bb4e8a66a64e4af992837f2dec505066f92a",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
   "last_known_good_test_result": "551 passed, 1 skipped in 11.38 seconds",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
