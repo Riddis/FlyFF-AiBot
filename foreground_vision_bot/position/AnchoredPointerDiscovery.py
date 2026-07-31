@@ -80,6 +80,7 @@ class AnchoredDiscoveryEvidence:
     monster_base_hypotheses: int = 0
     monster_layout_species_support: int = 0
     monster_layout_ties: int = 0
+    monster_self_field_aliases: int = 0
     monster_species_rejections: int = 0
     monster_active_rejections: int = 0
     monster_hp_rejections: int = 0
@@ -158,7 +159,11 @@ class _InferredActorLayout:
     x_offset: int
     y_offset: int
     z_offset: int
-    self_offset: int
+    self_offsets: tuple[int, ...]
+
+    @property
+    def self_offset(self) -> int:
+        return self.self_offsets[0]
 
 
 @dataclass(frozen=True, slots=True)
@@ -446,7 +451,7 @@ def _monster_anchors(
                             x_offset=current_x_offset,
                             y_offset=current_y_offset,
                             z_offset=current_z_offset,
-                            self_offset=current_self_offset,
+                            self_offsets=(current_self_offset,),
                         ),
                     )
                 )
@@ -456,48 +461,100 @@ def _monster_anchors(
             sleep(0)
 
     support: dict[_InferredActorLayout, dict[int, _MonsterAnchor]] = defaultdict(dict)
-    species_support: dict[_InferredActorLayout, set[int]] = defaultdict(set)
     for hypothesis in hypotheses:
         support[hypothesis.layout][hypothesis.actor.base] = hypothesis.actor
-        species_support[hypothesis.layout].add(hypothesis.actor.species)
     if not support:
         evidence.monster_candidates = 0
         return (), None
 
-    ranked = sorted(
-        support,
-        key=lambda layout: (
-            len(support[layout]),
-            len(species_support[layout]),
-            -abs(layout.species_offset - species_offset),
-            -abs(layout.active_species_offset - active_species_offset),
-            -abs(layout.self_offset),
+    # Several fields inside a live actor can legitimately point back to the
+    # actor base. They are equivalent self-field aliases, not independent
+    # species/HP/transform layouts. Collapse aliases only when they validate
+    # the exact same actor cohort; genuinely different field families remain
+    # ambiguous and are rejected below.
+    family_support: dict[
+        tuple[int, int, int, int, int, int],
+        list[tuple[_InferredActorLayout, dict[int, _MonsterAnchor]]],
+    ] = defaultdict(list)
+    for layout, actors in support.items():
+        family = (
+            layout.species_offset,
+            layout.active_species_offset,
+            layout.hp_offset,
+            layout.x_offset,
+            layout.y_offset,
+            layout.z_offset,
+        )
+        family_support[family].append((layout, actors))
+
+    ranked_families: list[
+        tuple[
+            tuple[int, int],
+            tuple[int, int, int, int, int, int],
+            tuple[_MonsterAnchor, ...],
+            tuple[int, ...],
+        ]
+    ] = []
+    for family, aliases in family_support.items():
+        aliases.sort(
+            key=lambda item: (
+                len(item[1]),
+                len({actor.species for actor in item[1].values()}),
+                -item[0].self_offset,
+            ),
+            reverse=True,
+        )
+        _preferred_layout, preferred_actors = aliases[0]
+        preferred_bases = frozenset(preferred_actors)
+        equivalent_offsets = tuple(
+            sorted(
+                layout.self_offset
+                for layout, actors in aliases
+                if frozenset(actors) == preferred_bases
+            )
+        )
+        selected_actors = tuple(preferred_actors.values())
+        score = (
+            len(selected_actors),
+            len({actor.species for actor in selected_actors}),
+        )
+        ranked_families.append(
+            (score, family, selected_actors, equivalent_offsets)
+        )
+    ranked_families.sort(
+        key=lambda item: (
+            item[0],
+            -abs(item[1][0] - species_offset),
+            -abs(item[1][1] - active_species_offset),
         ),
         reverse=True,
     )
-    selected_layout = ranked[0]
+    selected_score, selected_family, selected_actors, self_offsets = (
+        ranked_families[0]
+    )
+    selected_layout = _InferredActorLayout(
+        species_offset=selected_family[0],
+        active_species_offset=selected_family[1],
+        hp_offset=selected_family[2],
+        x_offset=selected_family[3],
+        y_offset=selected_family[4],
+        z_offset=selected_family[5],
+        self_offsets=self_offsets,
+    )
     required_species = min(2, len(species_matches))
-    selected_actors = tuple(support[selected_layout].values())
-    selected_species_count = len(species_support[selected_layout])
+    selected_species_count = selected_score[1]
     evidence.monster_layout_species_support = selected_species_count
+    evidence.monster_self_field_aliases = len(self_offsets)
     if len(selected_actors) < 2 or not (
         selected_species_count >= required_species or len(selected_actors) >= 3
     ):
         evidence.monster_candidates = len(selected_actors)
         return selected_actors, None
 
-    selected_score = (
-        len(selected_actors),
-        len(species_support[selected_layout]),
-    )
     tied_layouts = sum(
         1
-        for layout in ranked[1:]
-        if (
-            len(support[layout]),
-            len(species_support[layout]),
-        )
-        == selected_score
+        for score, _family, _actors, _self_offsets in ranked_families[1:]
+        if score == selected_score
     )
     evidence.monster_layout_ties = tied_layouts
     if tied_layouts:
@@ -731,7 +788,6 @@ def discover_anchored_pointer_candidate(
             evidence,
             "Known monster hits did not produce one consensus actor layout.",
         )
-    self_offset = actor_layout.self_offset
     inferred_world = _infer_world(
         anchors,
         configured_world_offset=configured_world_field_offset,
@@ -783,8 +839,14 @@ def discover_anchored_pointer_candidate(
         except Exception:
             continue
         evidence.spawn_world_matches += 1
-        if _u32(data, self_offset) != base:
+        matching_self_offsets = tuple(
+            offset
+            for offset in actor_layout.self_offsets
+            if _u32(data, offset) == base
+        )
+        if not matching_self_offsets:
             continue
+        selected_self_offset = matching_self_offsets[0]
         hp_offsets = _aligned_value_offsets(data, current_hp)
         max_hp_offsets = _aligned_value_offsets(data, maximum_hp)
         if not hp_offsets or not max_hp_offsets:
@@ -829,7 +891,7 @@ def discover_anchored_pointer_candidate(
                 sample_z = _f32(sample_data, actor_layout.z_offset)
                 sample_hp = _i32(sample_data, selected_hp_offset)
                 sample_world = _u32(sample_data, world_field_offset)
-                sample_self = _u32(sample_data, self_offset)
+                sample_self = _u32(sample_data, selected_self_offset)
             except Exception:
                 stable = False
                 break
@@ -887,7 +949,7 @@ def discover_anchored_pointer_candidate(
             world_pointer_address=world_slot,
             world_pointer_chain_offsets=world_chain,
             world_field_offset=world_field_offset,
-            self_pointer_offset=self_offset,
+            self_pointer_offset=selected_self_offset,
             hp_offset=selected_hp_offset,
             max_hp_offset=selected_max_offset,
             species_offset=actor_layout.species_offset,
@@ -930,6 +992,7 @@ def discover_anchored_pointer_candidate(
             evidence,
             "Multiple equally supported spawn/HP player candidates remain.",
         )
+    evidence.inferred_self_offset = candidate.self_pointer_offset
     return AnchoredDiscoveryResult(
         "movement_required",
         candidate,

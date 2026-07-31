@@ -155,3 +155,28 @@ actors from one known species. Exact coverage reproduces the live-derived
 single-species cohort, verifies `layout_species=1` and `layout_ties=0`, and keeps
 all downstream gates unchanged. The full suite passes with 548 passed and 1
 skipped.
+
+## Fourth anchored live result
+
+The replacement pass covered 1.103 GB across 2,406 regions with no read
+failure. It found 1,500 species values, 2,112 actor-base hypotheses, and 55
+structurally valid actors of one selected species. The population threshold
+therefore worked. Discovery stopped because four layouts had equal population
+support (`layout_ties=3`). No world/player candidate was evaluated and no state
+was persisted.
+
+Code inspection showed that the layout identity included the self offset, so
+several fields that each point back to the same actor base could be counted as
+different complete layouts even when their species, active-species, HP, XYZ
+offsets, and exact actor-base cohort were identical. These are self-field
+aliases, not conflicting structural layouts. Recovery now groups by the
+non-self field family, collapses self
+offsets only when they cover the same actor cohort, and logs `self_aliases`.
+The selected alias must also point back to the spawn player during its initial
+and repeated reads and during movement confirmation. Equal support between
+different field families remains an ambiguity and cannot advance.
+
+Automated coverage reproduces four same-cohort self aliases through successful
+movement confirmation and separately proves that two equally supported
+species/active/HP/XYZ families still return `actor_layout_inconclusive`. The
+full suite passes with 550 passed and 1 skipped.

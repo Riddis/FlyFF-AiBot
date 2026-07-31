@@ -390,6 +390,114 @@ def test_unique_three_actor_single_species_layout_is_sufficient() -> None:
     assert metrics.monster_layout_ties == 0
 
 
+def test_repeated_self_fields_are_one_layout_with_validated_aliases() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    aliases = (0x1E90, memory.new_self_offset, 0x1F10, 0x1F30)
+    actor_bases = (
+        memory.heap_base,
+        memory.heap_base + 0x3000,
+        memory.player_base,
+    )
+    for base in actor_bases:
+        for offset in aliases:
+            memory.u32(base + offset, base)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    state = PointerRecoveryState()
+
+    assert recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    ) is None
+
+    metrics = state.metrics_for(memory.pid, memory.module_base_value)
+    assert metrics is not None
+    assert metrics.outcome == "movement_required"
+    assert metrics.monster_layout_ties == 0
+    assert metrics.monster_self_field_aliases == len(aliases)
+    assert metrics.inferred_self_offset in aliases
+
+    memory.f32(memory.player_base + config.x_offset, 258.0)
+    recovery = recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    )
+    assert recovery is not None
+    assert recovery.movement_validated
+    assert recovery.self_pointer_offset in aliases
+
+
+def test_distinct_actor_field_families_remain_ambiguous() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    shift = 0x40
+    for base in (memory.heap_base, memory.heap_base + 0x3000):
+        data = memory.read(base, 0x4000)
+        memory.i32(base + config.species_offset + shift, struct.unpack_from(
+            "<i", data, config.species_offset
+        )[0])
+        memory.i32(base + config.active_species_offset + shift, struct.unpack_from(
+            "<i", data, config.active_species_offset
+        )[0])
+        memory.i32(base + config.hp_offset + shift, struct.unpack_from(
+            "<i", data, config.hp_offset
+        )[0])
+        for offset in (config.x_offset, config.y_offset, config.z_offset):
+            memory.f32(base + offset + shift, struct.unpack_from("<f", data, offset)[0])
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    state = PointerRecoveryState()
+
+    assert recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    ) is None
+
+    metrics = state.metrics_for(memory.pid, memory.module_base_value)
+    assert metrics is not None
+    assert metrics.outcome == "actor_layout_inconclusive"
+    assert metrics.monster_layout_ties >= 1
+
+
 def test_service_applies_one_level_player_chain_after_movement() -> None:
     memory = AnchoredMemory()
     config = NativeMonsterConfig(

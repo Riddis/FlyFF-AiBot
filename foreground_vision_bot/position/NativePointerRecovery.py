@@ -125,6 +125,7 @@ class PointerRecoveryMetrics:
     monster_base_hypotheses: int = 0
     monster_layout_species_support: int = 0
     monster_layout_ties: int = 0
+    monster_self_field_aliases: int = 0
     inferred_species_offset: int | None = None
     inferred_active_species_offset: int | None = None
     inferred_hp_offset: int | None = None
@@ -226,6 +227,7 @@ class _MetricsBuilder:
     monster_base_hypotheses: int = 0
     monster_layout_species_support: int = 0
     monster_layout_ties: int = 0
+    monster_self_field_aliases: int = 0
     inferred_species_offset: int | None = None
     inferred_active_species_offset: int | None = None
     inferred_hp_offset: int | None = None
@@ -317,6 +319,7 @@ class _MetricsBuilder:
             monster_base_hypotheses=self.monster_base_hypotheses,
             monster_layout_species_support=self.monster_layout_species_support,
             monster_layout_ties=self.monster_layout_ties,
+            monster_self_field_aliases=self.monster_self_field_aliases,
             inferred_species_offset=self.inferred_species_offset,
             inferred_active_species_offset=self.inferred_active_species_offset,
             inferred_hp_offset=self.inferred_hp_offset,
@@ -1382,6 +1385,7 @@ def _record_anchor_evidence(
         evidence.monster_layout_species_support
     )
     metrics.monster_layout_ties = evidence.monster_layout_ties
+    metrics.monster_self_field_aliases = evidence.monster_self_field_aliases
     metrics.inferred_world_actor_support = evidence.inferred_world_actor_support
     metrics.inferred_world_species_support = evidence.inferred_world_species_support
     metrics.inferred_world_offset = evidence.inferred_world_offset
@@ -2193,6 +2197,7 @@ def recover_local_player_pointer(
                 f" monster_bases={metrics.monster_base_hypotheses},"
                 f" layout_species={metrics.monster_layout_species_support},"
                 f" layout_ties={metrics.monster_layout_ties},"
+                f" self_aliases={metrics.monster_self_field_aliases},"
                 f" monster_species_reject={metrics.monster_species_rejections},"
                 f" monster_active_reject={metrics.monster_active_rejections},"
                 f" monster_hp_reject={metrics.monster_hp_rejections},"

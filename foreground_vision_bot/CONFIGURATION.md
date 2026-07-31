@@ -74,7 +74,10 @@ memory. A later controlled-movement sample must validate the same slot/chain,
 world, inferred fields, exact HP, and stable final pose before both JSON files
 are replaced transactionally. Inferred coordinate offsets are written to both
 configs; species, active-species, HP, world, and self offsets are written to the
-monster layout. Automatic farming-startup recovery is in-memory only.
+monster layout. If several fields point back to the same complete actor cohort,
+the player must validate one of those self-field aliases before it can be
+persisted; distinct tied actor layouts remain a hard failure. Automatic
+farming-startup recovery is in-memory only.
 
 ## Maps, mobs, and model compatibility
 

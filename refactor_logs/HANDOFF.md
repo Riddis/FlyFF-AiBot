@@ -3,7 +3,7 @@
 ## Current outcome
 
 The canonical refactor remains complete and the automated continuation for the
-current-client pointer break is implemented. `PTR-LIVE-004..009` are complete;
+current-client pointer break is implemented. `PTR-LIVE-004..013` are complete;
 `PTR-LIVE-001` stays open until the user returns one real Win32 stationary plus
 movement sample.
 
@@ -32,6 +32,15 @@ two-species cohort or at least three independent actors of one known species,
 provided the layout is unique. Layout species support and ties are explicit;
 all world/player/HP/stability/movement/persistence gates remain unchanged.
 
+The following live pass found 55 actors of one species and reported three ties.
+Code inspection found a false-ambiguity mode: multiple fields pointing back to
+the same actor base were separate layout keys even when they covered one exact
+species/active/HP/XYZ family and actor cohort. Recovery now collapses only such
+same-cohort self fields into explicit aliases of one layout.
+Different tied field families still fail. The spawn player, repeated stationary
+reads, and controlled movement must validate the selected alias before it is
+published or persisted.
+
 The first strong result returns `movement_required` and is held only by the
 attachment's `NativeProcessService`. It is not applied or persisted. A second
 managed call resolves the same direct slot or one-hop chain and requires exact
@@ -57,7 +66,7 @@ both config files.
 
 ## Automated validation
 
-- Full canonical suite: 548 passed, 1 skipped in 9.70 seconds.
+- Full canonical suite: 550 passed, 1 skipped in 9.72 seconds.
 - Focused pointer/native/controller suite: 91 passed.
 - Changed production/test Ruff F/I: pass.
 - Native production BasedPyright: 0 errors; existing warning-level typing debt
@@ -65,6 +74,7 @@ both config files.
 - `git diff --check`: pass.
 - Fake current-client tests cover shifted world/self fields, monster consensus,
   a shifted species/active/HP/XYZ field family, local actor-base inference,
+  repeated self-field alias collapse, distinct-layout tie rejection,
   spawn/exact-HP ranking, HP update after movement, stationary rejection,
   one-hop player chains, runtime publication, and the no-write-before-movement
   invariant.

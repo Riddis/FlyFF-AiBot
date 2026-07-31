@@ -31,9 +31,12 @@ of that exact candidate.
    `recovery_movement_required`; it is not a failure. The log must show at least
    either two validated actors spanning species 944/948 or at least three
    validated actors from one of them, nonzero monster-base hypotheses, zero
-   layout ties, inferred species/active/HP/XYZ/world/self field offsets and
-   support, one stable spawn/player candidate, and a direct or one-hop player
-   and world reference. It must also print the exact entered spawn/HP anchors.
+   distinct layout ties, the `self_aliases` count, inferred
+   species/active/HP/XYZ/world/self field offsets and support, one stable
+   spawn/player candidate, and a direct or one-hop player and world reference.
+   `layout_ties` must be zero; `self_aliases` may be greater than one because
+   repeated, same-cohort self fields are validated aliases, not different actor
+   layouts. It must also print the exact entered spawn/HP anchors.
    Neither JSON config may change and no recovery backup may be created yet.
 5. If the first result is anything other than `recovery_movement_required`,
    stop the protocol without retrying and return the complete log and unchanged
