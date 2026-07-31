@@ -45,10 +45,10 @@ of that exact candidate.
    `world_object_reject` for scalar impostors. The vtable field may be nonzero;
    it is accepted only when the referenced table contains module-owned
    function pointers and remains stable. `world_identity_kind=module_marker`
-   is also valid only when `world_structure` reports at least three readable
-   pointers and eight distinct stable values. `world=0x3F800000` is an explicit
-   stop condition. `hp_field` is the monster layout; `player_hp_fields` may
-   differ and must not replace it.
+   is also valid only when `world_selected_structure` reports at least three
+   readable pointers and eight distinct stable values. `world=0x3F800000` is
+   an explicit stop condition. `hp_field` is the monster layout;
+   `player_hp_fields` may differ and must not replace it.
    Neither JSON config may change and no recovery backup may be created yet.
 5. If the first result is anything other than `recovery_movement_required`,
    stop the protocol without retrying and return the complete log and unchanged
@@ -56,9 +56,9 @@ of that exact candidate.
    monster consensus not found, actor layout inconclusive, spawn player not
    found, ambiguity, deadline, or cancellation are valid diagnostic evidence.
    For world-identity failure, retain the complete `world_identity=(...)` and
-   `world_structure=(...)`, `world_near=(...)`, and
-   `world_near_structure=(...)` tuples; do not weaken or bypass the identity
-   gate.
+   `world_selected_structure=(...)`, `world_structure=(...)`,
+   `world_near=(...)`, and `world_near_structure=(...)` tuples; do not weaken
+   or bypass the identity gate.
 6. Without restarting or reattaching, focus FlyFF and manually move the
    character 3-5 native units away from the spawn (roughly 2-3 map cells). Stop
    all movement and remain stationary. Do not return to X `253.0`, Z `86.0`.

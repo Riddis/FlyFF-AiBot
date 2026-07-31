@@ -302,3 +302,11 @@ through movement, paired persistence, cached recovery, Native Health, and
 restart. Diagnostics add aggregate and best-near readable-pointer/diversity
 counts plus marker acceptance/structural rejection totals. Automated coverage
 passes 562 tests with 1 skipped; the focused gate passes 51 tests.
+
+The completion log now also reports `world_selected_structure` for the chosen
+world object itself. This separates its readable-pointer and stable-value
+diversity from the aggregate counters accumulated while evaluating all world
+hypotheses, so a live `module_marker` acceptance can be audited directly
+against the three-pointer/eight-value minimum. Automated coverage remains 562
+tests with 1 skipped; 40 focused recovery/persistence/config/diagnostic tests
+pass, and the changed native files have zero BasedPyright errors or warnings.

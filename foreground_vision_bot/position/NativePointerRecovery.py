@@ -126,6 +126,8 @@ class PointerRecoveryMetrics:
     inferred_world_vtable: int | None = None
     inferred_world_vtable_field_offset: int | None = None
     inferred_world_identity_kind: str | None = None
+    inferred_world_readable_pointer_fields: int = 0
+    inferred_world_distinct_values: int = 0
     world_object_rejections: int = 0
     world_identity_candidates: int = 0
     world_identity_span_rejections: int = 0
@@ -254,6 +256,8 @@ class _MetricsBuilder:
     inferred_world_vtable: int | None = None
     inferred_world_vtable_field_offset: int | None = None
     inferred_world_identity_kind: str | None = None
+    inferred_world_readable_pointer_fields: int = 0
+    inferred_world_distinct_values: int = 0
     world_object_rejections: int = 0
     world_identity_candidates: int = 0
     world_identity_span_rejections: int = 0
@@ -374,6 +378,10 @@ class _MetricsBuilder:
                 self.inferred_world_vtable_field_offset
             ),
             inferred_world_identity_kind=self.inferred_world_identity_kind,
+            inferred_world_readable_pointer_fields=(
+                self.inferred_world_readable_pointer_fields
+            ),
+            inferred_world_distinct_values=self.inferred_world_distinct_values,
             world_object_rejections=self.world_object_rejections,
             world_identity_candidates=self.world_identity_candidates,
             world_identity_span_rejections=(
@@ -1522,6 +1530,12 @@ def _record_anchor_evidence(
         evidence.inferred_world_vtable_field_offset
     )
     metrics.inferred_world_identity_kind = evidence.inferred_world_identity_kind
+    metrics.inferred_world_readable_pointer_fields = (
+        evidence.inferred_world_readable_pointer_fields
+    )
+    metrics.inferred_world_distinct_values = (
+        evidence.inferred_world_distinct_values
+    )
     metrics.world_object_rejections = evidence.world_object_rejections
     metrics.world_identity_candidates = evidence.world_identity_candidates
     metrics.world_identity_span_rejections = (
@@ -2386,6 +2400,8 @@ def recover_local_player_pointer(
                 f" world_vtable={None if metrics.inferred_world_vtable is None else f'0x{metrics.inferred_world_vtable:X}'},"
                 f" world_vtable_field={None if metrics.inferred_world_vtable_field_offset is None else f'0x{metrics.inferred_world_vtable_field_offset:X}'},"
                 f" world_identity_kind={metrics.inferred_world_identity_kind},"
+                f" world_selected_structure=(readable_ptrs={metrics.inferred_world_readable_pointer_fields},"
+                f"distinct={metrics.inferred_world_distinct_values}),"
                 f" world_object_reject={metrics.world_object_rejections},"
                 f" world_identity=(candidates={metrics.world_identity_candidates},"
                 f"span_reject={metrics.world_identity_span_rejections},"

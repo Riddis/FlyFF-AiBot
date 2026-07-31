@@ -91,6 +91,8 @@ class AnchoredDiscoveryEvidence:
     inferred_world_vtable: int | None = None
     inferred_world_vtable_field_offset: int | None = None
     inferred_world_identity_kind: str | None = None
+    inferred_world_readable_pointer_fields: int = 0
+    inferred_world_distinct_values: int = 0
     world_object_rejections: int = 0
     world_identity_candidates: int = 0
     world_identity_span_rejections: int = 0
@@ -651,7 +653,7 @@ def _infer_world_identity(
     module_stop: int,
     readable_contains: Callable[[int, int], bool],
     evidence: AnchoredDiscoveryEvidence,
-) -> tuple[str, int, int] | None:
+) -> tuple[str, int, int, int, int] | None:
     evidence.world_identity_candidates += 1
     if not readable_contains(value, _WORLD_IDENTITY_SPAN):
         evidence.world_identity_span_rejections += 1
@@ -719,7 +721,13 @@ def _infer_world_identity(
                 stable_fields,
                 key=lambda item: (item[0] != 0, item[0]),
             )
-            return "vtable", offset, candidate
+            return (
+                "vtable",
+                offset,
+                candidate,
+                len(readable_pointer_fields),
+                distinct_values,
+            )
         evidence.world_identity_unstable_rejections += 1
 
     # Some client managers are non-polymorphic but still carry a stable
@@ -737,7 +745,13 @@ def _infer_world_identity(
             stable_module_fields,
             key=lambda item: (item[0] != 0, item[0]),
         )
-        return "module_marker", offset, candidate
+        return (
+            "module_marker",
+            offset,
+            candidate,
+            len(readable_pointer_fields),
+            distinct_values,
+        )
     evidence.world_identity_structural_rejections += 1
     return None
 
@@ -770,7 +784,7 @@ def _infer_world(
             species_support[key].add(actor.species)
 
     ranked: list[
-        tuple[tuple[int, int, int, int], int, int, str, int, int]
+        tuple[tuple[int, int, int, int], int, int, str, int, int, int, int]
     ] = []
     best_near_score: tuple[int, int, int, int] | None = None
     for (offset, value), actors in support.items():
@@ -824,7 +838,13 @@ def _infer_world(
         if identity is None:
             evidence.world_object_rejections += 1
             continue
-        identity_kind, world_vtable_field_offset, world_vtable = identity
+        (
+            identity_kind,
+            world_vtable_field_offset,
+            world_vtable,
+            readable_pointer_fields,
+            distinct_values,
+        ) = identity
         ranked.append(
             (
                 score,
@@ -833,6 +853,8 @@ def _infer_world(
                 identity_kind,
                 world_vtable_field_offset,
                 world_vtable,
+                readable_pointer_fields,
+                distinct_values,
             )
         )
     ranked.sort(reverse=True)
@@ -845,6 +867,8 @@ def _infer_world(
         identity_kind,
         world_vtable_field_offset,
         world_vtable,
+        readable_pointer_fields,
+        distinct_values,
     ) = ranked[0]
     tied = [item for item in ranked[1:] if item[0] == best_score]
     if tied:
@@ -856,6 +880,8 @@ def _infer_world(
     evidence.inferred_world_vtable = world_vtable
     evidence.inferred_world_vtable_field_offset = world_vtable_field_offset
     evidence.inferred_world_identity_kind = identity_kind
+    evidence.inferred_world_readable_pointer_fields = readable_pointer_fields
+    evidence.inferred_world_distinct_values = distinct_values
     return (
         offset,
         world,

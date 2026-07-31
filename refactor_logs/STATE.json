@@ -1,18 +1,18 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T21:40:46.0358024Z",
+  "updated_at": "2026-07-31T21:46:21.1259535Z",
   "current_phase": "live_current_client_acceptance",
   "phase_status": "automated_structural_world_marker_fallback_complete_awaiting_human",
   "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
   "head_commit": "f4903d98710f331d7aa175ffbc444fb05d1a0498",
-  "head_note": "Validated structural module-marker world-identity checkpoint; this journal-only reconciliation follows.",
+  "head_note": "Selected-world structural evidence is validated and pending checkpoint.",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
     "branch": "backup/pre-codex-refactor"
   },
-  "dirty_files": ["journal reconciliation pending checkpoint"],
+  "dirty_files": ["PTR-LIVE-024 selected-world observability implementation and journals"],
   "ignored_user_backups": [
     "foreground_vision_bot.zip",
     "refactor_logs.zip"
@@ -45,7 +45,7 @@
     "PTR-LIVE-007", "PTR-LIVE-008", "PTR-LIVE-009", "PTR-LIVE-010", "PTR-LIVE-011",
     "PTR-LIVE-012", "PTR-LIVE-013", "PTR-LIVE-014", "PTR-LIVE-015",
     "PTR-LIVE-016", "PTR-LIVE-017", "PTR-LIVE-018", "PTR-LIVE-019",
-    "PTR-LIVE-020", "PTR-LIVE-021", "PTR-LIVE-022", "PTR-LIVE-023"
+    "PTR-LIVE-020", "PTR-LIVE-021", "PTR-LIVE-022", "PTR-LIVE-023", "PTR-LIVE-024"
   ],
   "pending_migrations": [],
   "pending_deletions": [],

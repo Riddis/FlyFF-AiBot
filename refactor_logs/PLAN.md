@@ -137,5 +137,6 @@ Acceptance: repository is runnable, evidence is captured, docs are self-containe
 - [x] `PTR-LIVE-021` Persist/recheck the object-relative vptr field and expose bounded best-near-world diagnostics when no structural identity qualifies.
 - [x] `PTR-LIVE-022` Add a stable module-marker identity fallback gated by repeated pointer-rich and value-diverse world structure.
 - [x] `PTR-LIVE-023` Persist/recheck the explicit identity kind and expose aggregate/near structural evidence without admitting scalar pages or lone literals.
+- [x] `PTR-LIVE-024` Expose the selected world candidate's own pointer-richness and stable-value diversity separately from aggregate hypothesis totals.
 
 Acceptance: ordinary reads remain scan-free; recovery is bounded, cancellable, single-flight, and off Tk; accepted slots are stable and coherently validated; startup failure is concise and input-safe.

@@ -498,6 +498,8 @@ def test_pointer_rich_world_can_use_a_stable_module_marker() -> None:
 
     assert first.outcome is NativeRecoveryOutcome.MOVEMENT_REQUIRED
     assert first.metrics.inferred_world_identity_kind == "module_marker"
+    assert first.metrics.inferred_world_readable_pointer_fields >= 3
+    assert first.metrics.inferred_world_distinct_values >= 8
     assert first.metrics.world_identity_marker_accepts >= 1
     memory.f32(memory.player_base + config.x_offset, 258.0)
 
