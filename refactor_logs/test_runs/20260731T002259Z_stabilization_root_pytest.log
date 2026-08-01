@@ -1,5 +1,0 @@
-Command: .venv\Scripts\python.exe -m pytest -q
-Exit code: 1 during collection.
-Result: three import-file mismatches from duplicate v0706_patch, v0707_patch,
-and v0708_patch test payloads; no tests executed.
-Baseline comparison: identical three duplicate patch-tree collection blockers.

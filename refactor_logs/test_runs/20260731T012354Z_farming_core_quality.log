@@ -1,7 +1,0 @@
-Commands/results:
-- compileall on `foreground_vision_bot/farming` and five behavior tests: pass.
-- Ruff `format --check`: all 12 files already formatted.
-- Ruff `check --select F,I`: pass.
-- BasedPyright `--level error foreground_vision_bot/farming`: 0 errors,
-  0 warnings, 0 notes.
-- `git diff --check`: pass.

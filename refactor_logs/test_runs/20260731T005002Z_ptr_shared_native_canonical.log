@@ -1,4 +1,0 @@
-Command: .venv\Scripts\python.exe -m pytest -q foreground_vision_bot/tests
-Result: 518 passed, 2 failed, 1 skipped in 5.80 seconds.
-The two failures are unchanged: shipped mapper JSON/test mismatch and obsolete
-V0674 orbit source-string assertion. No Phase 02 regression.
