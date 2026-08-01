@@ -63,6 +63,9 @@ class NativeActor:
     z: float
     distance_native: float
     active_species_id: int
+    hp_offset: int | None = None
+    hp_candidates: tuple[tuple[int, int], ...] = ()
+    hp_offset_validated: bool = False
 
 
 class ActorCacheOutcome(str, Enum):
@@ -270,6 +273,11 @@ class NativeFlyffMonsterProvider:
                 z=item.z,
                 distance_native=item.distance_native,
                 active_species_id=getattr(item, "active_species", item.species),
+                hp_offset=int(getattr(item, "hp_offset", 0)) or None,
+                hp_candidates=tuple(getattr(item, "hp_candidates", ())),
+                hp_offset_validated=bool(
+                    getattr(item, "hp_offset_validated", False)
+                ),
             )
             for item in monsters
         )
@@ -308,6 +316,13 @@ class NativeFlyffMonsterProvider:
                     distance_native=distance,
                     active_species_id=int(
                         getattr(item, "active_species", species)
+                    ),
+                    hp_offset=(
+                        int(getattr(item, "hp_offset", 0)) or None
+                    ),
+                    hp_candidates=tuple(getattr(item, "hp_candidates", ())),
+                    hp_offset_validated=bool(
+                        getattr(item, "hp_offset_validated", False)
                     ),
                 )
             )

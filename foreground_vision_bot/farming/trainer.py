@@ -698,7 +698,9 @@ def validate_native_farming_data(
                     f"candidates={info.get('native_kill_candidates', 0)} "
                     f"native_kills={stats.kills} "
                     f"ocr_delta={stats.ocr_kill_delta} "
-                    f"ocr={stats.ocr_latest if stats.ocr_latest is not None else '--'}",
+                    f"ocr={stats.ocr_latest if stats.ocr_latest is not None else '--'} "
+                    f"hp_field={('--' if info.get('native_hp_offset') is None else hex(int(cast(Any, info.get('native_hp_offset')))))} "
+                    f"hp_validated={bool(info.get('native_hp_offset_validated', False))}",
                 )
                 last_status = now
             if result.outcome.should_stop_session:

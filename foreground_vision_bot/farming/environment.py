@@ -250,6 +250,18 @@ class UnifiedFarmingEnv:
             "y": float(getattr(actor, "y")),
             "z": float(getattr(actor, "z")),
             "distance_native": float(getattr(actor, "distance_native")),
+            "hp_offset": (
+                None
+                if getattr(actor, "hp_offset", None) is None
+                else int(getattr(actor, "hp_offset"))
+            ),
+            "hp_candidates": [
+                {"offset": int(offset), "value": int(value)}
+                for offset, value in tuple(getattr(actor, "hp_candidates", ()))
+            ],
+            "hp_offset_validated": bool(
+                getattr(actor, "hp_offset_validated", False)
+            ),
         }
 
     @classmethod
@@ -636,11 +648,37 @@ class UnifiedFarmingEnv:
         displacement_cells: float = 0.0,
         contact: bool = False,
     ) -> dict[str, object]:
+        tracked_actors = (
+            features.world.tracked_actors
+            if features.world.tracked_actors
+            else features.world.actors
+        )
+        hp_actor = tracked_actors[0] if tracked_actors else None
         return {
             "action": int(action),
             "action_name": action.name,
             "native_kill_delta": int(native_kills),
             "kill_delta": int(native_kills),
+            "native_hp_offset": (
+                None
+                if hp_actor is None or getattr(hp_actor, "hp_offset", None) is None
+                else int(getattr(hp_actor, "hp_offset"))
+            ),
+            "native_hp_candidate_offsets": (
+                []
+                if hp_actor is None
+                else [
+                    int(offset)
+                    for offset, _value in tuple(
+                        getattr(hp_actor, "hp_candidates", ())
+                    )
+                ]
+            ),
+            "native_hp_offset_validated": bool(
+                False
+                if hp_actor is None
+                else getattr(hp_actor, "hp_offset_validated", False)
+            ),
             "native_kill_candidates": (
                 0 if cast_window is None else len(cast_window.candidates)
             ),

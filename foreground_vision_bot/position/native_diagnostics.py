@@ -90,6 +90,9 @@ class NativeHealthSnapshot:
     species_offset: int | None = None
     active_species_offset: int | None = None
     hp_offset: int | None = None
+    hp_candidate_offsets: tuple[int, ...] = ()
+    hp_offset_validated: bool = False
+    hp_transition_support: tuple[tuple[int, int], ...] = ()
     x_offset: int | None = None
     y_offset: int | None = None
     z_offset: int | None = None
@@ -210,6 +213,16 @@ def collect_native_health(
         getattr(service, "active_species_offset", None)
     )
     hp_offset = _optional_int(getattr(service, "hp_offset", None))
+    hp_candidate_offsets = tuple(
+        int(value) for value in getattr(service, "monster_hp_candidate_offsets", ())
+    )
+    hp_offset_validated = bool(
+        getattr(service, "monster_hp_offset_validated", False)
+    )
+    hp_transition_support = tuple(
+        (int(offset), int(count))
+        for offset, count in getattr(service, "monster_hp_transition_support", ())
+    )
     x_offset = _optional_int(getattr(service, "x_offset", None))
     y_offset = _optional_int(getattr(service, "y_offset", None))
     z_offset = _optional_int(getattr(service, "z_offset", None))
@@ -251,6 +264,9 @@ def collect_native_health(
             species_offset=species_offset,
             active_species_offset=active_species_offset,
             hp_offset=hp_offset,
+            hp_candidate_offsets=hp_candidate_offsets,
+            hp_offset_validated=hp_offset_validated,
+            hp_transition_support=hp_transition_support,
             x_offset=x_offset,
             y_offset=y_offset,
             z_offset=z_offset,
@@ -317,6 +333,9 @@ def collect_native_health(
         species_offset=species_offset,
         active_species_offset=active_species_offset,
         hp_offset=hp_offset,
+        hp_candidate_offsets=hp_candidate_offsets,
+        hp_offset_validated=hp_offset_validated,
+        hp_transition_support=hp_transition_support,
         x_offset=x_offset,
         y_offset=y_offset,
         z_offset=z_offset,

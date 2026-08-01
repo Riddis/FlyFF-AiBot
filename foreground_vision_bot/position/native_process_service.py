@@ -335,7 +335,30 @@ class NativeProcessService:
     @property
     def hp_offset(self) -> int:
         with self._lock:
-            return self._hp_offset
+            reader = self._independent_reader
+            return (
+                self._hp_offset
+                if reader is None
+                else int(reader.monster_hp_offset)
+            )
+
+    @property
+    def monster_hp_candidate_offsets(self) -> tuple[int, ...]:
+        with self._lock:
+            reader = self._independent_reader
+            return () if reader is None else reader.monster_hp_candidate_offsets
+
+    @property
+    def monster_hp_offset_validated(self) -> bool:
+        with self._lock:
+            reader = self._independent_reader
+            return False if reader is None else reader.monster_hp_offset_validated
+
+    @property
+    def monster_hp_transition_support(self) -> tuple[tuple[int, int], ...]:
+        with self._lock:
+            reader = self._independent_reader
+            return () if reader is None else reader.monster_hp_transition_support
 
     @property
     def x_offset(self) -> int:
