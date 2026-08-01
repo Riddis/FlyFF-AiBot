@@ -2300,6 +2300,7 @@ def _perform_recovery_attempt(
             readable=ReadableRegionIndex.build(regions),
             module=cast(object, module_info),
             species_hp=dict(exact_species_hp),
+            known_species_ids=hints.known_species_ids,
             spawn_x=float(hints.player_spawn_x),
             spawn_z=float(hints.player_spawn_z),
             player_hp=int(hints.player_current_hp),

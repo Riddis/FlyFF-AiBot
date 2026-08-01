@@ -49,13 +49,14 @@ def _write_actor(
     struct.pack_into("<I", heap, relative + self_offset, base)
 
 
-def _discover(*, monster_hp: int = 400236):
+def _discover(*, monster_hp: int = 400236, include_dantalian: bool = False):
     heap_base = 0x20000
     monster_a = heap_base
     monster_b = heap_base + 0x5000
     player_base = heap_base + 0xA000
+    dantalian_base = heap_base + 0x18000
     module_base = 0x400000
-    heap = bytearray(0x10000)
+    heap = bytearray(0x20000)
     # Deliberately differ from configured +0x814 to prove exact HP offset
     # discovery rather than fixed-layout acceptance.
     monster_hp_offset = 0xA20
@@ -80,6 +81,17 @@ def _discover(*, monster_hp: int = 400236):
         x=245.0,
         z=82.0,
     )
+    if include_dantalian:
+        _write_actor(
+            heap,
+            heap_base,
+            dantalian_base,
+            species=948,
+            hp=287654,
+            hp_offset=monster_hp_offset,
+            x=275.0,
+            z=100.0,
+        )
     _write_actor(
         heap,
         heap_base,
@@ -111,6 +123,7 @@ def _discover(*, monster_hp: int = 400236):
         readable=ReadableRegionIndex.build(regions),
         module=ModuleInfo("Neuz.exe", "", module_base, len(module)),
         species_hp={944: 400236},
+        known_species_ids=((944, 948) if include_dantalian else (944,)),
         spawn_x=253.0,
         spawn_z=86.0,
         player_hp=38857,
@@ -126,11 +139,11 @@ def _discover(*, monster_hp: int = 400236):
         maximum_scan_bytes=0x20000,
         stability_delay_seconds=0.0,
     )
-    return result, player_base, monster_a, monster_b, module_base
+    return result, player_base, monster_a, monster_b, module_base, dantalian_base
 
 
 def test_dynamic_trace_target_discovery_finds_player_monsters_and_module_alias() -> None:
-    result, player_base, monster_a, monster_b, module_base = _discover()
+    result, player_base, monster_a, monster_b, module_base, _dantalian = _discover()
 
     assert result.outcome == "success"
     assert result.player is not None
@@ -141,6 +154,22 @@ def test_dynamic_trace_target_discovery_finds_player_monsters_and_module_alias()
     assert tuple(item.base for item in result.monsters) == (monster_a, monster_b)
     assert {item.hp_offset for item in result.monsters} == {0xA20}
     assert result.evidence.inferred_monster_hp_offset == 0xA20
+
+
+def test_proven_layout_enumerates_selected_species_without_full_hp_anchor() -> None:
+    result, _player, monster_a, monster_b, _module, dantalian = _discover(
+        include_dantalian=True
+    )
+
+    assert result.outcome == "success"
+    assert {item.base for item in result.monsters} == {
+        monster_a,
+        monster_b,
+        dantalian,
+    }
+    by_species = {item.species: item for item in result.monsters}
+    assert by_species[948].hp == 287654
+    assert by_species[948].hp_offset == 0xA20
 
 
 def test_exact_monster_hp_is_not_relaxed_during_dynamic_offset_search() -> None:
