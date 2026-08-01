@@ -127,6 +127,8 @@ class ActorPoolDiagnostics:
     rejected_species: int = 0
     rejected_distance: int = 0
     unreadable_cached_slots: int = 0
+    runtime_promoted_slots: int = 0
+    pending_actor_slot_probes: int = 0
 
 
 class NativeFlyffMonsterProvider:
@@ -328,6 +330,37 @@ class NativeFlyffMonsterProvider:
             )
         tracked.sort(key=lambda actor: (actor.distance_native, actor.base_address))
         return tuple(tracked)
+
+    def read_actor_hp_states(
+        self,
+        candidates: Iterable[tuple[int, int]],
+    ) -> dict[tuple[int, int], int]:
+        """Read species/HP directly for post-cast confirmation.
+
+        Independent mode delegates to the exact recovered actor layout and does
+        not apply map radius, active-state, or cache membership filters. The
+        legacy world mode performs the equivalent direct field reads.
+        """
+
+        normalized = tuple(
+            (int(base), int(species))
+            for base, species in candidates
+            if int(base) > 0x10000 and int(species) > 0
+        )
+        independent = self._independent_reader()
+        if independent is not None:
+            return independent.read_actor_hp_states(normalized)
+
+        result: dict[tuple[int, int], int] = {}
+        for base, expected_species in normalized:
+            try:
+                species = self._read_i32(base + self._species_field_offset)
+                hp = self._read_i32(base + self._hp_field_offset)
+            except Exception:
+                continue
+            if species == expected_species and hp >= 0:
+                result[(base, expected_species)] = hp
+        return result
 
     def _read_u32(self, address: int) -> int:
         return int(struct.unpack("<I", self._memory.read(address, 4))[0])
@@ -916,6 +949,8 @@ class NativeFlyffMonsterProvider:
                         - native_snapshot.visible_living_monsters,
                     ),
                     unreadable_cached_slots=native_snapshot.unreadable_slots,
+                    runtime_promoted_slots=independent.runtime_promoted_slots,
+                    pending_actor_slot_probes=independent.pending_actor_slots,
                 )
             return CachedActorReadResult(
                 ActorCacheOutcome.READY,
@@ -1134,6 +1169,8 @@ class NativeFlyffMonsterProvider:
                         snapshot.living_monsters - snapshot.visible_living_monsters,
                     ),
                     unreadable_cached_slots=snapshot.unreadable_slots,
+                    runtime_promoted_slots=independent.runtime_promoted_slots,
+                    pending_actor_slot_probes=independent.pending_actor_slots,
                 )
             return list(actors)
         with self._lock:

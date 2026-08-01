@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import Enum
 from time import monotonic, sleep
@@ -136,8 +136,15 @@ class NativeKillTracker:
     def confirm_cast(
         self,
         window: CastWindow,
-        read_frame: Callable[[], NativeWorldFrame],
+        read_frame: Callable[[], NativeWorldFrame] | None = None,
         *,
+        read_actor_hp_states: (
+            Callable[
+                [tuple[tuple[int, int], ...]],
+                Mapping[tuple[int, int], int],
+            ]
+            | None
+        ) = None,
         cancellation: object | None = None,
     ) -> NativeKillResult:
         candidate_by_key = {
@@ -219,16 +226,36 @@ class NativeKillTracker:
             if self._cancelled(cancellation):
                 continue
             try:
-                frame = read_frame()
+                if read_actor_hp_states is not None:
+                    hp_by_key = {
+                        (int(base), int(species)): int(hp)
+                        for (base, species), hp in read_actor_hp_states(
+                            tuple(pending)
+                        ).items()
+                    }
+                    tracked = None
+                else:
+                    if read_frame is None:
+                        raise RuntimeError(
+                            "read_frame or read_actor_hp_states is required"
+                        )
+                    frame = read_frame()
+                    tracked = self._tracked_actor_map(frame)
+                    hp_by_key = {}
             except Exception:
                 failed += 1
                 continue
             successful += 1
-            tracked = self._tracked_actor_map(frame)
             for key, candidate in tuple(pending.items()):
                 state = diagnostic_state[key]
-                actor = tracked.get(key)
-                if actor is None:
+                if read_actor_hp_states is not None:
+                    hp = hp_by_key.get(key)
+                    actor = None
+                else:
+                    assert tracked is not None
+                    actor = tracked.get(key)
+                    hp = None if actor is None else int(getattr(actor, "hp"))
+                if hp is None:
                     state["absent_reads"] = int(state["absent_reads"]) + 1
                     state["consecutive_absence"] = int(
                         state["consecutive_absence"]
@@ -244,7 +271,7 @@ class NativeKillTracker:
 
                 state["present_reads"] = int(state["present_reads"]) + 1
                 state["consecutive_absence"] = 0
-                hp = int(getattr(actor, "hp"))
+                hp = int(hp)
                 state["last_seen_hp"] = hp
                 minimum = state["minimum_seen_hp"]
                 state["minimum_seen_hp"] = hp if minimum is None else min(int(minimum), hp)

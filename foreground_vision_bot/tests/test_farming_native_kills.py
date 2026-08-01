@@ -153,3 +153,41 @@ def test_ocr_diagnostics_never_claim_native_reward() -> None:
     decreased = diagnostics.observe(2)
     assert decreased.outcome is OcrDiagnosticOutcome.DECREASE
     assert decreased.previous == 12
+
+
+def test_direct_hp_poll_counts_same_slot_zero_without_world_frame() -> None:
+    clock = FakeClock()
+    tracker = NativeKillTracker(
+        zero_hp_confirmation_reads=2,
+        result_timeout_seconds=0.20,
+        poll_seconds=0.05,
+        clock=clock,
+        sleeper=clock.sleep,
+    )
+    living = _actor(base=0x12340000, species=948, hp=98765, distance=42.0)
+    window = tracker.begin_cast(_frame(living))
+    calls: list[tuple[tuple[int, int], ...]] = []
+
+    def read_actor_hp_states(
+        candidates: tuple[tuple[int, int], ...],
+    ) -> dict[tuple[int, int], int]:
+        calls.append(candidates)
+        return {(living.base_address, living.species_id): 0}
+
+    result = tracker.confirm_cast(
+        window,
+        read_actor_hp_states=read_actor_hp_states,
+    )
+
+    assert result.kill_count == 1
+    assert result.successful_reads == 2
+    assert result.failed_reads == 0
+    assert calls == [
+        ((living.base_address, living.species_id),),
+        ((living.base_address, living.species_id),),
+    ]
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.present_reads == 2
+    assert diagnostic.absent_reads == 0
+    assert diagnostic.minimum_seen_hp == 0
+    assert diagnostic.maximum_consecutive_zero_hp == 2

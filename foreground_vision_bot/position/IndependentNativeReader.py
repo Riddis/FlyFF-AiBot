@@ -4,7 +4,9 @@ import math
 import struct
 from collections import Counter
 from dataclasses import asdict, dataclass
-from typing import Mapping, Protocol
+from threading import RLock
+from time import monotonic
+from typing import Iterable, Mapping, Protocol
 
 from .NativeTraceTargets import (
     TraceMonsterTarget,
@@ -119,6 +121,17 @@ class ActorCacheMergeResult:
 
 
 @dataclass(frozen=True, slots=True)
+class ActorSlotProbeResult:
+    probed_slots: int
+    promoted_slots: int
+    cached_slots: int
+    pending_slots: int
+
+    def to_dict(self) -> dict[str, int]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
 class _MonsterScan:
     visible_living: tuple[IndependentMonsterRead, ...]
     actor_states: tuple[IndependentActorSlotRead, ...]
@@ -192,9 +205,11 @@ class IndependentNativeReader:
     field. A dead actor remains in its reusable slot with HP zero until that slot
     is populated again, possibly by another species.
 
-    The configured active-species field is only used when the discovery cohort
-    proves it reliable. An unproven or stale active field must never reject the
-    entire valid actor cohort.
+    The historical active/loaded fields are diagnostic only in independent
+    mode and never gate actor presence. In the validated layout, the apparent
+    dynamic +0x217C field is the next slot's +0x174 species value, while the old
+    configured +0x1DBC field is zero for valid live actors. Species, self alias,
+    coordinates, and live HP are sufficient to evaluate every bounded slab slot.
     """
 
     def __init__(
@@ -270,9 +285,21 @@ class IndependentNativeReader:
             )
         )
         self._slots_each_direction = max(0, int(slots_each_direction))
+        self._cache_lock = RLock()
+        # The exact discovery anchors prove the actor stride and slab layout.
+        # Keep every bounded stride-neighbour address in the ordinary read set.
+        # Do not require a slot to be instantiated during recovery before it can
+        # appear on the map or participate in kill tracking later.
         self._actor_slots = self._build_actor_slot_cache(
             slots_each_direction=self._slots_each_direction
         )
+        self._pending_actor_slots: set[int] = set()
+        self._pending_actor_slot_order: tuple[int, ...] = ()
+        self._pending_actor_slot_cursor = 0
+        self._last_runtime_slot_probe_at = -math.inf
+        self._runtime_slot_probe_interval_seconds = 0.20
+        self._runtime_slot_probe_batch_size = 0
+        self._runtime_promoted_slots = 0
         self._active_species_is_cross_slot_alias = bool(
             self.actor_stride
             and (
@@ -289,8 +316,14 @@ class IndependentNativeReader:
         (
             self.active_species_matches,
             self.active_species_samples,
-            self.active_species_reliable,
+            _configured_active_field_matches,
         ) = self._probe_field_matches_species(self.monster_active_species_offset)
+        # Never use an active/loaded field as a correctness gate in independent
+        # mode. The dynamic candidate was a cross-slot species alias and the old
+        # configured field is stale on the validated client. Keep match counts
+        # only as diagnostics.
+        del _configured_active_field_matches
+        self.active_species_reliable = False
         (
             self.configured_hp_matches,
             self.configured_hp_samples,
@@ -335,7 +368,18 @@ class IndependentNativeReader:
 
     @property
     def actor_slots(self) -> tuple[int, ...]:
-        return self._actor_slots
+        with self._cache_lock:
+            return self._actor_slots
+
+    @property
+    def pending_actor_slots(self) -> int:
+        with self._cache_lock:
+            return len(self._pending_actor_slots)
+
+    @property
+    def runtime_promoted_slots(self) -> int:
+        with self._cache_lock:
+            return self._runtime_promoted_slots
 
     @property
     def active_species_is_cross_slot_alias(self) -> bool:
@@ -445,15 +489,84 @@ class IndependentNativeReader:
                     slots.add(candidate)
         return slots
 
+    def _build_pending_actor_slot_cache(
+        self,
+        anchors: set[int],
+        *,
+        slots_each_direction: int,
+        existing: set[int] | None = None,
+    ) -> set[int]:
+        """Remember every possible slot in each proven 32-slot neighborhood.
+
+        Some slots are not instantiated while pointer recovery is running. They
+        may become Dantalian (or another selected species) later when the player
+        enters that part of the map. These addresses are cheap dormant probes;
+        only slots that later pass the already-proven actor-layout checks are
+        promoted into the high-frequency cache.
+        """
+
+        pending: set[int] = set()
+        stride = self.actor_stride
+        if stride is None or stride <= 0 or slots_each_direction <= 0:
+            return pending
+        occupied = set() if existing is None else set(existing)
+        for anchor in anchors:
+            for direction in (-1, 1):
+                for step in range(1, slots_each_direction + 1):
+                    candidate = int(anchor) + direction * step * int(stride)
+                    if 0x10000 < candidate <= 0x7FFFFFFF and candidate not in occupied:
+                        pending.add(candidate)
+        return pending
+
+    def _rebuild_pending_actor_slot_order(self) -> None:
+        self._pending_actor_slot_order = tuple(sorted(self._pending_actor_slots))
+        if not self._pending_actor_slot_order:
+            self._pending_actor_slot_cursor = 0
+        else:
+            self._pending_actor_slot_cursor %= len(self._pending_actor_slot_order)
+
+    def refresh_runtime_actor_slots(
+        self,
+        *,
+        maximum_probes: int | None = None,
+        force: bool = False,
+    ) -> ActorSlotProbeResult:
+        """Compatibility no-op for the removed promotion queue.
+
+        Every bounded slab address is already part of ``actor_slots`` and is
+        inspected directly by ``snapshot``. No slot has to be promoted first.
+        """
+
+        del maximum_probes, force
+        with self._cache_lock:
+            return ActorSlotProbeResult(
+                probed_slots=0,
+                promoted_slots=0,
+                cached_slots=len(self._actor_slots),
+                pending_slots=0,
+            )
+
     def _build_actor_slot_cache(self, *, slots_each_direction: int) -> tuple[int, ...]:
+        """Build the complete bounded slot universe around proven anchors.
+
+        FlyFF uses repeated 32-slot actor slabs. A slot may be empty while
+        recovery runs and become a Dantalian later. The old implementation put
+        such addresses into a rotating pending queue and only promoted them
+        after a timed probe. That made correctness depend on timing. The full
+        bounded universe is small enough to inspect directly on each ordinary
+        actor snapshot, so every possible slab address is retained here.
+        """
+
         anchors = {int(item.base) for item in self.monster_targets}
-        return tuple(
-            sorted(
-                self._expand_actor_slots(
-                    anchors, slots_each_direction=slots_each_direction
-                )
+        slots = set(anchors)
+        slots.update(
+            self._build_pending_actor_slot_cache(
+                anchors,
+                slots_each_direction=slots_each_direction,
+                existing=anchors,
             )
         )
+        return tuple(sorted(slots))
 
     def merge_monster_targets(
         self,
@@ -496,19 +609,24 @@ class IndependentNativeReader:
             else max(0, int(slots_each_direction))
         )
         self._slots_each_direction = expansion
-        previous_slots = set(self._actor_slots)
-        merged_slots = self._expand_actor_slots(
-            new_anchor_bases,
-            existing=previous_slots,
-            slots_each_direction=expansion,
-        )
-        self._actor_slots = tuple(sorted(merged_slots))
+        with self._cache_lock:
+            previous_slots = set(self._actor_slots)
+            # Rebuild the complete bounded slab universe from every proven
+            # anchor. Newly instantiated species do not need a promotion pass.
+            self._actor_slots = self._build_actor_slot_cache(
+                slots_each_direction=expansion
+            )
+            merged_slots = set(self._actor_slots)
+            self._pending_actor_slots.clear()
+            self._pending_actor_slot_order = ()
+            self._pending_actor_slot_cursor = 0
+            total_slots = len(self._actor_slots)
         return ActorCacheMergeResult(
             anchors_seen=len(compatible),
             new_anchors=len(new_anchor_bases),
             new_slots=len(merged_slots - previous_slots),
             total_anchors=len(self.monster_targets),
-            total_slots=len(self._actor_slots),
+            total_slots=total_slots,
         )
 
     def read_player(self) -> IndependentPlayerRead:
@@ -541,12 +659,17 @@ class IndependentNativeReader:
         self,
         base: int,
     ) -> tuple[int, int, int, float, float, float]:
-        """Read one reusable actor slot with one contiguous request when possible."""
+        """Read one reusable actor slot with one compact request.
+
+        No active/loaded field participates in this read. The old configured
+        field is stale and discovery's apparent +0x217C match is the next actor
+        slot's species field. Reading only species, live HP, and coordinates is
+        both cheaper and correct for living, dead, dormant, and reused slots.
+        """
 
         layout = self.monster_targets[0]
         offsets = (
             layout.species_offset,
-            self.monster_active_species_offset,
             self.monster_hp_offset,
             layout.x_offset,
             layout.y_offset,
@@ -560,7 +683,7 @@ class IndependentNativeReader:
                 raise OSError("short actor read")
             return (
                 _i32(data, layout.species_offset - first),
-                _i32(data, self.monster_active_species_offset - first),
+                0,
                 _i32(data, self.monster_hp_offset - first),
                 _f32(data, layout.x_offset - first),
                 _f32(data, layout.y_offset - first),
@@ -569,16 +692,53 @@ class IndependentNativeReader:
         except Exception:
             return (
                 _i32(self._memory.read(base + layout.species_offset, 4)),
-                _i32(
-                    self._memory.read(
-                        base + self.monster_active_species_offset, 4
-                    )
-                ),
+                0,
                 _i32(self._memory.read(base + self.monster_hp_offset, 4)),
                 _f32(self._memory.read(base + layout.x_offset, 4)),
                 _f32(self._memory.read(base + layout.y_offset, 4)),
                 _f32(self._memory.read(base + layout.z_offset, 4)),
             )
+
+    def read_actor_hp_states(
+        self,
+        candidates: Iterable[tuple[int, int]],
+    ) -> dict[tuple[int, int], int]:
+        """Read live species/HP directly for already validated cast targets.
+
+        This deliberately bypasses visibility radius, map filtering, active-field
+        heuristics, and the actor snapshot cache. A cast candidate was already a
+        valid selected actor when EVA was pressed; post-cast confirmation only
+        needs to know whether that same base/species reached HP zero.
+        """
+
+        layout = self.monster_targets[0]
+        first = min(layout.species_offset, self.monster_hp_offset)
+        last = max(layout.species_offset, self.monster_hp_offset) + 4
+        result: dict[tuple[int, int], int] = {}
+        for raw_base, raw_species in candidates:
+            base = int(raw_base)
+            expected_species = int(raw_species)
+            if base <= 0x10000 or expected_species <= 0:
+                continue
+            try:
+                data = self._memory.read(base + first, last - first)
+                if len(data) != last - first:
+                    raise OSError("short actor HP read")
+                species = _i32(data, layout.species_offset - first)
+                hp = _i32(data, self.monster_hp_offset - first)
+            except Exception:
+                try:
+                    species = _i32(
+                        self._memory.read(base + layout.species_offset, 4)
+                    )
+                    hp = _i32(
+                        self._memory.read(base + self.monster_hp_offset, 4)
+                    )
+                except Exception:
+                    continue
+            if species == expected_species and hp >= 0:
+                result[(base, expected_species)] = hp
+        return result
 
     def _scan_monsters(
         self,
@@ -601,7 +761,9 @@ class IndependentNativeReader:
         invalid_hp = 0
         active_mismatches = 0
         unreadable = 0
-        for base in self._actor_slots:
+        with self._cache_lock:
+            actor_slots = self._actor_slots
+        for base in actor_slots:
             if base == player.base:
                 continue
             try:
@@ -630,15 +792,10 @@ class IndependentNativeReader:
                         state = "other_species"
                     else:
                         tracked += 1
-                        # Only a field proven by the discovery cohort may be used
-                        # as a scene-presence gate. HP zero remains the explicit
-                        # death state and the slot itself remains cached.
-                        present = (
-                            active_match if self.active_species_reliable else True
-                        )
-                        if not present:
-                            state = "dormant"
-                        elif hp == 0:
+                        # Actor presence is never gated by the historical
+                        # active/loaded fields. HP zero is the explicit death
+                        # state and the reusable slot remains in the slab set.
+                        if hp == 0:
                             instantiated += 1
                             zero_hp += 1
                             state = "dead"
@@ -710,12 +867,6 @@ class IndependentNativeReader:
         visible_living.sort(key=lambda item: (item.distance_native, item.base))
         actor_states.sort(key=lambda item: item.base)
         dead_or_dormant = zero_hp + empty
-        if self.active_species_reliable:
-            dead_or_dormant += sum(
-                1
-                for item in actor_states
-                if item.target_species and item.state == "dormant"
-            )
         return _MonsterScan(
             visible_living=tuple(visible_living),
             actor_states=tuple(actor_states),
@@ -743,6 +894,9 @@ class IndependentNativeReader:
     ) -> tuple[IndependentMonsterRead, ...]:
         """Return living monsters within the requested vision radius."""
 
+        self.refresh_runtime_actor_slots(
+            maximum_probes=self._runtime_slot_probe_batch_size
+        )
         return self._scan_monsters(
             player,
             allowed_species=allowed_species,
@@ -756,6 +910,9 @@ class IndependentNativeReader:
         vision_radius_native: float | None = None,
     ) -> IndependentNativeSnapshot:
         player = self.read_player()
+        self.refresh_runtime_actor_slots(
+            maximum_probes=self._runtime_slot_probe_batch_size
+        )
         scan = self._scan_monsters(
             player,
             allowed_species=allowed_species,
@@ -766,7 +923,7 @@ class IndependentNativeReader:
             monsters=scan.visible_living,
             actor_states=scan.actor_states,
             living_actor_bases=scan.living_bases,
-            cached_actor_slots=len(self._actor_slots),
+            cached_actor_slots=len(self.actor_slots),
             occupied_slots=scan.occupied,
             tracked_species_slots=scan.tracked,
             instantiated_monsters=scan.instantiated,

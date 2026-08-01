@@ -3,7 +3,7 @@ from __future__ import annotations
 # pyright: reportImplicitRelativeImport=false
 from dataclasses import dataclass
 from math import inf
-from typing import Protocol
+from typing import Mapping, Protocol
 
 from position.native_process_service import NativePointerSnapshot
 from position.NativeFlyffMonsterProvider import (
@@ -48,6 +48,11 @@ class CachedActorReader(Protocol):
         allowed_species_ids: set[int] | None = None,
         vision_radius_native: float | None = None,
     ) -> CachedActorReadResult: ...
+
+    def read_actor_hp_states(
+        self,
+        candidates: tuple[tuple[int, int], ...],
+    ) -> Mapping[tuple[int, int], int]: ...
 
 
 class NativeWorldUnavailable(RuntimeError):
@@ -110,6 +115,14 @@ class NativeWorldReader:
             deadline=deadline,
             force=force,
         )
+
+    def read_actor_hp_states(
+        self,
+        candidates: tuple[tuple[int, int], ...],
+    ) -> Mapping[tuple[int, int], int]:
+        """Read post-cast HP directly without rebuilding a world frame."""
+
+        return self.actor_reader.read_actor_hp_states(candidates)
 
     def read_frame(self) -> NativeWorldFrame:
         snapshot = self.service.read_pointer_snapshot()

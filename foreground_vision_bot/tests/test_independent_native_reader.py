@@ -268,7 +268,7 @@ def test_uses_dynamic_live_hp_and_expands_persistent_reusable_slots() -> None:
 
     snapshot = reader.snapshot(allowed_species={944})
     assert snapshot.player.hp == 31513
-    assert snapshot.cached_actor_slots == 5
+    assert snapshot.cached_actor_slots == 65
     assert snapshot.living_monsters == 3
     assert snapshot.zero_hp_monsters == 1
     assert snapshot.other_species_slots == 1
@@ -325,10 +325,10 @@ def test_unproven_active_field_is_diagnostic_and_cannot_reject_every_actor() -> 
     assert snapshot.active_field_reliable is False
 
 
-def test_reliable_active_field_can_filter_dormant_positive_hp_slot() -> None:
+def test_matching_active_field_is_diagnostic_only_and_never_hides_slot() -> None:
     memory, module, reader, bases = _fixture(slots_each_direction=31)
-    dormant = bases[-1] + STRIDE
-    _populate_actor(memory, dormant, hp=400236, active_species=0)
+    late_slot = bases[-1] + STRIDE
+    _populate_actor(memory, late_slot, hp=400236, active_species=0)
     discovery = TraceTargetDiscovery(
         player=reader.player_target,
         monsters=reader.monster_targets,
@@ -337,13 +337,16 @@ def test_reliable_active_field_can_filter_dormant_positive_hp_slot() -> None:
         message="ok",
     )
     reader = _reader(memory, module, discovery, slots_each_direction=31)
-    assert reader.active_species_reliable is True
+    # Even when the configured field happened to match the recovery anchors,
+    # independent mode never trusts it as an actor-presence gate.
+    assert reader.active_species_matches >= 2
+    assert reader.active_species_reliable is False
 
     snapshot = reader.snapshot(allowed_species={944})
-    assert snapshot.cached_actor_slots == 4
-    assert snapshot.living_monsters == 3
-    assert snapshot.active_field_mismatches == 1
-    assert next(state for state in snapshot.actor_states if state.base == dormant).state == "dormant"
+    assert snapshot.cached_actor_slots == 65
+    assert snapshot.living_monsters == 4
+    state = next(item for item in snapshot.actor_states if item.base == late_slot)
+    assert state.state == "living"
 
 
 def test_configured_0x814_junk_never_overrides_discovered_0x81c_hp() -> None:
@@ -424,7 +427,7 @@ def test_background_known_layout_rediscovery_merges_new_slab_without_player_anch
 
     assert set(new_bases).issubset(reader.actor_slots)
     assert merge.new_anchors == len(new_bases)
-    assert merge.new_slots == len(new_bases)
+    assert merge.new_slots == 65
     snapshot = reader.snapshot(allowed_species={944})
     assert snapshot.living_monsters == len(bases) + len(new_bases)
 
@@ -487,3 +490,61 @@ def test_post_recovery_selected_species_scan_adds_distant_dantalian_slab() -> No
         for state in snapshot.actor_states
         if state.species == 948
     } == set(dantalian_bases)
+
+
+def test_full_slab_universe_reads_dantalian_loaded_after_recovery() -> None:
+    memory, _module, reader, bases = _fixture(slots_each_direction=31)
+    late_dantalian = bases[-1] + 5 * STRIDE
+
+    # Every bounded slab address is retained from the start; no timed promotion
+    # is required when a species is instantiated after recovery.
+    assert late_dantalian in reader.actor_slots
+    assert reader.pending_actor_slots == 0
+
+    _populate_actor(
+        memory,
+        late_dantalian,
+        species=948,
+        hp=400236,
+        x=310.0,
+        z=390.0,
+    )
+    result = reader.refresh_runtime_actor_slots(
+        maximum_probes=None,
+        force=True,
+    )
+    assert result.promoted_slots == 0
+    assert result.pending_slots == 0
+
+    snapshot = reader.snapshot(
+        allowed_species={944, 948},
+        vision_radius_native=1_000_000.0,
+    )
+    dantalian = next(
+        monster for monster in snapshot.monsters if monster.base == late_dantalian
+    )
+    assert dantalian.species == 948
+    assert dantalian.hp == 400236
+
+    memory.write_i32(late_dantalian + MONSTER_LIVE_HP_OFFSET, 0)
+    dead = reader.snapshot(
+        allowed_species={944, 948},
+        vision_radius_native=1_000_000.0,
+    )
+    state = next(item for item in dead.actor_states if item.base == late_dantalian)
+    assert state.species == 948
+    assert state.hp == 0
+    assert state.state == "dead"
+
+
+def test_direct_hp_poll_bypasses_snapshot_presence_filters() -> None:
+    memory, _module, reader, bases = _fixture(slots_each_direction=31)
+    base = bases[0]
+
+    # Simulate a transient self/coordinate visibility failure after the actor was
+    # already admitted as a cast candidate. Direct kill polling must still read
+    # the same slot's species and HP.
+    memory.data.pop(base + SELF_OFFSET)
+    memory.write_i32(base + MONSTER_LIVE_HP_OFFSET, 0)
+
+    assert reader.read_actor_hp_states(((base, 944),)) == {(base, 944): 0}

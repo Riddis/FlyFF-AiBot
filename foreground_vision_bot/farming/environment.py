@@ -475,7 +475,9 @@ class UnifiedFarmingEnv:
                 if cast_window is not None:
                     kill_result = self.kill_tracker.confirm_cast(
                         cast_window,
-                        self.world_reader.read_frame,
+                        read_actor_hp_states=(
+                            self.world_reader.read_actor_hp_states
+                        ),
                         cancellation=self.cancellation,
                     )
             else:
@@ -654,6 +656,9 @@ class UnifiedFarmingEnv:
             else features.world.actors
         )
         hp_actor = tracked_actors[0] if tracked_actors else None
+        actor_diagnostics = getattr(
+            self.world_reader.actor_reader, "last_diagnostics", None
+        )
         return {
             "action": int(action),
             "action_name": action.name,
@@ -742,6 +747,15 @@ class UnifiedFarmingEnv:
             "ocr_previous": None if ocr is None else ocr.previous,
             "ocr_delta": None if ocr is None else ocr.delta,
             "visible_actors": features.built.visible_actor_count,
+            "native_cached_actor_slots": int(
+                getattr(actor_diagnostics, "discovered_slots", 0)
+            ),
+            "native_runtime_promoted_slots": int(
+                getattr(actor_diagnostics, "runtime_promoted_slots", 0)
+            ),
+            "native_pending_actor_slot_probes": int(
+                getattr(actor_diagnostics, "pending_actor_slot_probes", 0)
+            ),
             "eva_actors": features.built.eva_actor_count,
             "direct_clear_fraction": features.built.direct_clear_fraction,
             "held_movement": (

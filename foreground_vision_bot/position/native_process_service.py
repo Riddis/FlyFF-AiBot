@@ -11,9 +11,6 @@ from typing import Protocol
 
 from .AnchoredPointerDiscovery import PointerRecoveryHints
 from .MonsterConfig import NativeMonsterConfig
-from .IndependentMonsterRediscovery import (
-    rediscover_selected_layout_monsters,
-)
 from .IndependentNativeReader import IndependentNativeReader
 from .NativePointerRecovery import (
     DEFAULT_RECOVERY_TIMEOUT_SECONDS,
@@ -644,63 +641,24 @@ class NativeProcessService:
                     additional_species = tuple(
                         sorted(selected_species - anchored_species)
                     )
-                    if additional_species:
-                        if not callable(getattr(self._memory, "find_u32", None)):
-                            raise NativeProcessServiceError(
-                                "Selected-species cohort expansion requires a "
-                                "read-only process value scan"
-                            )
-                        if status_callback is not None:
-                            try:
-                                status_callback(
-                                    PointerRecoveryProgress(
-                                        phase="selected_species_scan",
-                                        message=(
-                                            "Validated player and actor layout; "
-                                            "scanning additional selected species "
-                                            f"after recovery: {additional_species}."
-                                        ),
-                                        metrics=metrics,
-                                    )
+                    if additional_species and status_callback is not None:
+                        try:
+                            status_callback(
+                                PointerRecoveryProgress(
+                                    phase="runtime_actor_slots_ready",
+                                    message=(
+                                        "Pointer and actor layout recovery is complete. "
+                                        f"The independent reader will inspect {len(independent_reader.actor_slots)} "
+                                        "bounded slab addresses directly; no timed slot promotion "
+                                        "or active-field gate is used. Additional selected species "
+                                        f"{additional_species} are included whenever instantiated; "
+                                        "pointer recovery is not rescanned."
+                                    ),
+                                    metrics=metrics,
                                 )
-                            except Exception:
-                                pass
-                        rediscovery_deadline = deadline
-                        if rediscovery_deadline is None:
-                            rediscovery_deadline = self._clock() + min(
-                                300.0, max(60.0, float(timeout_seconds))
                             )
-                        rediscovered = rediscover_selected_layout_monsters(
-                            self._memory,  # type: ignore[arg-type]
-                            template=independent_reader.monster_targets[0],
-                            species_ids=additional_species,
-                            maximum_address=0x7FFFFFFF,
-                            coordinate_limit=(
-                                self.monster_config.maximum_absolute_coordinate
-                            ),
-                            cancellation=cancellation,
-                            deadline=rediscovery_deadline,
-                        )
-                        merged = independent_reader.merge_monster_targets(
-                            rediscovered.targets, slots_each_direction=31
-                        )
-                        if status_callback is not None:
-                            try:
-                                status_callback(
-                                    PointerRecoveryProgress(
-                                        phase="selected_species_ready",
-                                        message=(
-                                            "Post-recovery selected-species scan "
-                                            f"validated {len(rediscovered.targets)} "
-                                            "actors and added "
-                                            f"{merged.new_slots} cached slots; "
-                                            "player recovery was unchanged."
-                                        ),
-                                        metrics=metrics,
-                                    )
-                                )
-                            except Exception:
-                                pass
+                        except Exception:
+                            pass
                 except Exception as error:
                     raise NativeProcessServiceError(
                         "Independent player/actor reader could not be activated"

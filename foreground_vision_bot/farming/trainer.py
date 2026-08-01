@@ -408,6 +408,8 @@ class _TrainingCallback(BaseCallback):
                 "NATIVE TRAINING | "
                 f"steps={self.num_timesteps:,}/{self.config.total_timesteps:,} "
                 f"actors={self.stats.latest_info.get('visible_actors', 0)} "
+                f"cache={self.stats.latest_info.get('native_cached_actor_slots', 0)} "
+                f"promoted={self.stats.latest_info.get('native_runtime_promoted_slots', 0)} "
                 f"candidates={self.stats.latest_info.get('native_kill_candidates', 0)} "
                 f"native_kills={self.stats.kills} "
                 f"ocr_delta={self.stats.ocr_kill_delta} "
@@ -695,6 +697,9 @@ def validate_native_farming_data(
                     status_callback,
                     "DATA VALIDATION | "
                     f"steps={stats.steps} visible={info.get('visible_actors', 0)} "
+                    f"cache={info.get('native_cached_actor_slots', 0)} "
+                    f"promoted={info.get('native_runtime_promoted_slots', 0)} "
+                    f"pending={info.get('native_pending_actor_slot_probes', 0)} "
                     f"candidates={info.get('native_kill_candidates', 0)} "
                     f"native_kills={stats.kills} "
                     f"ocr_delta={stats.ocr_kill_delta} "
