@@ -5,7 +5,10 @@ from time import monotonic
 
 import cv2 as cv
 import PySimpleGUI as sg
-from runtime_bus import RuntimeBus
+from mapper.ManualMapEditor import ManualMapEditorSession
+from mapper.MapCatalog import MapCatalog
+from mapper.OccupancyGrid import OccupancyGrid
+from runtime_bus import RuntimeBus, RuntimeStatus
 from runtime_controller import RuntimeController
 from utils.helpers import get_window_handlers, hex_variant
 
@@ -21,6 +24,7 @@ class Gui:
             "msg_green": ("white", "green"),
         }
         self.frame_resolutions = {
+            "Fit panel": None,
             "160x120": (160, 120),
             "200x150": (200, 150),
             "320x240": (320, 240),
@@ -43,12 +47,18 @@ class Gui:
         self._status_mode = "Idle"
         self._last_status_message = "Ready"
         self.runtime_bus = RuntimeBus(max_logs=1500)
+        self.map_catalog = MapCatalog()
+        self.map_names = list(self.map_catalog.names())
+        self._selected_map_name = self.map_catalog.default_name
         self._last_versions = {
             "debug_frame": 0,
             "map_frame": 0,
             "video_fps": 0,
             "rl_status": 0,
             "mapper_status": 0,
+            "capture_status": 0,
+            "runtime_status": 0,
+            "native_diagnostic_status": 0,
         }
         self._last_preview_render_at = 0.0
         self._last_map_render_at = 0.0
@@ -82,8 +92,9 @@ class Gui:
 
             # ACTIONS - Button events
             if event == "Exit" or event == sg.WIN_CLOSED:
-                self.__shutdown(bot)
-                break
+                if self.__shutdown(bot):
+                    break
+                continue
             if event == "-ATTACH_WINDOW-":
                 game_window_name, game_window_handler = self.__attach_window_popup()
                 if game_window_name and game_window_handler:
@@ -112,6 +123,20 @@ class Gui:
                     "Starting training...",
                 )
 
+            if event == "-DRY_RUN-":
+                self.__start_control(
+                    lambda: self.controller.start_rl("dry-run"),
+                    "Dry Run",
+                    "Starting native no-learning dry run...",
+                )
+
+            if event == "-VALIDATE_DATA-":
+                self.__start_control(
+                    lambda: self.controller.start_rl("validate-data"),
+                    "Data Validation",
+                    "Starting training-data validation run...",
+                )
+
             if event == "-RUN_AGENT-":
                 self.__start_control(
                     lambda: self.controller.start_rl("agent"),
@@ -120,33 +145,34 @@ class Gui:
                 )
 
             if event == "-START_MAPPER-":
-                self.__clear_live_map("Mapping is starting…")
+                selected_map = values.get("-MAP-NAME-", self._selected_map_name)
+                self.__apply_map_selection(bot, selected_map, publish_preview=False)
                 self.__start_control(
-                    self.controller.start_mapper,
+                    lambda: self.controller.start_mapper(
+                        self._selected_map_name,
+                        rl_shadow_enabled=False,
+                    ),
                     "Mapping",
-                    "Starting autonomous mapper...",
+                    f"Starting coordinate mapper for {self._selected_map_name}...",
+                )
+
+            if event == "-START_MANUAL_MAPPER-":
+                selected_map = values.get("-MAP-NAME-", self._selected_map_name)
+                self.__apply_map_selection(bot, selected_map, publish_preview=False)
+                self.__start_control(
+                    lambda: self.controller.start_manual_mapper(
+                        self._selected_map_name,
+                    ),
+                    "Manual Mapping",
+                    f"Tracking your movement on {self._selected_map_name}; "
+                    "the bot will not send movement keys.",
                 )
 
             if event == "-SET_MINIMAP_ANCHOR-":
                 self.__set_minimap_anchor(bot)
 
-            if event == "-CALIBRATE_MAPPER-":
-                self.__clear_manual_calibration_artifacts()
-                self.__start_control(
-                    lambda: self.controller.start_calibration(
-                        visual_confirmation=False
-                    ),
-                    "Calibration",
-                    "Starting rotation calibration...",
-                )
-
-            if event == "-DEBUG_CALIBRATE_MAPPER-":
-                self.__clear_manual_calibration_artifacts()
-                self.__start_control(
-                    lambda: self.controller.start_calibration(visual_confirmation=True),
-                    "Calibration",
-                    "Starting visual-confirmation calibration...",
-                )
+            if event == "-EDIT_MAP_CELLS-":
+                self.__edit_map_cells_popup()
 
             if event == "-SHOW_LOG-":
                 self.__show_log_window()
@@ -154,10 +180,30 @@ class Gui:
             if event == "-STOP_BOT-":
                 self.__set_status("Idle", "Stopped")
                 self.controller.stop_control()
+                self.controller.stop_native_diagnostic()
                 self.runtime_bus.log(
                     "Stop requested. Waiting for the active worker to exit.",
                     "msg_blue",
                 )
+
+            if event in {"-NATIVE_HEALTH-", "-RECOVER_POINTERS-"}:
+                recover = event == "-RECOVER_POINTERS-"
+                try:
+                    self.controller.start_native_diagnostic(
+                        recover=recover,
+                        timeout=(
+                            self.controller.POINTER_RECOVERY_TIMEOUT_SECONDS
+                            if recover
+                            else 1.0
+                        ),
+                    )
+                except (RuntimeError, ValueError) as error:
+                    self.runtime_bus.log(str(error), "msg_red")
+                else:
+                    mode = "Native Recovery" if recover else "Native Health"
+                    self.__set_status(mode, f"Starting {mode.lower()}...")
+                    if recover:
+                        self.__set_rl_buttons(attached=True, running=True)
 
             # BOT OPTIONS - Video options
             if event == "-SHOW_FRAMES-":
@@ -314,12 +360,38 @@ class Gui:
                         "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-", "30"
                     )
 
+            if event == "-MAP-NAME-":
+                if self.controller.control_active:
+                    self.window["-MAP-NAME-"].update(self._selected_map_name)
+                    self.runtime_bus.log(
+                        "Stop the active control task before changing maps.",
+                        "msg_red",
+                    )
+                else:
+                    self.__apply_map_selection(
+                        bot,
+                        values.get("-MAP-NAME-"),
+                        publish_preview=True,
+                    )
+
+            if event == "-ADD_MAP-":
+                self.__add_map_popup(bot)
+
+            if event == "-EDIT_MAP_MOBS-":
+                self.__edit_map_mobs_popup(bot)
+
+            if event == "-RESET_MAP-":
+                self.__reset_selected_map(bot)
+
+            if event == "-DELETE_MAP-":
+                self.__delete_selected_map(bot)
+
             # MOBS - Mobs configuration
             if event == "-SELECT_MOBS-":
                 self.__select_mobs_popup(bot)
 
             if event == "-ADD_MOB-":
-                self.__add_mob_popup()
+                self.__add_mob_popup(bot)
 
             if event == "-DELETE_MOB-":
                 self.__select_mobs_popup(bot, is_delete_form=True)
@@ -352,8 +424,8 @@ class Gui:
             # heading template matching here blocks Tk's only event loop and
             # makes Bot Vision plus every button appear frozen.
             image = frame.copy()
-            resolution = values.get("-DEBUG_IMG_WIDTH-", "960x540")
-            width, height = self.frame_resolutions[resolution]
+            resolution = values.get("-DEBUG_IMG_WIDTH-", "Fit panel")
+            width, height = self.__preview_target_size(resolution)
             image = self.__fit_image(image, width, height)
             # Tk's PhotoImage accepts PNG bytes directly. JPEG bytes trigger
             # PySimpleGUI's internal modal error dialog, which Tk can position
@@ -390,6 +462,8 @@ class Gui:
         for key, mode in (
             ("rl_status", "Training"),
             ("mapper_status", self._status_mode),
+            ("runtime_status", "Runtime"),
+            ("native_diagnostic_status", "Native Diagnostic"),
         ):
             version, status = self.runtime_bus.read_latest(
                 key,
@@ -397,7 +471,32 @@ class Gui:
             )
             if status is not None:
                 self._last_versions[key] = version
-                self.__set_status(mode, status)
+                if isinstance(status, RuntimeStatus):
+                    if not self.__is_current_status(key, status):
+                        continue
+                    status = status.message
+                self.__set_status(mode, str(status))
+
+        version, capture_status = self.runtime_bus.read_latest(
+            "capture_status",
+            self._last_versions["capture_status"],
+        )
+        if capture_status is not None:
+            self._last_versions["capture_status"] = version
+            if isinstance(capture_status, RuntimeStatus) and self.__is_current_status(
+                "capture_status",
+                capture_status,
+            ):
+                if capture_status.message == "degraded":
+                    self.__set_status(
+                        "Capture",
+                        "Capture degraded; retrying the attached window.",
+                    )
+                elif capture_status.message == "lost":
+                    self.__set_status(
+                        "Capture lost",
+                        "The attached window stopped producing frames.",
+                    )
 
         # Bounded log draining at <=5 FPS.
         if now - self._last_log_render_at >= 0.20:
@@ -414,6 +513,8 @@ class Gui:
 
         for completion in self.runtime_bus.drain_completions():
             if completion.worker_name.startswith("capture-"):
+                if not self.__is_current_capture_event(completion):
+                    continue
                 self.__set_rl_buttons(attached=False, running=False)
                 self.runtime_bus.log(
                     "Capture stopped; attach the Flyff window again.",
@@ -421,6 +522,21 @@ class Gui:
                 )
                 continue
             if completion.worker_name == "preview":
+                continue
+            if completion.worker_name in {"native-health", "native-pointer-recovery"}:
+                if completion.session_id != self.controller.diagnostic_session_id:
+                    continue
+                if completion.worker_name == "native-pointer-recovery":
+                    self.__set_rl_buttons(attached=True, running=False)
+                self.runtime_bus.log(
+                    f"{completion.worker_name} finished.",
+                    "msg_green",
+                )
+                continue
+            if (
+                completion.session_id is not None
+                and completion.session_id != self.controller.control_session_id
+            ):
                 continue
             self.__set_rl_buttons(attached=True, running=False)
             self.runtime_bus.log(
@@ -431,11 +547,39 @@ class Gui:
         for failure in self.runtime_bus.drain_failures():
             capture_failed = failure.worker_name.startswith("capture-")
             preview_failed = failure.worker_name == "preview"
-            if not preview_failed:
+            diagnostic_failed = failure.worker_name in {
+                "native-health",
+                "native-pointer-recovery",
+            }
+            if capture_failed and not self.__is_current_capture_event(failure):
+                continue
+            if (
+                preview_failed
+                and failure.session_id is not None
+                and failure.session_id != self.controller.capture.generation
+            ):
+                continue
+            if (
+                diagnostic_failed
+                and failure.session_id is not None
+                and failure.session_id != self.controller.diagnostic_session_id
+            ):
+                continue
+            if (
+                not capture_failed
+                and not preview_failed
+                and not diagnostic_failed
+                and failure.session_id is not None
+                and failure.session_id != self.controller.control_session_id
+            ):
+                continue
+            if not preview_failed and not diagnostic_failed:
                 self.__set_rl_buttons(
                     attached=not capture_failed,
                     running=False,
                 )
+            elif failure.worker_name == "native-pointer-recovery":
+                self.__set_rl_buttons(attached=True, running=False)
             self.runtime_bus.log(
                 f"{failure.worker_name} failed in "
                 f"{failure.lifecycle_state} at "
@@ -455,22 +599,124 @@ class Gui:
             )
             self.runtime_bus.resolve_confirmation(request, result)
 
-    def __shutdown(self, bot):
+        recovery = self.runtime_bus.pop_mapper_recovery()
+        if recovery is not None:
+            result = self.__confirm_mapper_recovery(recovery)
+            self.runtime_bus.resolve_mapper_recovery(recovery, result)
+
+    def __confirm_mapper_recovery(self, request):
+        instructions = [
+            sg.Text(
+                f"Map: {request.map_name}",
+                font="Any 12 bold",
+            ),
+            sg.Text(
+                str(request.reason),
+                size=(88, 5),
+                text_color="yellow",
+            ),
+            sg.HorizontalSeparator(),
+            sg.Text(
+                "The mapper released all movement keys and saved the persistent "
+                "map. Do not choose Retry In Place if you moved the character. "
+                "For a full reset, manually leave/re-enter or teleport to the "
+                "known spawn, keep the camera fixed, then choose Returned to Spawn.",
+                size=(88, 6),
+            ),
+        ]
+        buttons = []
+        if request.can_retry_in_place:
+            buttons.append(sg.Button("Retry In Place", key="retry"))
+        buttons.append(sg.Button("Returned to Spawn", key="spawn"))
+        buttons.append(sg.Button("Stop Mapping", key="stop"))
+
+        window = sg.Window(
+            "Mapper Recovery",
+            [[item] for item in instructions] + [buttons],
+            modal=True,
+            keep_on_top=True,
+            finalize=True,
+            location=(80, 80),
+        )
+        try:
+            while True:
+                event, _values = window.read()
+                if event in (sg.WIN_CLOSED, "stop"):
+                    return "stop"
+                if event == "retry" and request.can_retry_in_place:
+                    return "retry"
+                if event == "spawn":
+                    return "spawn"
+        finally:
+            window.close()
+
+    def __shutdown(self, bot) -> bool:
+        del bot
         self.__set_status("Stopping", "Stopping workers safely…")
-        self.controller.shutdown(timeout=8.0)
+        results = self.controller.shutdown(timeout=8.0)
+        timed_out = [kind.value for kind, stopped in results.items() if not stopped]
+        if not timed_out:
+            return True
+
+        message = (
+            "Shutdown timed out while waiting for "
+            f"{', '.join(timed_out)}. Resources remain open; close again after "
+            "the worker reports completion."
+        )
+        self.__set_status("Shutdown blocked", message)
+        self.runtime_bus.log(message, "msg_red")
+        self.__set_rl_buttons(attached=False, running=False)
+        self.window["-ATTACH_WINDOW-"].update(disabled=True)
+        return False
+
+    def __is_current_status(self, key: str, status: RuntimeStatus) -> bool:
+        if status.session_id is None:
+            return True
+        if key in {"capture_status", "preview_status"}:
+            return status.session_id == self.controller.capture.generation
+        if key in {"rl_status", "mapper_status"}:
+            return status.session_id == self.controller.control_session_id
+        return True
+
+    def __is_current_capture_event(self, event) -> bool:
+        session_id = getattr(event, "session_id", None)
+        generation = self.controller.capture.generation
+        if session_id is not None:
+            return session_id == generation
+        return not self.controller.capture_active
 
     def __set_rl_buttons(self, attached, running):
         """Keep the RL action buttons in a consistent state."""
+        if (
+            self.controller.shutdown_requested
+            and not self.controller.shutdown_finalized
+        ):
+            # A timed-out shutdown leaves the worker manager permanently
+            # closed to new work. Late completion/failure events must not
+            # re-enable controls while the live worker is winding down.
+            attached = False
+            running = True
+        self.window["-DRY_RUN-"].update(disabled=(not attached or running))
+        self.window["-VALIDATE_DATA-"].update(disabled=(not attached or running))
         self.window["-START_BOT-"].update(disabled=(not attached or running))
         self.window["-RUN_AGENT-"].update(disabled=(not attached or running))
         self.window["-START_MAPPER-"].update(disabled=(not attached or running))
-        self.window["-SET_MINIMAP_ANCHOR-"].update(disabled=(not attached or running))
-        self.window["-CALIBRATE_MAPPER-"].update(disabled=(not attached or running))
-        self.window["-DEBUG_CALIBRATE_MAPPER-"].update(
+        self.window["-START_MANUAL_MAPPER-"].update(
             disabled=(not attached or running)
         )
+        self.window["-SET_MINIMAP_ANCHOR-"].update(disabled=(not attached or running))
         self.window["-STOP_BOT-"].update(disabled=(not attached or not running))
         self.window["-ATTACH_WINDOW-"].update(disabled=running)
+        self.window["-MAP-NAME-"].update(disabled=running)
+        self.window["-ADD_MAP-"].update(disabled=running)
+        self.window["-EDIT_MAP_MOBS-"].update(disabled=running)
+        self.window["-EDIT_MAP_CELLS-"].update(disabled=running)
+        self.window["-RESET_MAP-"].update(disabled=running)
+        self.window["-DELETE_MAP-"].update(disabled=running)
+        self.window["-NATIVE_HEALTH-"].update(disabled=not attached)
+        self.window["-RECOVER_POINTERS-"].update(
+            disabled=(not attached or running)
+        )
 
     def __set_minimap_anchor(self, bot):
         if self.controller.control_active:
@@ -488,7 +734,7 @@ class Gui:
             return
 
         try:
-            from mapper import MinimapAnchorSetup
+            from mapper.MinimapAnchorSetup import MinimapAnchorSetup
 
             sg.cprint(
                 "Opening minimap-center selector. Click the exact center of "
@@ -511,26 +757,20 @@ class Gui:
         """
         Manual recalibration starts a new diagnostic session.
 
-        Preserve minimap_anchor.json because that is fixed UI geometry, but
-        remove prior timing calibration and old heading-debug captures.
+        Preserve minimap_anchor.json and the last valid calibration. The
+        calibrator replaces calibration.json only after a complete successful
+        run, so a cancelled or failed attempt must not remove the working
+        configuration.
         """
         import shutil
         from pathlib import Path
 
         project_root = Path(__file__).resolve().parent
-        calibration_files = [
-            project_root / "mapper" / "calibration.json",
-        ]
         debug_directories = [
             project_root / "debug" / "minimap_heading",
         ]
 
         removed = []
-        for file_path in calibration_files:
-            if file_path.exists():
-                file_path.unlink()
-                removed.append(str(file_path))
-
         for directory in debug_directories:
             if directory.exists():
                 shutil.rmtree(directory)
@@ -539,19 +779,20 @@ class Gui:
 
         if removed:
             sg.cprint(
-                "Manual recalibration cleared the previous calibration and "
-                "minimap-heading debug files.",
+                "Manual recalibration cleared old minimap-heading debug files; "
+                "the previous valid calibration is kept until this run succeeds.",
                 c=("white", "blue"),
             )
         else:
             sg.cprint(
-                "Manual recalibration started with no old calibration/debug "
-                "files to clear.",
+                "Manual recalibration started; the previous valid calibration "
+                "is kept until this run succeeds.",
                 c=("white", "blue"),
             )
 
     def close(self):
-        self.runtime_bus.close()
+        if self.controller is None:
+            self.runtime_bus.close()
         self.window.close()
 
     def show_error(self, message: str) -> None:
@@ -602,11 +843,485 @@ class Gui:
         self.window["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"].update(convert_timer)
         bot.set_config(convert_penya_to_perins_timer_min=convert_timer)
 
+        saved_map = sg.user_settings_get_entry(
+            "saved_map_name",
+            self.map_catalog.default_name,
+        )
+        if saved_map not in self.map_names:
+            saved_map = self.map_catalog.default_name
+        self.__apply_map_selection(bot, saved_map, publish_preview=True)
+
+    def __apply_map_selection(self, bot, map_name, *, publish_preview):
+        try:
+            profile = self.map_catalog.get(map_name)
+        except (ValueError, TypeError) as error:
+            self.runtime_bus.log(str(error), "msg_red")
+            return
+
+        self._selected_map_name = profile.name
+        bot.set_config(selected_map_name=profile.name)
+        sg.user_settings_set_entry("saved_map_name", profile.name)
+        if hasattr(self, "window"):
+            self.window["-MAP-NAME-"].update(profile.name)
+
         all_mobs = bot.get_all_mobs()
-        selected_names = sg.user_settings_get_entry("saved_selected_mobs", [])
-        selected_names = [name for name in selected_names if name in all_mobs]
-        selected = [all_mobs[key] for key in all_mobs if key in selected_names]
-        bot.set_config(selected_mobs=selected)
+        allowed_names = [name for name in profile.mobs if name in all_mobs]
+        settings_key = f"saved_selected_mobs::{profile.slug}"
+        selected_names = sg.user_settings_get_entry(settings_key, None)
+        if selected_names is None:
+            selected_names = list(allowed_names)
+        selected_names = [name for name in selected_names if name in allowed_names]
+        bot.set_config(selected_mobs=[all_mobs[name] for name in selected_names])
+        sg.user_settings_set_entry(settings_key, selected_names)
+        sg.user_settings_set_entry("saved_selected_mobs", selected_names)
+
+        mob_text = ", ".join(allowed_names) if allowed_names else "No registered mobs"
+        if hasattr(self, "window"):
+            self.window["-MAP-MOBS-"].update(f"Mobs: {mob_text}")
+
+        if publish_preview and self.controller is not None:
+            if not self.controller.publish_map_preview(profile.name):
+                self.__clear_live_map(
+                    f"{profile.name}: no saved map yet — mapping will create it."
+                )
+
+    def __reload_map_catalog(self, *, selected_name=None):
+        self.map_catalog = MapCatalog()
+        self.map_names = list(self.map_catalog.names())
+        selected = selected_name
+        if selected not in self.map_names:
+            selected = self.map_catalog.default_name
+        self._selected_map_name = selected
+        if hasattr(self, "window"):
+            self.window["-MAP-NAME-"].update(
+                values=self.map_names,
+                value=selected,
+            )
+        return selected
+
+    def __edit_map_cells_popup(self):
+        if not self.__map_management_available():
+            return
+        if self.controller is None:
+            return
+
+        profile = self.map_catalog.get(self._selected_map_name)
+        directory = self.map_catalog.map_directory(profile.name)
+        if not (directory / "map.json").is_file():
+            self.show_error(
+                f"{profile.name} does not have a saved map yet. Run the mapper first."
+            )
+            return
+        grid, warning = OccupancyGrid.load(directory)
+        if warning is not None:
+            self.show_error(warning)
+            return
+
+        session = ManualMapEditorSession(grid)
+        radius = 35
+
+        def cell_pixels_for(view_radius):
+            return max(4, min(11, 620 // (2 * int(view_radius) + 1)))
+
+        cell_pixels = cell_pixels_for(radius)
+
+        def encoded_view():
+            image = session.render_view(
+                radius_cells=radius,
+                cell_pixels=cell_pixels,
+            )
+            encoded = cv.imencode(".png", image)
+            return b"" if not encoded[0] else encoded[1].tobytes()
+
+        layout = [
+            [
+                sg.Text(f"Occupancy cell editor — {profile.name}", font="Any 13 bold"),
+                sg.Push(),
+                sg.Text("View radius:"),
+                sg.Combo(
+                    [20, 30, 35, 40, 50, 60],
+                    default_value=radius,
+                    readonly=True,
+                    enable_events=True,
+                    key="-CELL-EDIT-RADIUS-",
+                    size=(5, 1),
+                ),
+            ],
+            [
+                sg.Frame(
+                    "Paint",
+                    [[
+                        sg.Radio("Explored / free", "CELL_TOOL", default=True, key="-CELL-FREE-"),
+                        sg.Radio("Blocked", "CELL_TOOL", key="-CELL-BLOCKED-"),
+                        sg.Radio(
+                            "Teleport area",
+                            "CELL_TOOL",
+                            key="-CELL-TELEPORT-",
+                            text_color="red",
+                        ),
+                        sg.Radio("Clear to unknown", "CELL_TOOL", key="-CELL-ERASE-"),
+                    ]],
+                ),
+                sg.Frame(
+                    "Selection",
+                    [[
+                        sg.Radio("Line / brush", "CELL_SHAPE", default=True, key="-CELL-LINE-"),
+                        sg.Radio("Rectangle", "CELL_SHAPE", key="-CELL-RECT-"),
+                    ]],
+                ),
+            ],
+            [
+                sg.Button("↖", key="-CELL-PAN-NW-"),
+                sg.Button("↑", key="-CELL-PAN-N-"),
+                sg.Button("↗", key="-CELL-PAN-NE-"),
+                sg.Button("←", key="-CELL-PAN-W-"),
+                sg.Button("Player", key="-CELL-CENTER-"),
+                sg.Button("→", key="-CELL-PAN-E-"),
+                sg.Button("↙", key="-CELL-PAN-SW-"),
+                sg.Button("↓", key="-CELL-PAN-S-"),
+                sg.Button("↘", key="-CELL-PAN-SE-"),
+                sg.Push(),
+                sg.Button("Undo", key="-CELL-UNDO-"),
+            ],
+            [
+                sg.Image(
+                    data=encoded_view(),
+                    key="-CELL-EDIT-IMAGE-",
+                    background_color="#5a5a5a",
+                )
+            ],
+            [
+                sg.Text(
+                    "Drag to select. Saved edits become authoritative free, blocked, red "
+                    "teleport, or unknown map cells. Manual-drive mode stops before entering "
+                    "a red teleport cell.",
+                    size=(90, 2),
+                    key="-CELL-EDIT-STATUS-",
+                )
+            ],
+            [
+                sg.Button("Save Cells", key="-CELL-SAVE-", button_color=("white", "#287a3c")),
+                sg.Button("Cancel"),
+            ],
+        ]
+        editor = sg.Window(
+            "Edit Occupancy Cells",
+            layout,
+            modal=True,
+            keep_on_top=False,
+            finalize=True,
+            resizable=False,
+        )
+        image_widget = editor["-CELL-EDIT-IMAGE-"].Widget
+        image_widget.bind(
+            "<ButtonPress-1>",
+            lambda event: editor.write_event_value("-CELL-MOUSE-DOWN-", (event.x, event.y)),
+        )
+        image_widget.bind(
+            "<B1-Motion>",
+            lambda event: editor.write_event_value("-CELL-MOUSE-DRAG-", (event.x, event.y)),
+        )
+        image_widget.bind(
+            "<ButtonRelease-1>",
+            lambda event: editor.write_event_value("-CELL-MOUSE-UP-", (event.x, event.y)),
+        )
+
+        drag_start = None
+        drag_end = None
+
+        def selected_mode(values):
+            if values.get("-CELL-BLOCKED-"):
+                return "blocked"
+            if values.get("-CELL-TELEPORT-"):
+                return "teleport"
+            if values.get("-CELL-ERASE-"):
+                return "erase"
+            return "free"
+
+        def refresh(message=None):
+            editor["-CELL-EDIT-IMAGE-"].update(data=encoded_view())
+            if message is not None:
+                editor["-CELL-EDIT-STATUS-"].update(message)
+
+        pan_directions = {
+            "-CELL-PAN-NW-": (-1, 1),
+            "-CELL-PAN-N-": (0, 1),
+            "-CELL-PAN-NE-": (1, 1),
+            "-CELL-PAN-W-": (-1, 0),
+            "-CELL-PAN-E-": (1, 0),
+            "-CELL-PAN-SW-": (-1, -1),
+            "-CELL-PAN-S-": (0, -1),
+            "-CELL-PAN-SE-": (1, -1),
+        }
+
+        try:
+            while True:
+                event, values = editor.read()
+                if event in (sg.WIN_CLOSED, "Cancel"):
+                    return
+                if event == "-CELL-EDIT-RADIUS-":
+                    radius = int(values[event])
+                    cell_pixels = cell_pixels_for(radius)
+                    refresh()
+                    continue
+                if event in pan_directions:
+                    dx, dy = pan_directions[event]
+                    step = max(5, radius // 2)
+                    session.pan(dx * step, dy * step)
+                    refresh()
+                    continue
+                if event == "-CELL-CENTER-":
+                    session.center_on_player()
+                    refresh()
+                    continue
+                if event == "-CELL-UNDO-":
+                    if session.undo():
+                        refresh(f"Undid the last selection. {len(session.staged)} staged cells remain.")
+                    continue
+                if event == "-CELL-MOUSE-DOWN-":
+                    drag_start = session.pixel_to_cell(
+                        *values[event], radius_cells=radius, cell_pixels=cell_pixels
+                    )
+                    drag_end = drag_start
+                    continue
+                if event == "-CELL-MOUSE-DRAG-":
+                    drag_end = session.pixel_to_cell(
+                        *values[event], radius_cells=radius, cell_pixels=cell_pixels
+                    )
+                    if drag_end is not None:
+                        editor["-CELL-EDIT-STATUS-"].update(
+                            f"Selection endpoint: {drag_end}. Release to stage cells."
+                        )
+                    continue
+                if event == "-CELL-MOUSE-UP-":
+                    drag_end = session.pixel_to_cell(
+                        *values[event], radius_cells=radius, cell_pixels=cell_pixels
+                    )
+                    if drag_start is None or drag_end is None:
+                        drag_start = drag_end = None
+                        continue
+                    cells = (
+                        session.rectangle_cells(drag_start, drag_end)
+                        if values.get("-CELL-RECT-")
+                        else session.line_cells(drag_start, drag_end)
+                    )
+                    try:
+                        changed = session.stage_cells(cells, selected_mode(values))
+                    except ValueError as error:
+                        self.show_error(str(error))
+                    else:
+                        refresh(
+                            f"Staged {changed} cells; {len(session.staged)} total. "
+                            "Press Save Cells to persist."
+                        )
+                    drag_start = drag_end = None
+                    continue
+                if event == "-CELL-SAVE-":
+                    if not session.staged:
+                        editor["-CELL-EDIT-STATUS-"].update("No cells are staged.")
+                        continue
+                    try:
+                        summary = self.controller.apply_manual_map_edits(
+                            profile.name,
+                            session.staged,
+                        )
+                    except Exception as error:  # noqa: BLE001 - GUI command boundary.
+                        self.show_error(f"Could not save manual map cells: {error}")
+                        continue
+                    message = (
+                        f"Saved {summary.free_cells} free, {summary.blocked_cells} blocked, "
+                        f"{summary.teleport_cells} teleport, and cleared "
+                        f"{summary.erased_cells} cells to unknown"
+                    )
+                    if summary.skipped_cells:
+                        message += f"; skipped {summary.skipped_cells} unchanged/invalid cells"
+                    message += "."
+                    self.runtime_bus.log(message, "msg_green")
+                    return
+        finally:
+            editor.close()
+
+    def __map_management_available(self):
+        if self.controller is not None and self.controller.control_active:
+            self.runtime_bus.log(
+                "Stop the active control task before changing map profiles.",
+                "msg_red",
+            )
+            return False
+        return True
+
+    def __add_map_popup(self, bot):
+        if not self.__map_management_available():
+            return
+
+        registered_mobs = sorted(bot.get_all_mobs())
+        popup = sg.Window(
+            "Add Map",
+            [
+                [sg.Text("Map name:"), sg.Input(key="-NEW-MAP-NAME-", expand_x=True)],
+                [sg.Text("Mobs available on this map:")],
+                [
+                    sg.Listbox(
+                        values=registered_mobs,
+                        select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE,
+                        size=(48, min(12, max(4, len(registered_mobs)))),
+                        key="-NEW-MAP-MOBS-",
+                    )
+                ],
+                [sg.Button("Create"), sg.Button("Cancel")],
+            ],
+            modal=True,
+            finalize=True,
+        )
+        try:
+            while True:
+                event, values = popup.read()
+                if event in (sg.WIN_CLOSED, "Cancel"):
+                    return
+                if event != "Create":
+                    continue
+                try:
+                    profile = self.map_catalog.create_map(
+                        values.get("-NEW-MAP-NAME-", ""),
+                        mobs=values.get("-NEW-MAP-MOBS-", []),
+                    )
+                except (OSError, ValueError) as error:
+                    self.show_error(str(error))
+                    continue
+                self.__reload_map_catalog(selected_name=profile.name)
+                self.__apply_map_selection(
+                    bot,
+                    profile.name,
+                    publish_preview=True,
+                )
+                self.runtime_bus.log(
+                    f"Created map profile '{profile.name}'.",
+                    "msg_green",
+                )
+                return
+        finally:
+            popup.close()
+
+    def __edit_map_mobs_popup(self, bot):
+        if not self.__map_management_available():
+            return
+        profile = self.map_catalog.get(self._selected_map_name)
+        registered_mobs = sorted(bot.get_all_mobs())
+        popup = sg.Window(
+            "Edit Map Mobs",
+            [
+                [sg.Text(f"Mobs available on '{profile.name}':")],
+                [
+                    sg.Listbox(
+                        values=registered_mobs,
+                        default_values=[
+                            name for name in profile.mobs if name in registered_mobs
+                        ],
+                        select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE,
+                        size=(48, min(12, max(4, len(registered_mobs)))),
+                        key="-EDIT-MAP-MOBS-",
+                    )
+                ],
+                [sg.Button("Save"), sg.Button("Cancel")],
+            ],
+            modal=True,
+            finalize=True,
+        )
+        try:
+            event, values = popup.read()
+            if event != "Save":
+                return
+            try:
+                self.map_catalog.update_mobs(
+                    profile.name,
+                    values.get("-EDIT-MAP-MOBS-", []),
+                )
+            except (OSError, ValueError) as error:
+                self.show_error(f"Could not update map mobs: {error}")
+                return
+        finally:
+            popup.close()
+
+        self.__reload_map_catalog(selected_name=profile.name)
+        self.__apply_map_selection(bot, profile.name, publish_preview=False)
+        self.runtime_bus.log(
+            f"Updated available mobs for '{profile.name}'.",
+            "msg_green",
+        )
+
+    def __reset_selected_map(self, bot):
+        if not self.__map_management_available():
+            return
+        name = self._selected_map_name
+        answer = sg.popup_yes_no(
+            f"Reset all persistent mapping progress for '{name}'?\n\n"
+            "The named map and its mob list will remain. Diagnostic run folders "
+            "will be kept. This cannot be undone.",
+            title="Reset Map Progress",
+            keep_on_top=True,
+        )
+        if answer != "Yes":
+            return
+        try:
+            self.map_catalog.reset_map(name)
+        except (OSError, ValueError) as error:
+            self.show_error(f"Could not reset map: {error}")
+            return
+        self.__clear_live_map(f"{name}: map progress reset — next run starts empty.")
+        self.__apply_map_selection(bot, name, publish_preview=False)
+        self.runtime_bus.log(
+            f"Reset persistent mapping progress for '{name}'.",
+            "msg_green",
+        )
+
+    def __delete_selected_map(self, bot):
+        if not self.__map_management_available():
+            return
+        name = self._selected_map_name
+        if len(self.map_names) <= 1:
+            self.show_error("At least one map profile must remain.")
+            return
+
+        popup = sg.Window(
+            "Delete Map",
+            [
+                [sg.Text(f"Delete map profile '{name}' and its persistent map?")],
+                [
+                    sg.Checkbox(
+                        "Also delete diagnostic mapping-run history",
+                        default=False,
+                        key="-DELETE-MAP-RUNS-",
+                    )
+                ],
+                [
+                    sg.Button(
+                        "Delete",
+                        button_color=("white", "#a83232"),
+                    ),
+                    sg.Button("Cancel"),
+                ],
+            ],
+            modal=True,
+            finalize=True,
+        )
+        try:
+            event, values = popup.read()
+            if event != "Delete":
+                return
+            try:
+                selected = self.map_catalog.delete_map(
+                    name,
+                    delete_run_history=bool(values.get("-DELETE-MAP-RUNS-", False)),
+                )
+            except (OSError, ValueError) as error:
+                self.show_error(f"Could not delete map: {error}")
+                return
+        finally:
+            popup.close()
+
+        selected = self.__reload_map_catalog(selected_name=selected)
+        self.__apply_map_selection(bot, selected, publish_preview=True)
+        self.runtime_bus.log(f"Deleted map profile '{name}'.", "msg_green")
 
     def __set_hotkeys(self):
         self.window.bind("<Alt_L><s>", "-STOP_BOT-")
@@ -626,6 +1341,26 @@ class Gui:
                 ],
                 [
                     sg.Button(
+                        "Native Dry Run (No Learning)",
+                        disabled=True,
+                        key="-DRY_RUN-",
+                        expand_x=True,
+                    )
+                ],
+                [
+                    sg.Button(
+                        "Validate Training Data (No Learning)",
+                        disabled=True,
+                        key="-VALIDATE_DATA-",
+                        expand_x=True,
+                        tooltip=(
+                            "Runs the live training input pipeline and creates a "
+                            "SEND_TO_CHATGPT debug ZIP."
+                        ),
+                    )
+                ],
+                [
+                    sg.Button(
                         "Start Training",
                         disabled=True,
                         key="-START_BOT-",
@@ -640,31 +1375,45 @@ class Gui:
                 ],
                 [
                     sg.Button(
-                        "Set Minimap Center",
+                        "Calibrate Minimap (optional)",
                         disabled=True,
                         key="-SET_MINIMAP_ANCHOR-",
                         expand_x=True,
                     ),
+                ],
+                [
+                    sg.Text(
+                        "Player HP is read automatically from the status panel.",
+                        tooltip="Keep the full player-status panel visible.",
+                    ),
+                ],
+                [
                     sg.Button(
-                        "Calibrate Mapper",
+                        "Native Health",
                         disabled=True,
-                        key="-CALIBRATE_MAPPER-",
+                        key="-NATIVE_HEALTH-",
+                        expand_x=True,
+                    ),
+                    sg.Button(
+                        "Recover Pointers",
+                        disabled=True,
+                        key="-RECOVER_POINTERS-",
                         expand_x=True,
                     ),
                 ],
                 [
                     sg.Button(
-                        "Debug Heading Calibration",
-                        disabled=True,
-                        key="-DEBUG_CALIBRATE_MAPPER-",
-                        expand_x=True,
-                    ),
-                ],
-                [
-                    sg.Button(
-                        "Map Area",
+                        "Map Area (Automatic)",
                         disabled=True,
                         key="-START_MAPPER-",
+                        expand_x=True,
+                    )
+                ],
+                [
+                    sg.Button(
+                        "Trace Map While I Drive",
+                        disabled=True,
+                        key="-START_MANUAL_MAPPER-",
                         expand_x=True,
                     )
                 ],
@@ -686,6 +1435,46 @@ class Gui:
                         key="-ATTACHED_WINDOW-",
                         size=(34, 2),
                     )
+                ],
+            ],
+            expand_x=True,
+        )
+
+        map_config = sg.Frame(
+            "Map:",
+            [
+                [
+                    sg.Text("Selected map:"),
+                    sg.Combo(
+                        self.map_names,
+                        default_value=self._selected_map_name,
+                        readonly=True,
+                        enable_events=True,
+                        key="-MAP-NAME-",
+                        expand_x=True,
+                    ),
+                ],
+                [
+                    sg.Text(
+                        "Mobs: --",
+                        key="-MAP-MOBS-",
+                        size=(38, 2),
+                    )
+                ],
+                [
+                    sg.Button("Add Map", key="-ADD_MAP-"),
+                    sg.Button("Edit Map Mobs", key="-EDIT_MAP_MOBS-"),
+                ],
+                [
+                    sg.Button("Edit Map Cells", key="-EDIT_MAP_CELLS-", expand_x=True),
+                ],
+                [
+                    sg.Button("Reset Progress", key="-RESET_MAP-"),
+                    sg.Button(
+                        "Delete Map",
+                        key="-DELETE_MAP-",
+                        button_color=("white", "#a83232"),
+                    ),
                 ],
             ],
             expand_x=True,
@@ -798,6 +1587,7 @@ class Gui:
         controls = sg.Column(
             [
                 [actions],
+                [map_config],
                 [mobs_config],
                 [options],
                 [status],
@@ -817,7 +1607,7 @@ class Gui:
                     sg.Text("Image Resolution:"),
                     sg.Combo(
                         list(self.frame_resolutions.keys()),
-                        default_value="960x540",
+                        default_value="Fit panel",
                         readonly=True,
                         key="-DEBUG_IMG_WIDTH-",
                     ),
@@ -826,12 +1616,15 @@ class Gui:
                     sg.Image(
                         filename="",
                         key="-DEBUG_IMAGE-",
-                        size=(960, 540),
+                        size=(1, 1),
+                        expand_x=True,
+                        expand_y=True,
                     )
                 ],
             ],
             visible=True,
             expand_x=True,
+            expand_y=True,
             key="-VISION_FRAME-",
         )
 
@@ -843,13 +1636,13 @@ class Gui:
                     sg.Text("Explored", text_color="white"),
                     sg.Text("Wall / obstacle", text_color="black"),
                     sg.Text("Teleport", text_color="red"),
-                    sg.Text("Pang", text_color="cyan"),
-                    sg.Text("Player + heading", text_color="yellow"),
+                    sg.Text("Player", text_color="yellow"),
+                    sg.Text("Detected monster (square)", text_color="light green"),
                 ],
                 [
                     sg.Image(
                         data=self.__make_live_map_placeholder(
-                            "No map yet — click Map Area to begin."
+                            "Select a map to load its persistent progress."
                         ),
                         key="-MAPPER_IMAGE-",
                         size=(960, 245),
@@ -871,6 +1664,36 @@ class Gui:
         )
 
         return [title, [controls, visuals]]
+
+    def __preview_target_size(self, selected_resolution):
+        configured = self.frame_resolutions.get(selected_resolution)
+        if configured is not None:
+            return configured
+
+        # PySimpleGUI's Image element is backed by a Tk Label. With expansion
+        # enabled its actual widget size follows the current bot-view panel,
+        # so fullscreen and small-window previews use the same available area
+        # rather than the game capture's source resolution.
+        try:
+            widget = self.window["-DEBUG_IMAGE-"].Widget
+            width = int(widget.winfo_width())
+            height = int(widget.winfo_height())
+        except Exception:
+            width, height = 0, 0
+
+        if width < 64 or height < 64:
+            try:
+                frame_widget = self.window["-VISION_FRAME-"].Widget
+                width = max(64, int(frame_widget.winfo_width()) - 18)
+                height = max(64, int(frame_widget.winfo_height()) - 62)
+            except Exception:
+                width, height = 960, 540
+
+        # Avoid transient one-pixel or absurd values while Tk is relaying out
+        # a resized window. The next preview frame will use the final size.
+        width = max(160, min(width, 3840))
+        height = max(90, min(height, 2160))
+        return width, height
 
     def __fit_image(self, image, target_width, target_height):
         """Letterbox an image without changing its aspect ratio."""
@@ -995,6 +1818,8 @@ class Gui:
             None  -> stop calibration
         """
         preview = frame.copy()
+        if preview.ndim == 2 or (preview.ndim == 3 and preview.shape[2] == 1):
+            preview = cv.cvtColor(preview, cv.COLOR_GRAY2BGR)
         try:
             if self._heading_overlay_detector is None:
                 from mapper import MinimapHeadingDetector
@@ -1132,7 +1957,16 @@ class Gui:
         }
 
     def __select_mobs_popup(self, bot, is_delete_form=False):
-        all_mobs = bot.get_all_mobs()
+        registered_mobs = bot.get_all_mobs()
+        if is_delete_form:
+            all_mobs = registered_mobs
+        else:
+            allowed = set(self.map_catalog.mobs_for(self._selected_map_name))
+            all_mobs = {
+                name: params
+                for name, params in registered_mobs.items()
+                if name in allowed
+            }
         selected_mobs_names = [
             mob["name"]
             for mob in bot.config["selected_mobs"]
@@ -1230,6 +2064,11 @@ class Gui:
                 popup_window.close()
                 all_names = list(dict.keys(all_mobs))
                 selected_names = [all_names[i] for i in selected_mobs_indexes]
+                profile = self.map_catalog.get(self._selected_map_name)
+                sg.user_settings_set_entry(
+                    f"saved_selected_mobs::{profile.slug}",
+                    selected_names,
+                )
                 sg.user_settings_set_entry("saved_selected_mobs", selected_names)
                 bot.set_config(
                     selected_mobs=[all_mobs[name] for name in selected_names]
@@ -1253,7 +2092,7 @@ class Gui:
                 MobInfo.delete_mobs(deleted_mobs_names)
                 return
 
-    def __add_mob_popup(self):
+    def __add_mob_popup(self, bot):
         from assets.Assets import (
             mob_type_electricity_path,
             mob_type_fire_path,
@@ -1283,7 +2122,7 @@ class Gui:
                     sg.Input(key="-MAP-", size=(40, 20)),
                 ],
                 [
-                    sg.Text("Choose an image file (mob name): "),
+                    sg.Text("Optional legacy CV name image: "),
                     sg.Input(
                         key="-IMAGE-",
                         change_submits=True,
@@ -1297,8 +2136,24 @@ class Gui:
                     sg.Text("Enter height offset: "),
                     sg.Input(key="-HEIGHT-", enable_events=True, size=(10, 20)),
                     sg.Text(
-                        "(Number, usually in range from 40 to 100)", text_color="grey"
+                        "(Only used by the optional CV detector)", text_color="grey"
                     ),
+                ],
+                [
+                    sg.Text("Native species ID: "),
+                    sg.Input(
+                        key="-SPECIES-ID-",
+                        size=(12, 20),
+                        readonly=True,
+                    ),
+                    sg.Button("Capture targeted monster", key="-CAPTURE-SPECIES-"),
+                ],
+                [
+                    sg.Text(
+                        "Target exactly one monster in FlyFF, then capture its ID.",
+                        key="-SPECIES-STATUS-",
+                        text_color="grey",
+                    )
                 ],
                 element_buttons_layout,
                 [
@@ -1311,7 +2166,7 @@ class Gui:
                 ],
             ],
             modal=True,
-            size=(500, 225),
+            size=(620, 310),
         )
 
         while True:
@@ -1328,26 +2183,66 @@ class Gui:
                 for value in values:
                     if value.startswith("-"):
                         popup_window.Element(value).update("")
+            if event == "-CAPTURE-SPECIES-":
+                try:
+                    captured = bot.capture_selected_monster()
+                except Exception as error:  # noqa: BLE001 - GUI command boundary.
+                    popup_window["-SPECIES-STATUS-"].update(
+                        f"Capture failed: {error}",
+                        text_color="red",
+                    )
+                else:
+                    popup_window["-SPECIES-ID-"].update(str(captured.species_id))
+                    popup_window["-SPECIES-STATUS-"].update(
+                        f"Captured species {captured.species_id} from "
+                        f"0x{captured.base_address:08X} ({captured.hp} HP).",
+                        text_color="light green",
+                    )
             if event == "Save":
-                # form validation
-                is_form_valid = True
-                for key in ["-NAME-", "-MAP-", "-IMAGE-", "-HEIGHT-", "-ELEMENT-"]:
-                    if not len(values[key]):
-                        is_form_valid = False
-                        break
+                # Native registration needs only a name, map and captured
+                # species ID. Image/height/element remain optional legacy-CV
+                # metadata.
+                is_form_valid = all(
+                    len(values[key])
+                    for key in ["-NAME-", "-MAP-", "-SPECIES-ID-"]
+                )
+                if values["-IMAGE-"] and not values["-HEIGHT-"]:
+                    is_form_valid = False
 
                 if is_form_valid:
                     from assets.Assets import MobInfo
 
-                    MobInfo.add_new_mob(
-                        name=values["-NAME-"],
-                        map_name=values["-MAP-"],
-                        image_path=values["-IMAGE-"],
-                        height_offset=int(values["-HEIGHT-"]),
-                        element=values["-ELEMENT-"],
-                    )
+                    try:
+                        MobInfo.add_new_mob(
+                            name=values["-NAME-"],
+                            map_name=values["-MAP-"],
+                            image_path=values["-IMAGE-"] or None,
+                            height_offset=int(values["-HEIGHT-"] or 0),
+                            element=values["-ELEMENT-"] or "unknown",
+                            species_id=int(values["-SPECIES-ID-"]),
+                        )
+                        # Refresh the active map selection immediately so an
+                        # overwritten existing mob entry gains its captured
+                        # species ID without requiring a restart or map toggle.
+                        self.__apply_map_selection(
+                            bot,
+                            self._selected_map_name,
+                            publish_preview=False,
+                        )
+                    except Exception as error:  # noqa: BLE001 - GUI boundary.
+                        popup_window["-SPECIES-STATUS-"].update(
+                            f"Save failed: {error}",
+                            text_color="red",
+                        )
+                        continue
+
                     popup_window.close()
                     return
+                popup_window["-SPECIES-STATUS-"].update(
+                    "Enter a name and map, capture the target ID, and add a "
+                    "height only when a CV image is selected.",
+                    text_color="red",
+                )
             if event == "-HEIGHT-":
                 # height validation - only numbers
                 popup_window.Element(event).update(

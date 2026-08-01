@@ -1,0 +1,303 @@
+{
+  "checks": [
+    {
+      "detail": "Recorded 47 live steps.",
+      "name": "runtime_steps",
+      "status": "pass"
+    },
+    {
+      "detail": "Every recorded model observation was finite.",
+      "name": "observation_finiteness",
+      "status": "pass"
+    },
+    {
+      "detail": "Observation size stayed fixed at 482.",
+      "name": "observation_shape",
+      "status": "pass"
+    },
+    {
+      "detail": "Observed 8245 actor samples; peak visible=234.",
+      "name": "native_actor_input",
+      "status": "pass"
+    },
+    {
+      "detail": "No movement actions were recorded.",
+      "name": "player_movement",
+      "status": "warn"
+    },
+    {
+      "detail": "OCR success=47/47 (100.0%); outcomes={'ok': 47}.",
+      "name": "kill_counter_ocr",
+      "status": "pass"
+    },
+    {
+      "detail": "47/47 casts had candidates; total candidates=7485.",
+      "name": "eva_candidate_input",
+      "status": "pass"
+    },
+    {
+      "detail": "Native kills=83; OCR delta=109.",
+      "name": "kill_channel_agreement",
+      "status": "warn"
+    },
+    {
+      "detail": "The diagnostic package was recorded without internal errors.",
+      "name": "debug_artifact_integrity",
+      "status": "pass"
+    }
+  ],
+  "counts": {
+    "actions": {
+      "CAST_EVA": 47
+    },
+    "actor_samples": 8245,
+    "candidate_confirmed_traces": 83,
+    "candidate_disappearances": 691,
+    "candidate_never_zero": 7402,
+    "candidate_single_zero": 0,
+    "candidate_traces": 7485,
+    "cast_candidate_total": 7485,
+    "casts_with_candidates": 47,
+    "confirmed_actor_addresses": [
+      326847464,
+      326872064,
+      644459776,
+      644476176,
+      644508976,
+      644533576,
+      644558176,
+      644582776,
+      743182656,
+      743240056,
+      743289256,
+      743363056,
+      743428656,
+      743436856,
+      754578496,
+      754611296,
+      754627696,
+      754635896,
+      754644096,
+      754685096,
+      754775296,
+      1065477512,
+      1065502112,
+      1065518512,
+      1065559512,
+      1065575912,
+      1065584112,
+      1065592312,
+      1065608712,
+      1065625112,
+      1065633312,
+      1065657912,
+      1108472400,
+      1108529800,
+      1108562600,
+      1108587200,
+      1115064856,
+      1115073056,
+      1115081256,
+      1122580400,
+      1124829760,
+      1124862560,
+      1124887160,
+      1124895360,
+      1154333056,
+      1154398656,
+      1154406856,
+      1154415056,
+      1154431456,
+      1154505256,
+      1154513456,
+      1154521656,
+      1154554456,
+      1154587256,
+      1160898536,
+      1160914936,
+      1169107992,
+      1169124392,
+      1169132592,
+      1169148992,
+      1169157192,
+      1169255592,
+      1196953352,
+      1196961552,
+      1196977952,
+      1196986152,
+      1197010752,
+      1197018952,
+      1197059952,
+      1197068152,
+      1197084552,
+      1197174752,
+      1239260512,
+      1239276912,
+      1239285112,
+      1239293312,
+      1239342512,
+      1239367112,
+      1239391712,
+      1239465512,
+      1239514712
+    ],
+    "contacts": 0,
+    "eva_casts": 47,
+    "events": 48,
+    "hp_decreases": 83,
+    "hp_zero_transitions": 83,
+    "kill_poll_failed_reads": 0,
+    "kill_poll_successful_reads": 1493,
+    "movement_steps": 0,
+    "movement_steps_with_displacement": 0,
+    "native_kills": 83,
+    "nonfinite_observations": 0,
+    "observation_sizes": {
+      "482": 47
+    },
+    "observed_species": {
+      "944": 1185,
+      "948": 7060
+    },
+    "ocr_baseline": 368,
+    "ocr_latest": 477,
+    "ocr_outcomes": {
+      "ok": 47
+    },
+    "ocr_positive_delta": 109,
+    "pointer_generations": {
+      "1": 47
+    },
+    "pointer_modes": {
+      "independent": 47
+    },
+    "screenshots": 4,
+    "steps": 47,
+    "visible_actor_maximum": 234,
+    "visible_actor_minimum": 87
+  },
+  "extra": {
+    "error": null,
+    "latest_info": {
+      "action": 3,
+      "action_name": "CAST_EVA",
+      "contact": false,
+      "direct_clear_fraction": 1.0,
+      "eva_actors": 2,
+      "eva_available": null,
+      "held_movement": null,
+      "kill_delta": 0,
+      "map_cell": [
+        112,
+        39
+      ],
+      "map_hash": "1187BE32F029EE15A9BCC7DDC222C15568DD6550B03080A3E2CF07B1F1756D4A",
+      "map_name": "Tower AoE",
+      "native_cached_actor_slots": 1344,
+      "native_hp_candidate_offsets": [
+        2076
+      ],
+      "native_hp_offset": 2076,
+      "native_hp_offset_validated": true,
+      "native_kill_candidate_diagnostics": [],
+      "native_kill_candidates": 0,
+      "native_kill_confirmed": [],
+      "native_kill_delta": 0,
+      "native_kill_elapsed_seconds": 0.0,
+      "native_kill_failed_reads": 0,
+      "native_kill_polls": 0,
+      "native_kill_successful_reads": 0,
+      "native_pending_actor_slot_probes": 0,
+      "native_runtime_promoted_slots": 0,
+      "ocr_delta": 0,
+      "ocr_outcome": "ok",
+      "ocr_previous": 477,
+      "ocr_value": 477,
+      "player_displacement_cells": 0.0,
+      "player_heading_degrees": null,
+      "player_native_position": [
+        196.04005432128906,
+        100.0,
+        446.57220458984375
+      ],
+      "pointer_generation": 1,
+      "pointer_mode": "independent",
+      "reward_components": {
+        "contact": 0.0,
+        "density": 0.0,
+        "eva_miss": 0.0,
+        "invalid_eva": 0.0,
+        "kill": 0.0,
+        "teleport_buffer": 0.0,
+        "teleport_proximity": 0.0,
+        "teleport_trigger": 0.0,
+        "time": 0.0
+      },
+      "session_classification": "user_cancellation",
+      "session_detail": "worker cancellation was requested",
+      "session_end_policy_caused": false,
+      "session_end_reason": "user_cancelled",
+      "session_ended": true,
+      "teleport_distance_cells": 233.636474609375,
+      "visible_actors": 127
+    },
+    "native_kills": 83,
+    "ocr_kill_delta": 109,
+    "ocr_latest": 477,
+    "reward": 80.74640805700001,
+    "selected_mobs": [
+      {
+        "element": "water",
+        "height_offset": 80,
+        "map_name": "Tower AoE",
+        "name": "Captain Asterius",
+        "recovery_anchor_hp": 400236,
+        "species_id": 944
+      },
+      {
+        "element": "water",
+        "height_offset": 80,
+        "map_name": "Tower AoE",
+        "name": "Captain Dantalian",
+        "species_id": 948
+      }
+    ],
+    "steps": 48,
+    "validation_config": {
+      "cast_poll_seconds": 0.05,
+      "cast_result_timeout_seconds": 2.0,
+      "eva_cooldown_seconds": 2.0,
+      "eva_radius_cells_observation_only": 8.0,
+      "kill_zero_confirmation_reads": 2,
+      "minimum_cast_targets": 1,
+      "run_seconds": 120.0,
+      "vision_radius_cells": 50.0
+    }
+  },
+  "preflight": {
+    "actor_cache_outcome": "refreshed",
+    "actor_slots": 1344,
+    "initial_actor_count": 169,
+    "initial_map_cell": [
+      148,
+      264
+    ],
+    "map_hash": "1187BE32F029EE15A9BCC7DDC222C15568DD6550B03080A3E2CF07B1F1756D4A",
+    "map_name": "Tower AoE",
+    "map_shape": [
+      310,
+      294
+    ],
+    "player_base": 1169083392,
+    "pointer_generation": 1,
+    "world_base": 0
+  },
+  "recommendations": [
+    "Review timing around casts; the two kill channels disagreed on the count."
+  ],
+  "recorder_errors": [],
+  "session_classification": "user_cancellation",
+  "session_reason": "user_cancelled",
+  "verdict": "warn",
+  "version": 1
+}

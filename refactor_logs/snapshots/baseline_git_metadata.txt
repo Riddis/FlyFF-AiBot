@@ -1,0 +1,25 @@
+Command: [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ss.fffZ'); git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' branch --show-current; git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' rev-parse HEAD; git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' log -1 --format='%H%n%aI%n%s'; git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' status --porcelain=v2 --branch; git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' branch --all; git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' tag --list 'codex-refactor*' 'pre-refactor*'
+
+Exit code: 0
+Wall time: 1.7 seconds
+Output:
+2026-07-30T22:38:53.828Z
+feature/adaptive-mapper
+174208614c7c8a916bd7c0dce5cbbb5f2a4e5239
+174208614c7c8a916bd7c0dce5cbbb5f2a4e5239
+2026-07-31T00:29:57+02:00
+Backup before refactor
+# branch.oid 174208614c7c8a916bd7c0dce5cbbb5f2a4e5239
+# branch.head feature/adaptive-mapper
+1 .D N... 100644 100644 000000 7b998ca4189c7c5102eaeee4796e77588aef0898 7b998ca4189c7c5102eaeee4796e77588aef0898 AGENTS.md
+1 .D N... 100644 100644 000000 240cf482ee3fe7ef3cfb140ce9a43096a9829929 240cf482ee3fe7ef3cfb140ce9a43096a9829929 README.md
+1 .D N... 100644 100644 000000 303b14bc72fc1224dc5778c74ea137adb01a5643 303b14bc72fc1224dc5778c74ea137adb01a5643 foreground_vision_farm.json
+? codex_refactor_prompt_with_resume_logs.md
+? refactor_logs/
+  calibration-mapping-review
+* feature/adaptive-mapper
+  main
+  refactor/runtime-stability
+  remotes/origin/main
+  remotes/origin/refactor/runtime-stability
+

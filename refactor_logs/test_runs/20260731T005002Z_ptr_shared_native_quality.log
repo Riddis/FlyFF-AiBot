@@ -1,0 +1,9 @@
+Commands and results:
+- compileall over position, Bot.py, and new tests: pass.
+- Ruff --select F,I over every touched Phase 02 file: pass.
+- BasedPyright --level error over production native_process_service.py and
+  attachment_factory.py: 0 errors, 0 warnings.
+- git diff --check over production/tests: pass.
+
+Targeted test-only BasedPyright still reports existing implicit-import layout
+diagnostics plus fake-object narrowing diagnostics; production new modules pass.

@@ -1,0 +1,9 @@
+Command:
+.venv\Scripts\python.exe -m pytest -q foreground_vision_bot/tests
+
+Result:
+555 passed, 2 failed, 1 skipped, 2 warnings in 6.29s
+
+Unchanged failures:
+1. Shipped mapper JSON has enclosed autofill area 1; test expects 12.
+2. Obsolete V0674 source-string assertion expects orbit diagnostics.

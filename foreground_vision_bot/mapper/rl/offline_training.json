@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "map": "Tower AoE",
+  "seed": 20260728,
+  "training": {
+    "total_timesteps": 1000000,
+    "parallel_envs": 8,
+    "n_steps": 512,
+    "batch_size": 256,
+    "learning_rate": 0.0003,
+    "gamma": 0.995,
+    "gae_lambda": 0.95,
+    "ent_coef": 0.01,
+    "checkpoint_frequency": 100000,
+    "report_frequency": 25000
+  },
+  "curriculum": {
+    "real_map_probability": 0.35,
+    "real_crop_minimum_size": 49,
+    "real_crop_maximum_size": 81,
+    "real_crop_minimum_free_cells": 250,
+    "synthetic_minimum_size": 49,
+    "synthetic_maximum_size": 81,
+    "synthetic_obstacle_count_min": 8,
+    "synthetic_obstacle_count_max": 24,
+    "synthetic_long_barrier_count_min": 1,
+    "synthetic_long_barrier_count_max": 4,
+    "synthetic_teleport_zone_probability": 0.2
+  },
+  "simulator": {
+    "max_steps": 1600,
+    "completion_coverage": 0.65,
+    "base_camera_obstruction_probability": 0.01,
+    "contact_camera_obstruction_probability": 0.08,
+    "heading_dropout_probability": 0.015,
+    "turn_heading_dropout_probability": 0.04,
+    "wall_slide_probability": 0.35,
+    "lateral_slide_cell_probability": 0.16
+  },
+  "evaluation": {
+    "episodes": 10,
+    "max_steps": 5000,
+    "periodic_episodes": 3,
+    "periodic_frequency": 100000
+  },
+  "output": {
+    "model": "models/mapping/mapper_explorer_ppo",
+    "checkpoints": "models/mapping/checkpoints/offline",
+    "best": "models/mapping/best/mapper_explorer_ppo",
+    "evaluations": "models/mapping/evaluations/offline_real_map.jsonl",
+    "tensorboard": "training_logs/mapping/offline"
+  }
+}

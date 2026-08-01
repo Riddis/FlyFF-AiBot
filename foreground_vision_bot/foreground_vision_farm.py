@@ -34,10 +34,15 @@ def main():
         except Exception as popup_error:  # noqa: BLE001 - preserve original failure.
             print(f"Could not display the visible error dialog: {popup_error}")
     finally:
-        # A GUI exception must never strand non-daemon capture/control workers
-        # and keep the interpreter alive after the main window disappears.
-        if gui.controller is not None:
-            gui.controller.shutdown(timeout=8.0)
+        # The normal close event owns shutdown. This is the one fallback for an
+        # exception that exits the GUI loop before shutdown completed.
+        if gui.controller is not None and not gui.controller.shutdown_finalized:
+            results = gui.controller.shutdown(timeout=8.0)
+            timed_out = [
+                kind.value for kind, stopped in results.items() if not stopped
+            ]
+            if timed_out:
+                print("Shutdown timed out while waiting for: " + ", ".join(timed_out))
         gui.close()
 
 

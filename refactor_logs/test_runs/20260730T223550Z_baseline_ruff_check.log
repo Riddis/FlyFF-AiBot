@@ -1,0 +1,1091 @@
+Command: .venv/Scripts/ruff.exe check .
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+Environment: .venv Python 3.14.3
+
+Exit code: 0
+Wall time: 1.8 seconds
+Total output lines: 5302
+Output:
+F401 [*] `math.atan2` imported but unused
+  --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:20:18
+   |
+18 | """
+19 |
+20 | from math import atan2, cos, hypot, isfinite, pi, sin, tanh
+   |                  ^^^^^
+21 | from time import monotonic
+22 | from typing import Any, Iterable, Sequence
+   |
+help: Remove unused import: `math.atan2`
+   |
+19 |
+   - from math import atan2, cos, hypot, isfinite, pi, sin, tanh
+20 + from math import cos, hypot, isfinite, pi, sin, tanh
+21 | from time import monotonic
+   |
+
+UP035 [*] Import from `collections.abc` instead: `Iterable`, `Sequence`
+  --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:22:1
+   |
+20 | from math import atan2, cos, hypot, isfinite, pi, sin, tanh
+21 | from time import monotonic
+22 | from typing import Any, Iterable, Sequence
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+23 |
+24 | import numpy as np
+   |
+help: Import from `collections.abc`
+   |
+21 | from time import monotonic
+   - from typing import Any, Iterable, Sequence
+22 + from typing import Any
+23 + from collections.abc import Iterable, Sequence
+24 |
+   |
+
+F401 [*] `.LiveNavigatorController.LiveNavigatorController` imported but unused
+  --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:34:38
+   |
+33 | from . import V0672NativeFarmingFixes as v0672
+34 | from .LiveNavigatorController import LiveNavigatorController
+   |                                      ^^^^^^^^^^^^^^^^^^^^^^^
+35 | from .NativeFarmingEnv import NativeFarmingEnv
+   |
+help: Remove unused import: `.LiveNavigatorController.LiveNavigatorController`
+   |
+33 | from . import V0672NativeFarmingFixes as v0672
+   - from .LiveNavigatorController import LiveNavigatorController
+34 | from .NativeFarmingEnv import NativeFarmingEnv
+   |
+
+RUF046 Value being cast to `int` is already an integer
+   --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:334:25
+    |
+333 |     interval = _control_interval(self)
+334 |     hold_steps = max(1, int(round(1.2 / interval)))
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+335 |     phase = (int(getattr(self, "_episode_steps", 0)) // hold_steps) % 5
+336 |     # Long forward sections separated by left and right arcs make held-key and
+    |
+help: Remove unnecessary `int` call
+
+TRY004 Prefer `TypeError` exception for invalid type
+   --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:354:9
+    |
+352 |     execute = getattr(executor, "execute", None)
+353 |     if not callable(execute):
+354 |         raise RuntimeError("Live navigator executor does not expose execute(action)")
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+355 |     execute(action)
+356 |     env._v0700_held_action = action
+    |
+
+UP037 [*] Remove quotes from type annotation
+   --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:462:18
+    |
+460 |     pose: Any,
+461 |     player_cell: tuple[int, int] | None,
+462 |     map_adapter: "_MapAdapter",
+    |                  ^^^^^^^^^^^^^
+463 | ) -> tuple[np.ndarray, float]:
+464 |     result = np.zeros(MONSTER_SLOTS * MONSTER_FEATURES, dtype=np.float32)
+    |
+help: Remove quotes
+    |
+461 |     player_cell: tuple[int, int] | None,
+    -     map_adapter: "_MapAdapter",
+462 +     map_adapter: _MapAdapter,
+463 | ) -> tuple[np.ndarray, float]:
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:480:12
+    |
+478 |     try:
+479 |         actors = tuple(env.bot.get_native_monsters(vision_radius_native=radius_native))
+480 |     except Exception:
+    |            ^^^^^^^^^
+481 |         actors = ()
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:556:12
+    |
+554 |     try:
+555 |         return env.bot.get_navigation_pose(max_heading_age_seconds=1.5)
+556 |     except Exception:
+    |            ^^^^^^^^^
+557 |         return None
+    |
+
+RUF046 Value being cast to `int` is already an integer
+   --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:809:16
+    |
+807 |             0.0,
+808 |         )
+809 |         return int(round((x - origin_x) / units)), int(round((z - origin_z) / units))
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+810 |
+811 |     def normalized_position(
+    |
+help: Remove unnecessary `int` call
+
+RUF046 Value being cast to `int` is already an integer
+   --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:809:52
+    |
+807 |             0.0,
+808 |         )
+809 |         return int(round((x - origin_x) / units)), int(round((z - origin_z) / units))
+    |                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+810 |
+811 |     def normalized_position(
+    |
+help: Remove unnecessary `int` call
+
+RUF046 Value being cast to `int` is already an integer
+   --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:997:20
+    |
+995 |     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)) and len(value) >= 2:
+996 |         try:
+997 |             return int(round(float(value[0]))), int(round(float(value[1])))
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+998 |         except (TypeError, ValueError):
+999 |             return None
+    |
+help: Remove unnecessary `int` call
+
+RUF046 Value being cast to `int` is already an integer
+   --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:997:49
+    |
+995 |     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)) and len(value) >= 2:
+996 |         try:
+997 |             return int(round(float(value[0]))), int(round(float(value[1])))
+    |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+998 |         except (TypeError, ValueError):
+999 |             return None
+    |
+help: Remove unnecessary `int` call
+
+RUF046 Value being cast to `int` is already an integer
+    --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:1003:24
+     |
+1001 |         if hasattr(value, first) and hasattr(value, second):
+1002 |             try:
+1003 |                 return int(round(float(getattr(value, first)))), int(
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1004 |                     round(float(getattr(value, second)))
+1005 |                 )
+     |
+help: Remove unnecessary `int` call
+
+RUF046 Value being cast to `int` is already an integer
+    --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\libs\V0700UnifiedFarming.py:1003:66
+     |
+1001 |           if hasattr(value, first) and hasattr(value, second):
+1002 |               try:
+1003 |                   return int(round(float(getattr(value, first)))), int(
+     |  __________________________________________________________________^
+1004 | |                     round(float(getattr(value, second)))
+1005 | |                 )
+     | |_________________^
+1006 |               except (TypeError, ValueError):
+1007 |                   return None
+     |
+help: Remove unnecessary `int` call
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\native_farming.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import json
+ 4 | | import traceback
+ 5 | | from collections import Counter, deque
+ 6 | | from collections.abc import Callable
+ 7 | | from dataclasses import dataclass, fields
+ 8 | | from pathlib import Path
+ 9 | | from time import monotonic, sleep
+10 | |
+11 | | import numpy as np
+12 | |
+13 | | from libs.CameraDiscoverySweep import CameraDiscoverySweep
+14 | | from libs.LiveNavigatorController import LiveNavigatorConfig, LiveNavigatorController
+15 | | from libs.NativeFarmingEnv import NativeFarmingEnv, NativeFarmingEnvConfig
+16 | | from libs.NativeFarmingObservation import (
+17 | |     NativeFarmingObservationBuilder,
+18 | |     NativeFarmingObservationConfig,
+19 | | )
+20 | | from libs.NativeMapContext import NativeMapContext
+21 | | from project_paths import resolve_app_path
+22 | | from worker_manager import CancellationToken
+23 | |
+24 | | from libs.V0672NativeFarmingFixes import install_v0672_fixes
+   | |____________________________________________________________^
+25 |
+26 |   install_v0672_fixes()
+   |
+help: Organize imports
+   |
+11 | import numpy as np
+   -
+12 | from libs.CameraDiscoverySweep import CameraDiscoverySweep
+--------------------------------------------------------------------------------
+19 | from libs.NativeMapContext import NativeMapContext
+20 + from libs.V0672NativeFarmingFixes import install_v0672_fixes
+21 | from project_paths import resolve_app_path
+22 | from worker_manager import CancellationToken
+   -
+   - from libs.V0672NativeFarmingFixes import install_v0672_fixes
+23 |
+   |
+
+UP037 [*] Remove quotes from type annotation
+  --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\native_farming.py:66:64
+   |
+65 |     @classmethod
+66 |     def load(cls, path: str | Path = "native_farming.json") -> "NativeFarmingConfig":
+   |                                                                ^^^^^^^^^^^^^^^^^^^^^
+67 |         resolved = resolve_app_path(path)
+68 |         if not resolved.is_file():
+   |
+help: Remove quotes
+   |
+65 |     @classmethod
+   -     def load(cls, path: str | Path = "native_farming.json") -> "NativeFarmingConfig":
+66 +     def load(cls, path: str | Path = "native_farming.json") -> NativeFarmingConfig:
+67 |         resolved = resolve_app_path(path)
+   |
+
+TRY004 Prefer `TypeError` exception for invalid type
+  --> foreground_vision_bot\.patch_backups\v0704_20260730T194622Z\native_farming.py:72:13
+   |
+70 |         payload = json.loads(resolved.read_text(encoding="utf-8"))
+71 |         if not isinstance(payload, dict):
+72 |             raise ValueError("native_farming.json must contain an object")
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+73 |         supported = {field.name for field in fields(cls)}
+74 |         values = {
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> foreground_vision_bot\.patch_backups\v0705_20260730_215605\libs\LiveNavigatorController.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | from dataclasses import dataclass
+ 4 | | from math import hypot, isfinite
+ 5 | | from pathlib import Path
+ 6 | | from time import monotonic, sleep
+ 7 | | from typing import Any, Callable
+ 8 | |
+ 9 | | import numpy as np
+10 | |
+11 | | from mapper.rl.LayoutSources import FullRealMapGenerator, RealMapData
+12 | | from mapper.rl.NavigatorCore import (
+13 | |     NavigatorAction,
+14 | |     NavigatorOutcome,
+15 | |     NavigatorSimulatorConfig,
+16 | |     NavigatorSimulatorCore,
+17 | |     compute_distance_field,
+18 | | )
+19 | | from mapper.rl.NavigatorTraining import load_navigator_config
+20 | | from project_paths import resolve_app_path
+21 | | from worker_manager import CancellationToken
+22 | |
+23 | | from .NativeMapContext import NativeMapContext
+24 | | from .NavigatorActionExecutor import NavigatorActionExecutor
+   | |____________________________________________________________^
+   |
+help: Organize imports
+   |
+9  | import numpy as np
+   -
+10 | from mapper.rl.LayoutSources import FullRealMapGenerator, RealMapData
+   |
+
+UP035 [*] Import from `collections.abc` instead: `Callable`
+ --> foreground_vision_bot\.patch_backups\v0705_20260730_215605\libs\LiveNavigatorController.py:7:1
+  |
+5 | from pathlib import Path
+6 | from time import monotonic, sleep
+7 | from typing import Any, Callable
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+8 |
+9 | import numpy as np
+  |
+help: Import from `collections.abc`
+  |
+6 | from time import monotonic, sleep
+  - from typing import Any, Callable
+7 + from typing import Any
+8 + from collections.abc import Callable
+9 |
+  |
+
+UP037 [*] Remove quotes from type annotation
+  --> foreground_vision_bot\.patch_backups\v0705_20260730_215605\libs\LiveNavigatorController.py:70:34
+   |
+69 |     @classmethod
+70 |     def load(cls, path: Path) -> "_PolicyAdapter":
+   |                                  ^^^^^^^^^^^^^^^^
+71 |         if not path.is_file():
+72 |             alternative = path.with_suffix(".zip")
+   |
+help: Remove quotes
+   |
+69 |     @classmethod
+   -     def load(cls, path: Path) -> "_PolicyAdapter":
+70 +     def load(cls, path: Path) -> _PolicyAdapter:
+71 |         if not path.is_file():
+   |
+
+RUF100 [*] Unused `noqa` directive (unused: `BLE001`)
+  --> foreground_vision_bot\.patch_backups\v0705_20260730_215605\libs\LiveNavigatorController.py:88:45
+   |
+87 |                 return cls(PPO.load(str(path)), supports_masks=False)
+88 |             except Exception as ppo_error:  # noqa: BLE001 - include both causes.
+   |                                             ^^^^^^^^^^^^^^
+89 |                 raise RuntimeError(
+90 |                     "Could not load the movement navigator as MaskablePPO or PPO. "
+   |
+help: Remove unused `noqa` directive
+   |
+87 |                 return cls(PPO.load(str(path)), supports_masks=False)
+   -             except Exception as ppo_error:  # noqa: BLE001 - include both causes.
+88 +             except Exception as ppo_error:
+89 |                 raise RuntimeError(
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> foreground_vision_bot\.patch_backups\v0705_20260730_215605\native_farming.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import json
+ 4 | | import traceback
+ 5 | | from collections import Counter, deque
+ 6 | | from collections.abc import Callable
+ 7 | | from dataclasses import dataclass, fields
+ 8 | | from pathlib import Path
+ 9 | | from time import monotonic, sleep
+10 | |
+11 | | import numpy as np
+12 | |
+13 | | from libs.CameraDiscoverySweep import CameraDiscoverySweep
+14 | | from libs.LiveNavigatorController import LiveNavigatorConfig, LiveNavigatorController
+15 | | from libs.NativeFarmingEnv import NativeFarmingEnv, NativeFarmingEnvConfig
+16 | | from libs.NativeFarmingObservation import (
+17 | |     NativeFarmingObservationBuilder,
+18 | |     NativeFarmingObservationConfig,
+19 | | )
+20 | | from libs.NativeMapContext import NativeMapContext
+21 | | from project_paths import resolve_app_path
+22 | | from worker_manager import CancellationToken
+23 | |
+24 | | from libs.V0672NativeFarmingFixes import install_v0672_fixes
+   | |____________________________________________________________^
+25 |
+26 |   install_v0672_fixes()
+   |
+help: Organize imports
+   |
+11 | import numpy as np
+   -
+12 | from libs.CameraDiscoverySweep import CameraDiscoverySweep
+--------------------------------------------------------------------------------
+19 | from libs.NativeMapContext import NativeMapContext
+20 + from libs.V0672NativeFarmingFixes import install_v0672_fixes
+21 | from project_paths import resolve_app_path
+22 | from worker_manager import CancellationToken
+   -
+   - from libs.V0672NativeFarmingFixes import install_v0672_fixes
+23 |
+   |
+
+UP037 [*] Remove quotes from type annotation
+  --> foreground_vision_bot\.patch_backups\v0705_20260730_215605\native_farming.py:66:64
+   |
+65 |     @classmethod
+66 |     def load(cls, path: str | Path = "native_farming.json") -> "NativeFarmingConfig":
+   |                                                                ^^^^^^^^^^^^^^^^^^^^^
+67 |         resolved = resolve_app_path(path)
+68 |         if not resolved.is_file():
+   |
+help: Remove quotes
+   |
+65 |     @classmethod
+   -     def load(cls, path: str | Path = "native_farming.json") -> "NativeFarmingConfig":
+66 +     def load(cls, path: str | Path = "native_farming.json") -> NativeFarmingConfig:
+67 |         resolved = resolve_app_path(path)
+   |
+
+TRY004 Prefer `TypeError` exception for invalid type
+  --> foreground_vision_bot\.patch_backups\v0705_20260730_215605\native_farming.py:72:13
+   |
+70 |         payload = json.loads(resolved.read_text(encoding="utf-8"))
+71 |         if not isinstance(payload, dict):
+72 |             raise ValueError("native_farming.json must contain an object")
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+73 |         supported = {field.name for field in fields(cls)}
+74 |         values = {
+   |
+
+F401 [*] `pathlib.Path` imported but unused
+ --> foreground_vision_bot\.patch_backups\v0706_20260730_220637\libs\CameraDiscoverySweep.py:6:21
+  |
+4 | from dataclasses import dataclass
+5 | from math import hypot
+6 | from pathlib import Path
+  |                     ^^^^
+7 | from time import monotonic, sleep
+8 | from typing import Callable
+  |
+help: Remove unused import: `pathlib.Path`
+  |
+5 | from math import hypot
+  - from pathlib import Path
+6 | from time import monotonic, sleep
+  |
+
+UP035 [*] Import from `collections.abc` instead: `Callable`
+  --> foreground_vision_bot\.patch_backups\v0706_20260730_220637\libs\CameraDiscoverySweep.py:8:1
+   |
+ 6 | from pathlib import Path
+ 7 | from time import monotonic, sleep
+ 8 | from typing import Callable
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 9 |
+10 | from project_paths import resolve_app_path
+   |
+help: Import from `collections.abc`
+  |
+7 | from time import monotonic, sleep
+  - from typing import Callable
+8 + from collections.abc import Callable
+9 |
+  |
+
+UP037 [*] Remove quotes from type annotation
+  --> foreground_vision_bot\.patch_backups\v0706_20260730_220637\libs\CameraDiscoverySweep.py:35:36
+   |
+34 |     @classmethod
+35 |     def from_mapper_config(cls) -> "CameraDiscoveryConfig":
+   |                                    ^^^^^^^^^^^^^^^^^^^^^^^
+36 |         path = resolve_app_path("mapper/coordinate_mapper.json")
+37 |         if not path.is_file():
+   |
+help: Remove quotes
+   |
+34 |     @classmethod
+   -     def from_mapper_config(cls) -> "CameraDiscoveryConfig":
+35 +     def from_mapper_config(cls) -> CameraDiscoveryConfig:
+36 |         path = resolve_app_path("mapper/coordinate_mapper.json")
+   |
+
+BLE001 Do not catch blind exception: `Exception`
+  --> foreground_vision_bot\.patch_backups\v0706_20260730_220637\libs\CameraDiscoverySweep.py:73:16
+   |
+71 |         try:
+72 |             world = provider.read_world_base()
+73 |         except Exception:
+   |                ^^^^^^^^^
+74 |             return False
+75 |         if not self._completed or self._last_world != world:
+   |
+
+S110 `try`-`except`-`pass` detected, consider logging the exception
+   --> foreground_vision_bot\.patch_backups\v0706_20260730_220637\libs\CameraDiscoverySweep.py:116:13
+    |
+114 |               try:
+115 |                   keyboard.key_up(right_key)
+116 | /             except Exception:
+117 | |                 pass
+    | |____________________^
+118 |
+119 |           provider.discover_slots(force=True)
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\.patch_backups\v0706_20260730_220637\libs\CameraDiscoverySweep.py:116:20
+    |
+114 |             try:
+115 |                 keyboard.key_up(right_key)
+116 |             except Exception:
+    |                    ^^^^^^^^^
+117 |                 pass
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> foreground_vision_bot\.patch_backups\v0706_20260730_220637\libs\HumanKeyboard.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | from collections.abc import Iterable
+ 4 | | import ctypes
+ 5 | | from dataclasses import dataclass
+ 6 | | from math import isfinite
+ 7 | | from threading import Event, RLock, Thread
+ 8 | | from time import monotonic, sleep
+ 9 | |
+10 | | import win32api
+11 | | import win32con
+   | |_______________^
+12 |
+13 |   VKEY = {
+   |
+help: Organize imports
+  |
+2 |
+3 + import ctypes
+4 | from collections.abc import Iterable
+  - import ctypes
+5 | from dataclasses import dataclass
+  |
+
+S112 `try`-`except…36508 tokens truncated…ng import Callable
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 9 |
+10 | from project_paths import resolve_app_path
+   |
+help: Import from `collections.abc`
+  |
+7 | from time import monotonic, sleep
+  - from typing import Callable
+8 + from collections.abc import Callable
+9 |
+  |
+
+UP037 [*] Remove quotes from type annotation
+  --> foreground_vision_bot\v0706_patch\files\libs\CameraDiscoverySweep.py:45:36
+   |
+44 |     @classmethod
+45 |     def from_mapper_config(cls) -> "CameraDiscoveryConfig":
+   |                                    ^^^^^^^^^^^^^^^^^^^^^^^
+46 |         path = resolve_app_path("mapper/coordinate_mapper.json")
+47 |         if not path.is_file():
+   |
+help: Remove quotes
+   |
+44 |     @classmethod
+   -     def from_mapper_config(cls) -> "CameraDiscoveryConfig":
+45 +     def from_mapper_config(cls) -> CameraDiscoveryConfig:
+46 |         path = resolve_app_path("mapper/coordinate_mapper.json")
+   |
+
+BLE001 Do not catch blind exception: `Exception`
+  --> foreground_vision_bot\v0706_patch\files\libs\CameraDiscoverySweep.py:83:16
+   |
+81 |         try:
+82 |             world = provider.read_world_base()
+83 |         except Exception:
+   |                ^^^^^^^^^
+84 |             return False
+85 |         if not self._completed or self._last_world != world:
+   |
+
+S110 `try`-`except`-`pass` detected, consider logging the exception
+   --> foreground_vision_bot\v0706_patch\files\libs\CameraDiscoverySweep.py:124:13
+    |
+122 |               try:
+123 |                   keyboard.key_up(right_key)
+124 | /             except Exception:
+125 | |                 pass
+    | |____________________^
+126 |
+127 |           provider.discover_slots(force=True)
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0706_patch\files\libs\CameraDiscoverySweep.py:124:20
+    |
+122 |             try:
+123 |                 keyboard.key_up(right_key)
+124 |             except Exception:
+    |                    ^^^^^^^^^
+125 |                 pass
+    |
+
+S110 `try`-`except`-`pass` detected, consider logging the exception
+   --> foreground_vision_bot\v0706_patch\files\libs\CameraDiscoverySweep.py:152:13
+    |
+150 |               try:
+151 |                   focus_target()
+152 | /             except Exception:
+153 | |                 # Automatic focus is best-effort. The manual grace period below
+154 | |                 # remains the reliable fallback on restrictive Windows setups.
+155 | |                 pass
+    | |____________________^
+156 |
+157 |           if is_foreground():
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0706_patch\files\libs\CameraDiscoverySweep.py:152:20
+    |
+150 |             try:
+151 |                 focus_target()
+152 |             except Exception:
+    |                    ^^^^^^^^^
+153 |                 # Automatic focus is best-effort. The manual grace period below
+154 |                 # remains the reliable fallback on restrictive Windows setups.
+    |
+
+S110 `try`-`except`-`pass` detected, consider logging the exception
+   --> foreground_vision_bot\v0706_patch\files\libs\CameraDiscoverySweep.py:187:17
+    |
+185 |                   try:
+186 |                       focus_target()
+187 | /                 except Exception:
+188 | |                     pass
+    | |________________________^
+189 |                   next_retry = now + 1.0
+190 |               self._wait(min(self.config.focus_poll_seconds, max(0.0, deadline - now)))
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0706_patch\files\libs\CameraDiscoverySweep.py:187:24
+    |
+185 |                 try:
+186 |                     focus_target()
+187 |                 except Exception:
+    |                        ^^^^^^^^^
+188 |                     pass
+189 |                 next_retry = now + 1.0
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> foreground_vision_bot\v0706_patch\files\libs\HumanKeyboard.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | from collections.abc import Iterable
+ 4 | | import ctypes
+ 5 | | from dataclasses import dataclass
+ 6 | | from math import isfinite
+ 7 | | from threading import Event, RLock, Thread
+ 8 | | from time import monotonic, sleep
+ 9 | |
+10 | | import win32api
+11 | | import win32con
+   | |_______________^
+12 |
+13 |   VKEY = {
+   |
+help: Organize imports
+  |
+2 |
+3 + import ctypes
+4 | from collections.abc import Iterable
+  - import ctypes
+5 | from dataclasses import dataclass
+  |
+
+SIM102 Use a single `if` statement instead of nested `if` statements
+   --> foreground_vision_bot\v0706_patch\files\libs\HumanKeyboard.py:187:17
+    |
+185 |               attached_threads: list[int] = []
+186 |               for thread_id in (foreground_thread, target_thread):
+187 | /                 if thread_id and thread_id != current_thread and thread_id not in attached_threads:
+188 | |                     if user32.AttachThreadInput(current_thread, thread_id, True):
+    | |_________________________________________________________________________________^
+189 |                           attached_threads.append(thread_id)
+190 |               try:
+    |
+help: Combine `if` statements using `and`
+
+S112 `try`-`except`-`continue` detected, consider logging the exception
+   --> foreground_vision_bot\v0706_patch\files\libs\HumanKeyboard.py:278:17
+    |
+276 |                   try:
+277 |                       self._post_key(key, key_up=False, repeated=True)
+278 | /                 except Exception:
+279 | |                     # A destroyed/recreated window can reject a repeat between
+280 | |                     # lifecycle callbacks.  Foreground code still receives the
+281 | |                     # failure on the next explicit key action or release.
+282 | |                     continue
+    | |____________________________^
+283 |
+284 |       def key_down(self, key: int) -> None:
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0706_patch\files\libs\HumanKeyboard.py:278:24
+    |
+276 |                 try:
+277 |                     self._post_key(key, key_up=False, repeated=True)
+278 |                 except Exception:
+    |                        ^^^^^^^^^
+279 |                     # A destroyed/recreated window can reject a repeat between
+280 |                     # lifecycle callbacks.  Foreground code still receives the
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> foreground_vision_bot\v0706_patch\files\tests\test_v0706_camera_focus_regressions.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | from types import SimpleNamespace
+4 | |
+5 | | import pytest
+6 | |
+7 | | from libs.CameraDiscoverySweep import CameraDiscoveryConfig, CameraDiscoverySweep
+  | |_________________________________________________________________________________^
+  |
+help: Organize imports
+  |
+5 | import pytest
+  -
+6 | from libs.CameraDiscoverySweep import CameraDiscoveryConfig, CameraDiscoverySweep
+  |
+
+DTZ005 `datetime.datetime.now()` called without a `tz` argument
+   --> foreground_vision_bot\v0707_patch\apply_v0_7_0_7.py:125:20
+    |
+123 |     patch_root = Path(__file__).resolve().parent
+124 |     backup_root = project / ".patch_backups" / (
+125 |         "v0707_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+    |                    ^^^^^^^^^^^^^^
+126 |     )
+127 |     created: list[Path] = []
+    |
+help: Pass a `datetime.timezone` object to the `tz` parameter
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0707_patch\apply_v0_7_0_7.py:146:12
+    |
+144 |         if args.run_tests:
+145 |             _run_tests(project)
+146 |     except Exception as error:
+    |            ^^^^^^^^^
+147 |         for relative in backed_up:
+148 |             backup = backup_root / relative
+    |
+
+RUF100 [*] Unused `noqa` directive (unused: `BLE001`)
+  --> foreground_vision_bot\v0707_patch\files\libs\V0707TeleportSafety.py:59:37
+   |
+57 |         try:
+58 |             observation, info = original_reset(self, *args, **kwargs)
+59 |         except Exception as error:  # noqa: BLE001 - classify only known live-read failures.
+   |                                     ^^^^^^^^^^^^^^
+60 |             if not _is_position_loss_error(error):
+61 |                 raise
+   |
+help: Remove unused `noqa` directive
+   |
+58 |             observation, info = original_reset(self, *args, **kwargs)
+   -         except Exception as error:  # noqa: BLE001 - classify only known live-read failures.
+59 +         except Exception as error:
+60 |             if not _is_position_loss_error(error):
+   |
+
+RUF100 [*] Unused `noqa` directive (unused: `BLE001`)
+  --> foreground_vision_bot\v0707_patch\files\libs\V0707TeleportSafety.py:96:37
+   |
+94 |                 action_index,
+95 |             )
+96 |         except Exception as error:  # noqa: BLE001 - live read failures are expected at teleport.
+   |                                     ^^^^^^^^^^^^^^
+97 |             if not _is_position_loss_error(error):
+98 |                 raise
+   |
+help: Remove unused `noqa` directive
+   |
+95 |             )
+   -         except Exception as error:  # noqa: BLE001 - live read failures are expected at teleport.
+96 +         except Exception as error:
+97 |             if not _is_position_loss_error(error):
+   |
+
+RUF100 [*] Unused `noqa` directive (unused: `BLE001`)
+   --> foreground_vision_bot\v0707_patch\files\libs\V0707TeleportSafety.py:466:43
+    |
+464 |         try:
+465 |             snapshot = env._read_snapshot()
+466 |         except Exception as retry_error:  # noqa: BLE001
+    |                                           ^^^^^^^^^^^^^^
+467 |             if not _is_position_loss_error(retry_error):
+468 |                 raise
+    |
+help: Remove unused `noqa` directive
+    |
+465 |             snapshot = env._read_snapshot()
+    -         except Exception as retry_error:  # noqa: BLE001
+466 +         except Exception as retry_error:
+467 |             if not _is_position_loss_error(retry_error):
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> foreground_vision_bot\v0707_patch\files\native_farming.py:1:1
+   |
+ 1 | / from __future__ import annotations
+ 2 | |
+ 3 | | import json
+ 4 | | import traceback
+ 5 | | from collections import Counter, deque
+ 6 | | from collections.abc import Callable
+ 7 | | from dataclasses import dataclass, fields
+ 8 | | from datetime import datetime, timezone
+ 9 | | from pathlib import Path
+10 | | from time import monotonic, sleep
+11 | |
+12 | | import numpy as np
+13 | |
+14 | | from libs.CameraDiscoverySweep import CameraDiscoverySweep
+15 | | from libs.LiveNavigatorController import LiveNavigatorConfig, LiveNavigatorController
+16 | | from libs.NativeFarmingEnv import NativeFarmingEnv, NativeFarmingEnvConfig
+17 | | from libs.NativeFarmingObservation import (
+18 | |     NativeFarmingObservationBuilder,
+19 | |     NativeFarmingObservationConfig,
+20 | | )
+21 | | from libs.NativeMapContext import NativeMapContext
+22 | | from project_paths import resolve_app_path
+23 | | from worker_manager import CancellationToken
+24 | |
+25 | | from libs.V0672NativeFarmingFixes import install_v0672_fixes
+   | |____________________________________________________________^
+26 |
+27 |   install_v0672_fixes()
+   |
+help: Organize imports
+   |
+12 | import numpy as np
+   -
+13 | from libs.CameraDiscoverySweep import CameraDiscoverySweep
+--------------------------------------------------------------------------------
+20 | from libs.NativeMapContext import NativeMapContext
+21 + from libs.V0672NativeFarmingFixes import install_v0672_fixes
+22 | from project_paths import resolve_app_path
+23 | from worker_manager import CancellationToken
+   -
+   - from libs.V0672NativeFarmingFixes import install_v0672_fixes
+24 |
+   |
+
+UP037 [*] Remove quotes from type annotation
+  --> foreground_vision_bot\v0707_patch\files\native_farming.py:82:64
+   |
+81 |     @classmethod
+82 |     def load(cls, path: str | Path = "native_farming.json") -> "NativeFarmingConfig":
+   |                                                                ^^^^^^^^^^^^^^^^^^^^^
+83 |         resolved = resolve_app_path(path)
+84 |         if not resolved.is_file():
+   |
+help: Remove quotes
+   |
+81 |     @classmethod
+   -     def load(cls, path: str | Path = "native_farming.json") -> "NativeFarmingConfig":
+82 +     def load(cls, path: str | Path = "native_farming.json") -> NativeFarmingConfig:
+83 |         resolved = resolve_app_path(path)
+   |
+
+TRY004 Prefer `TypeError` exception for invalid type
+  --> foreground_vision_bot\v0707_patch\files\native_farming.py:88:13
+   |
+86 |         payload = json.loads(resolved.read_text(encoding="utf-8"))
+87 |         if not isinstance(payload, dict):
+88 |             raise ValueError("native_farming.json must contain an object")
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+89 |         supported = {field.name for field in fields(cls)}
+90 |         values = {
+   |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> foreground_vision_bot\v0708_patch\apply_v0_7_0_8.py:1:1
+  |
+1 | / from __future__ import annotations
+2 | |
+3 | | import argparse
+4 | | import shutil
+5 | | import subprocess
+6 | | import sys
+7 | | from datetime import datetime
+8 | | from pathlib import Path
+  | |________________________^
+  |
+help: Organize imports
+   |
+9  |
+   -
+10 | PATCH_VERSION = "0.7.0.8"
+   |
+
+DTZ005 `datetime.datetime.now()` called without a `tz` argument
+  --> foreground_vision_bot\v0708_patch\apply_v0_7_0_8.py:89:17
+   |
+88 |     root = Path(__file__).resolve().parent
+89 |     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+   |                 ^^^^^^^^^^^^^^
+90 |     backup_root = project / ".patch_backups" / f"v0708_{timestamp}"
+91 |     touched = [
+   |
+help: Pass a `datetime.timezone` object to the `tz` parameter
+
+PLW1510 `subprocess.run` without explicit `check` argument
+   --> foreground_vision_bot\v0708_patch\apply_v0_7_0_8.py:142:22
+    |
+140 |             ]
+141 |             print("Running focused tests:", " ".join(command))
+142 |             result = subprocess.run(command, cwd=project)
+    |                      ^^^^^^^^^^^^^^
+143 |             if result.returncode != 0:
+144 |                 raise RuntimeError(
+    |
+help: Add explicit `check=False`
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0708_patch\apply_v0_7_0_8.py:173:12
+    |
+171 |     try:
+172 |         apply(args.project, run_tests=args.run_tests)
+173 |     except Exception as error:
+    |            ^^^^^^^^^
+174 |         print(f"PATCH FAILED: {error}")
+175 |         return 1
+    |
+
+B009 [*] Do not call `getattr` with a constant attribute value. It is not any safer than normal property access.
+  --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:78:17
+   |
+77 | def _region_bounds(region: object) -> tuple[int, int]:
+78 |     start = int(getattr(region, "base_address"))
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+79 |     size = int(getattr(region, "size"))
+80 |     return start, start + max(0, size)
+   |
+help: Replace `getattr` with attribute access
+   |
+77 | def _region_bounds(region: object) -> tuple[int, int]:
+   -     start = int(getattr(region, "base_address"))
+78 +     start = int(region.base_address)
+79 |     size = int(getattr(region, "size"))
+   |
+
+B009 [*] Do not call `getattr` with a constant attribute value. It is not any safer than normal property access.
+  --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:79:16
+   |
+77 | def _region_bounds(region: object) -> tuple[int, int]:
+78 |     start = int(getattr(region, "base_address"))
+79 |     size = int(getattr(region, "size"))
+   |                ^^^^^^^^^^^^^^^^^^^^^^^
+80 |     return start, start + max(0, size)
+   |
+help: Replace `getattr` with attribute access
+   |
+78 |     start = int(getattr(region, "base_address"))
+   -     size = int(getattr(region, "size"))
+79 +     size = int(region.size)
+80 |     return start, start + max(0, size)
+   |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:99:12
+    |
+ 97 |     try:
+ 98 |         value = _u32(memory, module_base + config.world_pointer_offset)
+ 99 |     except Exception:
+    |            ^^^^^^^^^
+100 |         return None
+101 |     return value if value > 0 else None
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:135:12
+    |
+133 |         if hp <= 0:
+134 |             return None
+135 |     except Exception:
+    |            ^^^^^^^^^
+136 |         return None
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:144:16
+    |
+142 |         try:
+143 |             pair_matches = _u32(memory, paired_world_slot) == world
+144 |         except Exception:
+    |                ^^^^^^^^^
+145 |             pair_matches = False
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:196:16
+    |
+194 |             if not all(math.isfinite(value) for value in coordinates):
+195 |                 return False
+196 |         except Exception:
+    |                ^^^^^^^^^
+197 |             return False
+198 |         if index + 1 < samples and delay_seconds > 0.0:
+    |
+
+TRY004 Prefer `TypeError` exception for invalid type
+   --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:206:9
+    |
+204 |     payload = json.loads(path.read_text(encoding="utf-8"))
+205 |     if not isinstance(payload, dict):
+206 |         raise ValueError(f"Configuration root must be an object: {path}")
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+207 |     changed = False
+208 |     for key, value in updates.items():
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:257:12
+    |
+255 |             == cached.world_base
+256 |         )
+257 |     except Exception:
+    |            ^^^^^^^^^
+258 |         return False
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:312:16
+    |
+310 |                 )
+311 |             )
+312 |         except Exception:
+    |                ^^^^^^^^^
+313 |             return None
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:332:24
+    |
+330 |                 try:
+331 |                     data = memory.read(cursor, amount)
+332 |                 except Exception:
+    |                        ^^^^^^^^^
+333 |                     cursor += amount
+334 |                     continue
+    |
+
+F841 Local variable `reference_count` is assigned to but never used
+   --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:351:13
+    |
+349 |         ordered_slots: list[tuple[int, int, int]] = []
+350 |         for target, slots in slot_refs.items():
+351 |             reference_count = len(slots)
+    |             ^^^^^^^^^^^^^^^
+352 |             for slot in slots:
+353 |                 ordered_slots.append(
+    |
+help: Remove assignment to unused variable `reference_count`
+
+BLE001 Do not catch blind exception: `Exception`
+   --> foreground_vision_bot\v0708_patch\payload\position\NativePointerRecovery.py:422:20
+    |
+420 |             try:
+421 |                 persist_recovered_pointer_offsets(recovery)
+422 |             except Exception as error:
+    |                    ^^^^^^^^^
+423 |                 print(
+424 |                     "Native pointer recovery succeeded but config persistence "
+    |
+
+Found 332 errors.
+[*] 146 fixable with the `--fix` option (73 hidden fixes can be enabled with the `--unsafe-fixes` option).
+__ACTUAL_EXIT_CODE__=1
+

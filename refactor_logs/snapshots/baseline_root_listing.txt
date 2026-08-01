@@ -1,0 +1,23 @@
+Command: Get-ChildItem -Force | Select-Object Mode,Length,LastWriteTime,Name | Format-Table -AutoSize
+
+Exit code: 0
+Wall time: 2 seconds
+Output:
+
+Mode   Length LastWriteTime         Name                                     
+----   ------ -------------         ----                                     
+d--h--        7/31/2026 12:29:57 AM .git                                     
+d-----        7/26/2026 10:00:48 PM .pytest_cache                            
+d-----        7/24/2026 6:00:18 AM  .venv                                    
+d-----        7/25/2026 3:11:47 PM  docs                                     
+d-----        7/31/2026 12:06:09 AM foreground_vision_bot                    
+d-----        7/31/2026 12:33:52 AM refactor_logs                            
+-a---- 748    7/26/2026 11:14:10 PM .gitignore                               
+-a---- 7      5/20/2024 1:35:38 PM  .python-version                          
+-a---- 32201  7/31/2026 12:27:46 AM codex_refactor_prompt_with_resume_logs.md
+-a---- 1087   5/20/2024 1:35:38 PM  LICENSE.md                               
+-a---- 88     7/25/2026 3:11:47 PM  pyproject.toml                           
+-a---- 217    5/20/2024 1:35:38 PM  requirements.txt                         
+
+
+

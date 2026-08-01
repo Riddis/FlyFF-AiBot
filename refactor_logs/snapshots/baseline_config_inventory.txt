@@ -1,0 +1,29 @@
+Command: $files = @(rg --files foreground_vision_bot -g '*.json' -g '*.toml' -g '*.yaml' -g '*.yml' -g '*.ini' -g '*.cfg' -g '!training_logs/**' -g '!v0707_patch/**' -g '!.patch_backups/**'); foreach ($file in $files) { $item = Get-Item -LiteralPath $file; $hash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash; '{0}`t{1}`t{2}' -f $file,$item.Length,$hash }
+
+Exit code: 0
+Wall time: 2.2 seconds
+Output:
+foreground_vision_bot\native_farming.json`t1090`t6FB8B3ACEFA6AFFF44D4A76D89FF8A70BAB59FCEBEDF94C45D4370994C171E15
+foreground_vision_bot\v0707_patch\files\native_farming.json`t1090`t6FB8B3ACEFA6AFFF44D4A76D89FF8A70BAB59FCEBEDF94C45D4370994C171E15
+foreground_vision_bot\mapper\rl\offline_training.json`t1566`t01F1D78599658D449ED08260C91A6BE653B753FA0300BE67FFAE1E9FDD0ABD62
+foreground_vision_bot\mapper\rl\navigator_training_short_holdout_fresh.json`t3257`t294F8C139ED1C1D3DE624CA62734C4F959ACD845742856B4CB4217DF2C0103E7
+foreground_vision_bot\mapper\rl\navigator_training_short_holdout.json`t3161`t7067FD5DDD8CC54D67828D7B994927C5BEFD3D22E6D1C345B237B82E08526D87
+foreground_vision_bot\mapper\rl\navigator_training_farming_mix_holdout.json`t3256`t80097CA2F38F8EA8AB9CDCEF1AE67F2329342E12F18732C75231224239D66B6B
+foreground_vision_bot\mapper\rl\navigator_training_farming_mix.json`t3162`t32559A1556A05212782FB5A3C3A8AAFB5BEEC9A4896783339892F86AB889AB9F
+foreground_vision_bot\mapper\rl\navigator_training.json`t3162`t7788D31F862AE2EB5A27CEA3EB65EB126F7CA6729DB4F6ACBBD264B3D4CC863C
+foreground_vision_bot\mapper\minimap_anchor.json`t141`tC9AD811905E3CB855C163C53DDB670D1FDF972C3888C990B3C5E6EB4835A321C
+foreground_vision_bot\mapper\map_profiles.json`t212`tCA3F40ECF530FD4C97FB9EC9AB8736811B5065FBDE91F4806C18D9F3717F8FDA
+foreground_vision_bot\mapper\adaptive_motion.json`t451`t1AFB8C97348427F247D83B4CC68263EBDAB00A6F91A31F18BDE2AA0BE2221434
+foreground_vision_bot\position\native_position.json`t376`tF65F0C76D039A7FB00AC72358A5CBEF78398C552EA6F810604D716DA51CBE951
+foreground_vision_bot\position\native_monsters.json`t672`tD46582461EBADD8ED867B4E205B9101EAA58B1E70DC180C1E1EEC21B57948FA3
+foreground_vision_bot\mapper\coordinate_mapper.json`t2019`t8252942462FF43ABDF9BCA6BC113C14A84EA7271271C20CC3D6F126BE75CF718
+foreground_vision_bot\mapper\calibration.json`t4291`t74310FF73AC2378624EDF7131E1911970C5DF4D53D2552275E3128E84C01AB14
+foreground_vision_bot\mapper\maps\tower_aoe\map.json`t2295`t56B21F4E9864EB5600EF19D3DBBD2902887C070428FD933384955770B75127B5
+foreground_vision_bot\mapper\maps\tower_aoe\FINAL_MAP_REPORT.json`t471`tEF2CE1C669DF81594955D1B8A08155453501D8187630CC542ABB9E17D3663FF1
+foreground_vision_bot\mapper\maps\tower_aoe\coordinate_frame.json`t106`t40339F6C397D38FE01D5B3A5300E5B9B6D499F06292F436B1F91EA34523A0414
+foreground_vision_bot\foreground_vision_farm.json`t298`tF52C10AFEA50777D385F6C6E7EE51E9DFACADA0243992EA14958D735DD9419D9
+foreground_vision_bot\assets\mobs_list.json`t479`t640B091A33EF69858A8FA5D4A1A4A845A206F3639C81D2724C6403F0207187D1
+foreground_vision_bot\training_logs\farming\native_sessions\native_session_20260730_212543.json`t576`t621ED30FB4EB87A407B1D798824CF6DC594B2DEDAE0DA80B9513CB96BDCBD902
+foreground_vision_bot\training_logs\farming\native_sessions\native_session_20260730_212425.json`t576`t86F42E8DB93497177A23F0469A24F4D89AA1D430008F6E97BFA7810FB83532F1
+foreground_vision_bot\training_logs\farming\native_sessions\native_session_20260730_212317.json`t576`t1D3074B52B205CFAE59AF13389441753FDA402C825197F99CF860C02FEBB29D7
+

@@ -1,0 +1,797 @@
+from __future__ import annotations
+
+# pyright: reportImplicitRelativeImport=false
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from enum import Enum
+from math import hypot, radians
+from time import monotonic, sleep
+
+import numpy as np
+from numpy.typing import NDArray
+from position.NativeFlyffMonsterProvider import ActorCacheOutcome
+
+from .actions import FarmingAction, coerce_farming_action
+from .config import FarmingRuntimeConfig
+from .control import (
+    DirectFarmingControl,
+    FarmingControlCancelled,
+    FarmingControlUnavailable,
+)
+from .kills import (
+    CastWindow,
+    NativeKillResult,
+    NativeKillTracker,
+    OcrDiagnostic,
+    OcrKillDiagnostics,
+)
+from .map_context import FarmingMapContext
+from .native_world import (
+    NativeWorldFrame,
+    NativeWorldReader,
+    NativeWorldUnavailable,
+    build_actor_observations,
+)
+from .observation import (
+    BuiltObservation,
+    ObservationBuilder,
+    ObservationFrame,
+    PlayerObservation,
+)
+from .reward import RewardCalculator, RewardConfig, RewardEvidence, RewardResult
+from .session import SessionEvidence, SessionOutcome, classify_session_outcome
+
+FloatArray = NDArray[np.float32]
+
+
+class FarmingEnvironmentState(str, Enum):
+    NEW = "new"
+    ACTIVE = "active"
+    SEALED = "sealed"
+    CLOSED = "closed"
+
+
+class FarmingEnvironmentError(RuntimeError):
+    pass
+
+
+class FarmingEnvironmentUnavailable(FarmingEnvironmentError):
+    pass
+
+
+@dataclass(frozen=True, slots=True)
+class FarmingReset:
+    observation: FloatArray
+    info: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class FarmingStep:
+    observation: FloatArray
+    reward: RewardResult
+    outcome: SessionOutcome
+    info: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class _FrameFeatures:
+    world: NativeWorldFrame
+    built: BuiltObservation
+    player_cell: tuple[int, int]
+    forbidden_distance_cells: float | None
+
+
+class UnifiedFarmingEnv:
+    """One explicit live farming session with exactly one reset."""
+
+    def __init__(
+        self,
+        world_reader: NativeWorldReader,
+        map_context: FarmingMapContext,
+        control: DirectFarmingControl,
+        cancellation: object,
+        *,
+        config: FarmingRuntimeConfig | None = None,
+        observation_builder: ObservationBuilder | None = None,
+        reward_calculator: RewardCalculator | None = None,
+        kill_tracker: NativeKillTracker | None = None,
+        ocr_diagnostics: OcrKillDiagnostics | None = None,
+        read_ocr_kills: Callable[[], int | None] | None = None,
+        diagnostic_sink: Callable[[Mapping[str, object]], None] | None = None,
+        clock: Callable[[], float] = monotonic,
+        sleeper: Callable[[float], None] = sleep,
+    ) -> None:
+        if control.cancellation is not cancellation:
+            raise ValueError(
+                "Environment and direct control must share the identical worker token"
+            )
+        self.world_reader = world_reader
+        self.map_context = map_context
+        self.control = control
+        self.cancellation = cancellation
+        self.config = config or FarmingRuntimeConfig()
+        self.observation_builder = observation_builder or ObservationBuilder()
+        self.reward_calculator = reward_calculator or RewardCalculator(
+            RewardConfig(
+                teleport_warning_radius_cells=(
+                    self.config.teleport_warning_radius_cells
+                ),
+                teleport_buffer_radius_cells=self.config.teleport_buffer_radius_cells,
+                teleport_proximity_penalty=self.config.teleport_proximity_penalty,
+                teleport_buffer_penalty=self.config.teleport_buffer_penalty,
+                teleport_trigger_penalty=self.config.teleport_trigger_penalty,
+            )
+        )
+        self.kill_tracker = kill_tracker or NativeKillTracker(
+            zero_hp_confirmation_reads=self.config.kill_zero_confirmation_reads,
+            result_timeout_seconds=self.config.cast_result_timeout_seconds,
+            poll_seconds=self.config.cast_poll_seconds,
+            clock=clock,
+            sleeper=sleeper,
+        )
+        self.ocr_diagnostics = ocr_diagnostics or OcrKillDiagnostics()
+        self._read_ocr_kills = read_ocr_kills
+        self._diagnostic_sink = diagnostic_sink
+        self._clock = clock
+        self._sleep = sleeper
+        self._state = FarmingEnvironmentState.NEW
+        self._started_at: float | None = None
+        self._last_cast_at: float | None = None
+        self._last_features: _FrameFeatures | None = None
+        self._terminal_observation: FloatArray | None = None
+
+    @property
+    def state(self) -> FarmingEnvironmentState:
+        return self._state
+
+    @property
+    def terminal_observation(self) -> FloatArray | None:
+        if self._terminal_observation is None:
+            return None
+        result = self._terminal_observation.copy()
+        result.setflags(write=False)
+        return result
+
+    @staticmethod
+    def _cancelled(cancellation: object) -> bool:
+        cancelled = getattr(cancellation, "cancelled", None)
+        if cancelled is not None:
+            return bool(cancelled() if callable(cancelled) else cancelled)
+        is_set = getattr(cancellation, "is_set", None)
+        return bool(is_set()) if callable(is_set) else False
+
+    def _wait(self, seconds: float) -> None:
+        wait = getattr(self.cancellation, "wait", None)
+        if callable(wait):
+            wait(max(0.0, seconds))
+        else:
+            self._sleep(max(0.0, seconds))
+
+    def _ensure_state(self, expected: FarmingEnvironmentState) -> None:
+        if self._state is not expected:
+            raise FarmingEnvironmentError(
+                f"Farming environment is {self._state.value}; expected {expected.value}"
+            )
+
+    def _cooldown_fraction(self, now: float) -> float:
+        if self._last_cast_at is None:
+            return 1.0
+        return float(
+            np.clip(
+                (now - self._last_cast_at) / self.config.eva_cooldown_seconds,
+                0.0,
+                1.0,
+            )
+        )
+
+    def _build_features(
+        self,
+        world: NativeWorldFrame,
+        *,
+        action: FarmingAction,
+        displacement_cells: float,
+        contact: bool,
+        now: float,
+    ) -> _FrameFeatures:
+        player_cell = self.map_context.native_to_layout_cell(
+            world.player_pose.x,
+            world.player_pose.z,
+        )
+        if player_cell is None:
+            raise FarmingEnvironmentUnavailable(
+                "Native player position is outside the selected farming map"
+            )
+        normalized_x, normalized_z = self.map_context.features.normalized_position(
+            player_cell
+        )
+        actor_observations = build_actor_observations(
+            world,
+            self.map_context,
+            maximum_geodesic_distance_cells=self.config.vision_radius_cells,
+        )
+        cooldown = self._cooldown_fraction(now)
+        heading = world.player_pose.heading_degrees
+        player = PlayerObservation(
+            normalized_x=normalized_x,
+            normalized_z=normalized_z,
+            heading_radians=0.0 if heading is None else radians(heading),
+            eva_cooldown_fraction=cooldown,
+            displacement_cells=displacement_cells,
+            contact=contact,
+            held_movement=self.control.held_movement,
+            last_policy_action=action,
+            time_since_cast_fraction=cooldown,
+            map_available=True,
+        )
+        built = self.observation_builder.build(
+            ObservationFrame(
+                player=player,
+                actors=actor_observations,
+                local_map=self.map_context.features.local_crop(player_cell),
+            )
+        )
+        return _FrameFeatures(
+            world=world,
+            built=built,
+            player_cell=player_cell,
+            forbidden_distance_cells=self.map_context.features.forbidden_distance(
+                player_cell
+            ),
+        )
+
+    @staticmethod
+    def _actor_payload(actor: object) -> dict[str, object]:
+        return {
+            "base": int(getattr(actor, "base_address")),
+            "species": int(getattr(actor, "species_id")),
+            "active_species": int(getattr(actor, "active_species_id")),
+            "hp": int(getattr(actor, "hp")),
+            "x": float(getattr(actor, "x")),
+            "y": float(getattr(actor, "y")),
+            "z": float(getattr(actor, "z")),
+            "distance_native": float(getattr(actor, "distance_native")),
+            "hp_offset": (
+                None
+                if getattr(actor, "hp_offset", None) is None
+                else int(getattr(actor, "hp_offset"))
+            ),
+            "hp_candidates": [
+                {"offset": int(offset), "value": int(value)}
+                for offset, value in tuple(getattr(actor, "hp_candidates", ()))
+            ],
+            "hp_offset_validated": bool(
+                getattr(actor, "hp_offset_validated", False)
+            ),
+        }
+
+    @classmethod
+    def _world_payload(cls, world: NativeWorldFrame) -> dict[str, object]:
+        snapshot = world.pointer_snapshot
+        pose = world.player_pose
+        return {
+            "pointer": {
+                "player_base": int(snapshot.player_base),
+                "world_base": int(snapshot.world_base),
+                "generation": int(snapshot.generation),
+                "mode": str(snapshot.mode),
+            },
+            "player": {
+                "x": float(pose.x),
+                "y": float(pose.y),
+                "z": float(pose.z),
+                "heading_degrees": (
+                    None
+                    if pose.heading_degrees is None
+                    else float(pose.heading_degrees)
+                ),
+            },
+            "actors": [cls._actor_payload(actor) for actor in world.actors],
+            "tracked_actors": [
+                cls._actor_payload(actor) for actor in world.tracked_actors
+            ],
+        }
+
+    def _emit_diagnostic(
+        self,
+        *,
+        event: str,
+        action: FarmingAction,
+        before: _FrameFeatures | None,
+        after: _FrameFeatures,
+        observation: FloatArray,
+        info: Mapping[str, object],
+        eva_available: bool | None = None,
+        cast_window: CastWindow | None = None,
+        kill_result: NativeKillResult | None = None,
+        ocr: OcrDiagnostic | None = None,
+    ) -> None:
+        sink = self._diagnostic_sink
+        if sink is None:
+            return
+        vector = np.asarray(observation, dtype=np.float32)
+        finite = np.isfinite(vector)
+        finite_values = vector[finite]
+        payload: dict[str, object] = {
+            "event": str(event),
+            "timestamp_monotonic": float(self._clock()),
+            "action": int(action),
+            "action_name": action.name,
+            "eva_available": eva_available,
+            "before": None if before is None else self._world_payload(before.world),
+            "after": self._world_payload(after.world),
+            "observation": {
+                "size": int(vector.size),
+                "finite": bool(finite.all()),
+                "nonfinite_count": int(vector.size - int(finite.sum())),
+                "minimum": (
+                    float(finite_values.min()) if finite_values.size else None
+                ),
+                "maximum": (
+                    float(finite_values.max()) if finite_values.size else None
+                ),
+                "values": [float(value) for value in vector.tolist()],
+            },
+            "info": dict(info),
+            "cast_candidates": (
+                []
+                if cast_window is None
+                else [
+                    {
+                        "base": int(candidate.base_address),
+                        "species": int(candidate.species_id),
+                        "initial_hp": int(candidate.initial_hp),
+                    }
+                    for candidate in cast_window.candidates
+                ]
+            ),
+            "kill_result": (
+                None
+                if kill_result is None
+                else {
+                    "confirmed": [
+                        {
+                            "base": int(candidate.base_address),
+                            "species": int(candidate.species_id),
+                        }
+                        for candidate in kill_result.confirmed
+                    ],
+                    "polls": int(kill_result.polls),
+                    "successful_reads": int(kill_result.successful_reads),
+                    "failed_reads": int(kill_result.failed_reads),
+                    "cancelled": bool(kill_result.cancelled),
+                    "elapsed_seconds": float(kill_result.elapsed_seconds),
+                    "candidate_diagnostics": [
+                        {
+                            "base": int(item.base_address),
+                            "species": int(item.species_id),
+                            "present_reads": int(item.present_reads),
+                            "absent_reads": int(item.absent_reads),
+                            "maximum_consecutive_absence": int(
+                                item.maximum_consecutive_absence
+                            ),
+                            "minimum_seen_hp": item.minimum_seen_hp,
+                            "last_seen_hp": item.last_seen_hp,
+                            "initial_hp": item.initial_hp,
+                            "zero_hp_reads": int(item.zero_hp_reads),
+                            "maximum_consecutive_zero_hp": int(
+                                item.maximum_consecutive_zero_hp
+                            ),
+                            "hp_decreased": bool(item.hp_decreased),
+                            "confirmed": bool(item.confirmed),
+                        }
+                        for item in kill_result.diagnostics
+                    ],
+                }
+            ),
+            "ocr": (
+                None
+                if ocr is None
+                else {
+                    "outcome": ocr.outcome.value,
+                    "value": ocr.value,
+                    "previous": ocr.previous,
+                    "delta": ocr.delta,
+                }
+            ),
+        }
+        sink(payload)
+
+    def reset(self) -> FarmingReset:
+        self._ensure_state(FarmingEnvironmentState.NEW)
+        if self._cancelled(self.cancellation):
+            self._seal()
+            raise FarmingControlCancelled("Farming reset was cancelled")
+        world = self.world_reader.read_frame()
+        now = self._clock()
+        features = self._build_features(
+            world,
+            action=FarmingAction.RUN_FORWARD,
+            displacement_cells=0.0,
+            contact=False,
+            now=now,
+        )
+        if self.map_context.features.is_forbidden(features.player_cell):
+            self._seal(features.built.vector)
+            raise FarmingEnvironmentUnavailable(
+                "Player starts inside the mapped teleport trigger"
+            )
+        self._started_at = now
+        self._last_features = features
+        self._state = FarmingEnvironmentState.ACTIVE
+        info = self._info(
+            action=FarmingAction.RUN_FORWARD,
+            features=features,
+            reward=None,
+            outcome=SessionOutcome.continuing(),
+            native_kills=0,
+            ocr=None,
+            eva_available=True,
+        )
+        self._emit_diagnostic(
+            event="reset",
+            action=FarmingAction.RUN_FORWARD,
+            before=None,
+            after=features,
+            observation=features.built.vector,
+            info=info,
+            eva_available=True,
+        )
+        return FarmingReset(observation=features.built.vector, info=info)
+
+    def _read_after_with_grace(self) -> NativeWorldFrame:
+        deadline = self._clock() + self.config.pointer_grace_seconds
+        last_error: Exception | None = None
+        while self._clock() < deadline:
+            if self._cancelled(self.cancellation):
+                raise FarmingControlCancelled("Farming step was cancelled")
+            try:
+                return self.world_reader.read_frame()
+            except NativeWorldUnavailable as error:
+                if error.outcome is ActorCacheOutcome.WORLD_MISMATCH:
+                    raise
+                last_error = error
+                self._wait(self.config.pointer_poll_seconds)
+        raise NativeWorldUnavailable(
+            ActorCacheOutcome.UNAVAILABLE,
+            f"Native world remained unavailable through pointer grace: {last_error}",
+        )
+
+    def step(self, action: FarmingAction | int) -> FarmingStep:
+        self._ensure_state(FarmingEnvironmentState.ACTIVE)
+        selected = coerce_farming_action(action)
+        before = self._last_features
+        assert before is not None
+        started = self._clock()
+        eva_available = self._cooldown_fraction(started) >= 1.0
+        kill_result = NativeKillResult((), 0, 0, 0, False, 0.0)
+        ocr: OcrDiagnostic | None = None
+        try:
+            cast_window = None
+            if selected is FarmingAction.CAST_EVA and eva_available:
+                cast_window = self.kill_tracker.begin_cast(before.world)
+            self.control.execute(selected)
+            if selected is FarmingAction.CAST_EVA:
+                self._last_cast_at = started
+                if cast_window is not None:
+                    kill_result = self.kill_tracker.confirm_cast(
+                        cast_window,
+                        read_actor_hp_states=(
+                            self.world_reader.read_actor_hp_states
+                        ),
+                        cancellation=self.cancellation,
+                    )
+            else:
+                self._wait(self.config.control_interval_seconds)
+
+            if self._read_ocr_kills is not None:
+                ocr = self.ocr_diagnostics.observe(self._read_ocr_kills())
+            after_world = self._read_after_with_grace()
+            finished = self._clock()
+            displacement = (
+                hypot(
+                    after_world.player_pose.x - before.world.player_pose.x,
+                    after_world.player_pose.z - before.world.player_pose.z,
+                )
+                / self.map_context.native_units_per_cell
+            )
+            contact = bool(selected.is_movement and displacement <= 0.05)
+            after = self._build_features(
+                after_world,
+                action=selected,
+                displacement_cells=displacement,
+                contact=contact,
+                now=finished,
+            )
+            session_evidence = SessionEvidence(
+                user_cancelled=self._cancelled(self.cancellation),
+                session_time_expired=bool(
+                    self._started_at is not None
+                    and finished - self._started_at >= self.config.episode_seconds
+                ),
+                map_transition=(after.world.world_base != before.world.world_base),
+                sampled_forbidden_occupancy=self.map_context.features.is_forbidden(
+                    after.player_cell
+                ),
+                started_inside_warning_radius=bool(
+                    before.forbidden_distance_cells is not None
+                    and before.forbidden_distance_cells
+                    < self.config.teleport_warning_radius_cells
+                ),
+                displacement_cells=displacement,
+                teleport_jump_threshold_cells=(
+                    self.config.teleport_jump_threshold_cells
+                ),
+            )
+            outcome = classify_session_outcome(session_evidence)
+            density_delta = after.built.eva_actor_count - before.built.eva_actor_count
+            reward = self.reward_calculator.calculate(
+                RewardEvidence(
+                    native_kill_delta=kill_result.kill_count,
+                    density_delta=density_delta,
+                    elapsed_seconds=max(0.0, finished - started),
+                    eva_attempted=selected is FarmingAction.CAST_EVA,
+                    eva_available=eva_available,
+                    contact=contact,
+                    forbidden_distance_cells=after.forbidden_distance_cells,
+                    session_outcome=outcome,
+                )
+            )
+            info = self._info(
+                action=selected,
+                features=after,
+                reward=reward,
+                outcome=outcome,
+                native_kills=kill_result.kill_count,
+                ocr=ocr,
+                kill_result=kill_result,
+                cast_window=cast_window,
+                eva_available=eva_available,
+                displacement_cells=displacement,
+                contact=contact,
+            )
+            self._emit_diagnostic(
+                event="step",
+                action=selected,
+                before=before,
+                after=after,
+                observation=after.built.vector,
+                info=info,
+                eva_available=eva_available,
+                cast_window=cast_window,
+                kill_result=kill_result,
+                ocr=ocr,
+            )
+            self._last_features = after
+            if outcome.should_stop_session:
+                self._seal(after.built.vector)
+            return FarmingStep(after.built.vector, reward, outcome, info)
+        except FarmingControlCancelled:
+            outcome = SessionOutcome.cancelled("worker cancellation was requested")
+            reward = self.reward_calculator.calculate(
+                RewardEvidence(session_outcome=outcome)
+            )
+            self._seal(before.built.vector)
+            return FarmingStep(
+                before.built.vector,
+                reward,
+                outcome,
+                self._info(
+                    action=selected,
+                    features=before,
+                    reward=reward,
+                    outcome=outcome,
+                    native_kills=0,
+                    ocr=ocr,
+                ),
+            )
+        except FarmingControlUnavailable as error:
+            outcome = classify_session_outcome(SessionEvidence(focus_lost=True))
+            reward = self.reward_calculator.calculate(
+                RewardEvidence(session_outcome=outcome)
+            )
+            self._seal(before.built.vector)
+            return FarmingStep(
+                before.built.vector,
+                reward,
+                outcome,
+                self._info(
+                    action=selected,
+                    features=before,
+                    reward=reward,
+                    outcome=outcome,
+                    native_kills=0,
+                    ocr=ocr,
+                    detail=str(error),
+                ),
+            )
+        except NativeWorldUnavailable as error:
+            outcome = classify_session_outcome(
+                SessionEvidence(
+                    map_transition=error.outcome is ActorCacheOutcome.WORLD_MISMATCH,
+                    pointer_grace_exhausted=error.outcome
+                    is not ActorCacheOutcome.WORLD_MISMATCH,
+                )
+            )
+            reward = self.reward_calculator.calculate(
+                RewardEvidence(session_outcome=outcome)
+            )
+            self._seal(before.built.vector)
+            return FarmingStep(
+                before.built.vector,
+                reward,
+                outcome,
+                self._info(
+                    action=selected,
+                    features=before,
+                    reward=reward,
+                    outcome=outcome,
+                    native_kills=0,
+                    ocr=ocr,
+                    detail=str(error),
+                ),
+            )
+        except Exception:
+            self._seal(before.built.vector)
+            raise
+
+    def _info(
+        self,
+        *,
+        action: FarmingAction,
+        features: _FrameFeatures,
+        reward: RewardResult | None,
+        outcome: SessionOutcome,
+        native_kills: int,
+        ocr: OcrDiagnostic | None,
+        detail: str = "",
+        kill_result: NativeKillResult | None = None,
+        cast_window: CastWindow | None = None,
+        eva_available: bool | None = None,
+        displacement_cells: float = 0.0,
+        contact: bool = False,
+    ) -> dict[str, object]:
+        tracked_actors = (
+            features.world.tracked_actors
+            if features.world.tracked_actors
+            else features.world.actors
+        )
+        hp_actor = tracked_actors[0] if tracked_actors else None
+        actor_diagnostics = getattr(
+            self.world_reader.actor_reader, "last_diagnostics", None
+        )
+        return {
+            "action": int(action),
+            "action_name": action.name,
+            "native_kill_delta": int(native_kills),
+            "kill_delta": int(native_kills),
+            "native_hp_offset": (
+                None
+                if hp_actor is None or getattr(hp_actor, "hp_offset", None) is None
+                else int(getattr(hp_actor, "hp_offset"))
+            ),
+            "native_hp_candidate_offsets": (
+                []
+                if hp_actor is None
+                else [
+                    int(offset)
+                    for offset, _value in tuple(
+                        getattr(hp_actor, "hp_candidates", ())
+                    )
+                ]
+            ),
+            "native_hp_offset_validated": bool(
+                False
+                if hp_actor is None
+                else getattr(hp_actor, "hp_offset_validated", False)
+            ),
+            "native_kill_candidates": (
+                0 if cast_window is None else len(cast_window.candidates)
+            ),
+            "native_kill_confirmed": (
+                []
+                if kill_result is None
+                else [int(item.base_address) for item in kill_result.confirmed]
+            ),
+            "native_kill_polls": 0 if kill_result is None else kill_result.polls,
+            "native_kill_successful_reads": (
+                0 if kill_result is None else kill_result.successful_reads
+            ),
+            "native_kill_failed_reads": (
+                0 if kill_result is None else kill_result.failed_reads
+            ),
+            "native_kill_elapsed_seconds": (
+                0.0 if kill_result is None else kill_result.elapsed_seconds
+            ),
+            "native_kill_candidate_diagnostics": (
+                []
+                if kill_result is None
+                else [
+                    {
+                        "base": int(item.base_address),
+                        "species": int(item.species_id),
+                        "present_reads": int(item.present_reads),
+                        "absent_reads": int(item.absent_reads),
+                        "maximum_consecutive_absence": int(
+                            item.maximum_consecutive_absence
+                        ),
+                        "minimum_seen_hp": item.minimum_seen_hp,
+                        "last_seen_hp": item.last_seen_hp,
+                        "initial_hp": item.initial_hp,
+                        "zero_hp_reads": int(item.zero_hp_reads),
+                        "maximum_consecutive_zero_hp": int(
+                            item.maximum_consecutive_zero_hp
+                        ),
+                        "hp_decreased": bool(item.hp_decreased),
+                        "confirmed": bool(item.confirmed),
+                    }
+                    for item in kill_result.diagnostics
+                ]
+            ),
+            "eva_available": eva_available,
+            "player_displacement_cells": float(displacement_cells),
+            "contact": bool(contact),
+            "player_native_position": (
+                float(features.world.player_pose.x),
+                float(features.world.player_pose.y),
+                float(features.world.player_pose.z),
+            ),
+            "player_heading_degrees": (
+                None
+                if features.world.player_pose.heading_degrees is None
+                else float(features.world.player_pose.heading_degrees)
+            ),
+            "pointer_mode": str(features.world.pointer_snapshot.mode),
+            "pointer_generation": int(features.world.pointer_snapshot.generation),
+            "ocr_outcome": None if ocr is None else ocr.outcome.value,
+            "ocr_value": None if ocr is None else ocr.value,
+            "ocr_previous": None if ocr is None else ocr.previous,
+            "ocr_delta": None if ocr is None else ocr.delta,
+            "visible_actors": features.built.visible_actor_count,
+            "native_cached_actor_slots": int(
+                getattr(actor_diagnostics, "discovered_slots", 0)
+            ),
+            "native_runtime_promoted_slots": int(
+                getattr(actor_diagnostics, "runtime_promoted_slots", 0)
+            ),
+            "native_pending_actor_slot_probes": int(
+                getattr(actor_diagnostics, "pending_actor_slot_probes", 0)
+            ),
+            "eva_actors": features.built.eva_actor_count,
+            "direct_clear_fraction": features.built.direct_clear_fraction,
+            "held_movement": (
+                None
+                if self.control.held_movement is None
+                else self.control.held_movement.name
+            ),
+            "map_name": self.map_context.map_name,
+            "map_hash": self.map_context.content_hash,
+            "map_cell": features.player_cell,
+            "teleport_distance_cells": features.forbidden_distance_cells,
+            "reward_components": (
+                {} if reward is None else reward.components.as_dict()
+            ),
+            "session_ended": outcome.should_stop_session,
+            "session_classification": outcome.classification.value,
+            "session_end_reason": outcome.reason.value,
+            "session_end_policy_caused": outcome.policy_caused,
+            "session_detail": detail or outcome.detail,
+        }
+
+    def _seal(self, observation: FloatArray | None = None) -> None:
+        try:
+            self.control.release()
+        finally:
+            if observation is not None:
+                terminal = np.asarray(observation, dtype=np.float32).copy()
+                terminal.setflags(write=False)
+                self._terminal_observation = terminal
+            if self._state is not FarmingEnvironmentState.CLOSED:
+                self._state = FarmingEnvironmentState.SEALED
+
+    def close(self) -> None:
+        if self._state is FarmingEnvironmentState.CLOSED:
+            return
+        try:
+            self.control.close()
+        finally:
+            self._state = FarmingEnvironmentState.CLOSED

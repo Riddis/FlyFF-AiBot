@@ -1,0 +1,100 @@
+Command: rg -n "event\s*==|event\s+in|window\.read|write_event_value|perform_long_operation|start_[a-z_]+\(" foreground_vision_bot/Gui.py foreground_vision_bot/runtime_controller.py foreground_vision_bot/worker_manager.py
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+
+Exit code: 0
+Wall time: 2.5 seconds
+Output:
+foreground_vision_bot/Gui.py:86:            event, values = self.window.read(timeout=50)
+foreground_vision_bot/Gui.py:91:            if event == "Exit" or event == sg.WIN_CLOSED:
+foreground_vision_bot/Gui.py:94:            if event == "-ATTACH_WINDOW-":
+foreground_vision_bot/Gui.py:115:            if event == "-START_BOT-":
+foreground_vision_bot/Gui.py:116:                self.__start_control(
+foreground_vision_bot/Gui.py:117:                    lambda: self.controller.start_rl("train"),
+foreground_vision_bot/Gui.py:122:            if event == "-DRY_RUN-":
+foreground_vision_bot/Gui.py:123:                self.__start_control(
+foreground_vision_bot/Gui.py:124:                    lambda: self.controller.start_rl("dry-run"),
+foreground_vision_bot/Gui.py:129:            if event == "-RUN_AGENT-":
+foreground_vision_bot/Gui.py:130:                self.__start_control(
+foreground_vision_bot/Gui.py:131:                    lambda: self.controller.start_rl("agent"),
+foreground_vision_bot/Gui.py:136:            if event == "-START_MAPPER-":
+foreground_vision_bot/Gui.py:139:                self.__start_control(
+foreground_vision_bot/Gui.py:140:                    lambda: self.controller.start_mapper(
+foreground_vision_bot/Gui.py:148:            if event == "-START_MANUAL_MAPPER-":
+foreground_vision_bot/Gui.py:151:                self.__start_control(
+foreground_vision_bot/Gui.py:152:                    lambda: self.controller.start_manual_mapper(
+foreground_vision_bot/Gui.py:160:            if event == "-SET_MINIMAP_ANCHOR-":
+foreground_vision_bot/Gui.py:163:            if event == "-EDIT_MAP_CELLS-":
+foreground_vision_bot/Gui.py:166:            if event == "-SHOW_LOG-":
+foreground_vision_bot/Gui.py:169:            if event == "-STOP_BOT-":
+foreground_vision_bot/Gui.py:178:            if event == "-SHOW_FRAMES-":
+foreground_vision_bot/Gui.py:189:            if event == "-SHOW_MATCHES_TEXT-":
+foreground_vision_bot/Gui.py:194:            if event == "-SHOW_BOXES-":
+foreground_vision_bot/Gui.py:197:            if event == "-SHOW_MARKERS-":
+foreground_vision_bot/Gui.py:213:            if event == "-MOB_POS_MATCH_THRESHOLD-":
+foreground_vision_bot/Gui.py:220:            if event == "-MOB_STILL_ALIVE_MATCH_THRESHOLD-":
+foreground_vision_bot/Gui.py:230:            if event == "-MOB_EXISTENCE_MATCH_THRESHOLD-":
+foreground_vision_bot/Gui.py:240:            if event == "-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-":
+foreground_vision_bot/Gui.py:250:            if event == "-INVENTORY_ICONS_MATCH_THRESHOLD-":
+foreground_vision_bot/Gui.py:262:            if event == "-MOBS_KILL_GOAL-":
+foreground_vision_bot/Gui.py:279:            if event == "-FIGHT_TIME_LIMIT_SEC-":
+foreground_vision_bot/Gui.py:291:            if event == "-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-":
+foreground_vision_bot/Gui.py:310:            if event == "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-":
+foreground_vision_bot/Gui.py:332:            if event == "-MAP-NAME-":
+foreground_vision_bot/Gui.py:346:            if event == "-ADD_MAP-":
+foreground_vision_bot/Gui.py:349:            if event == "-EDIT_MAP_MOBS-":
+foreground_vision_bot/Gui.py:352:            if event == "-RESET_MAP-":
+foreground_vision_bot/Gui.py:355:            if event == "-DELETE_MAP-":
+foreground_vision_bot/Gui.py:359:            if event == "-SELECT_MOBS-":
+foreground_vision_bot/Gui.py:362:            if event == "-ADD_MOB-":
+foreground_vision_bot/Gui.py:365:            if event == "-DELETE_MOB-":
+foreground_vision_bot/Gui.py:368:    def __start_control(self, command, mode, message):
+foreground_vision_bot/Gui.py:540:                event, _values = window.read()
+foreground_vision_bot/Gui.py:541:                if event in (sg.WIN_CLOSED, "stop"):
+foreground_vision_bot/Gui.py:543:                if event == "retry" and request.can_retry_in_place:
+foreground_vision_bot/Gui.py:545:                if event == "spawn":
+foreground_vision_bot/Gui.py:869:            lambda event: editor.write_event_value("-CELL-MOUSE-DOWN-", (event.x, event.y)),
+foreground_vision_bot/Gui.py:873:            lambda event: editor.write_event_value("-CELL-MOUSE-DRAG-", (event.x, event.y)),
+foreground_vision_bot/Gui.py:877:            lambda event: editor.write_event_value("-CELL-MOUSE-UP-", (event.x, event.y)),
+foreground_vision_bot/Gui.py:911:                if event in (sg.WIN_CLOSED, "Cancel"):
+foreground_vision_bot/Gui.py:913:                if event == "-CELL-EDIT-RADIUS-":
+foreground_vision_bot/Gui.py:918:                if event in pan_directions:
+foreground_vision_bot/Gui.py:924:                if event == "-CELL-CENTER-":
+foreground_vision_bot/Gui.py:928:                if event == "-CELL-UNDO-":
+foreground_vision_bot/Gui.py:932:                if event == "-CELL-MOUSE-DOWN-":
+foreground_vision_bot/Gui.py:938:                if event == "-CELL-MOUSE-DRAG-":
+foreground_vision_bot/Gui.py:947:                if event == "-CELL-MOUSE-UP-":
+foreground_vision_bot/Gui.py:970:                if event == "-CELL-SAVE-":
+foreground_vision_bot/Gui.py:1030:                if event in (sg.WIN_CLOSED, "Cancel"):
+foreground_vision_bot/Gui.py:1584:        event, _ = self._log_window.read(timeout=0)
+foreground_vision_bot/Gui.py:1585:        if event in (sg.WIN_CLOSED, "Close"):
+foreground_vision_bot/Gui.py:1714:            event, _ = window.read()
+foreground_vision_bot/Gui.py:1715:            if event == "-HEADING_CORRECT-":
+foreground_vision_bot/Gui.py:1718:            if event == "-HEADING_REJECT-":
+foreground_vision_bot/Gui.py:1721:            if event in (sg.WIN_CLOSED, "-HEADING_STOP-"):
+foreground_vision_bot/Gui.py:1749:            event, values = popup_window.read()
+foreground_vision_bot/Gui.py:1750:            if event == "Refresh":
+foreground_vision_bot/Gui.py:1757:            if event in (sg.WIN_CLOSED, "Cancel"):
+foreground_vision_bot/Gui.py:1760:            if event == "OK":
+foreground_vision_bot/Gui.py:1841:            event, values = popup_window.read()
+foreground_vision_bot/Gui.py:1843:            if event == sg.WIN_CLOSED:
+foreground_vision_bot/Gui.py:1871:            if event == "-MOBS_LIST-" and len(values["-MOBS_LIST-"]):
+foreground_vision_bot/Gui.py:1877:            if event == "Reset":
+foreground_vision_bot/Gui.py:1879:            if event == "Save":
+foreground_vision_bot/Gui.py:1896:            if event == "Delete":
+foreground_vision_bot/Gui.py:1992:            event, values = popup_window.read()
+foreground_vision_bot/Gui.py:1994:            if event == sg.WIN_CLOSED:
+foreground_vision_bot/Gui.py:1997:            if event == "Reset":
+foreground_vision_bot/Gui.py:2005:            if event == "-CAPTURE-SPECIES-":
+foreground_vision_bot/Gui.py:2020:            if event == "Save":
+foreground_vision_bot/Gui.py:2065:            if event == "-HEIGHT-":
+foreground_vision_bot/runtime_controller.py:71:    def start_rl(self, mode: str) -> None:
+foreground_vision_bot/runtime_controller.py:106:        self._start_control(f"rl-{mode}", run)
+foreground_vision_bot/runtime_controller.py:108:    def start_mapper(
+foreground_vision_bot/runtime_controller.py:139:        self._start_control("mapper", run)
+foreground_vision_bot/runtime_controller.py:141:    def start_manual_mapper(self, map_name: str) -> None:
+foreground_vision_bot/runtime_controller.py:161:        self._start_control("manual-mapper", run)
+foreground_vision_bot/runtime_controller.py:205:    def start_calibration(self, *, visual_confirmation: bool) -> None:
+foreground_vision_bot/runtime_controller.py:231:        self._start_control("calibration", run)
+foreground_vision_bot/runtime_controller.py:233:    def _start_control(
+__COMMAND_EXIT_CODE__=0
+

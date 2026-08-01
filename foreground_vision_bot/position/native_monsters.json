@@ -1,0 +1,28 @@
+{
+  "enabled": true,
+  "module_name": "Neuz.exe",
+  "selected_actor_offset": "0x20",
+  "vision_radius_native": 80.0,
+  "maximum_absolute_coordinate": 100000.0,
+  "layout": {
+    "actor_stride": "0x2008",
+    "x_offset": "0x160",
+    "y_offset": "0x164",
+    "z_offset": "0x168",
+    "world_offset": "0x16C",
+    "species_offset": "0x174",
+    "hp_offset": "0x814",
+    "active_species_offset": "0x1DBC",
+    "self_pointer_offset": "0x1EE0"
+  },
+  "discovery": {
+    "interval_seconds": 20.0,
+    "chunk_bytes": 1048576,
+    "maximum_address": "0x7FFFFFFF",
+    "private_memory_only": true
+  },
+  "recovery_hints": {
+    "player_pointer_offset": "0x5852B8",
+    "world_pointer_offset": "0x596C6C"
+  }
+}

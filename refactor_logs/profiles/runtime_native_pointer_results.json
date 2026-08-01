@@ -1,0 +1,298 @@
+{
+  "audit_constraints": {
+    "backend": "FakeProcessMemory only",
+    "real_process_opened": false,
+    "successful_recovery_persist": false
+  },
+  "candidate_pressure": {
+    "counters": {
+      "bytes_read": 262184,
+      "close_calls": 0,
+      "module_base_calls": 0,
+      "peak_active_reads": 1,
+      "read_calls": 14,
+      "read_failures": 0,
+      "readable_region_calls": 1
+    },
+    "elapsed_ms": 11.564,
+    "planted_pointer_like_words": 1024,
+    "readable_region_count": 257,
+    "result": null,
+    "target_region_position": "last"
+  },
+  "closed_process": {
+    "monster": {
+      "counters": {
+        "bytes_read": 0,
+        "close_calls": 1,
+        "module_base_calls": 1,
+        "peak_active_reads": 1,
+        "read_calls": 1,
+        "read_failures": 1,
+        "readable_region_calls": 0
+      },
+      "elapsed_ms": 0.011,
+      "error": "fake process memory is closed",
+      "error_type": "ProcessMemoryError"
+    },
+    "position": {
+      "counters": {
+        "bytes_read": 0,
+        "close_calls": 1,
+        "module_base_calls": 1,
+        "peak_active_reads": 1,
+        "read_calls": 1,
+        "read_failures": 1,
+        "readable_region_calls": 0
+      },
+      "elapsed_ms": 0.027,
+      "error": "Could not read 32-bit player pointer at 0x105852B8: ProcessMemoryError: fake process memory is closed",
+      "error_type": "PointerResolutionError"
+    }
+  },
+  "concurrent_position_monster_like_misses": {
+    "actual_readable_region_calls": 2,
+    "caller_elapsed_ms": {
+      "monster_like": 45.184,
+      "position_like": 46.144
+    },
+    "counters": {
+      "bytes_read": 1048592,
+      "close_calls": 0,
+      "module_base_calls": 0,
+      "peak_active_reads": 2,
+      "read_calls": 20,
+      "read_failures": 0,
+      "readable_region_calls": 2
+    },
+    "expected_readable_region_calls_if_single_flight": 1,
+    "results": {
+      "monster_like": null,
+      "position_like": null
+    },
+    "wall_elapsed_ms": 46.286
+  },
+  "config_integrity": {
+    "after": {
+      "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\foreground_vision_bot\\position\\native_monsters.json": "d46582461ebadd8ed867b4e205b9101eaa58b1e70dc180c1e1eec21b57948fa3",
+      "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\foreground_vision_bot\\position\\native_position.json": "f65f0c76d039a7fb00ac72358a5cbef78398c552ea6f810604d716da51cbe951"
+    },
+    "before": {
+      "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\foreground_vision_bot\\position\\native_monsters.json": "d46582461ebadd8ed867b4e205b9101eaa58b1e70dc180c1e1eec21b57948fa3",
+      "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\foreground_vision_bot\\position\\native_position.json": "f65f0c76d039a7fb00ac72358a5cbef78398c552ea6f810604d716da51cbe951"
+    },
+    "unchanged": true
+  },
+  "default_failed_recovery": {
+    "counters": {
+      "bytes_read": 24924876,
+      "close_calls": 0,
+      "module_base_calls": 0,
+      "peak_active_reads": 1,
+      "read_calls": 385,
+      "read_failures": 0,
+      "readable_region_calls": 4
+    },
+    "elapsed_ms": 973.887,
+    "module_bytes_allocated": 14176956,
+    "result": null,
+    "search_radii_hex": [
+      "0x20000",
+      "0x100000",
+      "0x400000",
+      "0x800000"
+    ]
+  },
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "ordinary_position_null_read": {
+    "counters": {
+      "bytes_read": 24924880,
+      "close_calls": 0,
+      "module_base_calls": 1,
+      "peak_active_reads": 1,
+      "read_calls": 386,
+      "read_failures": 0,
+      "readable_region_calls": 4
+    },
+    "elapsed_ms": 979.233,
+    "error": "Player pointer at 0x105852B8 is null; the character may not be fully logged in yet, or the client update changed the configured pointer offset",
+    "error_type": "PointerResolutionError",
+    "last_pointer_recovery": false,
+    "monster_config_offset_matches_position": true
+  },
+  "provider_attach_construction": {
+    "counters": {
+      "bytes_read": 0,
+      "close_calls": 0,
+      "module_base_calls": 2,
+      "peak_active_reads": 0,
+      "read_calls": 0,
+      "read_failures": 0,
+      "readable_region_calls": 0
+    },
+    "elapsed_ms": 0.021,
+    "monster_player_pointer_address": 274223800,
+    "note": "constructors resolve module bases but do not dereference pointers",
+    "position_pointer_address": 274223800
+  },
+  "region_containment_scaling": {
+    "calls_per_size": 3000,
+    "measurements": [
+      {
+        "elapsed_ms": 7.778,
+        "hits": 3000,
+        "microseconds_per_lookup": 2.593,
+        "regions": 8
+      },
+      {
+        "elapsed_ms": 116.03,
+        "hits": 3000,
+        "microseconds_per_lookup": 38.677,
+        "regions": 128
+      },
+      {
+        "elapsed_ms": 458.83,
+        "hits": 3000,
+        "microseconds_per_lookup": 152.943,
+        "regions": 512
+      }
+    ]
+  },
+  "repeated_failed_recovery": {
+    "attempts": [
+      {
+        "attempt": 1,
+        "counter_delta": {
+          "bytes_read": 262152,
+          "close_calls": 0,
+          "module_base_calls": 0,
+          "peak_active_reads": 1,
+          "read_calls": 6,
+          "read_failures": 0,
+          "readable_region_calls": 1
+        },
+        "elapsed_ms": 10.421,
+        "result": null
+      },
+      {
+        "attempt": 2,
+        "counter_delta": {
+          "bytes_read": 262152,
+          "close_calls": 0,
+          "module_base_calls": 0,
+          "peak_active_reads": 0,
+          "read_calls": 6,
+          "read_failures": 0,
+          "readable_region_calls": 1
+        },
+        "elapsed_ms": 10.234,
+        "result": null
+      },
+      {
+        "attempt": 3,
+        "counter_delta": {
+          "bytes_read": 262152,
+          "close_calls": 0,
+          "module_base_calls": 0,
+          "peak_active_reads": 0,
+          "read_calls": 6,
+          "read_failures": 0,
+          "readable_region_calls": 1
+        },
+        "elapsed_ms": 10.336,
+        "result": null
+      }
+    ],
+    "cache_entries_after_failures": 0,
+    "total_counters": {
+      "bytes_read": 786456,
+      "close_calls": 0,
+      "module_base_calls": 0,
+      "peak_active_reads": 1,
+      "read_calls": 18,
+      "read_failures": 0,
+      "readable_region_calls": 3
+    }
+  },
+  "stale_nonzero_position_read": {
+    "counters": {
+      "bytes_read": 16,
+      "close_calls": 0,
+      "module_base_calls": 1,
+      "peak_active_reads": 1,
+      "read_calls": 2,
+      "read_failures": 0,
+      "readable_region_calls": 0
+    },
+    "elapsed_ms": 0.035,
+    "error": "0x30000000 returned non-finite values: [nan, 1.0, 2.0]",
+    "error_type": "InvalidPlayerPoseError",
+    "last_pointer_recovery": false
+  },
+  "suite_elapsed_ms": 2867.915,
+  "valid_shift_and_success_cache": {
+    "cache_hit_counter_delta": {
+      "bytes_read": 12,
+      "close_calls": 0,
+      "module_base_calls": 0,
+      "peak_active_reads": 0,
+      "read_calls": 3,
+      "read_failures": 0,
+      "readable_region_calls": 0
+    },
+    "cache_hit_elapsed_ms": 0.02,
+    "first_counters": {
+      "bytes_read": 131188,
+      "close_calls": 0,
+      "module_base_calls": 0,
+      "peak_active_reads": 1,
+      "read_calls": 31,
+      "read_failures": 0,
+      "readable_region_calls": 1
+    },
+    "first_elapsed_ms": 66.251,
+    "persist_was_enabled": false,
+    "recovery": {
+      "configured_player_pointer_offset": 524288,
+      "configured_world_pointer_offset": 589824,
+      "player_base": 822083584,
+      "player_pointer_address": 268976128,
+      "player_pointer_offset": 540672,
+      "search_radius": 65536,
+      "validated_candidates": 1,
+      "world_base": 838860800,
+      "world_pointer_address": 269041664,
+      "world_pointer_offset": 606208
+    },
+    "stdout": [
+      "Native player pointer recovered | player=0x80000->0x84000 world=0x90000->0x94000 radius=0x10000 candidates=1"
+    ]
+  },
+  "worker_cancellation": {
+    "alive_after_short_join": true,
+    "cancellation_to_worker_finish_ms": 120.425,
+    "counters": {
+      "bytes_read": 1048584,
+      "close_calls": 0,
+      "module_base_calls": 0,
+      "peak_active_reads": 1,
+      "read_calls": 18,
+      "read_failures": 0,
+      "readable_region_calls": 1
+    },
+    "final_join_succeeded": true,
+    "final_state": "completed",
+    "observed": {
+      "token_cancelled_at_return": true,
+      "token_cancelled_before_recovery": false
+    },
+    "recovery_accepts_cancellation_token": false,
+    "short_join_budget_ms": 15.0,
+    "short_join_returned_in_ms": 18.053,
+    "short_join_succeeded": false,
+    "state_after_short_join": "stopping"
+  }
+}

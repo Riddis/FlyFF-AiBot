@@ -1,0 +1,497 @@
+Command: AST import inventory for canonical production Python
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+
+Exit code: 0
+Wall time: 2.5 seconds
+Total output lines: 922
+Output:
+source	line	kind	module	names
+foreground_vision_bot/assets/Assets.py	1	import	json	
+foreground_vision_bot/assets/Assets.py	2	import	os	
+foreground_vision_bot/assets/Assets.py	3	import	shutil	
+foreground_vision_bot/assets/Assets.py	4	from	pathlib	Path
+foreground_vision_bot/assets/Assets.py	6	import	cv2	cv
+foreground_vision_bot/Bot.py	1	from	__future__	annotations
+foreground_vision_bot/Bot.py	3	import	math	
+foreground_vision_bot/Bot.py	4	from	collections.abc	Iterable
+foreground_vision_bot/Bot.py	5	from	dataclasses	dataclass
+foreground_vision_bot/Bot.py	6	from	pathlib	Path
+foreground_vision_bot/Bot.py	7	from	threading	Lock,RLock
+foreground_vision_bot/Bot.py	8	from	time	time
+foreground_vision_bot/Bot.py	9	from	typing	TYPE_CHECKING
+foreground_vision_bot/Bot.py	11	import	cv2	cv
+foreground_vision_bot/Bot.py	12	import	numpy	np
+foreground_vision_bot/Bot.py	13	from	assets.Assets	MobInfo
+foreground_vision_bot/Bot.py	14	from	libs.ActionExecutor	ActionExecutor,BotAction
+foreground_vision_bot/Bot.py	15	from	libs.ComputerVision	ComputerVision
+foreground_vision_bot/Bot.py	16	from	libs.DigitReader	DigitReader
+foreground_vision_bot/Bot.py	17	from	libs.HumanKeyboard	VKEY,HumanKeyboard
+foreground_vision_bot/Bot.py	18	from	libs.KillCounterPanel	DynamicKillCounterReader
+foreground_vision_bot/Bot.py	19	from	mapper.NativeCourseHeading	NativeCourseHeadingTracker
+foreground_vision_bot/Bot.py	20	from	position	NativeActor,NativeFlyffMonsterProvider,PlayerPose,PositionProvider,create_native_monster_provider,create_native_position_provider
+foreground_vision_bot/Bot.py	30	from	capture_service	CaptureService,FrameSample
+foreground_vision_bot/Bot.py	31	from	runtime_bus	RuntimeBus
+foreground_vision_bot/Bot.py	653	from	mapper.NativeMonsterMapOverlay	NativeMonsterMapOverlay
+foreground_vision_bot/Bot.py	803	from	mapper	MinimapHeadingDetector
+foreground_vision_bot/Bot.py	545	from	mapper	MinimapHeadingDetector
+foreground_vision_bot/capture_service.py	1	from	__future__	annotations
+foreground_vision_bot/capture_service.py	3	import	traceback	
+foreground_vision_bot/capture_service.py	4	from	collections	deque
+foreground_vision_bot/capture_service.py	5	from	collections.abc	Callable
+foreground_vision_bot/capture_service.py	6	from	dataclasses	dataclass
+foreground_vision_bot/capture_service.py	7	from	threading	Lock
+foreground_vision_bot/capture_service.py	8	from	time	monotonic
+foreground_vision_bot/capture_service.py	9	from	typing	Protocol
+foreground_vision_bot/capture_service.py	11	import	numpy	np
+foreground_vision_bot/capture_service.py	12	from	numpy.typing	NDArray
+foreground_vision_bot/capture_service.py	13	from	runtime_bus	RuntimeBus
+foreground_vision_bot/capture_service.py	14	from	worker_manager	CancellationToken,WorkerKind,WorkerManager
+foreground_vision_bot/conftest.py	1	from	__future__	annotations
+foreground_vision_bot/conftest.py	3	import	os	
+foreground_vision_bot/conftest.py	4	import	sys	
+foreground_vision_bot/conftest.py	5	from	pathlib	Path
+foreground_vision_bot/conftest.py	6	from	uuid	uuid4
+foreground_vision_bot/conftest.py	8	import	pytest	
+foreground_vision_bot/foreground_vision_farm.py	7	import	traceback	
+foreground_vision_bot/foreground_vision_farm.py	8	from	pathlib	Path
+foreground_vision_bot/foreground_vision_farm.py	10	from	Bot	Bot
+foreground_vision_bot/foreground_vision_farm.py	11	from	Gui	Gui
+foreground_vision_bot/foreground_vision_farm.py	12	from	utils.helpers	print_logo
+foreground_vision_bot/Gui.py	1	import	difflib	
+foreground_vision_bot/Gui.py	2	import	math	
+foreground_vision_bot/Gui.py	3	import	re	
+foreground_vision_bot/Gui.py	4	from	time	monotonic
+foreground_vision_bot/Gui.py	6	import	cv2	cv
+foreground_vision_bot/Gui.py	7	import	PySimpleGUI	sg
+foreground_vision_bot/Gui.py	8	from	mapper.ManualMapEditor	ManualMapEditorSession
+foreground_vision_bot/Gui.py	9	from	mapper.MapCatalog	MapCatalog
+foreground_vision_bot/Gui.py	10	from	mapper.OccupancyGrid	OccupancyGrid
+foreground_vision_bot/Gui.py	11	from	runtime_bus	RuntimeBus
+foreground_vision_bot/Gui.py	12	from	runtime_controller	RuntimeController
+foreground_vision_bot/Gui.py	13	from	utils.helpers	get_window_handlers,hex_variant
+foreground_vision_bot/Gui.py	617	import	shutil	
+foreground_vision_bot/Gui.py	618	from	pathlib	Path
+foreground_vision_bot/Gui.py	1590	import	numpy	np
+foreground_vision_bot/Gui.py	1915	from	assets.Assets	mob_type_electricity_path,mob_type_fire_path,mob_type_soil_path,mob_type_water_path,mob_type_wind_path
+foreground_vision_bot/Gui.py	589	from	mapper.MinimapAnchorSetup	MinimapAnchorSetup
+foreground_vision_bot/Gui.py	1644	from	mapper	MinimapHeadingDetector
+foreground_vision_bot/Gui.py	1897	from	assets.Assets	MobInfo
+foreground_vision_bot/Gui.py	2032	from	assets.Assets	MobInfo
+foreground_vision_bot/inspect_native_monsters.py	1	from	__future__	annotations
+foreground_vision_bot/inspect_native_monsters.py	3	import	argparse	
+foreground_vision_bot/inspect_native_monsters.py	4	import	json	
+foreground_vision_bot/inspect_native_monsters.py	5	import	sys	
+foreground_vision_bot/inspect_native_monsters.py	6	from	collections	Counter
+foreground_vision_bot/inspect_native_monsters.py	7	from	pathlib	Path
+foreground_vision_bot/inspect_native_monsters.py	9	from	assets.Assets	MobInfo
+foreground_vision_bot/inspect_native_monsters.py	10	from	position	create_native_monster_provider,create_native_monster_provider_from_process_id
+foreground_vision_bot/inspect_native_monsters.py	14	from	utils.helpers	get_window_handlers
+foreground_vision_bot/libs/ActionExecutor.py	1	from	__future__	annotations
+foreground_vision_bot/libs/ActionExecutor.py	3	from	dataclasses	dataclass
+foreground_vision_bot/libs/ActionExecutor.py	4	from	enum	IntEnum
+foreground_vision_bot/libs/ActionExecutor.py	6	from	libs.HumanKeyboard	VKEY,HumanKeyboard
+foreground_vision_bot/libs/CameraDiscoverySweep.py	1	from	__future__	annotations
+foreground_vision_bot/libs/CameraDiscoverySweep.py	3	import	json	
+foreground_vision_bot/libs/CameraDiscoverySweep.py	4	from	dataclasses	dataclass
+foreground_vision_bot/libs/CameraDiscoverySweep.py	5	from	math	hypot
+foreground_vision_bot/libs/CameraDiscoverySweep.py	6	from	pathlib	Path
+foreground_vision_bot/libs/CameraDiscoverySweep.py	7	from	time	monotonic,sleep
+foreground_vision_bot/libs/CameraDiscoverySweep.py	8	from	typing	Callable
+foreground_vision_bot/libs/CameraDiscoverySweep.py	10	from	project_paths	resolve_app_path
+foreground_vision_bot/libs/CameraDiscoverySweep.py	11	from	worker_manager	CancellationToken
+foreground_vision_bot/libs/ClusterDetector.py	1	from	collections.abc	Iterable,Sequence
+foreground_vision_bot/libs/ClusterDetector.py	2	from	dataclasses	dataclass
+foreground_vision_bot/libs/ClusterDetector.py	3	from	math	hypot
+foreground_vision_bot/libs/ComputerVision.py	1	import	cv2	cv
+foreground_vision_bot/libs/ComputerVision.py	2	import	numpy	np
+foreground_vision_bot/libs/DigitReader.py	1	from	pathlib	Path
+foreground_vision_bot/libs/DigitReader.py	3	import	cv2	cv
+foreground_vision_bot/libs/DigitReader.py	4	import	numpy	np
+foreground_vision_bot/libs/FlyffEnv.py	1	from	__future__	annotations
+foreground_vision_bot/libs/FlyffEnv.py	3	from	collections.abc	Callable,Iterable,Sequence
+foreground_vision_bot/libs/FlyffEnv.py	4	from	dataclasses	dataclass
+foreground_vision_bot/libs/FlyffEnv.py	5	from	math	hypot
+foreground_vision_bot/libs/FlyffEnv.py	6	from	time	monotonic,sleep
+foreground_vision_bot/libs/FlyffEnv.py	7	from	typing	ClassVar
+foreground_vision_bot/libs/FlyffEnv.py	9	import	gymnasium	gym
+foreground_vision_bot/libs/FlyffEnv.py	10	import	numpy	np
+foreground_vision_bot/libs/FlyffEnv.py	11	from	gymnasium	spaces
+foreground_vision_bot/libs/FlyffEnv.py	12	from	libs.ActionExecutor	ActionExecutor,BotAction
+foreground_vision_bot/libs/FlyffEnv.py	13	from	libs.ObservationBuilder	ObservationBuilder
+foreground_vision_bot/libs/human_mouse/_beziercurve.py	1	import	math	
+foreground_vision_bot/libs/human_mouse/_utils.py	1	import	numpy	np
+foreground_vision_bot/libs/human_mouse/HumanCurve.py	1	import	random	
+foreground_vision_bot/libs/human_mouse/HumanCurve.py	3	import	numpy	np
+foreground_vision_bot/libs/human_mouse/HumanCurve.py	4	import	pytweening	
+foreground_vision_bot/libs/human_mouse/HumanCurve.py	5	from	libs.human_mouse._beziercurve	BezierCurve
+foreground_vision_bot/libs/human_mouse/HumanCurve.py	6	from	libs.human_mouse._utils	isListOfPoints,isNumeric
+foreground_vision_bot/libs/human_mouse/HumanMouse.py	1	from	random	randint,uniform
+foreground_vision_bot/libs/human_mouse/HumanMouse.py	2	from	time	sleep
+foreground_vision_bot/libs/human_mouse/HumanMouse.py	4	import	win32api	
+foreground_vision_bot/libs/human_mouse/HumanMouse.py	5	import	win32con	
+foreground_vision_bot/libs/human_mouse/HumanMouse.py	6	import	win32gui	
+foreground_vision_bot/libs/human_mouse/HumanMouse.py	7	from	libs.human_mouse.HumanCurve	HumanCurve
+foreground_vision_bot/libs/HumanKeyboard.py	1	from	__future__	annotations
+foreground_vision_bot/libs/HumanKeyboard.py	3	from	collections.abc	Iterable
+foreground_vision_bot/libs/HumanKeyboard.py	4	import	ctypes	
+foreground_vision_bot/libs/HumanKeyboard.py	5	from	dataclasses	dataclass
+foreground_vision_bot/libs/HumanKeyboard.py	6	from	math	isfinite
+foreground_vision_bot/libs/HumanKeyboard.py	7	from	threading	Event,RLock,Thread
+foreground_vision_bot/libs/HumanKeyboard.py	8	from	time	monotonic,sleep
+foreground_vision_bot/libs/HumanKeyboard.py	10	import	win32api	
+foreground_vision_bot/libs/HumanKeyboard.py	11	import	win32con	
+foreground_vision_bot/libs/KillCounterPanel.py	1	from	__future__	annotations
+foreground_vision_bot/libs/KillCounterPanel.py	3	from	dataclasses	dataclass
+foreground_vision_bot/libs/KillCounterPanel.py	4	from	pathlib	Path
+foreground_vision_bot/libs/KillCounterPanel.py	5	from	typing	NamedTuple
+foreground_vision_bot/libs/KillCounterPanel.py	7	import	cv2	cv
+foreground_vision_bot/libs/KillCounterPanel.py	8	import	numpy	np
+foreground_vision_bot/libs/KillCounterPanel.py	10	from	libs.DigitReader	DigitReader
+foreground_vision_bot/libs/LiveNavigatorController.py	1	from	__future__	annotations
+foreground_vision_bot/libs/LiveNavigatorController.py	3	from	dataclasses	dataclass
+foreground_vision_bot/libs/LiveNavigatorController.py	4	from	math	hypot,isfinite
+foreground_vision_bot/libs/LiveNavigatorController.py	5	from	pathlib	Path
+foreground_vision_bot/libs/LiveNavigatorController.py	6	from	time	monotonic,sleep
+foreground_vision_bot/libs/LiveNavigatorController.py	7	from	typing	Any,Callable
+foreground_vision_bot/libs/LiveNavigatorController.py	9	import	numpy	np
+foreground_vision_bot/libs/LiveNavigatorController.py	11	from	mapper.rl.LayoutSources	FullRealMapGenerator,RealMapData
+foreground_vision_bot/libs/LiveNavigatorController.py	12	from	mapper.rl.NavigatorCore	NavigatorAction,NavigatorOutcome,NavigatorSimulatorConfig,NavigatorSimulatorCore,compute_distance_field
+foreground_vision_bot/libs/LiveNavigatorController.py	19	from	mapper.rl.NavigatorTraining	load_navigator_config
+foreground_vision_bot/libs/LiveNavigatorController.py	20	from	project_paths	resolve_app_path
+foreground_vision_bot/libs/LiveNavigatorController.py	21	from	worker_manager	CancellationToken
+foreground_vision_bot/libs/LiveNavigatorController.py	23	from	.NativeMapContext	NativeMapContext
+foreground_vision_bot/libs/LiveNavigatorController.py	24	from	.NavigatorActionExecutor	NavigatorActionExecutor
+foreground_vision_bot/libs/LiveNavigatorController.py	80	from	sb3_contrib	MaskablePPO
+foreground_vision_bot/libs/LiveNavigatorController.py	85	from	stable_baselines3	PPO
+foreground_vision_bot/libs/NativeFarmingEnv.py	1	from	__future__	annotations
+foreground_vision_bot/libs/NativeFarmingEnv.py	3	from	dataclasses	dataclass
+foreground_vision_bot/libs/NativeFarmingEnv.py	4	from	math	isfinite
+foreground_vision_bot/libs/NativeFarmingEnv.py	5	from	time	monotonic,sleep
+foreground_vision_bot/libs/NativeFarmingEnv.py	6	from	typing	ClassVar
+foreground_vision_bot/libs/NativeFarmingEnv.py	8	import	gymnasium	gym
+foreground_vision_bot/libs/NativeFarmingEnv.py	9	import	numpy	np
+foreground_vision_bot/libs/NativeFarmingEnv.py	10	from	gymnasium	spaces
+foreground_vision_bot/libs/NativeFarmingEnv.py	12	from	mapper.rl.NavigatorCore	compute_distance_field
+foreground_vision_bot/libs/NativeFarmingEnv.py	13	from	mapper.rl.TravelCost	TravelCostField
+foreground_vision_bot/libs/NativeFarmingEnv.py	15	from	.CameraDiscoverySweep	CameraDiscoverySweep
+foreground_vision_bot/libs/NativeFarmingEnv.py	16	from	.LiveNavigatorController	LiveNavigatorController,NavigationBurstResult
+foreground_vision_bot/libs/NativeFarmingEnv.py	17	from	.NativeFarmingObservation	NativeFarmingObservation,NativeFarmingObservationBuilder
+foreground_vision_bot/libs/NativeFarmingEnv.py	21	from	.NativeMapContext	NativeMapContext
+foreground_vision_bot/libs/NativeFarmingObservation.py	1	from	__future__	annotations
+foreground_vision_bot/libs/NativeFarmingObservation.py	3	from	dataclasses	dataclass
+foreground_vision_bot/libs/NativeFarmingObservation.py	4	from	math	hypot,isfinite
+foreground_vision_bot/libs/NativeFarmingObservation.py	5	from	typing	Iterable
+foreground_vision_bot/libs/NativeFarmingObservation.py	7	import	numpy	np
+foreground_vision_bot/libs/NativeFarmingObservation.py	9	from	position	NativeActor,PlayerPose
+foreground_vision_bot/libs/NativeFarmingObservation.py	11	from	mapper.rl.TravelCost	TravelCostField
+foreground_vision_bot/libs/NativeFarmingObservation.py	13	from	.NativeMapContext	NativeMapContext
+foreground_vision_bot/libs/NativeMapContext.py	1	from	__future__	annotations
+foreground_vision_bot/libs/NativeMapContext.py	3	from	dataclasses	dataclass
+foreground_vision_bot/libs/NativeMapContext.py	4	from	math	hypot
+foreground_vision_bot/libs/NativeMapContext.py	5	from	pathlib	Path
+foreground_vision_bot/libs/NativeMapContext.py	7	import	numpy	np
+foreground_vision_bot/libs/NativeMapContext.py	9	from	mapper.CoordinateFrame	CoordinateFrame
+foreground_vision_bot/libs/NativeMapContext.py	10	from	mapper.MapCatalog	MapCatalog
+foreground_vision_bot/libs/NativeMapContext.py	11	from	mapper.OccupancyGrid	OccupancyGrid
+foreground_vision_bot/libs/NativeMapContext.py	12	from	mapper.rl.LayoutSources	RealMapData,load_real_map
+foreground_vision_bot/libs/NativeMapContext.py	13	from	mapper.rl.NavigatorCore	inflate_navigation_masks
+foreground_vision_bot/libs/NativeMapContext.py	14	from	mapper.rl.ProceduralDungeon	DungeonLayout
+foreground_vision_bot/libs/NavigatorActionExecutor.py	1	from	__future__	annotations
+foreground_vision_bot/libs/NavigatorActionExecutor.py	3	from	mapper.rl.NavigatorCore	NavigatorAction
+foreground_vision_bot/libs/NavigatorActionExecutor.py	5	from	libs.ActionExecutor	MovementKeyMap
+foreground_vision_bot/libs/NavigatorActionExecutor.py	6	from	libs.HumanKeyboard	VKEY,HumanKeyboard
+foreground_vision_bot/libs/ObservationBuilder.py	1	from	__future__	annotations
+foreground_vision_bot/libs/ObservationBuilder.py	3	from	collections.abc	Iterable,Sequence
+foreground_vision_bot/libs/ObservationBuilder.py	4	from	dataclasses	dataclass
+foreground_vision_bot/libs/ObservationBuilder.py	5	from	math	hypot
+foreground_vision_bot/libs/ObservationBuilder.py	7	import	numpy	np
+foreground_vision_bot/libs/V0672NativeFarmingFixes.py	1	from	__future__	annotations
+foreground_vision_bot/libs/V0672NativeFarmingFixes.py	11	from	dataclasses	replace
+foreground_vision_bot/libs/V0672NativeFarmingFixes.py	12	from	math	hypot,isfinite
+foreground_vision_bot/libs/V0672NativeFarmingFixes.py	13	from	time	monotonic,sleep
+foreground_vision_bot/libs/V0672NativeFarmingFixes.py	14	from	typing	Any
+foreground_vision_bot/libs/V0672NativeFarmingFixes.py	16	import	numpy	np
+foreground_vision_bot/libs/V0672NativeFarmingFixes.py	18	from	mapper.rl.NavigatorCore	NavigatorAction,NavigatorOutcome
+foreground_vision_bot/libs/V0672NativeFarmingFixes.py	20	from	.LiveNavigatorController	LiveNavigatorController
+foreground_vision_bot/libs/V0672NativeFarmingFixes.py	21	from	.NativeFarmingEnv	NativeFarmingEnv
+foreground_vision_bot/libs/V0673EvaMovementFix.py	1	from	__future__	annotations
+foreground_vision_bot/libs/V0673EvaMovementFix.py	14	from	typing	Any,Callable
+foreground_vision_bot/libs/V0673EvaMovementFix.py	16	from	mapper.rl.NavigatorCore	NavigatorAction
+foreground_vision_bot/libs/V0673EvaMovementFix.py	18	from	.LiveNavigatorController	LiveNavigatorController
+foreground_vision_bot/libs/V0673EvaMovementFix.py	19	from	.NativeFarmingEnv	NativeFarmingEnv
+foreground_vision_bot/libs/V0674OrbitGuard.py	1	from	__future__	annotations
+foreground_vision_bot/libs/V0674OrbitGuard.py	20	from	math	isfinite
+foreground_vision_bot/libs/V0674OrbitGuard.py	21	from	time	monotonic
+foreground_vision_bot/libs/V0674OrbitGuard.py	22	from	types	SimpleNamespace
+foreground_vision_bot/libs/V0674OrbitGuard.py	23	from	typing	Any,Callable
+foreground_vision_bot/libs/V0674OrbitGuard.py	25	from	mapper.rl.NavigatorCore	NavigatorAction
+foreground_vision_bot/libs/V0674OrbitGuard.py	27	from	.LiveNavigatorController	LiveNavigatorController
+foreground_vision_bot/libs/V0674OrbitGuard.py	28	from	.NativeFarmingEnv	NativeFarmingEnv
+foreground_vision_bot/libs/V0674OrbitGuard.py	29	from	.	V0672NativeFarmingFixes
+foreground_vision_bot/libs/V0700UnifiedFarming.py	1	from	__future__	annotations
+foreground_vision_bot/libs/V0700UnifiedFarming.py	20	from	math	atan2,cos,hypot,isfinite,pi,sin,tanh
+foreground_vision_bot/libs/V0700UnifiedFarming.py	21	from	time	monotonic
+foreground_vision_bot/libs/V0700UnifiedFarming.py	22	from	typing	Any,Iterable,Sequence
+foreground_vision_bot/libs/V0700UnifiedFarming.py	24	import	numpy	np
+foreground_vision_bot/libs/V0700UnifiedFarming.py	31	from	mapper.rl.NavigatorCore	NavigatorAction
+foreground_vision_bot/libs/V0700UnifiedFarming.py	33	from	.	V0672NativeFarmingFixes
+foreground_vision_bot/libs/V0700UnifiedFarming.py	34	from	.LiveNavigatorController	LiveNavigatorController
+foreground_vision_bot/libs/V0700UnifiedFarming.py	35	from	.NativeFarmingEnv	NativeFarmingEnv
+foreground_vision_bot/libs/V0700UnifiedFarming.py	27	from	gymnasium	spaces
+foreground_vision_bot/libs/V0700UnifiedFarming.py	29	from	gym	spaces
+foreground_vision_bot/libs/V0707TeleportSafety.py	1	from	__future__	annotations
+foreground_vision_bot/libs/V0707TeleportSafety.py	17	from	math	hypot,isfinite
+foreground_vision_bot/libs/V0707TeleportSafety.py	18	from	time	monotonic
+foreground_vision_bot/libs/V0707TeleportSafety.py	19	from	typing	Any
+foreground_vision_bot/libs/V0707TeleportSafety.py	21	import	numpy	np
+foreground_vision_bot/libs/V0707TeleportSafety.py	23	from	.	V0700UnifiedFarming
+foreground_vision_bot/libs/V0707TeleportSafety.py	24	from	.NativeFarmingEnv	NativeFarmingEnv
+foreground_vision_bot/libs/WindowCapture.py	1	import	cv2	cv
+foreground_vision_bot/libs/WindowCapture.py	2	import	numpy	np
+foreground_vision_bot/libs/WindowCapture.py	3	import	win32con	
+foreground_vision_bot/libs/WindowCapture.py	4	import	win32gui	
+foreground_vision_bot/libs/WindowCapture.py	5	import	win32ui	
+foreground_vision_bot/mapper/__init__.py	8	from	__future__	annotations
+foreground_vision_bot/mapper/__init__.py	10	from	typing	Any
+foreground_vision_bot/mapper/__init__.py	34	from	mapper.CoordinateMapper	CoordinateMapper,Mapper,MapperConfig
+foreground_vision_bot/mapper/__init__.py	42	from	mapper.ManualDriveMapper	ManualDriveMapper
+foreground_vision_bot/mapper/__init__.py	46	from	mapper.AdaptiveMapper	AdaptiveMapper
+foreground_vision_bot/mapper/__init__.py	50	from	mapper.FastHeadingTracker	FastHeadingState,FastHeadingTracker
+foreground_vision_bot/mapper/__init__.py	57	from	mapper.MapCatalog	MapCatalog,MapProfile
+foreground_vision_bot/mapper/__init__.py	61	from	mapper.MinimapAnchorSetup	MinimapAnchorSetup
+foreground_vision_bot/mapper/__init__.py	65	from	mapper.MinimapHeading	MinimapHeadingDetector
+foreground_vision_bot/mapper/__init__.py	69	from	mapper.NativeMonsterMapOverlay	NativeMonsterMapOverlay
+fo…9264 tokens truncated…Control.py	8	from	worker_manager	CancellationToken
+foreground_vision_bot/mapper/TurnControl.py	10	from	mapper.MappingController	MappingController
+foreground_vision_bot/mapper/TurnControl.py	11	from	mapper.MinimapHeading	HeadingReading,observed_heading_delta,signed_angle_delta
+foreground_vision_bot/mapper/TurnControl.py	16	from	mapper.RotationModel	MAXIMUM_TOLERATED_REVERSAL_BACKLASH_DEGREES,DirectionRotationProfile,RotationTiming,StateAwareRotationModel,TurnDirection,TurnMemoryPolicy,TurnPulseResult,TurnTransition
+foreground_vision_bot/mapper/WallInference.py	1	from	__future__	annotations
+foreground_vision_bot/mapper/WallInference.py	3	import	math	
+foreground_vision_bot/mapper/WallInference.py	4	from	dataclasses	dataclass
+foreground_vision_bot/mapper/WallInference.py	6	import	numpy	np
+foreground_vision_bot/mapper/WallInference.py	8	from	.OccupancyGrid	BLOCKED,UNKNOWN,OccupancyGrid
+foreground_vision_bot/migrate_project_layout.py	1	from	__future__	annotations
+foreground_vision_bot/migrate_project_layout.py	3	import	argparse	
+foreground_vision_bot/migrate_project_layout.py	4	import	filecmp	
+foreground_vision_bot/migrate_project_layout.py	5	import	shutil	
+foreground_vision_bot/migrate_project_layout.py	6	from	dataclasses	dataclass,field
+foreground_vision_bot/migrate_project_layout.py	7	from	pathlib	Path
+foreground_vision_bot/migrate_project_layout.py	9	from	project_paths	APP_ROOT,FARMING_MODELS_DIR,FARMING_TRAINING_LOGS_DIR,MAPPING_MODELS_DIR,MAPPING_TRAINING_LOGS_DIR,TESTS_DIR,ensure_project_layout
+foreground_vision_bot/native_farming.py	1	from	__future__	annotations
+foreground_vision_bot/native_farming.py	3	import	json	
+foreground_vision_bot/native_farming.py	4	import	traceback	
+foreground_vision_bot/native_farming.py	5	from	collections	Counter,deque
+foreground_vision_bot/native_farming.py	6	from	collections.abc	Callable
+foreground_vision_bot/native_farming.py	7	from	dataclasses	dataclass,fields
+foreground_vision_bot/native_farming.py	8	from	datetime	datetime,timezone
+foreground_vision_bot/native_farming.py	9	from	pathlib	Path
+foreground_vision_bot/native_farming.py	10	from	time	monotonic,sleep
+foreground_vision_bot/native_farming.py	12	import	numpy	np
+foreground_vision_bot/native_farming.py	14	from	libs.CameraDiscoverySweep	CameraDiscoverySweep
+foreground_vision_bot/native_farming.py	15	from	libs.LiveNavigatorController	LiveNavigatorConfig,LiveNavigatorController
+foreground_vision_bot/native_farming.py	16	from	libs.NativeFarmingEnv	NativeFarmingEnv,NativeFarmingEnvConfig
+foreground_vision_bot/native_farming.py	17	from	libs.NativeFarmingObservation	NativeFarmingObservationBuilder,NativeFarmingObservationConfig
+foreground_vision_bot/native_farming.py	21	from	libs.NativeMapContext	NativeMapContext
+foreground_vision_bot/native_farming.py	22	from	project_paths	resolve_app_path
+foreground_vision_bot/native_farming.py	23	from	worker_manager	CancellationToken
+foreground_vision_bot/native_farming.py	25	from	libs.V0672NativeFarmingFixes	install_v0672_fixes
+foreground_vision_bot/native_farming.py	29	from	libs.V0673EvaMovementFix	install_v0673_fixes
+foreground_vision_bot/native_farming.py	33	from	libs.V0674OrbitGuard	install_v0674_fixes
+foreground_vision_bot/native_farming.py	37	from	libs.V0700UnifiedFarming	install_v0700_unified_farming
+foreground_vision_bot/native_farming.py	41	from	libs.V0707TeleportSafety	install_v0707_teleport_safety
+foreground_vision_bot/native_farming.py	134	from	stable_baselines3	PPO
+foreground_vision_bot/native_farming.py	135	from	stable_baselines3.common.callbacks	BaseCallback,CallbackList,CheckpointCallback
+foreground_vision_bot/position/__init__.py	1	from	.MonsterConfig	DEFAULT_MONSTER_CONFIG_PATH,MonsterConfigurationError,NativeMonsterConfig,load_native_monster_config
+foreground_vision_bot/position/__init__.py	7	from	.NativeFlyffMonsterProvider	ActorPoolDiagnostics,NativeActor,NativeFlyffMonsterProvider,NativeMonsterReadError
+foreground_vision_bot/position/__init__.py	13	from	.NativeFlyffPositionProvider	InvalidPlayerPoseError,NativeFlyffPositionProvider,PointerResolutionError,PoseConsensusError,PositionReadDiagnostics
+foreground_vision_bot/position/__init__.py	20	from	.PositionConfig	DEFAULT_POSITION_CONFIG_PATH,NativePositionConfig,PositionConfigurationError,load_native_position_config
+foreground_vision_bot/position/__init__.py	26	from	.PositionProvider	PlayerPose,PositionProvider,PositionProviderError
+foreground_vision_bot/position/__init__.py	27	from	.Win32ProcessMemory	MemoryRegion,MemorySearchDiagnostics,ProcessMemoryError,Win32ProcessMemory
+foreground_vision_bot/position/__init__.py	33	from	.factory	create_native_position_provider
+foreground_vision_bot/position/__init__.py	34	from	.monster_factory	create_native_monster_provider,create_native_monster_provider_from_process_id
+foreground_vision_bot/position/factory.py	1	from	__future__	annotations
+foreground_vision_bot/position/factory.py	3	from	collections.abc	Callable
+foreground_vision_bot/position/factory.py	4	from	pathlib	Path
+foreground_vision_bot/position/factory.py	5	from	time	monotonic
+foreground_vision_bot/position/factory.py	7	from	.NativeFlyffPositionProvider	NativeFlyffPositionProvider
+foreground_vision_bot/position/factory.py	8	from	.PositionConfig	DEFAULT_POSITION_CONFIG_PATH,load_native_position_config
+foreground_vision_bot/position/factory.py	12	from	.Win32ProcessMemory	Win32MemoryBackend
+foreground_vision_bot/position/monster_factory.py	1	from	__future__	annotations
+foreground_vision_bot/position/monster_factory.py	3	from	pathlib	Path
+foreground_vision_bot/position/monster_factory.py	4	from	time	monotonic
+foreground_vision_bot/position/monster_factory.py	5	from	typing	Callable
+foreground_vision_bot/position/monster_factory.py	7	from	.MonsterConfig	DEFAULT_MONSTER_CONFIG_PATH,load_native_monster_config
+foreground_vision_bot/position/monster_factory.py	11	from	.NativeFlyffMonsterProvider	NativeFlyffMonsterProvider
+foreground_vision_bot/position/monster_factory.py	12	from	.Win32ProcessMemory	Win32MemoryBackend
+foreground_vision_bot/position/MonsterConfig.py	1	from	__future__	annotations
+foreground_vision_bot/position/MonsterConfig.py	3	import	json	
+foreground_vision_bot/position/MonsterConfig.py	4	from	dataclasses	dataclass
+foreground_vision_bot/position/MonsterConfig.py	5	from	pathlib	Path
+foreground_vision_bot/position/MonsterConfig.py	6	from	typing	Any
+foreground_vision_bot/position/MonsterConfig.py	8	from	.PositionProvider	PositionProviderError
+foreground_vision_bot/position/NativeFlyffMonsterProvider.py	1	from	__future__	annotations
+foreground_vision_bot/position/NativeFlyffMonsterProvider.py	3	import	math	
+foreground_vision_bot/position/NativeFlyffMonsterProvider.py	4	import	struct	
+foreground_vision_bot/position/NativeFlyffMonsterProvider.py	5	from	dataclasses	dataclass
+foreground_vision_bot/position/NativeFlyffMonsterProvider.py	6	from	threading	RLock
+foreground_vision_bot/position/NativeFlyffMonsterProvider.py	7	from	time	monotonic,perf_counter
+foreground_vision_bot/position/NativeFlyffMonsterProvider.py	8	from	typing	Callable,Iterable,Protocol
+foreground_vision_bot/position/NativeFlyffMonsterProvider.py	10	from	.MonsterConfig	NativeMonsterConfig
+foreground_vision_bot/position/NativeFlyffMonsterProvider.py	11	from	.NativePointerRecovery	PlayerPointerRecovery,recover_local_player_pointer
+foreground_vision_bot/position/NativeFlyffMonsterProvider.py	15	from	.PositionProvider	PositionProviderError
+foreground_vision_bot/position/NativeFlyffMonsterProvider.py	16	from	.Win32ProcessMemory	MemorySearchDiagnostics,Win32MemoryBackend,Win32ProcessMemory
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	1	from	__future__	annotations
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	3	import	math	
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	4	import	struct	
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	5	from	collections.abc	Callable
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	6	from	dataclasses	dataclass
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	7	from	itertools	combinations
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	8	from	statistics	median
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	9	from	time	monotonic
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	11	from	.PositionConfig	NativePositionConfig
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	12	from	.NativePointerRecovery	PlayerPointerRecovery,recover_local_player_pointer
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	16	from	.PositionProvider	PlayerPose,PositionProviderError
+foreground_vision_bot/position/NativeFlyffPositionProvider.py	17	from	.Win32ProcessMemory	Win32MemoryBackend,Win32ProcessMemory
+foreground_vision_bot/position/NativePointerRecovery.py	1	from	__future__	annotations
+foreground_vision_bot/position/NativePointerRecovery.py	3	import	json	
+foreground_vision_bot/position/NativePointerRecovery.py	4	import	math	
+foreground_vision_bot/position/NativePointerRecovery.py	5	import	struct	
+foreground_vision_bot/position/NativePointerRecovery.py	6	from	dataclasses	dataclass
+foreground_vision_bot/position/NativePointerRecovery.py	7	from	pathlib	Path
+foreground_vision_bot/position/NativePointerRecovery.py	8	from	threading	RLock
+foreground_vision_bot/position/NativePointerRecovery.py	9	from	time	sleep
+foreground_vision_bot/position/NativePointerRecovery.py	10	from	typing	Protocol
+foreground_vision_bot/position/NativePointerRecovery.py	12	from	.MonsterConfig	DEFAULT_MONSTER_CONFIG_PATH,NativeMonsterConfig,load_native_monster_config
+foreground_vision_bot/position/NativePointerRecovery.py	17	from	.PositionConfig	DEFAULT_POSITION_CONFIG_PATH
+foreground_vision_bot/position/PositionConfig.py	1	from	__future__	annotations
+foreground_vision_bot/position/PositionConfig.py	3	import	json	
+foreground_vision_bot/position/PositionConfig.py	4	from	dataclasses	dataclass
+foreground_vision_bot/position/PositionConfig.py	5	from	pathlib	Path
+foreground_vision_bot/position/PositionConfig.py	6	from	typing	Any,Literal
+foreground_vision_bot/position/PositionConfig.py	8	from	.PositionProvider	PositionProviderError
+foreground_vision_bot/position/PositionProvider.py	1	from	__future__	annotations
+foreground_vision_bot/position/PositionProvider.py	3	from	dataclasses	dataclass
+foreground_vision_bot/position/PositionProvider.py	4	from	typing	Protocol,runtime_checkable
+foreground_vision_bot/position/Win32ProcessMemory.py	1	from	__future__	annotations
+foreground_vision_bot/position/Win32ProcessMemory.py	3	import	ctypes	
+foreground_vision_bot/position/Win32ProcessMemory.py	4	import	os	
+foreground_vision_bot/position/Win32ProcessMemory.py	5	from	ctypes	wintypes
+foreground_vision_bot/position/Win32ProcessMemory.py	6	from	dataclasses	dataclass
+foreground_vision_bot/position/Win32ProcessMemory.py	7	from	typing	Protocol
+foreground_vision_bot/position/Win32ProcessMemory.py	9	from	.PositionProvider	PositionProviderError
+foreground_vision_bot/preview_service.py	1	from	__future__	annotations
+foreground_vision_bot/preview_service.py	3	from	time	monotonic
+foreground_vision_bot/preview_service.py	5	from	capture_service	CaptureService
+foreground_vision_bot/preview_service.py	6	from	runtime_bus	RuntimeBus
+foreground_vision_bot/preview_service.py	7	from	worker_manager	CancellationToken,WorkerKind,WorkerManager
+foreground_vision_bot/project_paths.py	1	from	__future__	annotations
+foreground_vision_bot/project_paths.py	3	from	pathlib	Path
+foreground_vision_bot/repair_test_layout.py	1	from	__future__	annotations
+foreground_vision_bot/repair_test_layout.py	3	import	argparse	
+foreground_vision_bot/repair_test_layout.py	4	import	os	
+foreground_vision_bot/repair_test_layout.py	5	import	re	
+foreground_vision_bot/repair_test_layout.py	6	import	shutil	
+foreground_vision_bot/repair_test_layout.py	7	import	tempfile	
+foreground_vision_bot/repair_test_layout.py	8	import	zipfile	
+foreground_vision_bot/repair_test_layout.py	9	from	dataclasses	dataclass,field
+foreground_vision_bot/repair_test_layout.py	10	from	datetime	datetime,timezone
+foreground_vision_bot/repair_test_layout.py	11	from	pathlib	Path
+foreground_vision_bot/runtime_bus.py	1	from	__future__	annotations
+foreground_vision_bot/runtime_bus.py	3	from	collections	deque
+foreground_vision_bot/runtime_bus.py	4	from	dataclasses	dataclass
+foreground_vision_bot/runtime_bus.py	5	from	datetime	datetime,timezone
+foreground_vision_bot/runtime_bus.py	6	from	threading	Event,Lock
+foreground_vision_bot/runtime_bus.py	7	from	time	monotonic
+foreground_vision_bot/runtime_bus.py	8	from	typing	Any
+foreground_vision_bot/runtime_controller.py	1	from	__future__	annotations
+foreground_vision_bot/runtime_controller.py	3	import	traceback	
+foreground_vision_bot/runtime_controller.py	5	import	cv2	cv
+foreground_vision_bot/runtime_controller.py	6	from	collections.abc	Callable
+foreground_vision_bot/runtime_controller.py	7	from	typing	cast
+foreground_vision_bot/runtime_controller.py	9	from	capture_service	CaptureService,FrameSource
+foreground_vision_bot/runtime_controller.py	10	from	libs.WindowCapture	WindowCapture
+foreground_vision_bot/runtime_controller.py	11	from	mapper	Mapper
+foreground_vision_bot/runtime_controller.py	12	from	preview_service	PreviewService
+foreground_vision_bot/runtime_controller.py	13	from	runtime_bus	RuntimeBus
+foreground_vision_bot/runtime_controller.py	14	from	worker_manager	CancellationToken,WorkerKind,WorkerManager,WorkerSnapshot
+foreground_vision_bot/runtime_controller.py	164	from	mapper.MapCatalog	MapCatalog
+foreground_vision_bot/runtime_controller.py	181	from	mapper.CoordinateMapper	load_mapper_config
+foreground_vision_bot/runtime_controller.py	182	from	mapper.ManualMapEditor	apply_manual_edits
+foreground_vision_bot/runtime_controller.py	183	from	mapper.MapCatalog	MapCatalog
+foreground_vision_bot/runtime_controller.py	184	from	mapper.OccupancyGrid	OccupancyGrid
+foreground_vision_bot/runtime_controller.py	208	from	mapper	RotationCalibrator
+foreground_vision_bot/runtime_controller.py	73	from	native_farming	dry_run_native_farming,run_native_farming_agent,train_native_farming
+foreground_vision_bot/runtime_controller.py	145	from	mapper.ManualDriveMapper	ManualDriveMapper
+foreground_vision_bot/tools/apply_v0_4_cleanup.py	1	from	__future__	annotations
+foreground_vision_bot/tools/apply_v0_4_cleanup.py	3	import	shutil	
+foreground_vision_bot/tools/apply_v0_4_cleanup.py	4	from	pathlib	Path
+foreground_vision_bot/tools/apply_v0_5_1_cleanup.py	1	from	__future__	annotations
+foreground_vision_bot/tools/apply_v0_5_1_cleanup.py	3	import	shutil	
+foreground_vision_bot/tools/apply_v0_5_1_cleanup.py	4	from	pathlib	Path
+foreground_vision_bot/tools/apply_v0_5_2_cleanup.py	1	from	__future__	annotations
+foreground_vision_bot/tools/apply_v0_5_2_cleanup.py	3	import	shutil	
+foreground_vision_bot/tools/apply_v0_5_2_cleanup.py	4	from	pathlib	Path
+foreground_vision_bot/tools/apply_v0_5_3_cleanup.py	1	from	__future__	annotations
+foreground_vision_bot/tools/apply_v0_5_3_cleanup.py	3	import	shutil	
+foreground_vision_bot/tools/apply_v0_5_3_cleanup.py	4	from	pathlib	Path
+foreground_vision_bot/tools/apply_v0_5_5_cleanup.py	1	from	__future__	annotations
+foreground_vision_bot/tools/apply_v0_5_5_cleanup.py	3	import	shutil	
+foreground_vision_bot/tools/apply_v0_5_5_cleanup.py	4	from	pathlib	Path
+foreground_vision_bot/tools/apply_v0_5_cleanup.py	1	from	__future__	annotations
+foreground_vision_bot/tools/apply_v0_5_cleanup.py	3	import	shutil	
+foreground_vision_bot/tools/apply_v0_5_cleanup.py	4	from	pathlib	Path
+foreground_vision_bot/tools/cleanup_legacy_mapping.py	1	from	__future__	annotations
+foreground_vision_bot/tools/cleanup_legacy_mapping.py	3	import	shutil	
+foreground_vision_bot/tools/cleanup_legacy_mapping.py	4	from	datetime	datetime,timezone
+foreground_vision_bot/tools/cleanup_legacy_mapping.py	5	from	pathlib	Path
+foreground_vision_bot/tools/probe_native_position.py	1	from	__future__	annotations
+foreground_vision_bot/tools/probe_native_position.py	3	import	argparse	
+foreground_vision_bot/tools/probe_native_position.py	4	import	sys	
+foreground_vision_bot/tools/probe_native_position.py	5	from	dataclasses	replace
+foreground_vision_bot/tools/probe_native_position.py	6	from	pathlib	Path
+foreground_vision_bot/tools/probe_native_position.py	7	from	time	sleep
+foreground_vision_bot/tools/probe_native_position.py	13	from	position	DEFAULT_POSITION_CONFIG_PATH,NativeFlyffPositionProvider,NativePositionConfig,Win32ProcessMemory,load_native_position_config
+foreground_vision_bot/train.py	1	from	__future__	annotations
+foreground_vision_bot/train.py	3	import	traceback	
+foreground_vision_bot/train.py	4	from	collections	Counter,deque
+foreground_vision_bot/train.py	5	from	collections.abc	Callable
+foreground_vision_bot/train.py	6	from	dataclasses	dataclass
+foreground_vision_bot/train.py	7	from	pathlib	Path
+foreground_vision_bot/train.py	8	from	time	monotonic,sleep
+foreground_vision_bot/train.py	10	import	numpy	np
+foreground_vision_bot/train.py	11	from	libs.FlyffEnv	FlyffEnv,FlyffEnvConfig
+foreground_vision_bot/train.py	12	from	libs.ObservationBuilder	ObservationBuilder,ObservationConfig
+foreground_vision_bot/train.py	13	from	project_paths	FARMING_CHECKPOINTS_RELATIVE,FARMING_MODEL_RELATIVE,FARMING_TRAINING_LOGS_RELATIVE,resolve_app_path
+foreground_vision_bot/train.py	19	from	worker_manager	CancellationToken
+foreground_vision_bot/train.py	67	from	stable_baselines3	PPO
+foreground_vision_bot/train.py	68	from	stable_baselines3.common.callbacks	BaseCallback,CallbackList,CheckpointCallback
+foreground_vision_bot/train.py	73	from	stable_baselines3.common.env_checker	check_env
+foreground_vision_bot/train_mapper_offline.py	1	from	__future__	annotations
+foreground_vision_bot/train_mapper_offline.py	3	import	argparse	
+foreground_vision_bot/train_mapper_offline.py	4	import	json	
+foreground_vision_bot/train_mapper_offline.py	5	import	sys	
+foreground_vision_bot/train_mapper_offline.py	6	from	pathlib	Path
+foreground_vision_bot/train_mapper_offline.py	8	from	mapper.rl.OfflineTraining	config_to_dict,evaluate_saved_policy,load_offline_config,run_smoke_simulations,train_offline,validate_curriculum
+foreground_vision_bot/train_navigator_offline.py	1	from	__future__	annotations
+foreground_vision_bot/train_navigator_offline.py	3	import	argparse	
+foreground_vision_bot/train_navigator_offline.py	4	import	json	
+foreground_vision_bot/train_navigator_offline.py	5	import	sys	
+foreground_vision_bot/train_navigator_offline.py	6	from	pathlib	Path
+foreground_vision_bot/train_navigator_offline.py	8	from	mapper.rl.NavigatorTraining	config_to_dict,evaluate_saved_navigator,load_navigator_config,run_navigator_smoke,train_navigator,validate_navigator_curriculum
+foreground_vision_bot/utils/decorators.py	1	import	functools	
+foreground_vision_bot/utils/decorators.py	2	import	time	
+foreground_vision_bot/utils/helpers.py	1	import	time	
+foreground_vision_bot/utils/helpers.py	2	from	collections	deque
+foreground_vision_bot/utils/helpers.py	4	import	win32gui	
+foreground_vision_bot/utils/helpers.py	5	from	pyfiglet	Figlet
+foreground_vision_bot/utils/SyncedTimer.py	1	import	time	
+foreground_vision_bot/worker_manager.py	1	from	__future__	annotations
+foreground_vision_bot/worker_manager.py	3	import	traceback	
+foreground_vision_bot/worker_manager.py	4	from	collections.abc	Callable
+foreground_vision_bot/worker_manager.py	5	from	dataclasses	dataclass
+foreground_vision_bot/worker_manager.py	6	from	datetime	datetime,timezone
+foreground_vision_bot/worker_manager.py	7	from	enum	Enum
+foreground_vision_bot/worker_manager.py	8	from	threading	Event,Lock,Thread
+foreground_vision_bot/worker_manager.py	9	from	time	monotonic
+foreground_vision_bot/worker_manager.py	11	from	runtime_bus	RuntimeBus,WorkerFailure
+

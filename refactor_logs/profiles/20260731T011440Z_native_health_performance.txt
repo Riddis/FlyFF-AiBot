@@ -1,0 +1,8 @@
+Fake shared-service health-only diagnostic, 1,000 iterations:
+
+health_only_mean_ms=0.016333
+health_only_p99_ms=0.027500
+health_only_max_ms=0.091000
+snapshot_calls=1000
+recovery_calls=0
+readable_region_calls=0

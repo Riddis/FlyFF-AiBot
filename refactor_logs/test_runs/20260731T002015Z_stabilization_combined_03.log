@@ -1,0 +1,8 @@
+Command:
+.venv\Scripts\python.exe -m pytest -q <14 stabilization test modules>
+
+Result:
+70 passed, 1 existing pytest-cache warning in 1.44 seconds.
+
+This run includes the independent pointer-review regressions for stale player and
+world pointers, joined persistence intent, and cached-verification deadlines.

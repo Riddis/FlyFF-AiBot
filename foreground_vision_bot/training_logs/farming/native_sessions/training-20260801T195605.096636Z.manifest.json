@@ -1,0 +1,13 @@
+{
+  "model": {
+    "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\foreground_vision_bot\\models\\farming\\native_strategy_ppo.zip",
+    "sha256": "C4FEA8B5FFC2FA4A7B876FFF3545E70858398AD493022DF20849FFA158992E84",
+    "size_bytes": 891459
+  },
+  "report": {
+    "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\foreground_vision_bot\\training_logs\\farming\\native_sessions\\training-20260801T195605.096636Z.json",
+    "sha256": "8222888B59D8ECEFEC95308954CEDCF004E329B8698D7572315344EF8E565B18",
+    "size_bytes": 3624
+  },
+  "version": 1
+}

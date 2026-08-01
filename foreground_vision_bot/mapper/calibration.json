@@ -1,0 +1,163 @@
+{
+  "version": 5,
+  "created_at": "2026-07-25T12:14:00.616557+00:00",
+  "source": "minimap_closed_loop_refined",
+  "left_seconds_90": 0.34722,
+  "right_seconds_90": 0.34385,
+  "left_heading_sign": -1,
+  "right_heading_sign": 1,
+  "left_trials": [
+    {
+      "direction": "left",
+      "heading_sign": -1,
+      "start_heading": 270.0,
+      "end_heading": 213.0,
+      "measured_degrees": 57.0,
+      "pulse_seconds": 0.18061,
+      "normalized_seconds_45": 0.14258,
+      "confidence": 0.844
+    },
+    {
+      "direction": "left",
+      "heading_sign": -1,
+      "start_heading": 213.0,
+      "end_heading": 177.0,
+      "measured_degrees": 36.0,
+      "pulse_seconds": 0.14258,
+      "normalized_seconds_45": 0.17823,
+      "confidence": 0.844
+    },
+    {
+      "direction": "left",
+      "heading_sign": -1,
+      "start_heading": 177.0,
+      "end_heading": 135.0,
+      "measured_degrees": 42.0,
+      "pulse_seconds": 0.17823,
+      "normalized_seconds_45": 0.19096,
+      "confidence": 0.885
+    }
+  ],
+  "right_trials": [
+    {
+      "direction": "right",
+      "heading_sign": 1,
+      "start_heading": 183.0,
+      "end_heading": 213.0,
+      "measured_degrees": 30.0,
+      "pulse_seconds": 0.09965,
+      "normalized_seconds_45": 0.14947,
+      "confidence": 0.844
+    },
+    {
+      "direction": "right",
+      "heading_sign": 1,
+      "start_heading": 213.0,
+      "end_heading": 252.0,
+      "measured_degrees": 39.0,
+      "pulse_seconds": 0.13452,
+      "normalized_seconds_45": 0.15522,
+      "confidence": 0.844
+    },
+    {
+      "direction": "right",
+      "heading_sign": 1,
+      "start_heading": 252.0,
+      "end_heading": 291.0,
+      "measured_degrees": 39.0,
+      "pulse_seconds": 0.15522,
+      "normalized_seconds_45": 0.1791,
+      "confidence": 0.861
+    }
+  ],
+  "refinement_trials": [
+    {
+      "direction": "left",
+      "start_heading": 6.0,
+      "target_heading": 276.0,
+      "final_heading": 279.0,
+      "measured_degrees": 87.0,
+      "final_error_degrees": -3.0,
+      "corrections": 3,
+      "left_seconds_90": 0.41075,
+      "right_seconds_90": 0.30469
+    },
+    {
+      "direction": "left",
+      "start_heading": 279.0,
+      "target_heading": 189.0,
+      "final_heading": 186.0,
+      "measured_degrees": 93.0,
+      "final_error_degrees": 3.0,
+      "corrections": 2,
+      "left_seconds_90": 0.38244,
+      "right_seconds_90": 0.30469
+    },
+    {
+      "direction": "left",
+      "start_heading": 186.0,
+      "target_heading": 96.0,
+      "final_heading": 99.0,
+      "measured_degrees": 87.0,
+      "final_error_degrees": -3.0,
+      "corrections": 3,
+      "left_seconds_90": 0.34722,
+      "right_seconds_90": 0.30469
+    },
+    {
+      "direction": "left",
+      "start_heading": 99.0,
+      "target_heading": 9.0,
+      "final_heading": 6.0,
+      "measured_degrees": 93.0,
+      "final_error_degrees": 3.0,
+      "corrections": 3,
+      "left_seconds_90": 0.34722,
+      "right_seconds_90": 0.30469
+    },
+    {
+      "direction": "right",
+      "start_heading": 6.0,
+      "target_heading": 96.0,
+      "final_heading": 99.0,
+      "measured_degrees": 93.0,
+      "final_error_degrees": -3.0,
+      "corrections": 3,
+      "left_seconds_90": 0.34722,
+      "right_seconds_90": 0.40268
+    },
+    {
+      "direction": "right",
+      "start_heading": 99.0,
+      "target_heading": 189.0,
+      "final_heading": 186.0,
+      "measured_degrees": 87.0,
+      "final_error_degrees": 3.0,
+      "corrections": 2,
+      "left_seconds_90": 0.34722,
+      "right_seconds_90": 0.37346
+    },
+    {
+      "direction": "right",
+      "start_heading": 186.0,
+      "target_heading": 276.0,
+      "final_heading": 279.0,
+      "measured_degrees": 93.0,
+      "final_error_degrees": -3.0,
+      "corrections": 3,
+      "left_seconds_90": 0.34722,
+      "right_seconds_90": 0.34274
+    },
+    {
+      "direction": "right",
+      "start_heading": 279.0,
+      "target_heading": 9.0,
+      "final_heading": 6.0,
+      "measured_degrees": 87.0,
+      "final_error_degrees": 3.0,
+      "corrections": 3,
+      "left_seconds_90": 0.34722,
+      "right_seconds_90": 0.34385
+    }
+  ]
+}

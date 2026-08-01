@@ -1,0 +1,303 @@
+Command: .venv/Scripts/basedpyright.exe
+Working directory: C:\Users\Ridd\Documents\Repos\Flyff RL
+Environment: .venv Python 3.14.3
+
+Exit code: 0
+Wall time: 20.5 seconds
+Total output lines: 7222
+Output:
+c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:19:6 - error: Import from `mapper.NativeCourseHeading` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.NativeCourseHeading` instead
+    or specify the full module path: `foreground_vision_bot.mapper.NativeCourseHeading` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:20:6 - error: Import from `position` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.position` instead
+    or specify the full module path: `foreground_vision_bot.position` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:30:10 - error: Import from `capture_service` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.capture_service` instead
+    or specify the full module path: `foreground_vision_bot.capture_service` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:31:10 - error: Import from `runtime_bus` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.runtime_bus` instead
+    or specify the full module path: `foreground_vision_bot.runtime_bus` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:64:9 - warning: Type of "config" is partially unknown
+    Type of "config" is "dict[str, bool | float | tuple[int, int, int, int] | int | list[Unknown] | None]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:64:14 - warning: Type annotation for attribute `config` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:88:14 - warning: Type annotation for attribute `_frame_lock` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:89:14 - warning: Type annotation for attribute `_heading_lock` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:90:14 - warning: Type annotation for attribute `_kill_counter_lock` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:91:14 - warning: Type annotation for attribute `_rl_enabled` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:93:14 - warning: Type annotation for attribute `_latest_mob_points_at` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:94:14 - warning: Type annotation for attribute `_preview_detection_interval` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:95:14 - warning: Type annotation for attribute `_heading_preview_detector` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:96:14 - warning: Type annotation for attribute `_latest_heading_reading` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:97:14 - warning: Type annotation for attribute `_latest_heading_reading_at` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:98:14 - warning: Type annotation for attribute `_last_heading_error_at` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:99:14 - warning: Type annotation for attribute `_native_course_tracker` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:100:14 - warning: Type annotation for attribute `_native_map_overlay` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:102:14 - warning: Type annotation for attribute `_last_native_map_publish_at` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:103:14 - warning: Type annotation for attribute `_last_native_map_error_at` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:105:14 - warning: Type annotation for attribute `digit_reader` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:109:14 - warning: Type annotation for attribute `kill_counter_reader` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:148:13 - warning: Type of "_emit" is partially unknown
+    Type of "_emit" is "(event: str, value: Unknown) -> None" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:150:17 - warning: Implicit string concatenation not allowed (reportImplicitStringConcatenation)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:169:61 - warning: Type of "value" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:173:13 - warning: Type of "_emit" is partially unknown
+    Type of "_emit" is "(event: str, value: Unknown) -> None" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:184:9 - warning: Type of "_emit" is partially unknown
+    Type of "_emit" is "(event: str, value: Unknown) -> None" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:186:13 - warning: Implicit string concatenation not allowed (reportImplicitStringConcatenation)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:190:9 - warning: Type of "_emit" is partially unknown
+    Type of "_emit" is "(event: str, value: Unknown) -> None" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:201:9 - warning: Type of "_emit" is partially unknown
+    Type of "_emit" is "(event: str, value: Unknown) -> None" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:206:9 - warning: Type of "_emit" is partially unknown
+    Type of "_emit" is "(event: str, value: Unknown) -> None" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:211:13 - warning: Result of call expression is of type "bool" and is not used; assign to variable "_" if this is intentional (reportUnusedCallResult)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:250:13 - warning: Type of "close" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:256:13 - warning: Type of "close" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:258:28 - warning: Type of parameter "options" is unknown (reportUnknownParameterType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:258:28 - warning: Type annotation is missing for parameter "options" (reportMissingParameterType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:262:18 - warning: Type of "value" is unknown (reportUnknownVariableType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:265:13 - warning: Type of "config" is partially unknown
+    Type of "config" is "dict[str, bool | float | tuple[int, int, int, int] | int | list[Unknown] | None]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:281:9 - warning: Return type, "dict[str, dict[Unknown, Unknown]]", is partially unknown (reportUnknownParameterType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:282:16 - warning: Type of "get_all_mobs" is partially unknown
+    Type of "get_all_mobs" is "() -> dict[str, dict[Unknown, Unknown]]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:282:16 - warning: Return type, "dict[str, dict[Unknown, Unknown]]", is partially unknown (reportUnknownVariableType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:304:13 - warning: Type of "mob" is unknown (reportUnknownVariableType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:304:20 - warning: Type of "config" is partially unknown
+    Type of "config" is "dict[str, bool | float | tuple[int, int, int, int] | int | list[Unknown] | None]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:304:20 - warning: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: str, default: None = None, /) -> (bool | float | tuple[int, int, int, int] | int | list[Unknown] | None), (key: str, default: bool | float | tuple[int, int, int, int] | int | list[Unknown] | None, /) -> (bool | float | tuple[int, int, int, int] | int | list[Unknown] | None), (key: str, default: _T@get, /) -> (bool | float | tuple[int, int, int, int] | int | _T@get | list[Unknown] | None)]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:304:20 - error: "float" is not iterable
+    "__iter__" method not defined (reportGeneralTypeIssues)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:304:20 - error: "int" is not iterable
+    "__iter__" method not defined (reportGeneralTypeIssues)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:304:20 - error: "Literal[True]" is not iterable
+    "__iter__" method not defined (reportGeneralTypeIssues)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:307:13 - warning: Type of "value" is partially unknown
+    Type of "value" is "Unknown | None" (reportUnknownVariableType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:307:21 - warning: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: Unknown, default: None = None, /) -> (Unknown | None), (key: Unknown, default: Unknown, /) -> Unknown, (key: Unknown, default: _T@get, /) -> (Unknown | _T@get)]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:311:34 - error: Argument of type "Unknown | None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "Unknown | None" is not assignable to type "ConvertibleToInt"
+      Type "None" is not assignable to type "ConvertibleToInt"
+        "None" is not assignable to "str"
+        "None" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "None" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "None" is incompatible with protocol "SupportsIndex"
+    ... (reportArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:311:34 - error: Argument of type "Unknown | None" cannot be assigned to parameter "x" of type "ConvertibleToInt" in function "__new__"
+    Type "Unknown | None" is not assignable to type "ConvertibleToInt"
+      Type "None" is not assignable to type "ConvertibleToInt"
+        "None" is not assignable to "str"
+        "None" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "None" is incompatible with protocol "SupportsInt"
+          "__int__" is not present
+        "None" is incompatible with protocol "SupportsIndex" (reportArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:370:26 - warning: Type of "_drawn_frame" is partially unknown
+    Type of "_drawn_frame" is "Unknown | None" (reportUnknownVariableType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:370:41 - warning: Type of "match_template_multi" is partially unknown
+    Type of "match_template_multi" is "(frame: Unknown, crop_area: Unknown = (0, 0, 0, 0), template: Unknown | None = None, method: int = MATCH_METHODS["TM_CCOEFF_NORMED"], threshold: float = 0.7, box_offset: Unknown = (0, 0), frame_to_draw: Unknown | None = None, draw_rect: bool = True, draw_marker: bool = False, draw_text: bool = False) -> tuple[list[Unknown], Unknown | None]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:374:37 - warning: Type of "config" is partially unknown
+    Type of "config" is "dict[str, bool | float | tuple[int, int, int, int] | int | list[Unknown] | None]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:374:37 - error: Argument of type "bool | float | tuple[int, int, int, int] | int | list[Unknown] | None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__"
+    Type "bool | float | tuple[int, int, int, int] | int | list[Unknown] | None" is not assignable to type "ConvertibleToFloat"
+      Type "list[Unknown]" is not assignable to type "ConvertibleToFloat"
+        "list[Unknown]" is not assignable to "str"
+        "list[Unknown]" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "list[Unknown]" is incompatible with protocol "SupportsFloat"
+          "__float__" is not present
+        "list[Unknown]" is incompatible with protocol "SupportsIndex"
+    ... (reportArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:374:37 - error: Argument of type "bool | float | tuple[int, int, int, int] | int | list[Unknown] | None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__"
+    Type "bool | float | tuple[int, int, int, int] | int | list[Unknown] | None" is not assignable to type "ConvertibleToFloat"
+      Type "list[Unknown]" is not assignable to type "ConvertibleToFloat"
+        "list[Unknown]" is not assignable to "str"
+        "list[Unknown]" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "list[Unknown]" is incompatible with protocol "SupportsFloat"
+          "__float__" is not present
+        "list[Unknown]" is incompatible with protocol "SupportsIndex" (reportArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:381:36 - warning: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:381:51 - warning: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:381:66 - warning: Type of "point" is unknown (reportUnknownVariableType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:385:32 - warning: Type of "config" is partially unknown
+    Type of "config" is "dict[str, bool | float | tuple[int, int, int, int] | int | list[Unknown] | None]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:385:32 - error: Argument of type "bool | float | tuple[int, int, int, int] | int | list[Unknown] | None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__"
+    Type "bool | float | tuple[int, int, int, int] | int | list[Unknown] | None" is not assignable to type "ConvertibleToFloat"
+      Type "list[Unknown]" is not assignable to type "ConvertibleToFloat"
+        "list[Unknown]" is not assignable to "str"
+        "list[Unknown]" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "list[Unknown]" is incompatible with protocol "SupportsFloat"
+          "__float__" is not present
+        "list[Unknown]" is incompatible with protocol "SupportsIndex"
+    ... (reportArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:385:32 - error: Argument of type "bool | float | tuple[int, int, int, int] | int | list[Unknown] | None" cannot be assigned to parameter "x" of type "ConvertibleToFloat" in function "__new__"
+    Type "bool | float | tuple[int, int, int, int] | int | list[Unknown] | None" is not assignable to type "ConvertibleToFloat"
+      Type "list[Unknown]" is not assignable to type "ConvertibleToFloat"
+        "list[Unknown]" is not assignable to "str"
+        "list[Unknown]" is incompatible with protocol "Buffer"
+          "__buffer__" is not present
+        "list[Unknown]" is incompatible with protocol "SupportsFloat"
+          "__float__" is not present
+        "list[Unknown]" is incompatible with protocol "SupportsIndex" (reportArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:404:17 - warning: Type of "config" is partially unknown
+    Type of "config" is "dict[str, bool | float | tuple[int, int, int, int] | int | list[Unknown] | None]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:404:17 - warning: Type of "get" is partially unknown
+    Type of "get" is "Overload[(key: str, default: None = None, /) -> (bool | float | tuple[int, int, int, int] | int | list[Unknown] | None), (key: str, default: bool | float | tuple[int, int, int, int] | int | list[Unknown] | None, /) -> (bool | float | tuple[int, int, int, int] | int | list[Unknown] | None), (key: str, default: _T@get, /) -> (bool | float | tuple[int, int, int, int] | int | _T@get | list[Unknown] | None)]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:404:17 - warning: Argument type is partially unknown
+    Argument corresponds to parameter "o" in function "__new__"
+    Argument type is "bool | float | tuple[int, int, int, int] | int | list[Unknown] | None" (reportUnknownArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:412:20 - warning: Type of "config" is partially unknown
+    Type of "config" is "dict[str, bool | float | tuple[int, int, int, int] | int | list[Unknown] | None]" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:414:55 - warning: "_scaled_box" is protected and used outside of the class in which it is declared (reportPrivateUsage)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:416:32 - warning: "_KILLS_BOX" is protected and used outside of the class in which it is declared (reportPrivateUsage)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\Bot.py:419:43 - warning: Argument type is Any
+    Argument corresponds to par…252144 tokens truncated…ression is of type "int" and is not used; assign to variable "_" if this is intentional (reportUnusedCallResult)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\WallInference.py:66:39 - warning: Argument type is Any
+    Argument corresponds to parameter "a" in function "argwhere" (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\WallInference.py:68:18 - warning: Argument type is Any
+    Argument corresponds to parameter "x" in function "__new__" (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\WallInference.py:68:55 - warning: Argument type is Any
+    Argument corresponds to parameter "x" in function "__new__" (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\WallInference.py:69:17 - warning: Type of "gy" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\WallInference.py:69:21 - warning: Type of "gx" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\WallInference.py:110:40 - warning: Argument type is Any
+    Argument corresponds to parameter "x" in function "__new__" (reportAny)
+c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:13:5 - warning: "AdaptiveMapper" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:14:5 - warning: "CoordinateMapper" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:15:5 - warning: "FastHeadingState" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:16:5 - warning: "FastHeadingTracker" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:17:5 - warning: "Mapper" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:18:5 - warning: "MapperConfig" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:19:5 - warning: "ManualDriveMapper" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:20:5 - warning: "MapCatalog" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:21:5 - warning: "MapProfile" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:22:5 - warning: "MinimapAnchorSetup" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:23:5 - warning: "MinimapHeadingDetector" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:24:5 - warning: "NativeMonsterMapOverlay" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:25:5 - warning: "RotationCalibrator" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:26:5 - warning: "StateAwareRotationModel" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:27:5 - warning: "TurnDirection" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:28:5 - warning: "TurnTransition" is specified in __all__ but is not present in module (reportUnsupportedDunderAll)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:32:5 - warning: Return type is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:32:31 - warning: Type `Any` is not allowed (reportExplicitAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:34:14 - error: Import from `mapper.CoordinateMapper` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.CoordinateMapper` instead
+    or specify the full module path: `foreground_vision_bot.mapper.CoordinateMapper` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:42:14 - error: Import from `mapper.ManualDriveMapper` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.ManualDriveMapper` instead
+    or specify the full module path: `foreground_vision_bot.mapper.ManualDriveMapper` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:46:14 - error: Import from `mapper.AdaptiveMapper` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.AdaptiveMapper` instead
+    or specify the full module path: `foreground_vision_bot.mapper.AdaptiveMapper` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:50:14 - error: Import from `mapper.FastHeadingTracker` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.FastHeadingTracker` instead
+    or specify the full module path: `foreground_vision_bot.mapper.FastHeadingTracker` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:57:14 - error: Import from `mapper.MapCatalog` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.MapCatalog` instead
+    or specify the full module path: `foreground_vision_bot.mapper.MapCatalog` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:61:14 - error: Import from `mapper.MinimapAnchorSetup` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.MinimapAnchorSetup` instead
+    or specify the full module path: `foreground_vision_bot.mapper.MinimapAnchorSetup` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:65:14 - error: Import from `mapper.MinimapHeading` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.MinimapHeading` instead
+    or specify the full module path: `foreground_vision_bot.mapper.MinimapHeading` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:69:14 - error: Import from `mapper.NativeMonsterMapOverlay` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.NativeMonsterMapOverlay` instead
+    or specify the full module path: `foreground_vision_bot.mapper.NativeMonsterMapOverlay` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:73:14 - error: Import from `mapper.Calibration` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.Calibration` instead
+    or specify the full module path: `foreground_vision_bot.mapper.Calibration` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\__init__.py:77:14 - error: Import from `mapper.RotationModel` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.RotationModel` instead
+    or specify the full module path: `foreground_vision_bot.mapper.RotationModel` (reportImplicitRelativeImport)
+c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:19:9 - warning: Type of parameter "observation_space" is unknown (reportUnknownParameterType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:19:9 - warning: Type annotation is missing for parameter "observation_space" (reportMissingParameterType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:23:9 - warning: Type of "spaces" is unknown (reportUnknownVariableType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:23:18 - warning: Type of "spaces" is unknown (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:24:33 - warning: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:24:44 - warning: Type of "value" is unknown (reportUnknownVariableType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:24:53 - warning: Type of "shape" is unknown (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:25:33 - warning: Argument type is unknown
+    Argument corresponds to parameter "x" in function "__new__" (reportUnknownArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:25:44 - warning: Type of "value" is unknown (reportUnknownVariableType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:25:53 - warning: Type of "shape" is unknown (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:29:9 - warning: Type of "__init__" is partially unknown
+    Type of "__init__" is "(observation_space: Space[Unknown], features_dim: int = 0) -> None" (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:29:26 - warning: Argument type is unknown
+    Argument corresponds to parameter "observation_space" in function "__init__" (reportUnknownArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:31:14 - warning: Type annotation for attribute `local_net` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:38:14 - warning: Type annotation for attribute `state_net` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:46:9 - warning: Method "forward" is not marked as override but is overriding a method in class "Module" (reportImplicitOverride)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:46:23 - warning: Type of parameter "observations" is unknown (reportUnknownParameterType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:46:23 - warning: Type annotation is missing for parameter "observations" (reportMissingParameterType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:47:9 - warning: Type of "local_features" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:47:41 - warning: Type of "float" is unknown (reportUnknownMemberType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:48:9 - warning: Type of "state_features" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\FeatureExtractor.py:48:41 - warning: Type of "float" is unknown (reportUnknownMemberType)
+c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\GymEnv.py
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\GymEnv.py:15:20 - error: Expected type arguments for generic class "Env" (reportMissingTypeArgument)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\GymEnv.py:18:5 - error: Class variable "metadata" overrides instance variable of same name in class "Env" (reportIncompatibleVariableOverride)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\GymEnv.py:26:14 - warning: Type annotation for attribute `core` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\GymEnv.py:26:66 - error: Argument of type "LayoutGenerator | None" cannot be assigned to parameter "generator" of type "ProceduralDungeonGenerator | None" in function "__init__"
+    Type "LayoutGenerator | None" is not assignable to type "ProceduralDungeonGenerator | None"
+      Type "LayoutGenerator" is not assignable to type "ProceduralDungeonGenerator | None"
+        "LayoutGenerator" is not assignable to "ProceduralDungeonGenerator"
+        "LayoutGenerator" is not assignable to "None" (reportArgumentType)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\GymEnv.py:27:14 - warning: Type annotation for attribute `action_space` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\GymEnv.py:28:14 - warning: Type annotation for attribute `observation_space` is required because this class is not decorated with `@final` (reportUnannotatedClassAttribute)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\GymEnv.py:45:9 - warning: Method "reset" is not marked as override but is overriding a method in class "Env[Unknown, Unknown]" (reportImplicitOverride)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\GymEnv.py:49:28 - warning: Type `Any` is not allowed (reportExplicitAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\GymEnv.py:52:9 - warning: Result of call expression is of type "tuple[Unknown, dict[str, Any]]" and is not used; assign to variable "_" if this is intentional (reportUnusedCallResult)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\GymEnv.py:56:9 - warning: Method "step" is not marked as override but is overriding a method in class "Env[Unknown, Unknown]" (reportImplicitOverride)
+c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:12:6 - error: Import from `mapper.MapCatalog` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.MapCatalog` instead
+    or specify the full module path: `foreground_vision_bot.mapper.rl.mapper.MapCatalog` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:13:6 - error: Import from `mapper.OccupancyGrid` is implicitly relative and will not work if this file is imported as a module
+    Use a relative import from `.mapper.OccupancyGrid` instead
+    or specify the full module path: `foreground_vision_bot.mapper.rl.mapper.OccupancyGrid` (reportImplicitRelativeImport)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:41:20 - warning: Argument type is Any
+    Argument corresponds to parameter "x" in function "__new__" (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:45:20 - warning: Argument type is Any
+    Argument corresponds to parameter "x" in function "__new__" (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:104:9 - warning: Argument type is Any
+    Argument corresponds to parameter "a" in function "asarray" (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:111:9 - warning: Type of "metadata_payload" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:115:9 - warning: Type of "get" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:115:9 - warning: Type of "get" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:119:5 - warning: Type of "evidence" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:120:26 - warning: Argument type is Any
+    Argument corresponds to parameter "a" in function "argwhere" (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:123:5 - warning: Type of "y0" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:123:9 - warning: Type of "x0" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:124:5 - warning: Type of "y1" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:124:9 - warning: Type of "x1" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:126:21 - warning: Argument type is Any
+    Argument corresponds to parameter "x" in function "__new__" (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:127:21 - warning: Argument type is Any
+    Argument corresponds to parameter "x" in function "__new__" (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:128:5 - warning: Type of "y1" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:128:14 - warning: Type of "shape" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:128:14 - warning: Argument type is Any
+    Argument corresponds to parameter "arg1" in function "min" (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:128:42 - warning: Argument type is Any
+    Argument corresponds to parameter "x" in function "__new__" (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:129:5 - warning: Type of "x1" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:129:14 - warning: Type of "shape" is Any (reportAny)
+  c:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot\mapper\rl\LayoutSources.py:129:14 - warning: Argument type is Any
+    Argument corresponds to parameter "arg1" in function "min" (reportAny)
+  c:\Users\Ridd\Documents\Repos
