@@ -136,6 +136,7 @@ class RuntimeController:
                 dry_run_native_farming,
                 run_native_farming_agent,
                 train_native_farming,
+                validate_native_farming_data,
             )
 
             report = self._reporter("rl_status", "rl")
@@ -162,6 +163,12 @@ class RuntimeController:
                         cancellation=token,
                     )
                     return None
+                if mode == "validate-data":
+                    return validate_native_farming_data(
+                        self.bot,
+                        status_callback=report,
+                        cancellation=token,
+                    )
                 raise ValueError(f"Unknown RL mode: {mode}")
             finally:
                 self.bot.stop()

@@ -266,6 +266,7 @@ def test_fake_launch_attach_preview_dry_run_and_external_training_session(
     dynamic_module.dry_run_native_farming = dry_run
     dynamic_module.train_native_farming = train_mode
     dynamic_module.run_native_farming_agent = lambda *_args, **_kwargs: None
+    dynamic_module.validate_native_farming_data = lambda *_args, **_kwargs: None
     monkeypatch.setitem(sys.modules, "farming.trainer", module)
 
     class Capture:

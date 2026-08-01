@@ -7,7 +7,7 @@ from numbers import Real
 from pathlib import Path
 from typing import Final
 
-CONFIG_VERSION: Final = 2
+CONFIG_VERSION: Final = 3
 _DEPRECATED_KEYS: Final = frozenset(
     {
         "version",
@@ -34,6 +34,11 @@ class FarmingRuntimeConfig:
     checkpoint_dir: str = "models/farming/native_checkpoints"
     tensorboard_dir: str = "training_logs/farming/native_strategy"
     session_report_dir: str = "training_logs/farming/native_sessions"
+    validation_session_dir: str = "training_logs/farming/data_validation"
+    validation_run_seconds: float = 120.0
+    validation_status_interval_seconds: float = 5.0
+    validation_minimum_cast_targets: int = 1
+    validation_max_screenshots: int = 16
     max_targets: int = 32
     vision_radius_cells: float = 50.0
     eva_radius_cells: float = 8.0
@@ -67,6 +72,8 @@ class FarmingRuntimeConfig:
             "checkpoint_frequency": self.checkpoint_frequency,
             "max_targets": self.max_targets,
             "minimum_dry_run_cast_targets": self.minimum_dry_run_cast_targets,
+            "validation_minimum_cast_targets": self.validation_minimum_cast_targets,
+            "validation_max_screenshots": self.validation_max_screenshots,
         }
         for name, value in integer_fields.items():
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
@@ -74,6 +81,10 @@ class FarmingRuntimeConfig:
 
         positive_fields = {
             "stats_interval_seconds": self.stats_interval_seconds,
+            "validation_run_seconds": self.validation_run_seconds,
+            "validation_status_interval_seconds": (
+                self.validation_status_interval_seconds
+            ),
             "vision_radius_cells": self.vision_radius_cells,
             "eva_radius_cells": self.eva_radius_cells,
             "episode_seconds": self.episode_seconds,
@@ -136,6 +147,7 @@ class FarmingRuntimeConfig:
             "checkpoint_dir",
             "tensorboard_dir",
             "session_report_dir",
+            "validation_session_dir",
         ):
             value = getattr(self, name)
             if not isinstance(value, str) or not value.strip():

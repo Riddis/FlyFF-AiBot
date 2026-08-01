@@ -20,6 +20,7 @@ from worker_manager import CancellationToken, WorkerCancelled
 from .actions import FarmingAction
 from .config import CONFIG_VERSION, FarmingRuntimeConfig
 from .control import DirectFarmingControl, FarmingKeyMap, WindowFocusService
+from .debug_validation import TrainingDataValidationRecorder
 from .environment import UnifiedFarmingEnv
 from .map_context import FarmingMapContext
 from .native_world import (
@@ -70,6 +71,8 @@ class FarmingBot(Protocol):
 
     def read_kill_count(self) -> int | None: ...
 
+    def get_debug_frame(self) -> np.ndarray | None: ...
+
 
 @dataclass(frozen=True, slots=True)
 class FarmingPreflight:
@@ -100,6 +103,11 @@ class SessionStats:
     started_at: float = field(default_factory=monotonic)
     steps: int = 0
     kills: int = 0
+    ocr_kill_delta: int = 0
+    ocr_latest: int | None = None
+    ocr_outcomes: Counter[str] = field(default_factory=Counter)
+    native_cast_candidates: int = 0
+    casts_with_candidates: int = 0
     reward: float = 0.0
     action_counts: Counter[str] = field(default_factory=Counter)
     reward_components: dict[str, float] = field(default_factory=dict)
@@ -109,7 +117,28 @@ class SessionStats:
         self.steps += 1
         self.reward += float(reward)
         self.kills += int(cast(Any, info.get("native_kill_delta", 0)))
-        self.action_counts[str(info.get("action_name", "UNKNOWN"))] += 1
+        action_name = str(info.get("action_name", "UNKNOWN"))
+        self.action_counts[action_name] += 1
+        raw_candidates = info.get("native_kill_candidates", 0)
+        if isinstance(raw_candidates, (int, float)) and not isinstance(raw_candidates, bool):
+            candidates = max(0, int(raw_candidates))
+            self.native_cast_candidates += candidates
+            if action_name == FarmingAction.CAST_EVA.name and candidates > 0:
+                self.casts_with_candidates += 1
+        outcome = info.get("ocr_outcome")
+        if isinstance(outcome, str):
+            self.ocr_outcomes[outcome] += 1
+        raw_ocr = info.get("ocr_value")
+        if isinstance(raw_ocr, int) and not isinstance(raw_ocr, bool):
+            self.ocr_latest = raw_ocr
+        raw_delta = info.get("ocr_delta")
+        if (
+            outcome == "ok"
+            and isinstance(raw_delta, int)
+            and not isinstance(raw_delta, bool)
+            and raw_delta > 0
+        ):
+            self.ocr_kill_delta += raw_delta
         raw_components = info.get("reward_components")
         if isinstance(raw_components, Mapping):
             for name, value in raw_components.items():
@@ -165,6 +194,7 @@ def build_live_farming_runtime(
     cancellation: CancellationToken,
     *,
     map_context_loader: Callable[..., FarmingMapContext] = FarmingMapContext.load,
+    diagnostic_sink: Callable[[Mapping[str, object]], None] | None = None,
 ) -> FarmingRuntime:
     """Complete every read-only preflight before constructing an input lease."""
 
@@ -249,6 +279,7 @@ def build_live_farming_runtime(
         cancellation,
         config=config,
         read_ocr_kills=bot.read_kill_count,
+        diagnostic_sink=diagnostic_sink,
     )
     preflight = FarmingPreflight(
         map_name=map_context.map_name,
@@ -321,6 +352,13 @@ def _report_payload(
         "session_classification": session_classification,
         "steps": stats.steps,
         "kills": stats.kills,
+        "ocr": {
+            "accepted_kill_delta": stats.ocr_kill_delta,
+            "latest_value": stats.ocr_latest,
+            "outcomes": dict(stats.ocr_outcomes),
+        },
+        "native_cast_candidates": stats.native_cast_candidates,
+        "casts_with_candidates": stats.casts_with_candidates,
         "total_reward": stats.reward,
         "reward_components": dict(stats.reward_components),
         "action_counts": dict(stats.action_counts),
@@ -369,7 +407,13 @@ class _TrainingCallback(BaseCallback):
                 self.status_callback,
                 "NATIVE TRAINING | "
                 f"steps={self.num_timesteps:,}/{self.config.total_timesteps:,} "
-                f"kills={self.stats.kills} reward={self.stats.reward:+.2f} "
+                f"actors={self.stats.latest_info.get('visible_actors', 0)} "
+                f"eva={self.stats.latest_info.get('eva_actors', 0)} "
+                f"candidates={self.stats.latest_info.get('native_kill_candidates', 0)} "
+                f"native_kills={self.stats.kills} "
+                f"ocr_delta={self.stats.ocr_kill_delta} "
+                f"ocr={self.stats.ocr_latest if self.stats.ocr_latest is not None else '--'} "
+                f"reward={self.stats.reward:+.2f} "
                 f"action={self.stats.latest_info.get('action_name', '--')}",
             )
             self._last_status = now
@@ -567,6 +611,174 @@ def train_native_farming(
             runtime.close()
 
 
+def _preflight_debug_payload(preflight: FarmingPreflight | None) -> dict[str, object]:
+    if preflight is None:
+        return {}
+    return {
+        "map_name": preflight.map_name,
+        "map_hash": preflight.map_hash,
+        "map_shape": preflight.map_shape,
+        "initial_map_cell": preflight.initial_map_cell,
+        "player_base": preflight.player_base,
+        "world_base": preflight.world_base,
+        "pointer_generation": preflight.pointer_generation,
+        "actor_cache_outcome": preflight.actor_cache_outcome,
+        "actor_slots": preflight.actor_slots,
+        "initial_actor_count": preflight.initial_actor_count,
+    }
+
+
+def validate_native_farming_data(
+    bot: FarmingBot,
+    config: FarmingRuntimeConfig | None = None,
+    status_callback: StatusCallback | None = None,
+    cancellation: CancellationToken | None = None,
+) -> Path:
+    """Exercise the live training pipeline and package evidence for diagnosis."""
+
+    selected = config or _default_config()
+    token = cancellation or CancellationToken()
+    recorder = TrainingDataValidationRecorder(
+        resolve_app_path(selected.validation_session_dir),
+        frame_provider=bot.get_debug_frame,
+        maximum_screenshots=selected.validation_max_screenshots,
+    )
+    runtime: FarmingRuntime | None = None
+    stats = SessionStats()
+    info: dict[str, object] = {}
+    session_reason = "validation_complete"
+    session_classification = "completed"
+    error: Exception | None = None
+    try:
+        runtime = build_live_farming_runtime(
+            bot,
+            selected,
+            token,
+            diagnostic_sink=recorder.record,
+        )
+        _raise_if_cancelled(token)
+        _status(
+            status_callback,
+            "Training-data validation started; no learning or model writes will occur.",
+        )
+        bot.start()
+        reset = runtime.domain.reset()
+        info = dict(reset.info)
+        turn = 0
+        started = monotonic()
+        next_cast_at = started
+        last_status = started
+        while bot.rl_enabled and not token.cancelled:
+            now = monotonic()
+            if now - started >= selected.validation_run_seconds:
+                break
+            eva_count = int(cast(Any, info.get("eva_actors", 0)))
+            if (
+                now >= next_cast_at
+                and eva_count >= selected.validation_minimum_cast_targets
+            ):
+                action = FarmingAction.CAST_EVA
+                next_cast_at = now + selected.eva_cooldown_seconds
+            else:
+                movement = (
+                    FarmingAction.RUN_FORWARD,
+                    FarmingAction.RUN_FORWARD_LEFT,
+                    FarmingAction.RUN_FORWARD_RIGHT,
+                )
+                action = movement[(turn // 12) % len(movement)]
+            result = runtime.domain.step(action)
+            stats.observe(result.info, result.reward.total)
+            info = dict(result.info)
+            turn += 1
+            now = monotonic()
+            if now - last_status >= selected.validation_status_interval_seconds:
+                _status(
+                    status_callback,
+                    "DATA VALIDATION | "
+                    f"steps={stats.steps} actors={info.get('visible_actors', 0)} "
+                    f"eva={info.get('eva_actors', 0)} "
+                    f"candidates={info.get('native_kill_candidates', 0)} "
+                    f"native_kills={stats.kills} "
+                    f"ocr_delta={stats.ocr_kill_delta} "
+                    f"ocr={stats.ocr_latest if stats.ocr_latest is not None else '--'}",
+                )
+                last_status = now
+            if result.outcome.should_stop_session:
+                session_reason = str(
+                    result.info.get("session_end_reason", "validation_stopped")
+                )
+                session_classification = str(
+                    result.info.get("session_classification", "external_end")
+                )
+                break
+        if token.cancelled:
+            session_reason = "user_cancelled"
+            session_classification = "user_cancellation"
+    except WorkerCancelled:
+        session_reason = "user_cancelled"
+        session_classification = "user_cancellation"
+    except Exception as caught:
+        error = caught
+        recorder.note_error(caught)
+        session_reason = "validation_error"
+        session_classification = "fatal_error"
+    finally:
+        if runtime is not None:
+            try:
+                runtime.close()
+            except Exception as close_error:
+                recorder.note_error(close_error)
+                if error is None:
+                    error = close_error
+                    session_reason = "validation_close_error"
+                    session_classification = "fatal_error"
+
+    artifacts = recorder.finish(
+        session_reason=session_reason,
+        session_classification=session_classification,
+        preflight=_preflight_debug_payload(
+            None if runtime is None else runtime.preflight
+        ),
+        extra={
+            "steps": stats.steps,
+            "native_kills": stats.kills,
+            "ocr_kill_delta": stats.ocr_kill_delta,
+            "ocr_latest": stats.ocr_latest,
+            "reward": stats.reward,
+            "latest_info": stats.latest_info,
+            "selected_mobs": bot.config.get("selected_mobs"),
+            "validation_config": {
+                "run_seconds": selected.validation_run_seconds,
+                "minimum_cast_targets": (
+                    selected.validation_minimum_cast_targets
+                ),
+                "vision_radius_cells": selected.vision_radius_cells,
+                "eva_radius_cells": selected.eva_radius_cells,
+                "eva_cooldown_seconds": selected.eva_cooldown_seconds,
+                "cast_minimum_absence_seconds": (
+                    selected.cast_minimum_absence_seconds
+                ),
+                "cast_result_timeout_seconds": (
+                    selected.cast_result_timeout_seconds
+                ),
+                "cast_poll_seconds": selected.cast_poll_seconds,
+            },
+            "error": None
+            if error is None
+            else {"type": type(error).__name__, "message": str(error)},
+        },
+    )
+    _status(
+        status_callback,
+        "Training-data validation finished | "
+        f"native_kills={stats.kills} ocr_delta={stats.ocr_kill_delta} "
+        f"archive={artifacts.archive_path}",
+    )
+    if error is not None:
+        raise error
+    return artifacts.archive_path
+
+
 def dry_run_native_farming(
     bot: FarmingBot,
     config: FarmingRuntimeConfig | None = None,
@@ -606,7 +818,10 @@ def dry_run_native_farming(
             status_callback,
             "Native dry run finished | "
             f"reason={info.get('session_end_reason', 'dry_run_complete')} "
-            f"steps={stats.steps} kills={stats.kills} reward={stats.reward:+.2f}",
+            f"steps={stats.steps} native_kills={stats.kills} "
+            f"ocr_delta={stats.ocr_kill_delta} "
+            f"ocr={stats.ocr_latest if stats.ocr_latest is not None else '--'} "
+            f"reward={stats.reward:+.2f}",
         )
     finally:
         runtime.close()
@@ -655,7 +870,8 @@ def run_native_farming_agent(
             status_callback,
             "Native farming agent finished | "
             f"reason={stats.latest_info.get('session_end_reason', 'stopped')} "
-            f"steps={stats.steps} kills={stats.kills}",
+            f"steps={stats.steps} native_kills={stats.kills} "
+            f"ocr_delta={stats.ocr_kill_delta}",
         )
     finally:
         runtime.close()

@@ -259,6 +259,7 @@ def test_rl_startup_enablement_belongs_to_preflighted_farming(
     module.dry_run_native_farming = dry_run
     module.run_native_farming_agent = lambda *_args, **_kwargs: None
     module.train_native_farming = lambda *_args, **_kwargs: None
+    module.validate_native_farming_data = lambda *_args, **_kwargs: None
     monkeypatch.setitem(sys.modules, "farming.trainer", module)
     monkeypatch.setattr(
         controller,
@@ -305,6 +306,7 @@ def test_rl_startup_pointer_failure_is_clean_and_never_enters_trainer(
     module.dry_run_native_farming = lambda *_args, **_kwargs: invoked.append("dry")
     module.run_native_farming_agent = lambda *_args, **_kwargs: invoked.append("agent")
     module.train_native_farming = lambda *_args, **_kwargs: invoked.append("train")
+    module.validate_native_farming_data = lambda *_args, **_kwargs: invoked.append("validate")
     monkeypatch.setitem(sys.modules, "farming.trainer", module)
     monkeypatch.setattr(
         controller,
@@ -379,6 +381,7 @@ def test_rl_startup_recovery_verifies_snapshot_before_entering_trainer(
     module.dry_run_native_farming = lambda *_args, **_kwargs: invoked.append("dry")
     module.run_native_farming_agent = lambda *_args, **_kwargs: invoked.append("agent")
     module.train_native_farming = lambda *_args, **_kwargs: invoked.append("train")
+    module.validate_native_farming_data = lambda *_args, **_kwargs: invoked.append("validate")
     monkeypatch.setitem(sys.modules, "farming.trainer", module)
     monkeypatch.setattr(
         controller,

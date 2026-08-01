@@ -70,6 +70,11 @@ def test_native_kill_requires_two_successful_absence_reads_and_ignores_failures(
     assert result.failed_reads == 1
     assert result.successful_reads == 2
     assert result.elapsed_seconds == pytest.approx(0.15)
+    assert len(result.diagnostics) == 1
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.confirmed
+    assert diagnostic.absent_reads == 2
+    assert diagnostic.maximum_consecutive_absence == 2
 
 
 def test_native_kill_dedupe_prevents_double_reward() -> None:

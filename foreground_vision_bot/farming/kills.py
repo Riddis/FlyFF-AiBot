@@ -21,6 +21,18 @@ class CastWindow:
 
 
 @dataclass(frozen=True, slots=True)
+class CandidateKillDiagnostic:
+    base_address: int
+    species_id: int
+    present_reads: int
+    absent_reads: int
+    maximum_consecutive_absence: int
+    minimum_seen_hp: int | None
+    last_seen_hp: int | None
+    confirmed: bool
+
+
+@dataclass(frozen=True, slots=True)
 class NativeKillResult:
     confirmed: tuple[CastCandidate, ...]
     polls: int
@@ -28,6 +40,7 @@ class NativeKillResult:
     failed_reads: int
     cancelled: bool
     elapsed_seconds: float
+    diagnostics: tuple[CandidateKillDiagnostic, ...] = ()
 
     @property
     def kill_count(self) -> int:
@@ -115,7 +128,48 @@ class NativeKillTracker:
             not in self._recent_confirmations
         }
         absence_reads = {key: 0 for key in pending}
+        diagnostic_state = {
+            key: {
+                "present_reads": 0,
+                "absent_reads": 0,
+                "maximum_consecutive_absence": 0,
+                "minimum_seen_hp": None,
+                "last_seen_hp": None,
+            }
+            for key in pending
+        }
         confirmed: list[CastCandidate] = []
+
+        def diagnostics() -> tuple[CandidateKillDiagnostic, ...]:
+            confirmed_keys = {
+                (candidate.base_address, candidate.species_id)
+                for candidate in confirmed
+            }
+            result: list[CandidateKillDiagnostic] = []
+            for key, state in diagnostic_state.items():
+                result.append(
+                    CandidateKillDiagnostic(
+                        base_address=key[0],
+                        species_id=key[1],
+                        present_reads=int(state["present_reads"]),
+                        absent_reads=int(state["absent_reads"]),
+                        maximum_consecutive_absence=int(
+                            state["maximum_consecutive_absence"]
+                        ),
+                        minimum_seen_hp=(
+                            None
+                            if state["minimum_seen_hp"] is None
+                            else int(state["minimum_seen_hp"])
+                        ),
+                        last_seen_hp=(
+                            None
+                            if state["last_seen_hp"] is None
+                            else int(state["last_seen_hp"])
+                        ),
+                        confirmed=key in confirmed_keys,
+                    )
+                )
+            return tuple(result)
         polls = successful = failed = 0
         deadline = window.started_at + self.result_timeout_seconds
 
@@ -128,6 +182,7 @@ class NativeKillTracker:
                     failed_reads=failed,
                     cancelled=True,
                     elapsed_seconds=max(0.0, self._clock() - window.started_at),
+                    diagnostics=diagnostics(),
                 )
             self._wait(cancellation)
             polls += 1
@@ -139,14 +194,33 @@ class NativeKillTracker:
                 failed += 1
                 continue
             successful += 1
-            present = {(actor.base_address, actor.species_id) for actor in frame.actors}
+            present = {
+                (actor.base_address, actor.species_id): actor
+                for actor in frame.actors
+            }
+            for key in tuple(pending):
+                actor = present.get(key)
+                if actor is None:
+                    continue
+                state = diagnostic_state[key]
+                state["present_reads"] = int(state["present_reads"]) + 1
+                hp = int(actor.hp)
+                state["last_seen_hp"] = hp
+                minimum = state["minimum_seen_hp"]
+                state["minimum_seen_hp"] = hp if minimum is None else min(int(minimum), hp)
             if self._clock() - window.started_at < self.minimum_absence_seconds:
                 continue
             for key, candidate in tuple(pending.items()):
+                state = diagnostic_state[key]
                 if key in present:
                     absence_reads[key] = 0
                     continue
                 absence_reads[key] += 1
+                state["absent_reads"] = int(state["absent_reads"]) + 1
+                state["maximum_consecutive_absence"] = max(
+                    int(state["maximum_consecutive_absence"]),
+                    absence_reads[key],
+                )
                 if absence_reads[key] < 2:
                     continue
                 confirmed.append(candidate)
@@ -160,6 +234,7 @@ class NativeKillTracker:
             failed_reads=failed,
             cancelled=self._cancelled(cancellation),
             elapsed_seconds=max(0.0, self._clock() - window.started_at),
+            diagnostics=diagnostics(),
         )
 
 

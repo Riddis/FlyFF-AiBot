@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 # pyright: reportImplicitRelativeImport=false
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import Enum
 from math import hypot, radians
@@ -19,6 +19,7 @@ from .control import (
     FarmingControlUnavailable,
 )
 from .kills import (
+    CastWindow,
     NativeKillResult,
     NativeKillTracker,
     OcrDiagnostic,
@@ -96,6 +97,7 @@ class UnifiedFarmingEnv:
         kill_tracker: NativeKillTracker | None = None,
         ocr_diagnostics: OcrKillDiagnostics | None = None,
         read_ocr_kills: Callable[[], int | None] | None = None,
+        diagnostic_sink: Callable[[Mapping[str, object]], None] | None = None,
         clock: Callable[[], float] = monotonic,
         sleeper: Callable[[float], None] = sleep,
     ) -> None:
@@ -130,6 +132,7 @@ class UnifiedFarmingEnv:
         )
         self.ocr_diagnostics = ocr_diagnostics or OcrKillDiagnostics()
         self._read_ocr_kills = read_ocr_kills
+        self._diagnostic_sink = diagnostic_sink
         self._clock = clock
         self._sleep = sleeper
         self._state = FarmingEnvironmentState.NEW
@@ -237,6 +240,141 @@ class UnifiedFarmingEnv:
             ),
         )
 
+    @staticmethod
+    def _actor_payload(actor: object) -> dict[str, object]:
+        return {
+            "base": int(getattr(actor, "base_address")),
+            "species": int(getattr(actor, "species_id")),
+            "active_species": int(getattr(actor, "active_species_id")),
+            "hp": int(getattr(actor, "hp")),
+            "x": float(getattr(actor, "x")),
+            "y": float(getattr(actor, "y")),
+            "z": float(getattr(actor, "z")),
+            "distance_native": float(getattr(actor, "distance_native")),
+        }
+
+    @classmethod
+    def _world_payload(cls, world: NativeWorldFrame) -> dict[str, object]:
+        snapshot = world.pointer_snapshot
+        pose = world.player_pose
+        return {
+            "pointer": {
+                "player_base": int(snapshot.player_base),
+                "world_base": int(snapshot.world_base),
+                "generation": int(snapshot.generation),
+                "mode": str(snapshot.mode),
+            },
+            "player": {
+                "x": float(pose.x),
+                "y": float(pose.y),
+                "z": float(pose.z),
+                "heading_degrees": (
+                    None
+                    if pose.heading_degrees is None
+                    else float(pose.heading_degrees)
+                ),
+            },
+            "actors": [cls._actor_payload(actor) for actor in world.actors],
+        }
+
+    def _emit_diagnostic(
+        self,
+        *,
+        event: str,
+        action: FarmingAction,
+        before: _FrameFeatures | None,
+        after: _FrameFeatures,
+        observation: FloatArray,
+        info: Mapping[str, object],
+        eva_available: bool | None = None,
+        cast_window: CastWindow | None = None,
+        kill_result: NativeKillResult | None = None,
+        ocr: OcrDiagnostic | None = None,
+    ) -> None:
+        sink = self._diagnostic_sink
+        if sink is None:
+            return
+        vector = np.asarray(observation, dtype=np.float32)
+        finite = np.isfinite(vector)
+        finite_values = vector[finite]
+        payload: dict[str, object] = {
+            "event": str(event),
+            "timestamp_monotonic": float(self._clock()),
+            "action": int(action),
+            "action_name": action.name,
+            "eva_available": eva_available,
+            "before": None if before is None else self._world_payload(before.world),
+            "after": self._world_payload(after.world),
+            "observation": {
+                "size": int(vector.size),
+                "finite": bool(finite.all()),
+                "nonfinite_count": int(vector.size - int(finite.sum())),
+                "minimum": (
+                    float(finite_values.min()) if finite_values.size else None
+                ),
+                "maximum": (
+                    float(finite_values.max()) if finite_values.size else None
+                ),
+                "values": [float(value) for value in vector.tolist()],
+            },
+            "info": dict(info),
+            "cast_candidates": (
+                []
+                if cast_window is None
+                else [
+                    {
+                        "base": int(candidate.base_address),
+                        "species": int(candidate.species_id),
+                    }
+                    for candidate in cast_window.candidates
+                ]
+            ),
+            "kill_result": (
+                None
+                if kill_result is None
+                else {
+                    "confirmed": [
+                        {
+                            "base": int(candidate.base_address),
+                            "species": int(candidate.species_id),
+                        }
+                        for candidate in kill_result.confirmed
+                    ],
+                    "polls": int(kill_result.polls),
+                    "successful_reads": int(kill_result.successful_reads),
+                    "failed_reads": int(kill_result.failed_reads),
+                    "cancelled": bool(kill_result.cancelled),
+                    "elapsed_seconds": float(kill_result.elapsed_seconds),
+                    "candidate_diagnostics": [
+                        {
+                            "base": int(item.base_address),
+                            "species": int(item.species_id),
+                            "present_reads": int(item.present_reads),
+                            "absent_reads": int(item.absent_reads),
+                            "maximum_consecutive_absence": int(
+                                item.maximum_consecutive_absence
+                            ),
+                            "minimum_seen_hp": item.minimum_seen_hp,
+                            "last_seen_hp": item.last_seen_hp,
+                            "confirmed": bool(item.confirmed),
+                        }
+                        for item in kill_result.diagnostics
+                    ],
+                }
+            ),
+            "ocr": (
+                None
+                if ocr is None
+                else {
+                    "outcome": ocr.outcome.value,
+                    "value": ocr.value,
+                    "previous": ocr.previous,
+                    "delta": ocr.delta,
+                }
+            ),
+        }
+        sink(payload)
+
     def reset(self) -> FarmingReset:
         self._ensure_state(FarmingEnvironmentState.NEW)
         if self._cancelled(self.cancellation):
@@ -259,17 +397,25 @@ class UnifiedFarmingEnv:
         self._started_at = now
         self._last_features = features
         self._state = FarmingEnvironmentState.ACTIVE
-        return FarmingReset(
-            observation=features.built.vector,
-            info=self._info(
-                action=FarmingAction.RUN_FORWARD,
-                features=features,
-                reward=None,
-                outcome=SessionOutcome.continuing(),
-                native_kills=0,
-                ocr=None,
-            ),
+        info = self._info(
+            action=FarmingAction.RUN_FORWARD,
+            features=features,
+            reward=None,
+            outcome=SessionOutcome.continuing(),
+            native_kills=0,
+            ocr=None,
+            eva_available=True,
         )
+        self._emit_diagnostic(
+            event="reset",
+            action=FarmingAction.RUN_FORWARD,
+            before=None,
+            after=features,
+            observation=features.built.vector,
+            info=info,
+            eva_available=True,
+        )
+        return FarmingReset(observation=features.built.vector, info=info)
 
     def _read_after_with_grace(self) -> NativeWorldFrame:
         deadline = self._clock() + self.config.pointer_grace_seconds
@@ -380,6 +526,23 @@ class UnifiedFarmingEnv:
                 outcome=outcome,
                 native_kills=kill_result.kill_count,
                 ocr=ocr,
+                kill_result=kill_result,
+                cast_window=cast_window,
+                eva_available=eva_available,
+                displacement_cells=displacement,
+                contact=contact,
+            )
+            self._emit_diagnostic(
+                event="step",
+                action=selected,
+                before=before,
+                after=after,
+                observation=after.built.vector,
+                info=info,
+                eva_available=eva_available,
+                cast_window=cast_window,
+                kill_result=kill_result,
+                ocr=ocr,
             )
             self._last_features = after
             if outcome.should_stop_session:
@@ -464,13 +627,72 @@ class UnifiedFarmingEnv:
         native_kills: int,
         ocr: OcrDiagnostic | None,
         detail: str = "",
+        kill_result: NativeKillResult | None = None,
+        cast_window: CastWindow | None = None,
+        eva_available: bool | None = None,
+        displacement_cells: float = 0.0,
+        contact: bool = False,
     ) -> dict[str, object]:
         return {
             "action": int(action),
             "action_name": action.name,
             "native_kill_delta": int(native_kills),
             "kill_delta": int(native_kills),
+            "native_kill_candidates": (
+                0 if cast_window is None else len(cast_window.candidates)
+            ),
+            "native_kill_confirmed": (
+                []
+                if kill_result is None
+                else [int(item.base_address) for item in kill_result.confirmed]
+            ),
+            "native_kill_polls": 0 if kill_result is None else kill_result.polls,
+            "native_kill_successful_reads": (
+                0 if kill_result is None else kill_result.successful_reads
+            ),
+            "native_kill_failed_reads": (
+                0 if kill_result is None else kill_result.failed_reads
+            ),
+            "native_kill_elapsed_seconds": (
+                0.0 if kill_result is None else kill_result.elapsed_seconds
+            ),
+            "native_kill_candidate_diagnostics": (
+                []
+                if kill_result is None
+                else [
+                    {
+                        "base": int(item.base_address),
+                        "species": int(item.species_id),
+                        "present_reads": int(item.present_reads),
+                        "absent_reads": int(item.absent_reads),
+                        "maximum_consecutive_absence": int(
+                            item.maximum_consecutive_absence
+                        ),
+                        "minimum_seen_hp": item.minimum_seen_hp,
+                        "last_seen_hp": item.last_seen_hp,
+                        "confirmed": bool(item.confirmed),
+                    }
+                    for item in kill_result.diagnostics
+                ]
+            ),
+            "eva_available": eva_available,
+            "player_displacement_cells": float(displacement_cells),
+            "contact": bool(contact),
+            "player_native_position": (
+                float(features.world.player_pose.x),
+                float(features.world.player_pose.y),
+                float(features.world.player_pose.z),
+            ),
+            "player_heading_degrees": (
+                None
+                if features.world.player_pose.heading_degrees is None
+                else float(features.world.player_pose.heading_degrees)
+            ),
+            "pointer_mode": str(features.world.pointer_snapshot.mode),
+            "pointer_generation": int(features.world.pointer_snapshot.generation),
             "ocr_outcome": None if ocr is None else ocr.outcome.value,
+            "ocr_value": None if ocr is None else ocr.value,
+            "ocr_previous": None if ocr is None else ocr.previous,
             "ocr_delta": None if ocr is None else ocr.delta,
             "visible_actors": features.built.visible_actor_count,
             "eva_actors": features.built.eva_actor_count,

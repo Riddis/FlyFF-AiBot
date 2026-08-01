@@ -130,6 +130,13 @@ class Gui:
                     "Starting native no-learning dry run...",
                 )
 
+            if event == "-VALIDATE_DATA-":
+                self.__start_control(
+                    lambda: self.controller.start_rl("validate-data"),
+                    "Data Validation",
+                    "Starting training-data validation run...",
+                )
+
             if event == "-RUN_AGENT-":
                 self.__start_control(
                     lambda: self.controller.start_rl("agent"),
@@ -690,6 +697,7 @@ class Gui:
             attached = False
             running = True
         self.window["-DRY_RUN-"].update(disabled=(not attached or running))
+        self.window["-VALIDATE_DATA-"].update(disabled=(not attached or running))
         self.window["-START_BOT-"].update(disabled=(not attached or running))
         self.window["-RUN_AGENT-"].update(disabled=(not attached or running))
         self.window["-START_MAPPER-"].update(disabled=(not attached or running))
@@ -1337,6 +1345,18 @@ class Gui:
                         disabled=True,
                         key="-DRY_RUN-",
                         expand_x=True,
+                    )
+                ],
+                [
+                    sg.Button(
+                        "Validate Training Data (No Learning)",
+                        disabled=True,
+                        key="-VALIDATE_DATA-",
+                        expand_x=True,
+                        tooltip=(
+                            "Runs the live training input pipeline and creates a "
+                            "SEND_TO_CHATGPT debug ZIP."
+                        ),
                     )
                 ],
                 [
