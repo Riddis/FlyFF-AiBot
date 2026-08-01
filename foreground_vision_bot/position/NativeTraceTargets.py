@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import struct
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
 from time import sleep
 from typing import Protocol
@@ -274,85 +274,6 @@ def trace_discovery_from_anchored(
     )
 
 
-def _supplement_proven_layout_targets(
-    memory: TraceTargetMemory,
-    *,
-    species_matches: Mapping[int, set[int]],
-    layout: object,
-    existing: tuple[TraceMonsterTarget, ...],
-    readable: ReadableRegionIndex,
-    object_span: int,
-    coordinate_limit: float,
-    maximum_candidates: int,
-    check: Callable[[], None],
-) -> tuple[TraceMonsterTarget, ...]:
-    """Enumerate all selected species through an already proven actor layout.
-
-    Exact full HP is needed only to prove the layout once. After that proof, a
-    selected species does not need its own hardcoded full-HP constant: the same
-    species, live-HP, transform, and self-reference fields can be validated
-    directly. This also captures damaged or dead actors and species allocated in
-    slabs that are not adjacent to the exact-anchor species.
-    """
-
-    species_offset = int(getattr(layout, "species_offset"))
-    active_species_offset = int(getattr(layout, "active_species_offset"))
-    hp_offset = int(getattr(layout, "hp_offset"))
-    x_offset = int(getattr(layout, "x_offset"))
-    y_offset = int(getattr(layout, "y_offset"))
-    z_offset = int(getattr(layout, "z_offset"))
-    self_offsets = tuple(int(value) for value in getattr(layout, "self_offsets"))
-    targets = {int(item.base): item for item in existing}
-    limit = max(len(targets), int(maximum_candidates))
-
-    for expected_species in sorted(int(value) for value in species_matches):
-        for address in sorted(species_matches.get(expected_species, ())):
-            check()
-            if len(targets) >= limit:
-                return tuple(sorted(targets.values(), key=lambda item: item.base))
-            base = int(address) - species_offset
-            if (
-                base <= 0x10000
-                or base in targets
-                or not readable.contains(base, object_span)
-            ):
-                continue
-            try:
-                data = memory.read(base, object_span)
-                if _i32(data, species_offset) != expected_species:
-                    continue
-                if not any(_u32(data, offset) == base for offset in self_offsets):
-                    continue
-                hp = _i32(data, hp_offset)
-                x = _f32(data, x_offset)
-                y = _f32(data, y_offset)
-                z = _f32(data, z_offset)
-            except Exception:
-                continue
-            if hp < 0 or not all(
-                math.isfinite(value) and abs(value) <= float(coordinate_limit)
-                for value in (x, y, z)
-            ):
-                continue
-            targets[base] = TraceMonsterTarget(
-                base=base,
-                species=expected_species,
-                hp=hp,
-                x=x,
-                y=y,
-                z=z,
-                self_pointer_offsets=self_offsets,
-                species_offset=species_offset,
-                active_species_offset=active_species_offset,
-                hp_offset=hp_offset,
-                x_offset=x_offset,
-                y_offset=y_offset,
-                z_offset=z_offset,
-            )
-
-    return tuple(sorted(targets.values(), key=lambda item: item.base))
-
-
 def discover_trace_targets(
     memory: TraceTargetMemory,
     *,
@@ -360,7 +281,6 @@ def discover_trace_targets(
     readable: ReadableRegionIndex,
     module: ModuleInfo,
     species_hp: Mapping[int, int],
-    known_species_ids: Iterable[int] | None = None,
     spawn_x: float,
     spawn_z: float,
     player_hp: int,
@@ -404,18 +324,8 @@ def discover_trace_targets(
         0x4004,
     )
     check = check or (lambda: None)
-    selected_species = tuple(
-        sorted(
-            {int(value) for value in species_hp}
-            | {
-                int(value)
-                for value in (known_species_ids or ())
-                if int(value) > 0
-            }
-        )
-    )
     hints = PointerRecoveryHints(
-        known_species_ids=selected_species,
+        known_species_ids=tuple(species_hp),
         player_spawn_x=float(spawn_x),
         player_spawn_z=float(spawn_z),
         player_current_hp=int(player_hp),
@@ -508,18 +418,6 @@ def discover_trace_targets(
         )
         for item in monster_observations
     )
-    monsters = _supplement_proven_layout_targets(
-        memory,
-        species_matches=species_matches,
-        layout=layout,
-        existing=monsters,
-        readable=readable,
-        object_span=object_span,
-        coordinate_limit=coordinate_limit,
-        maximum_candidates=maximum_monster_candidates,
-        check=check,
-    )
-    anchored.monster_candidates = len(monsters)
 
     player_candidates: list[TracePlayerTarget] = []
     player_hp_rejections = 0
@@ -672,9 +570,8 @@ def discover_trace_targets(
         evidence,
         "success",
         (
-            f"Found one selected player, {len(anchors)} exact full-health "
-            f"layout anchors, {len(monsters)} selected-species actor slots, "
-            f"and {len(player.direct_module_slots)} direct module aliases with "
-            "dynamically inferred field offsets."
+            f"Found one selected player, {len(monsters)} exact full-health "
+            f"monster actors, and {len(player.direct_module_slots)} direct "
+            "module aliases with dynamically inferred field offsets."
         ),
     )

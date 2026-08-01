@@ -1583,7 +1583,6 @@ def test_independent_runtime_keeps_dynamically_discovered_hp_for_selected_specie
     result = service.recover_pointers(hints=hints, timeout_seconds=2.0)
 
     assert len(trace_calls) == 1
-    assert trace_calls[0][1]["known_species_ids"] == (944, 948)
     assert result.succeeded is True
     assert result.recovery is not None
     assert result.recovery.strategy == "anchored_independent"

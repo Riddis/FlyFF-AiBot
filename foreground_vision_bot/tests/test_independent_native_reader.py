@@ -3,7 +3,10 @@ from __future__ import annotations
 import struct
 from types import SimpleNamespace
 
-from position.IndependentMonsterRediscovery import rediscover_known_layout_monsters
+from position.IndependentMonsterRediscovery import (
+    rediscover_known_layout_monsters,
+    rediscover_selected_layout_monsters,
+)
 from position.IndependentNativeReader import IndependentNativeReader, infer_actor_stride
 from position.NativeTraceTargets import (
     TraceMonsterTarget,
@@ -445,3 +448,42 @@ def test_reader_uses_the_single_hp_field_proven_by_exact_discovery() -> None:
     assert killed.hp_offset == MONSTER_LIVE_HP_OFFSET
     assert killed.hp_candidates == ((MONSTER_LIVE_HP_OFFSET, 0),)
 
+
+
+def test_post_recovery_selected_species_scan_adds_distant_dantalian_slab() -> None:
+    memory, _module, reader, asterion_bases = _fixture(slots_each_direction=31)
+    dantalian_bases = (0x36000000, 0x36002008, 0x36004010)
+    for index, base in enumerate(dantalian_bases):
+        _populate_actor(
+            memory,
+            base,
+            species=948,
+            hp=0 if index == 0 else 275000 - index,
+            x=300.0 + index,
+            z=90.0,
+        )
+
+    # Recovery has already succeeded from Asterion anchors. Dantalian discovery
+    # happens afterward and therefore cannot influence player/layout selection.
+    result = rediscover_selected_layout_monsters(
+        memory,
+        template=reader.monster_targets[0],
+        species_ids=(948,),
+        maximum_address=0x7FFFFFFF,
+        coordinate_limit=1_000_000.0,
+    )
+    merge = reader.merge_monster_targets(
+        result.targets, slots_each_direction=31
+    )
+
+    assert {target.species for target in result.targets} == {948}
+    assert set(dantalian_bases).issubset(reader.actor_slots)
+    assert merge.new_anchors == len(dantalian_bases)
+    snapshot = reader.snapshot(allowed_species={944, 948})
+    assert snapshot.zero_hp_monsters == 1
+    assert snapshot.living_monsters == len(asterion_bases) + 2
+    assert {
+        state.base
+        for state in snapshot.actor_states
+        if state.species == 948
+    } == set(dantalian_bases)
