@@ -1445,8 +1445,17 @@ def test_independent_recovery_drives_gui_selected_species_without_world_pointer(
     assert [actor.species_id for actor in actors.actors] == [948]
 
 
-def test_independent_runtime_keeps_dynamically_discovered_hp_for_selected_species() -> None:
+def test_independent_runtime_keeps_dynamically_discovered_hp_for_selected_species(
+    monkeypatch,
+) -> None:
+    import position.NativePointerRecovery as recovery_module
     from position.NativeFlyffMonsterProvider import NativeFlyffMonsterProvider
+    from position.NativeTraceTargets import (
+        TraceMonsterTarget,
+        TracePlayerTarget,
+        TraceTargetDiscovery,
+        TraceTargetEvidence,
+    )
     from position.PositionProvider import PlayerPose
 
     memory = AnchoredMemory()
@@ -1463,6 +1472,97 @@ def test_independent_runtime_keeps_dynamically_discovered_hp_for_selected_specie
     for base, hp in ((asterius, 1000), (dantalian, 1200)):
         memory.i32(base + config.hp_offset, 1065353216)
         memory.i32(base + discovered_hp_offset, hp)
+
+    evidence = TraceTargetEvidence(
+        bytes_scanned=1,
+        regions_scanned=1,
+        read_failures=0,
+        species_hits=2,
+        spawn_x_hits=1,
+        monster_candidates=2,
+        player_candidates=1,
+        monster_hp_rejections=0,
+        monster_coordinate_rejections=0,
+        player_hp_rejections=0,
+        player_coordinate_rejections=0,
+        observed_hp_values=(),
+        monster_base_hypotheses=2,
+        monster_layout_ties=0,
+        monster_self_aliases=2,
+        player_self_rejections=0,
+        inferred_species_offset=config.species_offset,
+        inferred_active_species_offset=config.active_species_offset,
+        inferred_monster_hp_offset=discovered_hp_offset,
+        inferred_x_offset=config.x_offset,
+        inferred_y_offset=config.y_offset,
+        inferred_z_offset=config.z_offset,
+        selected_player_hp_offset=config.hp_offset,
+    )
+    discovery = TraceTargetDiscovery(
+        player=TracePlayerTarget(
+            base=memory.player_base,
+            hp=5000,
+            x=253.0,
+            y=14.0,
+            z=86.0,
+            self_pointer_offsets=(memory.new_self_offset,),
+            direct_module_slots=(
+                memory.module_base_value + memory.player_slot_offset,
+            ),
+            hp_offset=config.hp_offset,
+            species_offset=config.species_offset,
+            active_species_offset=config.active_species_offset,
+            x_offset=config.x_offset,
+            y_offset=config.y_offset,
+            z_offset=config.z_offset,
+        ),
+        monsters=(
+            TraceMonsterTarget(
+                base=asterius,
+                species=944,
+                hp=1000,
+                x=240.0,
+                y=12.0,
+                z=80.0,
+                self_pointer_offsets=(memory.new_self_offset,),
+                species_offset=config.species_offset,
+                active_species_offset=config.active_species_offset,
+                hp_offset=discovered_hp_offset,
+                x_offset=config.x_offset,
+                y_offset=config.y_offset,
+                z_offset=config.z_offset,
+            ),
+            TraceMonsterTarget(
+                base=dantalian,
+                species=948,
+                hp=1200,
+                x=260.0,
+                y=12.0,
+                z=90.0,
+                self_pointer_offsets=(memory.new_self_offset,),
+                species_offset=config.species_offset,
+                active_species_offset=config.active_species_offset,
+                hp_offset=discovered_hp_offset,
+                x_offset=config.x_offset,
+                y_offset=config.y_offset,
+                z_offset=config.z_offset,
+            ),
+        ),
+        evidence=evidence,
+        outcome="success",
+        message="validated tester discovery",
+    )
+    trace_calls = []
+
+    def fake_discover_trace_targets(*args, **kwargs):
+        trace_calls.append((args, kwargs))
+        return discovery
+
+    monkeypatch.setattr(
+        recovery_module,
+        "discover_trace_targets",
+        fake_discover_trace_targets,
+    )
 
     hints = PointerRecoveryHints(
         known_species_ids=(944, 948),
@@ -1482,6 +1582,7 @@ def test_independent_runtime_keeps_dynamically_discovered_hp_for_selected_specie
 
     result = service.recover_pointers(hints=hints, timeout_seconds=2.0)
 
+    assert len(trace_calls) == 1
     assert result.succeeded is True
     assert result.recovery is not None
     assert result.recovery.strategy == "anchored_independent"

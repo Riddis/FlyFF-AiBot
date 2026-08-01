@@ -29,8 +29,11 @@ from .MonsterConfig import (
 )
 from .NativeTraceTargets import (
     TraceTargetDiscovery,
+    TraceTargetEvidence,
+    discover_trace_targets,
     trace_discovery_from_anchored,
 )
+from .PointerScanWorkflow import ReadableRegionIndex
 from .PositionConfig import DEFAULT_POSITION_CONFIG_PATH
 
 
@@ -1666,6 +1669,39 @@ def _record_anchor_evidence(
     metrics.movement_observed = evidence.movement_observed
 
 
+def _record_trace_evidence(
+    metrics: _MetricsBuilder,
+    evidence: TraceTargetEvidence,
+) -> None:
+    """Map the validated standalone discovery evidence into recovery metrics."""
+
+    metrics.anchor_bytes_scanned = int(evidence.bytes_scanned)
+    metrics.anchor_regions_scanned = int(evidence.regions_scanned)
+    metrics.anchor_read_failures = int(evidence.read_failures)
+    metrics.species_value_matches = int(evidence.species_hits)
+    metrics.spawn_x_matches = int(evidence.spawn_x_hits)
+    metrics.monster_candidates = int(evidence.monster_candidates)
+    metrics.monster_hp_rejections = int(evidence.monster_hp_rejections)
+    metrics.monster_coordinate_rejections = int(
+        evidence.monster_coordinate_rejections
+    )
+    metrics.monster_base_hypotheses = int(evidence.monster_base_hypotheses)
+    metrics.monster_layout_ties = int(evidence.monster_layout_ties)
+    metrics.monster_self_field_aliases = int(evidence.monster_self_aliases)
+    metrics.inferred_species_offset = evidence.inferred_species_offset
+    metrics.inferred_active_species_offset = (
+        evidence.inferred_active_species_offset
+    )
+    metrics.inferred_hp_offset = evidence.inferred_monster_hp_offset
+    metrics.inferred_player_hp_offset = evidence.selected_player_hp_offset
+    metrics.inferred_x_offset = evidence.inferred_x_offset
+    metrics.inferred_y_offset = evidence.inferred_y_offset
+    metrics.inferred_z_offset = evidence.inferred_z_offset
+    metrics.spawn_structure_candidates = int(evidence.player_candidates)
+    metrics.spawn_player_matches = int(evidence.player_candidates)
+    metrics.stable_spawn_candidates = int(evidence.player_candidates)
+
+
 def _scan_new_band(
     memory: PointerRecoveryMemory,
     *,
@@ -1775,6 +1811,59 @@ def _anchored_recovery(
         y_offset=candidate.y_offset,
         z_offset=candidate.z_offset,
         movement_validated=True,
+    )
+
+
+def _independent_trace_recovery(
+    discovery: TraceTargetDiscovery,
+    *,
+    module_base: int,
+    configured_player_pointer_offset: int,
+    configured_world_pointer_offset: int,
+    expected_full_hp_by_species: tuple[tuple[int, int], ...],
+    validated_candidates: int,
+) -> PlayerPointerRecovery | None:
+    """Activate the exact discovery contract used by the proven tester."""
+
+    player = discovery.player
+    if discovery.outcome != "success" or player is None or not discovery.monsters:
+        return None
+    if not player.direct_module_slots:
+        return None
+    configured_slot = int(module_base) + int(configured_player_pointer_offset)
+    player_slot = min(
+        player.direct_module_slots,
+        key=lambda slot: (abs(int(slot) - configured_slot), int(slot)),
+    )
+    monster_layout = discovery.monsters[0]
+    return PlayerPointerRecovery(
+        player_pointer_address=int(player_slot),
+        player_pointer_offset=int(player_slot) - int(module_base),
+        player_base=int(player.base),
+        world_base=0,
+        world_pointer_address=None,
+        world_pointer_offset=None,
+        configured_player_pointer_offset=int(configured_player_pointer_offset),
+        configured_world_pointer_offset=int(configured_world_pointer_offset),
+        search_radius=0,
+        validated_candidates=int(validated_candidates),
+        strategy="anchored_independent",
+        self_pointer_offset=min(player.self_pointer_offsets, default=None),
+        species_offset=monster_layout.species_offset,
+        active_species_offset=monster_layout.active_species_offset,
+        hp_offset=monster_layout.hp_offset,
+        x_offset=monster_layout.x_offset,
+        y_offset=monster_layout.y_offset,
+        z_offset=monster_layout.z_offset,
+        movement_validated=True,
+        independent_discovery=discovery,
+        independent_expected_full_hp_by_species=tuple(
+            sorted(
+                (int(species), int(hp))
+                for species, hp in expected_full_hp_by_species
+                if int(species) > 0 and int(hp) > 0
+            )
+        ),
     )
 
 
@@ -2153,6 +2242,113 @@ def _perform_recovery_attempt(
             _progress_metrics(metrics, control),
         )
         return None, "monster_hp_anchor_required", None
+    exact_species_hp = tuple(
+        sorted(
+            (int(species), int(hp))
+            for species, hp in hints.monster_hp_by_species
+            if int(species) > 0 and int(hp) > 0
+        )
+    )
+    if allow_independent and hints.exact_player_hp_available and exact_species_hp:
+        module_info_fn = cast(
+            Callable[[str], object] | None,
+            getattr(memory, "module_info", None),
+        )
+        if not callable(module_info_fn):
+            return None, "anchor_module_metadata_required", None
+        try:
+            module_info = module_info_fn(config.module_name)
+        except Exception:
+            return None, "anchor_module_metadata_required", None
+        metrics.strategy = "validated_trace_independent"
+        _notify(
+            status_callback,
+            "trace_target_scanning",
+            (
+                "Running the exact independent target discovery path used by "
+                "the validated pointer tester; "
+                f"species_hp={exact_species_hp}, "
+                f"spawn=({hints.player_spawn_x}, {hints.player_spawn_z}), "
+                f"player_hp={hints.player_current_hp}."
+            ),
+            _progress_metrics(metrics, control),
+        )
+
+        def trace_progress(
+            bytes_scanned: int,
+            regions_scanned: int,
+            counts: dict[str, int],
+        ) -> None:
+            metrics.anchor_bytes_scanned = int(bytes_scanned)
+            metrics.anchor_regions_scanned = int(regions_scanned)
+            metrics.species_value_matches = int(counts.get("species_hits", 0))
+            metrics.spawn_x_matches = int(counts.get("spawn_x", 0))
+            _notify(
+                status_callback,
+                "trace_target_scanning",
+                (
+                    f"Validated target scan read {bytes_scanned / (1 << 20):.0f} "
+                    f"MiB; species_hits={counts.get('species_hits', 0)}, "
+                    f"spawn_hits={counts.get('spawn_x', 0)}."
+                ),
+                _progress_metrics(metrics, control),
+            )
+
+        discovery = discover_trace_targets(
+            cast(object, memory),
+            regions=regions,
+            readable=ReadableRegionIndex.build(regions),
+            module=cast(object, module_info),
+            species_hp=dict(exact_species_hp),
+            spawn_x=float(hints.player_spawn_x),
+            spawn_z=float(hints.player_spawn_z),
+            player_hp=int(hints.player_current_hp),
+            species_offset=config.species_offset,
+            active_species_offset=config.active_species_offset,
+            hp_offset=config.hp_offset,
+            x_offset=config.x_offset,
+            y_offset=config.y_offset,
+            z_offset=config.z_offset,
+            self_pointer_offset=config.self_pointer_offset,
+            coordinate_limit=config.maximum_absolute_coordinate,
+            chunk_size=max(config.discovery_chunk_bytes, chunk_size),
+            maximum_monster_candidates=max(512, int(maximum_candidates)),
+            stability_samples=stability_samples,
+            stability_delay_seconds=stability_delay_seconds,
+            check=control.check,
+            progress=trace_progress,
+        )
+        _record_trace_evidence(metrics, discovery.evidence)
+        _notify(
+            status_callback,
+            discovery.outcome,
+            discovery.message,
+            _progress_metrics(metrics, control),
+        )
+        exact_recovery = _independent_trace_recovery(
+            discovery,
+            module_base=module_base,
+            configured_player_pointer_offset=configured_player_pointer_offset,
+            configured_world_pointer_offset=config.world_pointer_offset,
+            expected_full_hp_by_species=exact_species_hp,
+            validated_candidates=metrics.candidates_validated,
+        )
+        if exact_recovery is None:
+            # Exact anchors were available, so a structurally looser fallback
+            # must not silently replace the tested discovery contract.
+            return None, discovery.outcome, None
+        metrics.strategy = "anchored_independent"
+        _notify(
+            status_callback,
+            "independent_ready",
+            (
+                "Validated tester discovery produced the production player and "
+                "live actor cohort; world pointer is not required."
+            ),
+            _progress_metrics(metrics, control),
+        )
+        return exact_recovery, "success", None
+
     metrics.strategy = "known_species_spawn_anchor"
     _notify(
         status_callback,

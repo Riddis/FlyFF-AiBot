@@ -426,44 +426,22 @@ def test_background_known_layout_rediscovery_merges_new_slab_without_player_anch
     assert snapshot.living_monsters == len(bases) + len(new_bases)
 
 
-def test_runtime_promotes_only_hp_candidate_that_reaches_zero() -> None:
-    """A static full-HP field must not hide the changing live HP field."""
+def test_reader_uses_the_single_hp_field_proven_by_exact_discovery() -> None:
+    memory, _module, reader, bases = _fixture()
 
-    live_hp_offset = 0xA20
-    memory, module, original_reader, bases = _fixture()
-    for base in bases:
-        # The recovery-time anchor appears in both fields while monsters are full.
-        memory.write_i32(base + live_hp_offset, 400236)
-
-    discovery = TraceTargetDiscovery(
-        player=original_reader.player_target,
-        monsters=original_reader.monster_targets,
-        evidence=_evidence(),
-        outcome="success",
-        message="ok",
-    )
-    reader = _reader(memory, module, discovery)
-    assert MONSTER_LIVE_HP_OFFSET in reader.monster_hp_candidate_offsets
-    assert live_hp_offset in reader.monster_hp_candidate_offsets
+    assert reader.monster_hp_candidate_offsets == (MONSTER_LIVE_HP_OFFSET,)
     assert reader.monster_hp_offset == MONSTER_LIVE_HP_OFFSET
-    assert reader.monster_hp_offset_validated is False
-
-    before = reader.snapshot(allowed_species={944})
-    assert before.zero_hp_monsters == 0
+    assert reader.monster_hp_offset_validated is True
 
     killed_base = bases[0]
-    # The old selected field stays at full HP. Only the actual live field changes.
-    memory.write_i32(killed_base + live_hp_offset, 0)
+    memory.write_i32(killed_base + MONSTER_LIVE_HP_OFFSET, 0)
     after = reader.snapshot(allowed_species={944})
 
-    assert reader.monster_hp_offset == live_hp_offset
-    assert reader.monster_hp_offset_validated is True
-    assert reader.monster_hp_transition_support == ((live_hp_offset, 1),)
-    assert after.monster_hp_offset == live_hp_offset
+    assert after.monster_hp_offset == MONSTER_LIVE_HP_OFFSET
     assert after.monster_hp_offset_validated is True
     assert after.zero_hp_monsters == 1
     killed = next(state for state in after.actor_states if state.base == killed_base)
     assert killed.hp == 0
-    assert killed.hp_offset == live_hp_offset
-    assert dict(killed.hp_candidates)[MONSTER_LIVE_HP_OFFSET] == 400236
-    assert dict(killed.hp_candidates)[live_hp_offset] == 0
+    assert killed.hp_offset == MONSTER_LIVE_HP_OFFSET
+    assert killed.hp_candidates == ((MONSTER_LIVE_HP_OFFSET, 0),)
+
