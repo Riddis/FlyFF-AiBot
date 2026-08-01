@@ -63,8 +63,11 @@ class NativeMonsterConfig:
 
     enabled: bool = True
     module_name: str = "Neuz.exe"
-    player_pointer_offset: int = 0x5852B8
-    world_pointer_offset: int = 0x596C6C
+    # Optional legacy module offsets are discovery seeds only. A zero value
+    # means no prior offset is available; production recovery must then rely on
+    # the anchored player/monster evidence.
+    player_pointer_offset: int = 0
+    world_pointer_offset: int = 0
     player_pointer_chain_offsets: tuple[int, ...] = ()
     world_pointer_chain_offsets: tuple[int, ...] = ()
     selected_actor_offset: int = 0x20
@@ -96,8 +99,6 @@ class NativeMonsterConfig:
             raise MonsterConfigurationError("module_name cannot be empty")
 
         positive_fields = (
-            "player_pointer_offset",
-            "world_pointer_offset",
             "actor_stride",
             "discovery_chunk_bytes",
             "maximum_scan_address",
@@ -105,6 +106,10 @@ class NativeMonsterConfig:
         for name in positive_fields:
             if getattr(self, name) <= 0:
                 raise MonsterConfigurationError(f"{name} must be positive")
+
+        for name in ("player_pointer_offset", "world_pointer_offset"):
+            if getattr(self, name) < 0:
+                raise MonsterConfigurationError(f"{name} cannot be negative")
 
         offset_fields = (
             "selected_actor_offset",
@@ -156,6 +161,14 @@ class NativeMonsterConfig:
                 "maximum_absolute_coordinate must be positive"
             )
 
+    @property
+    def player_pointer_hint_offset(self) -> int:
+        return self.player_pointer_offset
+
+    @property
+    def world_pointer_hint_offset(self) -> int:
+        return self.world_pointer_offset
+
     @classmethod
     def from_mapping(cls, payload: dict[str, Any]) -> NativeMonsterConfig:
         enabled = payload.get("enabled", True)
@@ -168,10 +181,15 @@ class NativeMonsterConfig:
 
         layout = payload.get("layout", {})
         discovery = payload.get("discovery", {})
+        recovery_hints = payload.get("recovery_hints", {})
         if not isinstance(layout, dict):
             raise MonsterConfigurationError("layout must be a JSON object")
         if not isinstance(discovery, dict):
             raise MonsterConfigurationError("discovery must be a JSON object")
+        if not isinstance(recovery_hints, dict):
+            raise MonsterConfigurationError(
+                "recovery_hints must be a JSON object"
+            )
 
         try:
             vision_radius = float(payload.get("vision_radius_native", 80.0))
@@ -201,14 +219,20 @@ class NativeMonsterConfig:
             enabled=enabled,
             module_name=module_name.strip(),
             player_pointer_offset=_parse_int(
-                payload.get("player_pointer_offset", "0x5852B8"),
-                field_name="player_pointer_offset",
-                minimum=1,
+                recovery_hints.get(
+                    "player_pointer_offset",
+                    payload.get("player_pointer_offset", 0),
+                ),
+                field_name="recovery_hints.player_pointer_offset",
+                minimum=0,
             ),
             world_pointer_offset=_parse_int(
-                payload.get("world_pointer_offset", "0x596C6C"),
-                field_name="world_pointer_offset",
-                minimum=1,
+                recovery_hints.get(
+                    "world_pointer_offset",
+                    payload.get("world_pointer_offset", 0),
+                ),
+                field_name="recovery_hints.world_pointer_offset",
+                minimum=0,
             ),
             player_pointer_chain_offsets=_parse_offset_list(
                 payload.get("player_pointer_chain_offsets"),

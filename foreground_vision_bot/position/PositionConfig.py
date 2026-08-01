@@ -160,6 +160,10 @@ class NativePositionConfig:
                 "maximum_absolute_coordinate must be positive"
             )
 
+    @property
+    def pointer_hint_offset(self) -> int | None:
+        return self.pointer_offset
+
     @classmethod
     def from_mapping(cls, payload: dict[str, Any]) -> NativePositionConfig:
         layout = payload.get("layout", {})
@@ -210,8 +214,8 @@ class NativePositionConfig:
                 payload.get("transform_offsets")
             ),
             pointer_offset=_parse_offset(
-                payload.get("pointer_offset"),
-                field_name="pointer_offset",
+                payload.get("pointer_hint_offset", payload.get("pointer_offset")),
+                field_name="pointer_hint_offset",
             ),
             pointer_chain_offsets=_parse_transform_offsets(
                 payload.get("pointer_chain_offsets")

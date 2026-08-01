@@ -6,7 +6,10 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pytest
-from position.AnchoredPointerDiscovery import PointerRecoveryHints
+from position.AnchoredPointerDiscovery import (
+    PointerRecoveryHints,
+    discover_anchored_pointer_candidate,
+)
 from position.MonsterConfig import NativeMonsterConfig
 from position.native_process_service import (
     NativePointerSnapshotError,
@@ -759,6 +762,75 @@ def test_unique_three_actor_single_species_layout_is_sufficient() -> None:
     assert metrics.monster_layout_ties == 0
 
 
+def test_player_self_pointer_is_discovered_independently_of_monster_layout() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    player_self_offset = 0x2A0
+    # Remove the monster-layout alias from the player and put the exact player
+    # base at a class-specific offset instead.
+    memory.u32(memory.player_base + memory.new_self_offset, 0)
+    memory.u32(memory.player_base + player_self_offset, memory.player_base)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    regions = memory.readable_regions(private_only=False)
+    slot_refs: dict[int, list[int]] = {}
+    for address in range(
+        memory.module_base_value,
+        memory.module_base_value + len(memory.module),
+        4,
+    ):
+        value = struct.unpack("<I", memory.read(address, 4))[0]
+        if value:
+            slot_refs.setdefault(value, []).append(address)
+
+    result = discover_anchored_pointer_candidate(
+        memory,
+        regions=regions,
+        slot_refs=slot_refs,
+        hints=hints,
+        module_base=memory.module_base_value,
+        module_stop=memory.module_base_value + len(memory.module),
+        configured_player_slot=memory.module_base_value + config.player_pointer_offset,
+        configured_world_slot=memory.module_base_value + config.world_pointer_offset,
+        species_offset=config.species_offset,
+        active_species_offset=config.active_species_offset,
+        hp_offset=config.hp_offset,
+        x_offset=config.x_offset,
+        y_offset=config.y_offset,
+        z_offset=config.z_offset,
+        configured_world_field_offset=config.world_offset,
+        configured_self_offset=config.self_pointer_offset,
+        coordinate_limit=config.maximum_absolute_coordinate,
+        maximum_address=0x7FFFFFFF,
+        chunk_size=0x1000,
+        cancellation=None,
+        deadline=float("inf"),
+        readable_contains=lambda address, size: any(
+            region.base_address <= address
+            and address + size <= region.base_address + region.size
+            for region in regions
+        ),
+        check=lambda: None,
+        stability_delay_seconds=0.0,
+        maximum_scan_bytes=0x40000,
+    )
+
+    observations = result.unlinked_players
+    assert observations
+    assert observations[0].player_base == memory.player_base
+    assert observations[0].self_pointer_offset == player_self_offset
+
+
 def test_repeated_self_fields_are_one_layout_with_validated_aliases() -> None:
     memory = AnchoredMemory()
     config = NativeMonsterConfig(
@@ -1150,3 +1222,251 @@ def test_explicit_anchor_does_not_persist_until_movement(
     assert monster["layout"]["species_offset"] == "0x174"
     assert monster["layout"]["active_species_offset"] == "0x1DBC"
     assert monster["layout"]["hp_offset"] == "0x814"
+
+
+def test_optional_monster_hp_anchor_filters_false_species_hits() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    wrong = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+        monster_hp_by_species=((944, 999999),),
+    )
+    wrong_state = PointerRecoveryState()
+
+    assert recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=wrong_state,
+        hints=wrong,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    ) is None
+    wrong_metrics = wrong_state.metrics_for(memory.pid, memory.module_base_value)
+    assert wrong_metrics is not None
+    assert wrong_metrics.outcome == "monster_consensus_not_found"
+    assert wrong_metrics.monster_hp_rejections >= 1
+
+    correct = replace(wrong, monster_hp_by_species=((944, 1000),))
+    correct_state = PointerRecoveryState()
+    assert recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=correct_state,
+        hints=correct,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    ) is None
+    correct_metrics = correct_state.metrics_for(memory.pid, memory.module_base_value)
+    assert correct_metrics is not None
+    assert correct_metrics.outcome == "movement_required"
+
+
+
+def test_unlinked_player_observation_survives_world_link_failure() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    memory.u32(memory.player_base + memory.new_world_offset, 0)
+    regions = memory.readable_regions(private_only=False)
+
+    def contains(address: int, size: int = 1) -> bool:
+        return any(
+            region.base_address <= address
+            and address + size <= region.base_address + region.size
+            for region in regions
+        )
+
+    result = discover_anchored_pointer_candidate(
+        memory,
+        regions=regions,
+        slot_refs={
+            memory.player_base: [
+                memory.module_base_value + memory.player_slot_offset
+            ],
+            memory.world_base: [
+                memory.module_base_value + memory.world_slot_offset
+            ],
+        },
+        hints=PointerRecoveryHints(
+            known_species_ids=(944, 948),
+            player_spawn_x=253.0,
+            player_spawn_z=86.0,
+            player_current_hp=5000,
+            player_max_hp=6000,
+        ),
+        module_base=memory.module_base_value,
+        module_stop=memory.module_base_value + len(memory.module),
+        configured_player_slot=memory.module_base_value + 0x1000,
+        configured_world_slot=memory.module_base_value + 0x1100,
+        species_offset=config.species_offset,
+        active_species_offset=config.active_species_offset,
+        hp_offset=config.hp_offset,
+        x_offset=config.x_offset,
+        y_offset=config.y_offset,
+        z_offset=config.z_offset,
+        configured_world_field_offset=config.world_offset,
+        configured_self_offset=config.self_pointer_offset,
+        coordinate_limit=config.maximum_absolute_coordinate,
+        maximum_address=config.maximum_scan_address,
+        chunk_size=0x1000,
+        cancellation=None,
+        deadline=9999999999.0,
+        readable_contains=contains,
+        check=lambda: None,
+        maximum_scan_bytes=0x100000,
+    )
+
+    assert result.outcome == "spawn_player_not_found"
+    assert len(result.unlinked_players) == 1
+    player = result.unlinked_players[0]
+    assert player.player_base == memory.player_base
+    assert player.direct_module_slots == (
+        memory.module_base_value + memory.player_slot_offset,
+    )
+    assert player.hp_offset == config.hp_offset
+    assert player.max_hp_offset == memory.max_hp_offset
+
+
+def test_independent_recovery_drives_gui_selected_species_without_world_pointer() -> None:
+    from position.NativeFlyffMonsterProvider import NativeFlyffMonsterProvider
+    from position.PositionProvider import PlayerPose
+
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+        vision_radius_native=80.0,
+    )
+    _populate(memory, config)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    service = NativeProcessService(
+        memory,
+        config,
+        owns_memory=False,
+        allow_independent_recovery=True,
+    )
+
+    result = service.recover_pointers(hints=hints, timeout_seconds=2.0)
+
+    assert result.succeeded is True
+    assert result.applied is True
+    assert result.recovery is not None
+    assert result.recovery.strategy == "anchored_independent"
+    snapshot = service.read_pointer_snapshot()
+    assert snapshot.mode == "independent"
+    assert snapshot.player_base == memory.player_base
+    assert snapshot.world_base == 0
+
+    provider = NativeFlyffMonsterProvider.from_native_service(service, config)
+    refresh = provider.refresh_slot_cache(snapshot, force=True)
+    assert refresh.ready is True
+    assert refresh.world_base == 0
+    assert refresh.slot_count >= 2
+
+    actors = provider.read_cached_active_actors(
+        snapshot,
+        PlayerPose(253.0, 14.0, 86.0, None, 0.0),
+        allowed_species_ids={948},
+        vision_radius_native=80.0,
+    )
+    assert actors.ready is True
+    assert [actor.species_id for actor in actors.actors] == [948]
+
+
+def test_independent_recovery_uses_structural_fallback_when_hp_ocr_is_missing() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+    )
+    service = NativeProcessService(
+        memory,
+        config,
+        owns_memory=False,
+        allow_independent_recovery=True,
+    )
+
+    result = service.recover_pointers(hints=hints, timeout_seconds=2.0)
+
+    assert hints.ready is True
+    assert hints.exact_player_hp_available is False
+    assert result.succeeded is True
+    assert result.applied is True
+    assert result.recovery is not None
+    assert result.recovery.strategy == "anchored_independent"
+    assert result.metrics.anchor_bytes_scanned > 0
+    assert result.metrics.spawn_player_matches == 1
+    snapshot = service.read_pointer_snapshot()
+    assert snapshot.mode == "independent"
+    assert snapshot.player_base == memory.player_base
+
+
+def test_independent_fallback_does_not_require_a_world_hypothesis() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    actor_bases = (
+        memory.heap_base + 0x0000,
+        memory.heap_base + 0x3000,
+        memory.player_base,
+    )
+    for base in actor_bases:
+        memory.u32(base + memory.new_world_offset, 0)
+    memory.u32(memory.module_base_value + memory.world_slot_offset, 0)
+    memory.world[:] = bytes(len(memory.world))
+
+    service = NativeProcessService(
+        memory,
+        config,
+        owns_memory=False,
+        allow_independent_recovery=True,
+    )
+    result = service.recover_pointers(
+        hints=PointerRecoveryHints(
+            known_species_ids=(944, 948),
+            player_spawn_x=253.0,
+            player_spawn_z=86.0,
+        ),
+        timeout_seconds=2.0,
+    )
+
+    assert result.succeeded is True
+    assert result.recovery is not None
+    assert result.recovery.strategy == "anchored_independent"
+    assert result.metrics.structural_world_hypotheses == 0
+    assert service.read_pointer_snapshot().mode == "independent"

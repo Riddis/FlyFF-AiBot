@@ -16,6 +16,7 @@ from typing import Protocol, cast
 from .AnchoredPointerDiscovery import (
     AnchoredDiscoveryEvidence,
     AnchoredDiscoveryMemory,
+    AnchoredDiscoveryResult,
     AnchoredPointerCandidate,
     PointerRecoveryHints,
     confirm_anchored_movement,
@@ -25,6 +26,10 @@ from .MonsterConfig import (
     DEFAULT_MONSTER_CONFIG_PATH,
     NativeMonsterConfig,
     load_native_monster_config,
+)
+from .NativeTraceTargets import (
+    TraceTargetDiscovery,
+    trace_discovery_from_anchored,
 )
 from .PositionConfig import DEFAULT_POSITION_CONFIG_PATH
 
@@ -69,6 +74,12 @@ class PlayerPointerRecovery:
     y_offset: int | None = None
     z_offset: int | None = None
     movement_validated: bool = False
+    independent_discovery: TraceTargetDiscovery | None = field(
+        default=None,
+        repr=False,
+        compare=False,
+    )
+    independent_expected_full_hp_by_species: tuple[tuple[int, int], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -1063,14 +1074,14 @@ def _prepare_persistence_target(
 
     changed = False
     for key, value in updates.items():
-        if key == "layout" and isinstance(value, dict):
-            layout = payload.get("layout")
-            if not isinstance(layout, dict):
-                layout = {}
-                payload["layout"] = layout
-            for layout_key, layout_value in value.items():
-                if layout.get(layout_key) != layout_value:
-                    layout[layout_key] = layout_value
+        if key in {"layout", "recovery_hints"} and isinstance(value, dict):
+            nested = payload.get(key)
+            if not isinstance(nested, dict):
+                nested = {}
+                payload[key] = nested
+            for nested_key, nested_value in value.items():
+                if nested.get(nested_key) != nested_value:
+                    nested[nested_key] = nested_value
                     changed = True
         elif payload.get(key) != value:
             payload[key] = value
@@ -1087,12 +1098,12 @@ def _prepare_persistence_target(
             f"Prepared replacement is not valid JSON: {path}"
         ) from error
     def update_matches(key: str, value: object) -> bool:
-        if key != "layout" or not isinstance(value, dict):
+        if key not in {"layout", "recovery_hints"} or not isinstance(value, dict):
             return replacement_payload.get(key) == value
-        layout = replacement_payload.get("layout")
-        return isinstance(layout, dict) and all(
-            layout.get(layout_key) == layout_value
-            for layout_key, layout_value in value.items()
+        nested = replacement_payload.get(key)
+        return isinstance(nested, dict) and all(
+            nested.get(nested_key) == nested_value
+            for nested_key, nested_value in value.items()
         )
 
     if not isinstance(replacement_payload, dict) or any(
@@ -1277,6 +1288,11 @@ def persist_recovered_pointer_offsets(
         raise PointerPersistenceError(
             "Anchored pointer recovery requires movement validation before persistence"
         )
+    if recovery.strategy == "anchored_independent":
+        # Actor anchors are process-session addresses and no validated world
+        # pointer exists. Persisting only half of the old pointer pair would make
+        # the next attachment look configured while still requiring discovery.
+        return
     with _PERSIST_LOCK:
         position_path = _canonical_path(position_config_path)
         monster_path = _canonical_path(monster_config_path)
@@ -1288,8 +1304,14 @@ def persist_recovered_pointer_offsets(
             position_config_path=position_path,
             monster_config_path=monster_path,
         )
+        recovered_player_hint = f"0x{recovery.player_pointer_offset:X}"
         monster_updates: dict[str, object] = {
-            "player_pointer_offset": f"0x{recovery.player_pointer_offset:X}",
+            "recovery_hints": {
+                "player_pointer_offset": recovered_player_hint,
+            },
+            # Backward-compatible mirror for older external tooling. Production
+            # reads the nested recovery_hints object first.
+            "player_pointer_offset": recovered_player_hint,
         }
         if recovery.strategy == "anchored_movement":
             monster_updates["player_pointer_chain_offsets"] = [
@@ -1299,9 +1321,11 @@ def persist_recovered_pointer_offsets(
                 f"0x{offset:X}" for offset in recovery.world_pointer_chain_offsets
             ]
         if recovery.world_pointer_offset is not None:
-            monster_updates["world_pointer_offset"] = (
-                f"0x{recovery.world_pointer_offset:X}"
-            )
+            recovered_world_hint = f"0x{recovery.world_pointer_offset:X}"
+            recovery_hints = monster_updates["recovery_hints"]
+            assert isinstance(recovery_hints, dict)
+            recovery_hints["world_pointer_offset"] = recovered_world_hint
+            monster_updates["world_pointer_offset"] = recovered_world_hint
         layout_updates: dict[str, str] = {}
         if recovery.world_field_offset is not None:
             layout_updates["world_offset"] = f"0x{recovery.world_field_offset:X}"
@@ -1332,7 +1356,9 @@ def persist_recovered_pointer_offsets(
         if layout_updates:
             monster_updates["layout"] = layout_updates
         position_updates: dict[str, object] = {
-            "pointer_offset": f"0x{recovery.player_pointer_offset:X}",
+            "pointer_hint_offset": recovered_player_hint,
+            # Backward-compatible mirror for older external tooling.
+            "pointer_offset": recovered_player_hint,
         }
         if recovery.strategy == "anchored_movement":
             position_updates["pointer_chain_offsets"] = [
@@ -1459,6 +1485,24 @@ def _verify_cached(
     module_base: int,
 ) -> bool:
     try:
+        if cached.independent_discovery is not None:
+            target = cached.independent_discovery.player
+            if target is None:
+                return False
+            player = _u32(memory, cached.player_pointer_address)
+            if player <= 0:
+                return False
+            if not any(
+                _u32(memory, player + offset) == player
+                for offset in target.self_pointer_offsets
+            ):
+                return False
+            hp = struct.unpack("<i", memory.read(player + target.hp_offset, 4))[0]
+            coordinates = tuple(
+                struct.unpack("<f", memory.read(player + offset, 4))[0]
+                for offset in (target.x_offset, target.y_offset, target.z_offset)
+            )
+            return hp >= 0 and all(math.isfinite(value) for value in coordinates)
         player = _u32(memory, cached.player_pointer_address)
         for offset in cached.player_pointer_chain_offsets:
             player = _u32(memory, player + offset)
@@ -1734,6 +1778,57 @@ def _anchored_recovery(
     )
 
 
+def _independent_anchored_recovery(
+    anchored: AnchoredDiscoveryResult,
+    *,
+    module_base: int,
+    configured_player_pointer_offset: int,
+    configured_world_pointer_offset: int,
+    hints: PointerRecoveryHints,
+    validated_candidates: int,
+) -> PlayerPointerRecovery | None:
+    discovery = trace_discovery_from_anchored(anchored)
+    player = discovery.player
+    if discovery.outcome != "success" or player is None or not discovery.monsters:
+        return None
+    configured_slot = int(module_base) + int(configured_player_pointer_offset)
+    player_slot = min(
+        player.direct_module_slots,
+        key=lambda slot: (abs(int(slot) - configured_slot), int(slot)),
+    )
+    monster_layout = discovery.monsters[0]
+    player_self_offset = min(player.self_pointer_offsets, default=None)
+    return PlayerPointerRecovery(
+        player_pointer_address=int(player_slot),
+        player_pointer_offset=int(player_slot) - int(module_base),
+        player_base=int(player.base),
+        world_base=0,
+        world_pointer_address=None,
+        world_pointer_offset=None,
+        configured_player_pointer_offset=int(configured_player_pointer_offset),
+        configured_world_pointer_offset=int(configured_world_pointer_offset),
+        search_radius=0,
+        validated_candidates=int(validated_candidates),
+        strategy="anchored_independent",
+        self_pointer_offset=player_self_offset,
+        species_offset=monster_layout.species_offset,
+        active_species_offset=monster_layout.active_species_offset,
+        hp_offset=monster_layout.hp_offset,
+        x_offset=monster_layout.x_offset,
+        y_offset=monster_layout.y_offset,
+        z_offset=monster_layout.z_offset,
+        movement_validated=True,
+        independent_discovery=discovery,
+        independent_expected_full_hp_by_species=tuple(
+            sorted(
+                (int(species), int(hp))
+                for species, hp in hints.monster_hp_by_species
+                if int(species) > 0 and int(hp) > 0
+            )
+        ),
+    )
+
+
 def _perform_recovery_attempt(
     memory: PointerRecoveryMemory,
     *,
@@ -1750,6 +1845,7 @@ def _perform_recovery_attempt(
     status_callback: PointerRecoveryStatusCallback | None,
     hints: PointerRecoveryHints | None,
     pending_candidate: AnchoredPointerCandidate | None,
+    allow_independent: bool,
 ) -> tuple[
     PlayerPointerRecovery | None,
     str,
@@ -2054,7 +2150,11 @@ def _perform_recovery_attempt(
             "Scanning private memory for anchored actor layout; "
             f"species={hints.known_species_ids}, "
             f"spawn=({hints.player_spawn_x}, {hints.player_spawn_z}), "
-            f"player_hp={hints.player_current_hp}/{hints.player_max_hp}."
+            + (
+                f"player_hp={hints.player_current_hp}/{hints.player_max_hp}."
+                if hints.exact_player_hp_available
+                else "player_hp=unavailable (structural fallback enabled)."
+            )
         ),
         _progress_metrics(metrics, control),
     )
@@ -2107,6 +2207,31 @@ def _perform_recovery_attempt(
         anchored.message,
         _progress_metrics(metrics, control),
     )
+    independent = (
+        _independent_anchored_recovery(
+            anchored,
+            module_base=module_base,
+            configured_player_pointer_offset=configured_player_pointer_offset,
+            configured_world_pointer_offset=config.world_pointer_offset,
+            hints=hints,
+            validated_candidates=metrics.candidates_validated,
+        )
+        if allow_independent
+        else None
+    )
+    if independent is not None:
+        metrics.strategy = "anchored_independent"
+        _notify(
+            status_callback,
+            "independent_ready",
+            (
+                "Anchored player and monster cohort are ready without a "
+                "world pointer; production will use direct module/player aliases "
+                "and cached actor slots."
+            ),
+            _progress_metrics(metrics, control),
+        )
+        return independent, "success", None
     return None, anchored.outcome, anchored.candidate
 
 
@@ -2115,6 +2240,7 @@ def recover_local_player_pointer(
     *,
     module_base: int,
     configured_player_pointer_offset: int,
+    configured_world_pointer_offset: int | None = None,
     state: PointerRecoveryState | None = None,
     monster_config: NativeMonsterConfig | None = None,
     search_radii: tuple[int, ...] = (0x20000, 0x100000, 0x400000, 0x800000),
@@ -2132,6 +2258,7 @@ def recover_local_player_pointer(
     stability_samples: int = 3,
     stability_delay_seconds: float = 0.03,
     hints: PointerRecoveryHints | None = None,
+    allow_independent: bool = False,
 ) -> PlayerPointerRecovery | None:
     """Explicitly recover a shifted Neuz local-player global.
 
@@ -2149,7 +2276,17 @@ def recover_local_player_pointer(
     """
 
     recovery_state = state or PointerRecoveryState()
-    config = monster_config or load_native_monster_config()
+    base_config = monster_config or load_native_monster_config()
+    world_hint_offset = (
+        base_config.world_pointer_hint_offset
+        if configured_world_pointer_offset is None
+        else int(configured_world_pointer_offset)
+    )
+    config = replace(
+        base_config,
+        player_pointer_offset=int(configured_player_pointer_offset),
+        world_pointer_offset=world_hint_offset,
+    )
     pid = int(getattr(memory, "pid", 0))
     cache_key = (pid, int(module_base))
     started_at = clock()
@@ -2352,6 +2489,7 @@ def recover_local_player_pointer(
             status_callback=status_callback,
             hints=hints,
             pending_candidate=pending_candidate,
+            allow_independent=bool(allow_independent),
         )
     except _AttemptStopped as stopped:
         outcome = stopped.outcome

@@ -1,0 +1,1787 @@
+{
+  "anchors": {
+    "configured_offset_hints": {
+      "hp": 2068,
+      "species": 372,
+      "x": 352,
+      "y": 356,
+      "z": 360
+    },
+    "exact_monster_hp": {
+      "944": 400236
+    },
+    "player_hp": 31513,
+    "spawn_x": 253.0,
+    "spawn_z": 86.0
+  },
+  "command": [
+    "tools\\trace_native_pointer_access.py",
+    "--window-title",
+    "Spirit Of Madrigal - Riddims",
+    "--spawn-x",
+    "253",
+    "--spawn-z",
+    "86",
+    "--player-hp",
+    "31513",
+    "--monster-hp",
+    "944=400236",
+    "--timeout",
+    "1200",
+    "--discovery-seconds",
+    "20",
+    "--replay-seconds",
+    "20"
+  ],
+  "data_phases": [
+    {
+      "instruction_summary": [],
+      "phase": {
+        "elapsed_seconds": 3.8396332000002076,
+        "hits": [],
+        "ignored_outside_module": 0,
+        "phase": "data_round_1",
+        "process_exited": true,
+        "watchpoints": [
+          {
+            "access": "access",
+            "address": 814543208,
+            "label": "player.x",
+            "size": 4
+          },
+          {
+            "access": "access",
+            "address": 814544932,
+            "label": "player.hp",
+            "size": 4
+          },
+          {
+            "access": "access",
+            "address": 423667900,
+            "label": "monster[0].species",
+            "size": 4
+          },
+          {
+            "access": "access",
+            "address": 423669604,
+            "label": "monster[0].hp",
+            "size": 4
+          }
+        ]
+      }
+    }
+  ],
+  "error": null,
+  "execute_phase": null,
+  "process": {
+    "module_base": 2031616,
+    "module_name": "Neuz.exe",
+    "module_path": "F:\\Games\\Spirit Client\\Neuz.exe",
+    "module_size": 9711616,
+    "pid": 25336
+  },
+  "schema_version": 2,
+  "selected_execute_instructions": [],
+  "started_at": "2026-08-01T14:11:09.503169+00:00",
+  "status": "process_exited_during_data_trace",
+  "target_discovery": {
+    "evidence": {
+      "bytes_scanned": 885805818,
+      "inferred_active_species_offset": 8572,
+      "inferred_monster_hp_offset": 2076,
+      "inferred_species_offset": 372,
+      "inferred_x_offset": 352,
+      "inferred_y_offset": 356,
+      "inferred_z_offset": 360,
+      "monster_base_hypotheses": 1692,
+      "monster_candidates": 82,
+      "monster_coordinate_rejections": 0,
+      "monster_hp_rejections": 227,
+      "monster_layout_ties": 0,
+      "monster_self_aliases": 4,
+      "observed_hp_values": [],
+      "player_candidates": 1,
+      "player_coordinate_rejections": 0,
+      "player_hp_rejections": 0,
+      "player_self_rejections": 21,
+      "read_failures": 0,
+      "regions_scanned": 1871,
+      "selected_player_hp_offset": 2076,
+      "spawn_x_hits": 22,
+      "species_hits": 1096
+    },
+    "message": "Found one selected player, 82 exact full-health monster actors, and 8 direct module aliases with dynamically inferred field offsets.",
+    "monsters": [
+      {
+        "active_species_offset": 8572,
+        "base": 423667528,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 235.7428741455078,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 83.4666519165039,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424693960,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 259.4002380371094,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 68.2587890625,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424603760,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 243.49588012695312,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 68.27091979980469,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424595560,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 269.0357666015625,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 69.35770416259766,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423642928,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 231.48019409179688,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 99.2863540649414,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424759560,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 278.7610778808594,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 97.462158203125,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423708528,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 229.4132537841797,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 102.00592041015625,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423585528,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 245.81285095214844,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 57.783329010009766,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425349056,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 228.1300506591797,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 68.96735382080078,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423626528,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 223.05056762695312,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 80.37728881835938,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423601928,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 233.08424377441406,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 62.93594741821289,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424652960,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 253.3829345703125,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 55.162513732910156,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424620160,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 262.3200988769531,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 56.54482650756836,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423683928,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 224.4585418701172,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 102.40998840332031,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423618328,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 220.90211486816406,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 96.63240051269531,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424644760,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 259.821044921875,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 52.096595764160156,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424538160,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 261.1697998046875,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 52.12754821777344,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423757728,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 225.0504608154297,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 107.91407012939453,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424636560,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 269.25885009765625,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 54.04418182373047,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423716728,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 216.8573455810547,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 93.39067840576172,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423700328,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 215.98609924316406,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 85.69409942626953,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424587360,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 276.5628967285156,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 57.31150436401367,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425332656,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 225.6280059814453,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 59.776371002197266,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423634728,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 245.20379638671875,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 47.24241638183594,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423651128,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 222.0117950439453,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 110.85002136230469,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423577328,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 227.7459259033203,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 53.96055603027344,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424669360,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 290.01495361328125,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 68.74169921875,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424611960,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 267.2563781738281,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 47.24620819091797,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424702160,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 264.4855041503906,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 44.90513610839844,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424677560,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 284.65777587890625,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 57.05491638183594,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424685760,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 267.82232666015625,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 44.765724182128906,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424546360,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 254.35073852539062,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 42.17477798461914,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424628360,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 252.30838012695312,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 41.027061462402344,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425316256,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 223.1950225830078,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 50.88201141357422,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423593728,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 229.29922485351562,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 45.11811065673828,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 432286304,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 266.10760498046875,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 38.87358474731445,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424570960,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 254.79141235351562,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 37.022377014160156,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425340856,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 240.41152954101562,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 38.57925033569336,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424579160,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 279.5887451171875,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 43.462486267089844,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425365456,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 215.4962615966797,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 52.12192916870117,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425324456,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 209.57666015625,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 60.005340576171875,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 423610128,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 223.96536254882812,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 43.59040069580078,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424554560,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 264.8216247558594,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 35.61970138549805,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 432294504,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 272.2955627441406,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 37.79985427856445,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425242456,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 236.0700225830078,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 35.74089813232422,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425250656,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 241.83335876464844,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 33.42709732055664,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425357256,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 221.08534240722656,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 41.86979293823242,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424661160,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 273.4485168457031,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 35.12842559814453,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425283456,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 237.06777954101562,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 31.633678436279297,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425308056,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 248.71311950683594,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 28.7437686920166,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425226056,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 228.0175323486328,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 34.17493438720703,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425258856,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 235.6759033203125,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 30.90862274169922,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 432302704,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 282.21435546875,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 35.729373931884766,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425234256,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 238.41458129882812,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 26.274656295776367,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425267056,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 225.62815856933594,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 30.292583465576172,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425291656,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 222.31996154785156,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 30.78656578063965,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425193256,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 241.50149536132812,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 23.317106246948242,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 424562760,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 285.414306640625,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 26.650136947631836,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 432261704,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 295.84039306640625,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 29.486228942871094,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425299856,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 236.0110626220703,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 10.0,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425275256,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 221.77520751953125,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 10.0,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 749587248,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 321.0726013183594,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 34.92002487182617,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425135856,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 187.97927856445312,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 148.93423461914062,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425160456,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 193.47186279296875,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 155.3563690185547,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 749579048,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 322.3409729003906,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 26.24209213256836,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425127656,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 189.8414306640625,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 158.5252227783203,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425168656,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 176.34939575195312,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 146.04232788085938,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 432253504,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 240.19544982910156,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 182.82737731933594,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 749554448,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 335.92559814453125,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 33.83485794067383,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 749562648,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 342.1331481933594,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 40.64544677734375,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 432228904,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 250.39210510253906,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 185.9984588623047,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 749570848,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 349.0862121582031,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 44.01401138305664,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 432278104,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 238.79017639160156,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 190.0414276123047,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425152256,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 209.9582061767578,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 184.7857666015625,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425185056,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 214.50299072265625,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 188.73028564453125,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 432269904,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 234.580810546875,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 194.9837646484375,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 432204304,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 240.65220642089844,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 202.0171661376953,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 432237104,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 230.51026916503906,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 203.8951416015625,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 432220704,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 238.17544555664062,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 215.53421020507812,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425217856,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 198.09808349609375,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 204.87489318847656,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425176856,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 187.89207458496094,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 205.1424102783203,
+        "z_offset": 360
+      },
+      {
+        "active_species_offset": 8572,
+        "base": 425209656,
+        "hp": 400236,
+        "hp_offset": 2076,
+        "self_pointer_offsets": [
+          968,
+          4200,
+          7764,
+          7920
+        ],
+        "species": 944,
+        "species_offset": 372,
+        "x": 174.15530395507812,
+        "x_offset": 352,
+        "y": 100.0,
+        "y_offset": 356,
+        "z": 210.9776611328125,
+        "z_offset": 360
+      }
+    ],
+    "outcome": "success",
+    "player": {
+      "active_species_offset": 8572,
+      "base": 814542856,
+      "direct_module_slots": [
+        7824152,
+        7825620,
+        7838672,
+        7838676,
+        7838680,
+        7838692,
+        7838700,
+        7839176
+      ],
+      "hp": 31513,
+      "hp_offset": 2076,
+      "self_pointer_offsets": [
+        7920,
+        968,
+        4200,
+        7764
+      ],
+      "species_offset": 372,
+      "x": 253.0,
+      "x_offset": 352,
+      "y": 100.0,
+      "y_offset": 356,
+      "z": 86.0,
+      "z_offset": 360
+    }
+  }
+}

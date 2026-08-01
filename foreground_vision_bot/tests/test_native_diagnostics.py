@@ -335,6 +335,28 @@ def test_managed_recovery_reads_player_hp_ocr_inside_worker() -> None:
     assert "Player status OCR read HP 30982/30982." in messages
 
 
+def test_managed_recovery_retries_hp_ocr_across_fresh_frames() -> None:
+    service = _DiagnosticService()
+    bot = _DiagnosticBot(service)
+    readings = iter((None, None, (30982, 30982)))
+    calls: list[str] = []
+
+    def read_player_health() -> tuple[int, int] | None:
+        calls.append(current_thread().name)
+        return next(readings)
+
+    bot.read_player_health = read_player_health  # type: ignore[attr-defined]
+    controller = RuntimeController(bot, RuntimeBus())
+
+    controller.start_native_diagnostic(recover=True, timeout=2.0)
+    assert controller.workers.join(WorkerKind.DIAGNOSTIC, 2.0)
+
+    hints = service.recovery_kwargs["hints"]
+    assert hints.player_current_hp == 30982
+    assert hints.player_max_hp == 30982
+    assert calls == ["flyff-native-pointer-recovery"] * 3
+
+
 def test_diagnostic_false_join_preserves_dependencies_until_retry() -> None:
     service = _DiagnosticService(ignore_cancel=True)
     bot = _DiagnosticBot(service)
@@ -392,3 +414,21 @@ def test_control_start_is_rejected_while_recovery_diagnostic_is_active() -> None
     assert not controller.control_active
     assert controller.stop_native_diagnostic()
     assert controller.workers.join(WorkerKind.DIAGNOSTIC, 1.0)
+
+
+def test_pointer_recovery_hints_load_selected_map_frame_before_overlay_exists() -> None:
+    bot = _DiagnosticBot(_DiagnosticService())
+    bot._native_map_overlay = None
+    bot._native_map_overlay_name = None
+    controller = RuntimeController(bot, RuntimeBus())
+
+    hints = controller._pointer_recovery_hints(
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+
+    assert hints.known_species_ids == (944, 948)
+    assert hints.player_spawn_x == 253.0
+    assert hints.player_spawn_z == 86.0
+    assert hints.player_current_hp == 5000
+    assert hints.player_max_hp == 6000

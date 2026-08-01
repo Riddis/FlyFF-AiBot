@@ -35,6 +35,8 @@ class PointerRecoveryHints:
     player_spawn_z: float | None = None
     player_current_hp: int | None = None
     player_max_hp: int | None = None
+    monster_hp_by_species: tuple[tuple[int, int], ...] = ()
+    require_exact_monster_hp: bool = True
     spawn_tolerance_native: float = 2.0
     movement_minimum_native: float = 0.5
 
@@ -53,6 +55,17 @@ class PointerRecoveryHints:
             and self.player_current_hp > self.player_max_hp
         ):
             raise ValueError("player_current_hp cannot exceed player_max_hp")
+        monster_hp_species: set[int] = set()
+        for species, hp in self.monster_hp_by_species:
+            if species <= 0 or hp <= 0:
+                raise ValueError(
+                    "monster_hp_by_species must contain positive species/HP pairs"
+                )
+            if species in monster_hp_species:
+                raise ValueError(
+                    "monster_hp_by_species cannot contain duplicate species IDs"
+                )
+            monster_hp_species.add(species)
         if self.spawn_tolerance_native <= 0.0:
             raise ValueError("spawn_tolerance_native must be positive")
         if self.movement_minimum_native <= 0.0:
@@ -60,11 +73,25 @@ class PointerRecoveryHints:
 
     @property
     def ready(self) -> bool:
+        """Return whether the non-optional structural anchors are available.
+
+        Exact player HP is a valuable discriminator when OCR can read it, but
+        production must not abort before scanning merely because one UI frame
+        could not be OCRed. Species plus the selected map's native spawn are
+        sufficient to run the conservative structural fallback; that fallback
+        still requires a unique self-referential player with a module alias.
+        """
+
         return bool(
             self.known_species_ids
             and self.player_spawn_x is not None
             and self.player_spawn_z is not None
-            and self.player_current_hp is not None
+        )
+
+    @property
+    def exact_player_hp_available(self) -> bool:
+        return bool(
+            self.player_current_hp is not None
             and self.player_max_hp is not None
         )
 
@@ -173,11 +200,53 @@ class AnchoredPointerCandidate:
 
 
 @dataclass(frozen=True, slots=True)
+class AnchoredPlayerObservation:
+    """A stable spawn/HP player found before any world-link requirement."""
+
+    player_base: int
+    direct_module_slots: tuple[int, ...]
+    self_pointer_offset: int
+    hp_offset: int
+    max_hp_offset: int
+    species_offset: int
+    active_species_offset: int
+    x_offset: int
+    y_offset: int
+    z_offset: int
+    x: float
+    y: float
+    z: float
+    current_hp: int
+    maximum_hp: int
+
+
+@dataclass(frozen=True, slots=True)
+class AnchoredMonsterObservation:
+    """One structurally validated active monster from the inferred cohort."""
+
+    base: int
+    species: int
+    current_hp: int
+    x: float
+    y: float
+    z: float
+    self_pointer_offsets: tuple[int, ...]
+    species_offset: int
+    active_species_offset: int
+    hp_offset: int
+    x_offset: int
+    y_offset: int
+    z_offset: int
+
+
+@dataclass(frozen=True, slots=True)
 class AnchoredDiscoveryResult:
     outcome: str
     candidate: AnchoredPointerCandidate | None
     evidence: AnchoredDiscoveryEvidence
     message: str
+    unlinked_players: tuple[AnchoredPlayerObservation, ...] = ()
+    monster_cohort: tuple[AnchoredMonsterObservation, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -391,6 +460,8 @@ def _monster_anchors(
     maximum_candidates: int,
     check: Callable[[], None],
     evidence: AnchoredDiscoveryEvidence,
+    monster_hp_by_species: Mapping[int, int] | None = None,
+    require_exact_monster_hp: bool = True,
 ) -> tuple[tuple[_MonsterAnchor, ...], _InferredActorLayout | None]:
     hypotheses: list[_MonsterHypothesis] = []
     accepted_by_species: dict[int, int] = defaultdict(int)
@@ -460,19 +531,18 @@ def _monster_anchors(
                 current_x_offset = current_species_offset + coordinate_deltas[0]
                 current_y_offset = current_species_offset + coordinate_deltas[1]
                 current_z_offset = current_species_offset + coordinate_deltas[2]
-                current_hp_offset = current_species_offset + hp_delta
+                configured_hp_candidate = current_species_offset + hp_delta
                 if min(
                     current_x_offset,
                     current_y_offset,
                     current_z_offset,
-                    current_hp_offset,
+                    configured_hp_candidate,
                 ) < 0:
                     evidence.monster_species_rejections += 1
                     continue
                 try:
                     data = memory.read(base, maximum_actor_span)
                     species = _i32(data, current_species_offset)
-                    hp = _i32(data, current_hp_offset)
                     coordinates = (
                         _f32(data, current_x_offset),
                         _f32(data, current_y_offset),
@@ -499,9 +569,48 @@ def _monster_anchors(
                         offset - (current_species_offset + active_delta)
                     ),
                 )
-                if hp <= 0:
-                    evidence.monster_hp_rejections += 1
-                    continue
+                expected_monster_hp = (
+                    None
+                    if monster_hp_by_species is None
+                    else monster_hp_by_species.get(expected_species)
+                )
+                if expected_monster_hp is not None and require_exact_monster_hp:
+                    # The exact live HP is trusted, but the old HP offset is not.
+                    # Find every aligned occurrence in this structurally validated
+                    # actor and select the one nearest the historical field only as
+                    # a deterministic tie-breaker. Cohort consensus below still
+                    # requires the same selected offset across multiple actors.
+                    exact_hp_offsets = _aligned_value_offsets(
+                        data,
+                        expected_monster_hp,
+                    )
+                    if not exact_hp_offsets:
+                        evidence.monster_hp_rejections += 1
+                        continue
+                    current_hp_offset = min(
+                        exact_hp_offsets,
+                        key=lambda offset: (
+                            abs(offset - configured_hp_candidate),
+                            offset,
+                        ),
+                    )
+                    hp = expected_monster_hp
+                else:
+                    current_hp_offset = configured_hp_candidate
+                    try:
+                        hp = _i32(data, current_hp_offset)
+                    except Exception:
+                        evidence.monster_hp_rejections += 1
+                        continue
+                    if hp <= 0:
+                        evidence.monster_hp_rejections += 1
+                        continue
+                    if (
+                        expected_monster_hp is not None
+                        and hp > expected_monster_hp
+                    ):
+                        evidence.monster_hp_rejections += 1
+                        continue
                 if not all(math.isfinite(value) for value in coordinates) or any(
                     abs(value) > coordinate_limit for value in coordinates
                 ):
@@ -914,6 +1023,17 @@ def _aligned_value_offsets(data: bytes, value: int) -> tuple[int, ...]:
     )
 
 
+def _aligned_pointer_offsets(data: bytes, value: int) -> tuple[int, ...]:
+    """Return aligned 32-bit fields containing one exact process address."""
+
+    needle = struct.pack("<I", int(value) & 0xFFFFFFFF)
+    return tuple(
+        absolute
+        for absolute in _find_aligned(data, needle, 0)
+        if 0 <= absolute <= len(data) - 4
+    )
+
+
 def _resolve_module_reference(
     memory: AnchoredDiscoveryMemory,
     value: int,
@@ -1068,6 +1188,35 @@ def _resolve_pointer(
     return value
 
 
+def _public_monster_cohort(
+    anchors: tuple[_MonsterAnchor, ...],
+    layout: _InferredActorLayout,
+) -> tuple[AnchoredMonsterObservation, ...]:
+    observations: list[AnchoredMonsterObservation] = []
+    for anchor in anchors:
+        try:
+            observations.append(
+                AnchoredMonsterObservation(
+                    base=anchor.base,
+                    species=anchor.species,
+                    current_hp=_i32(anchor.data, layout.hp_offset),
+                    x=_f32(anchor.data, layout.x_offset),
+                    y=_f32(anchor.data, layout.y_offset),
+                    z=_f32(anchor.data, layout.z_offset),
+                    self_pointer_offsets=layout.self_offsets,
+                    species_offset=layout.species_offset,
+                    active_species_offset=layout.active_species_offset,
+                    hp_offset=layout.hp_offset,
+                    x_offset=layout.x_offset,
+                    y_offset=layout.y_offset,
+                    z_offset=layout.z_offset,
+                )
+            )
+        except Exception:
+            continue
+    return tuple(sorted(observations, key=lambda item: item.base))
+
+
 def discover_anchored_pointer_candidate(
     memory: AnchoredDiscoveryMemory,
     *,
@@ -1105,12 +1254,10 @@ def discover_anchored_pointer_candidate(
             "anchor_hints_required",
             None,
             evidence,
-            "Known species, Tower spawn, and exact current/maximum HP are required.",
+            "Known species and the selected map's native spawn are required.",
         )
     assert hints.player_spawn_x is not None
     assert hints.player_spawn_z is not None
-    assert hints.player_current_hp is not None
-    assert hints.player_max_hp is not None
 
     species_matches, spawn_matches = _scan_anchor_values(
         memory,
@@ -1144,6 +1291,8 @@ def discover_anchored_pointer_candidate(
         maximum_candidates=maximum_monster_candidates,
         check=check,
         evidence=evidence,
+        monster_hp_by_species=dict(hints.monster_hp_by_species),
+        require_exact_monster_hp=hints.require_exact_monster_hp,
     )
     if len(anchors) < 2:
         return AnchoredDiscoveryResult(
@@ -1159,6 +1308,7 @@ def discover_anchored_pointer_candidate(
             evidence,
             "Known monster hits did not produce one consensus actor layout.",
         )
+    monster_cohort = _public_monster_cohort(anchors, actor_layout)
     world_hypotheses = _infer_worlds(
         anchors,
         memory=memory,
@@ -1169,14 +1319,6 @@ def discover_anchored_pointer_candidate(
         readable_contains=readable_contains,
         evidence=evidence,
     )
-    if not world_hypotheses:
-        return AnchoredDiscoveryResult(
-            "actor_layout_inconclusive",
-            None,
-            evidence,
-            "Monster consensus did not produce a structural world hypothesis.",
-        )
-
     player_candidates: list[
         tuple[
             tuple[int, int, int, int, float, int, int, int],
@@ -1184,10 +1326,16 @@ def discover_anchored_pointer_candidate(
             _WorldHypothesis,
         ]
     ] = []
+    stable_players: list[AnchoredPlayerObservation] = []
     expected_x = float(hints.player_spawn_x)
     expected_z = float(hints.player_spawn_z)
-    current_hp = int(hints.player_current_hp)
-    maximum_hp = int(hints.player_max_hp)
+    exact_player_hp = hints.exact_player_hp_available
+    hinted_current_hp = (
+        None if hints.player_current_hp is None else int(hints.player_current_hp)
+    )
+    hinted_maximum_hp = (
+        None if hints.player_max_hp is None else int(hints.player_max_hp)
+    )
     world_references: dict[_WorldHypothesis, _ModuleReferenceResult] = {}
     for x_address in sorted(spawn_matches):
         check()
@@ -1209,38 +1357,68 @@ def discover_anchored_pointer_candidate(
             or abs(y) > coordinate_limit
         ):
             continue
-        matching_self_offsets = tuple(
-            offset
-            for offset in actor_layout.self_offsets
-            if _u32(data, offset) == base
-        )
+        # The local-player class can share coordinates/species fields with
+        # monster actors without sharing the monster cohort's self-pointer
+        # offsets. Discover player self aliases across the whole object and use
+        # monster/configured offsets only for deterministic preference.
+        matching_self_offsets = _aligned_pointer_offsets(data, base)
         if not matching_self_offsets:
             continue
-        selected_self_offset = matching_self_offsets[0]
-        hp_offsets = _aligned_value_offsets(data, current_hp)
-        max_hp_offsets = _aligned_value_offsets(data, maximum_hp)
-        if not hp_offsets or not max_hp_offsets:
-            continue
-        evidence.spawn_hp_matches += 1
-        selected_hp_offset = (
-            actor_layout.hp_offset
-            if actor_layout.hp_offset in hp_offsets
-            else hp_offsets[0]
+        selected_self_offset = min(
+            matching_self_offsets,
+            key=lambda offset: (
+                0 if offset in actor_layout.self_offsets else 1,
+                abs(offset - configured_self_offset),
+                offset,
+            ),
         )
-        if current_hp == maximum_hp:
-            # At full health both fields contain the same value. Prefer a
-            # distinct second occurrence so a later damage sample can still
-            # prove which field remains the maximum-HP field.
-            distinct_max_offsets = tuple(
-                offset for offset in max_hp_offsets if offset != selected_hp_offset
+        if exact_player_hp:
+            assert hinted_current_hp is not None
+            assert hinted_maximum_hp is not None
+            hp_offsets = _aligned_value_offsets(data, hinted_current_hp)
+            max_hp_offsets = _aligned_value_offsets(data, hinted_maximum_hp)
+            if not hp_offsets or not max_hp_offsets:
+                continue
+            evidence.spawn_hp_matches += 1
+            selected_hp_offset = (
+                actor_layout.hp_offset
+                if actor_layout.hp_offset in hp_offsets
+                else hp_offsets[0]
             )
-            selected_max_offset = (
-                distinct_max_offsets[0]
-                if distinct_max_offsets
-                else selected_hp_offset
-            )
+            if hinted_current_hp == hinted_maximum_hp:
+                # At full health both fields contain the same value. Prefer a
+                # distinct second occurrence so a later damage sample can still
+                # prove which field remains the maximum-HP field.
+                distinct_max_offsets = tuple(
+                    offset
+                    for offset in max_hp_offsets
+                    if offset != selected_hp_offset
+                )
+                selected_max_offset = (
+                    distinct_max_offsets[0]
+                    if distinct_max_offsets
+                    else selected_hp_offset
+                )
+            else:
+                selected_max_offset = max_hp_offsets[0]
+            current_hp = hinted_current_hp
+            maximum_hp = hinted_maximum_hp
         else:
-            selected_max_offset = max_hp_offsets[0]
+            # The current client exposes the player's live HP at the same
+            # dynamically inferred field as other actors. HP is not used as an
+            # identity anchor in this branch; it is only sampled so the existing
+            # independent-reader contract remains intact. Uniqueness, self alias,
+            # spawn coordinates, player-like species state, stability, and a
+            # direct module alias remain mandatory before this result can apply.
+            selected_hp_offset = actor_layout.hp_offset
+            selected_max_offset = actor_layout.hp_offset
+            try:
+                current_hp = _i32(data, selected_hp_offset)
+            except Exception:
+                continue
+            if current_hp <= 0:
+                continue
+            maximum_hp = current_hp
         try:
             species = _i32(data, actor_layout.species_offset)
             active = _i32(data, actor_layout.active_species_offset)
@@ -1277,6 +1455,27 @@ def discover_anchored_pointer_candidate(
         if not stable:
             continue
         evidence.stable_spawn_candidates += 1
+        stable_players.append(
+            AnchoredPlayerObservation(
+                player_base=base,
+                direct_module_slots=tuple(
+                    sorted(set(slot_refs.get(base, ())))
+                ),
+                self_pointer_offset=selected_self_offset,
+                hp_offset=selected_hp_offset,
+                max_hp_offset=selected_max_offset,
+                species_offset=actor_layout.species_offset,
+                active_species_offset=actor_layout.active_species_offset,
+                x_offset=actor_layout.x_offset,
+                y_offset=actor_layout.y_offset,
+                z_offset=actor_layout.z_offset,
+                x=x,
+                y=y,
+                z=z,
+                current_hp=current_hp,
+                maximum_hp=maximum_hp,
+            )
+        )
 
         resolved_worlds: list[tuple[_WorldHypothesis, _ModuleReferenceResult]] = []
         for world in world_hypotheses:
@@ -1410,11 +1609,27 @@ def discover_anchored_pointer_candidate(
             player_candidates.append((score, candidate, world))
 
     if not player_candidates:
+        unique_players = tuple(
+            {player.player_base: player for player in stable_players}.values()
+        )
+        if len(unique_players) == 1:
+            observation = unique_players[0]
+            evidence.inferred_self_offset = observation.self_pointer_offset
+            evidence.inferred_player_hp_offset = observation.hp_offset
+            evidence.inferred_player_max_hp_offset = observation.max_hp_offset
         return AnchoredDiscoveryResult(
             "spawn_player_not_found",
             None,
             evidence,
-            "No stable spawn/HP player candidate had an actor-field or world-rooted link to a structural world hypothesis.",
+            (
+                "No stable spawn player candidate had an actor-field or "
+                "world-rooted link to a structural world hypothesis."
+                if world_hypotheses
+                else "No structural world hypothesis was found; any unique "
+                "stable spawn player remains available for independent mode."
+            ),
+            unlinked_players=unique_players,
+            monster_cohort=monster_cohort,
         )
     player_candidates.sort(key=lambda item: item[0], reverse=True)
     best_score, candidate, selected_world = player_candidates[0]
@@ -1441,6 +1656,7 @@ def discover_anchored_pointer_candidate(
             None,
             evidence,
             "Multiple equally supported spawn/HP player candidates remain.",
+            monster_cohort=monster_cohort,
         )
     _record_selected_world(evidence, selected_world)
     evidence.inferred_self_offset = candidate.self_pointer_offset
@@ -1451,6 +1667,10 @@ def discover_anchored_pointer_candidate(
         candidate,
         evidence,
         "Anchored player candidate is stable; controlled movement is required.",
+        unlinked_players=tuple(
+            {player.player_base: player for player in stable_players}.values()
+        ),
+        monster_cohort=monster_cohort,
     )
 
 

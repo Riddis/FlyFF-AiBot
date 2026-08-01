@@ -69,7 +69,11 @@ On the real Win32 backend, managed recovery scans the reported `Neuz.exe`
 module image and discovers player/world globals independently. **Recover
 Pointers** can additionally use selected monster species, Tower spawn native
 pose `(253.0, 86.0)`, and automatically OCRed exact current/maximum HP to infer
-a changed actor layout. The event-driven reader locates
+a changed actor layout. The event-driven reader retries several fresh frames;
+when digit OCR remains unavailable, recovery continues with a conservative
+species/spawn structural fallback instead of aborting before the memory scan.
+That fallback still requires one unique stable player object, a self alias, a
+direct module alias, and a validated monster cohort. The reader locates
 `assets/ui/player_status.png` by stable panel chrome, masks dynamic content,
 and reuses the FlyFF digit templates; there are no manual HP fields. The first
 stable sample is retained only in attachment

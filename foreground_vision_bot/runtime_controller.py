@@ -31,8 +31,12 @@ from worker_manager import (
 class RuntimeController:
     """Single owner for capture and control-worker lifecycle."""
 
-    MAX_NATIVE_DIAGNOSTIC_TIMEOUT_SECONDS: float = 30.0
-    STARTUP_POINTER_RECOVERY_TIMEOUT_SECONDS: float = 10.0
+    # The standalone recovery tester allows a full 20-minute scan. Keep the
+    # production recovery bounds aligned so a valid cross-machine scan is not
+    # cut off merely because it runs through the GUI or RL startup path.
+    MAX_NATIVE_DIAGNOSTIC_TIMEOUT_SECONDS: float = 1200.0
+    POINTER_RECOVERY_TIMEOUT_SECONDS: float = 1200.0
+    STARTUP_POINTER_RECOVERY_TIMEOUT_SECONDS: float = 1200.0
 
     def __init__(self, bot, bus: RuntimeBus) -> None:
         self.bot = bot
@@ -194,7 +198,10 @@ class RuntimeController:
                 deadline=deadline,
                 timeout_seconds=timeout,
                 status_callback=publish,
-                hints=self._pointer_recovery_hints(),
+                hints=self._pointer_recovery_hints(
+                    cancellation=token,
+                    health_attempts=8,
+                ),
             )
         except Exception as error:  # noqa: BLE001 - expected startup boundary.
             report(
@@ -216,10 +223,16 @@ class RuntimeController:
                 f"{error}. No input was activated."
             )
             return False
-        report(
-            "Native pointer startup preflight ready: "
-            f"player=0x{snapshot.player_base:X}, world=0x{snapshot.world_base:X}."
-        )
+        if snapshot.mode == "independent":
+            report(
+                "Native pointer startup preflight ready in independent mode: "
+                f"player=0x{snapshot.player_base:X}; world pointer not required."
+            )
+        else:
+            report(
+                "Native pointer startup preflight ready: "
+                f"player=0x{snapshot.player_base:X}, world=0x{snapshot.world_base:X}."
+            )
         return True
 
     def start_mapper(
@@ -393,6 +406,8 @@ class RuntimeController:
             recovery_hints = self._pointer_recovery_hints(
                 player_current_hp=player_current_hp,
                 player_max_hp=player_max_hp,
+                cancellation=token,
+                health_attempts=8,
             )
             if recover:
                 if (
@@ -400,9 +415,10 @@ class RuntimeController:
                     or recovery_hints.player_max_hp is None
                 ):
                     self.bus.log(
-                        "Player status OCR could not read current/max HP; keep "
-                        "the full status panel visible and unobstructed.",
-                        "msg_red",
+                        "Player status OCR could not read current/max HP after "
+                        "several fresh frames; continuing with the conservative "
+                        "spawn/species structural fallback.",
+                        "msg_yellow",
                     )
                 else:
                     self.bus.log(
@@ -496,6 +512,8 @@ class RuntimeController:
         *,
         player_current_hp: int | None = None,
         player_max_hp: int | None = None,
+        cancellation: CancellationToken | None = None,
+        health_attempts: int = 1,
     ) -> PointerRecoveryHints:
         config = getattr(self.bot, "config", {})
         species: set[int] = set()
@@ -517,17 +535,34 @@ class RuntimeController:
         if current_hp is None and maximum_hp is None:
             read_player_health = getattr(self.bot, "read_player_health", None)
             if callable(read_player_health):
-                try:
-                    health = read_player_health()
-                except Exception:  # noqa: BLE001 - OCR failure is non-fatal.
-                    health = None
-                if isinstance(health, tuple) and len(health) == 2:
+                for attempt in range(max(1, int(health_attempts))):
+                    if cancellation is not None and cancellation.cancelled:
+                        break
                     try:
-                        current_hp = int(health[0])
-                        maximum_hp = int(health[1])
-                    except (TypeError, ValueError):
-                        current_hp = None
-                        maximum_hp = None
+                        health = read_player_health()
+                    except Exception:  # noqa: BLE001 - OCR failure is non-fatal.
+                        health = None
+                    if isinstance(health, tuple) and len(health) == 2:
+                        try:
+                            current_hp = int(health[0])
+                            maximum_hp = int(health[1])
+                        except (TypeError, ValueError):
+                            current_hp = None
+                            maximum_hp = None
+                    if (
+                        current_hp is not None
+                        and maximum_hp is not None
+                        and current_hp > 0
+                        and maximum_hp > 0
+                        and current_hp <= maximum_hp
+                    ):
+                        break
+                    current_hp = None
+                    maximum_hp = None
+                    if attempt + 1 < max(1, int(health_attempts)):
+                        if cancellation is not None:
+                            if cancellation.wait(0.10):
+                                break
         if (
             current_hp is None
             or maximum_hp is None
@@ -540,6 +575,21 @@ class RuntimeController:
 
         overlay = getattr(self.bot, "_native_map_overlay", None)
         frame = getattr(overlay, "coordinate_frame", None)
+        if frame is None:
+            map_name = str(config.get("selected_map_name") or "").strip()
+            if map_name:
+                try:
+                    from mapper.CoordinateFrame import CoordinateFrame
+                    from mapper.MapCatalog import MapCatalog
+
+                    catalog = MapCatalog()
+                    frame_path = (
+                        catalog.map_directory(map_name) / "coordinate_frame.json"
+                    )
+                    if frame_path.is_file():
+                        frame = CoordinateFrame.load(frame_path)
+                except Exception:  # noqa: BLE001 - missing map hint stays optional.
+                    frame = None
         spawn_x = getattr(frame, "origin_native_x", None)
         spawn_z = getattr(frame, "origin_native_z", None)
         return PointerRecoveryHints(

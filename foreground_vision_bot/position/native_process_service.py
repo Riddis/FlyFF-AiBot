@@ -11,6 +11,7 @@ from typing import Protocol
 
 from .AnchoredPointerDiscovery import PointerRecoveryHints
 from .MonsterConfig import NativeMonsterConfig
+from .IndependentNativeReader import IndependentNativeReader
 from .NativePointerRecovery import (
     DEFAULT_RECOVERY_TIMEOUT_SECONDS,
     PlayerPointerRecovery,
@@ -85,6 +86,7 @@ class NativePointerSnapshot:
     world_base: int
     generation: int
     captured_at: float
+    mode: str = "world_linked"
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +122,7 @@ class NativeProcessService:
         monster_config_path: str | Path | None = None,
         owns_memory: bool = True,
         clock: Callable[[], float] = monotonic,
+        allow_independent_recovery: bool = False,
     ) -> None:
         self._memory = memory
         self.monster_config = monster_config
@@ -128,6 +131,7 @@ class NativeProcessService:
         self.monster_config_path = monster_config_path
         self._owns_memory = bool(owns_memory)
         self._clock = clock
+        self._allow_independent_recovery = bool(allow_independent_recovery)
         self._lock = RLock()
         self._closed = False
         self._resources_closed = False
@@ -135,9 +139,10 @@ class NativeProcessService:
         self._generation = 0
         self._recovery_state = PointerRecoveryState()
         self.last_recovery_result: NativeRecoveryResult | None = None
+        self._independent_reader: IndependentNativeReader | None = None
 
         module_name = monster_config.module_name
-        configured_player_offset = monster_config.player_pointer_offset
+        configured_player_offset = monster_config.player_pointer_hint_offset
         if (
             position_config is not None
             and position_config.enabled
@@ -186,13 +191,13 @@ class NativeProcessService:
         self._pointer_width_bytes = 4
         self._configured_player_pointer_offset = int(configured_player_offset)
         self._configured_world_pointer_offset = int(
-            monster_config.world_pointer_offset
+            monster_config.world_pointer_hint_offset
         )
         self._player_pointer_address = (
             self._module_base + self._configured_player_pointer_offset
         )
         self._world_pointer_address = (
-            self._module_base + monster_config.world_pointer_offset
+            self._module_base + monster_config.world_pointer_hint_offset
         )
         self._player_pointer_chain_offsets = tuple(
             monster_config.player_pointer_chain_offsets
@@ -225,6 +230,7 @@ class NativeProcessService:
         monster_config_path: str | Path | None = None,
         backend: Win32MemoryBackend | None = None,
         clock: Callable[[], float] = monotonic,
+        allow_independent_recovery: bool = True,
     ) -> NativeProcessService:
         memory = Win32ProcessMemory.from_window_handle(
             window_handle,
@@ -239,6 +245,7 @@ class NativeProcessService:
                 monster_config_path=monster_config_path,
                 owns_memory=True,
                 clock=clock,
+                allow_independent_recovery=allow_independent_recovery,
             )
         except Exception:
             memory.close()
@@ -346,6 +353,16 @@ class NativeProcessService:
             return self._z_offset
 
     @property
+    def independent_reader(self) -> IndependentNativeReader | None:
+        with self._lock:
+            return self._independent_reader
+
+    @property
+    def independent_mode(self) -> bool:
+        with self._lock:
+            return self._independent_reader is not None
+
+    @property
     def player_pointer_address(self) -> int:
         with self._lock:
             return self._player_pointer_address
@@ -382,6 +399,44 @@ class NativeProcessService:
 
         with self._lock:
             self._require_open()
+            independent_reader = self._independent_reader
+            if independent_reader is not None:
+                try:
+                    first = independent_reader.read_player()
+                    second = independent_reader.read_player()
+                    if (first.base, first.pointer_slot) != (
+                        second.base,
+                        second.pointer_slot,
+                    ):
+                        raise NativePointerSnapshotError(
+                            "Recovered independent player alias changed during the snapshot"
+                        )
+                except NativePointerSnapshotError:
+                    raise
+                except Exception as error:
+                    raise NativePointerSnapshotError(
+                        "Recovered independent player aliases are stale or unreadable; "
+                        "explicit pointer recovery is required"
+                    ) from error
+                return NativePointerSnapshot(
+                    player_pointer_address=second.pointer_slot,
+                    world_pointer_address=0,
+                    player_base=second.base,
+                    world_base=0,
+                    generation=self._generation,
+                    captured_at=float(self._clock()),
+                    mode="independent",
+                )
+            if self._configured_player_pointer_offset <= 0:
+                raise NativePointerSnapshotError(
+                    "No local-player pointer hint is configured; explicit pointer "
+                    "recovery is required"
+                )
+            if self._configured_world_pointer_offset <= 0:
+                raise NativePointerSnapshotError(
+                    "No current-world pointer hint is configured; explicit pointer "
+                    "recovery is required"
+                )
             player_pointer_address = self._player_pointer_address
             world_pointer_address = self._world_pointer_address
             player_chain = self._player_pointer_chain_offsets
@@ -498,6 +553,9 @@ class NativeProcessService:
                 self._memory,
                 module_base=module_base,
                 configured_player_pointer_offset=configured_player_offset,
+                configured_world_pointer_offset=(
+                    self._configured_world_pointer_offset
+                ),
                 state=self._recovery_state,
                 monster_config=self.monster_config,
                 persist=persist,
@@ -509,6 +567,7 @@ class NativeProcessService:
                 status_callback=status_callback,
                 clock=self._clock,
                 hints=hints,
+                allow_independent=self._allow_independent_recovery,
             )
             metrics = self._recovery_state.metrics_for(
                 int(getattr(self._memory, "pid", 0)),
@@ -519,6 +578,35 @@ class NativeProcessService:
                     "Explicit pointer recovery completed without metrics"
                 )
 
+            independent_reader: IndependentNativeReader | None = None
+            if recovery is not None and recovery.independent_discovery is not None:
+                if self._module_info is None:
+                    raise NativeProcessServiceError(
+                        "Independent recovery requires the mapped module extent"
+                    )
+                try:
+                    independent_reader = IndependentNativeReader(
+                        self._memory,
+                        self._module_info,
+                        recovery.independent_discovery,
+                        configured_player_offset=(
+                            recovery.configured_player_pointer_offset
+                        ),
+                        monster_current_hp_offset=self.monster_config.hp_offset,
+                        monster_active_species_offset=(
+                            self.monster_config.active_species_offset
+                        ),
+                        expected_full_hp_by_species=dict(
+                            recovery.independent_expected_full_hp_by_species
+                        ),
+                        slots_each_direction=31,
+                    )
+                    independent_reader.read_player()
+                except Exception as error:
+                    raise NativeProcessServiceError(
+                        "Independent player/actor reader could not be activated"
+                    ) from error
+
             with self._lock:
                 applied = bool(
                     recovery is not None
@@ -526,6 +614,7 @@ class NativeProcessService:
                     and self._generation == observed_generation
                 )
                 if applied and recovery is not None:
+                    self._independent_reader = independent_reader
                     self._player_pointer_address = recovery.player_pointer_address
                     self._configured_player_pointer_offset = (
                         recovery.player_pointer_offset

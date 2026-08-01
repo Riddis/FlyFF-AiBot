@@ -184,7 +184,11 @@ class Gui:
                 try:
                     self.controller.start_native_diagnostic(
                         recover=recover,
-                        timeout=30.0 if recover else 1.0,
+                        timeout=(
+                            self.controller.POINTER_RECOVERY_TIMEOUT_SECONDS
+                            if recover
+                            else 1.0
+                        ),
                     )
                 except (RuntimeError, ValueError) as error:
                     self.runtime_bus.log(str(error), "msg_red")

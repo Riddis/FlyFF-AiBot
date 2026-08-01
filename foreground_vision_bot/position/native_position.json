@@ -2,7 +2,6 @@
   "enabled": true,
   "resolver": "module_pointer",
   "module_name": "Neuz.exe",
-  "pointer_offset": "0x5852B8",
   "minimum_consensus_sources": 1,
   "consensus_tolerance": 0.05,
   "layout": {
@@ -12,5 +11,6 @@
     "heading_offset": null
   },
   "heading_unit": "degrees",
-  "maximum_absolute_coordinate": 100000000.0
+  "maximum_absolute_coordinate": 100000000.0,
+  "pointer_hint_offset": "0x5852B8"
 }

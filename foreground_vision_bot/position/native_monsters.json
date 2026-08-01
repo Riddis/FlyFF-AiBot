@@ -1,8 +1,6 @@
 {
   "enabled": true,
   "module_name": "Neuz.exe",
-  "player_pointer_offset": "0x5852B8",
-  "world_pointer_offset": "0x596C6C",
   "selected_actor_offset": "0x20",
   "vision_radius_native": 80.0,
   "maximum_absolute_coordinate": 100000.0,
@@ -22,5 +20,9 @@
     "chunk_bytes": 1048576,
     "maximum_address": "0x7FFFFFFF",
     "private_memory_only": true
+  },
+  "recovery_hints": {
+    "player_pointer_offset": "0x5852B8",
+    "world_pointer_offset": "0x596C6C"
   }
 }

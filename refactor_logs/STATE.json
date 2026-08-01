@@ -1,24 +1,24 @@
 {
   "schema_version": 2,
-  "updated_at": "2026-07-31T23:11:30.3459799Z",
+  "updated_at": "2026-07-31T23:15:03Z",
   "current_phase": "live_current_client_acceptance",
   "phase_status": "automated_player_world_relation_discovery_complete_awaiting_human",
   "active_task_id": "PTR-LIVE-001",
   "current_branch": "feature/adaptive-mapper",
-  "head_commit": "ce6b93d95f6aa43598edb34327211271a7951375",
-  "head_note": "Independent spawn-player validation and bounded world-rooted relation discovery are validated and pending checkpoint.",
+  "head_commit": "fddf8698632769e76fae490b515958c842b904f4",
+  "head_note": "Independent spawn-player validation and bounded world-rooted relation discovery are validated at the implementation checkpoint; this journal reconciliation follows it.",
   "protected_pre_refactor_sha": "174208614c7c8a916bd7c0dce5cbbb5f2a4e5239",
   "protected_pre_refactor_references": {
     "annotated_tag": "protected/pre-codex-refactor",
     "branch": "backup/pre-codex-refactor"
   },
-  "dirty_files": ["PTR-LIVE-029,PTR-LIVE-030 implementation and journals"],
+  "dirty_files": ["PTR-LIVE-029,PTR-LIVE-030 journal reconciliation"],
   "ignored_user_backups": [
     "foreground_vision_bot.zip",
     "refactor_logs.zip"
   ],
   "staged_files": [],
-  "last_known_good_commit": "aa78891125f040cfa479f7d33a89154481974b4b",
+  "last_known_good_commit": "fddf8698632769e76fae490b515958c842b904f4",
   "last_known_good_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",
   "last_known_good_test_result": "573 passed, 1 skipped in 11.21 seconds",
   "last_broad_test_command": ".venv/Scripts/python.exe -m pytest -q -p no:cacheprovider foreground_vision_bot/tests",

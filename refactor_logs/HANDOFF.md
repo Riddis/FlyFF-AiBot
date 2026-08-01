@@ -168,6 +168,7 @@ to movement; an unrelated direct player module slot remains insufficient.
 - Validated selected-world structural-evidence correction: `a7b2b06964644f7ceeaf890c67c04f2f014974e4`.
 - Validated automatic player-status HP-OCR correction: `d98e73904dfd829224c5310a2e9c45861e8c846e`.
 - Validated Bot Vision HP-marker and deferred structural-world selection correction: `aa78891125f040cfa479f7d33a89154481974b4b`.
+- Validated independent spawn-player/world-rooted relation correction: `fddf8698632769e76fae490b515958c842b904f4`.
 - Protected pre-refactor SHA: `174208614c7c8a916bd7c0dce5cbbb5f2a4e5239`
   through both protected refs.
 - Active model SHA-256 remains

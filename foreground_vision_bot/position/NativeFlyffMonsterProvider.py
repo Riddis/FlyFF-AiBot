@@ -10,6 +10,7 @@ from time import monotonic, perf_counter
 from typing import Protocol, cast
 
 from .MonsterConfig import NativeMonsterConfig
+from .IndependentNativeReader import IndependentNativeReader
 from .native_process_service import (
     NativePointerSnapshot,
     NativeProcessService,
@@ -155,8 +156,8 @@ class NativeFlyffMonsterProvider:
             if native_service is not None
             else self._memory.module_base(config.module_name)
         )
-        self._player_pointer_address = self._module_base + config.player_pointer_offset
-        self._world_pointer_address = self._module_base + config.world_pointer_offset
+        self._player_pointer_address = self._module_base + config.player_pointer_hint_offset
+        self._world_pointer_address = self._module_base + config.world_pointer_hint_offset
         self._slot_bases: tuple[int, ...] = ()
         self._cached_world: int | None = None
         self._cached_generation: int | None = None
@@ -239,6 +240,9 @@ class NativeFlyffMonsterProvider:
 
     @property
     def discovered_slot_bases(self) -> tuple[int, ...]:
+        reader = self._independent_reader()
+        if reader is not None:
+            return reader.actor_slots
         return self._slot_bases
 
     @property
@@ -247,6 +251,27 @@ class NativeFlyffMonsterProvider:
             result = self._native_service.last_recovery_result
             return None if result is None else result.recovery
         return self._last_pointer_recovery
+
+    def _independent_reader(self) -> IndependentNativeReader | None:
+        if self._native_service is None:
+            return None
+        return self._native_service.independent_reader
+
+    @staticmethod
+    def _native_actors_from_independent(monsters) -> tuple[NativeActor, ...]:
+        return tuple(
+            NativeActor(
+                base_address=item.base,
+                species_id=item.species,
+                hp=item.hp,
+                x=item.x,
+                y=item.y,
+                z=item.z,
+                distance_native=item.distance_native,
+                active_species_id=item.species,
+            )
+            for item in monsters
+        )
 
     def _read_u32(self, address: int) -> int:
         return int(struct.unpack("<I", self._memory.read(address, 4))[0])
@@ -419,6 +444,22 @@ class NativeFlyffMonsterProvider:
         with self._lock:
             now = self._clock()
             shared = self._shared_pointer_snapshot(pointer_snapshot)
+            independent = self._independent_reader()
+            if independent is not None:
+                player = self.read_player_base(pointer_snapshot=shared)
+                ordered = independent.actor_slots
+                self._slot_bases = ordered
+                self._cached_world = 0
+                self._cached_generation = (
+                    None if shared is None else shared.generation
+                )
+                self._last_discovery_at = now
+                self.last_diagnostics = ActorPoolDiagnostics(
+                    player_base=player,
+                    world_base=0,
+                    discovered_slots=len(ordered),
+                )
+                return ordered
             player = self.read_player_base(pointer_snapshot=shared)
             world = self.read_world_base(pointer_snapshot=shared)
             interval = self.config.discovery_interval_seconds
@@ -532,6 +573,46 @@ class NativeFlyffMonsterProvider:
         if not isinstance(pointer_snapshot, NativePointerSnapshot):
             raise TypeError("pointer_snapshot must be a NativePointerSnapshot")
         now = self._clock()
+        independent = self._independent_reader()
+        if independent is not None:
+            stopped = self._refresh_stop_outcome(cancellation, deadline)
+            if stopped is not None:
+                return ActorCacheRefreshResult(
+                    stopped,
+                    0,
+                    pointer_snapshot.generation,
+                )
+            ordered = independent.actor_slots
+            with self._lock:
+                if self._closed:
+                    return ActorCacheRefreshResult(
+                        ActorCacheOutcome.UNAVAILABLE,
+                        0,
+                        pointer_snapshot.generation,
+                        message="Native actor provider is closed",
+                    )
+                cached = bool(
+                    not force
+                    and self._slot_bases == ordered
+                    and self._cached_world == 0
+                    and self._cached_generation == pointer_snapshot.generation
+                )
+                self._slot_bases = ordered
+                self._cached_world = 0
+                self._cached_generation = pointer_snapshot.generation
+                self._last_discovery_at = now
+                self.last_diagnostics = ActorPoolDiagnostics(
+                    player_base=pointer_snapshot.player_base,
+                    world_base=0,
+                    discovered_slots=len(ordered),
+                )
+            return ActorCacheRefreshResult(
+                ActorCacheOutcome.CACHED if cached else ActorCacheOutcome.REFRESHED,
+                0,
+                pointer_snapshot.generation,
+                slot_count=len(ordered),
+                message="Independent anchored actor cache is ready",
+            )
         with self._lock:
             if self._closed:
                 return ActorCacheRefreshResult(
@@ -712,6 +793,76 @@ class NativeFlyffMonsterProvider:
             raise TypeError("pointer_snapshot must be a NativePointerSnapshot")
         if not isinstance(player_pose, PlayerPose):
             raise TypeError("player_pose must be a PlayerPose")
+        independent = self._independent_reader()
+        if independent is not None:
+            with self._lock:
+                if self._closed:
+                    return CachedActorReadResult(
+                        ActorCacheOutcome.UNAVAILABLE,
+                        0,
+                        pointer_snapshot.generation,
+                        message="Native actor provider is closed",
+                    )
+                if (
+                    not self._slot_bases
+                    or self._cached_world != 0
+                    or self._cached_generation != pointer_snapshot.generation
+                ):
+                    return CachedActorReadResult(
+                        ActorCacheOutcome.WORLD_MISMATCH,
+                        0,
+                        pointer_snapshot.generation,
+                        message="Independent actor cache belongs to another recovery generation",
+                    )
+            allowed = (
+                None
+                if allowed_species_ids is None
+                else {int(value) for value in allowed_species_ids}
+            )
+            radius = (
+                self.config.vision_radius_native
+                if vision_radius_native is None
+                else float(vision_radius_native)
+            )
+            if not math.isfinite(radius) or radius <= 0.0:
+                raise ValueError("vision_radius_native must be finite and positive")
+            try:
+                native_snapshot = independent.snapshot(
+                    allowed_species=allowed,
+                    vision_radius_native=radius,
+                )
+            except Exception as error:
+                return CachedActorReadResult(
+                    ActorCacheOutcome.UNAVAILABLE,
+                    0,
+                    pointer_snapshot.generation,
+                    message=(
+                        "Independent actor read failed: "
+                        f"{type(error).__name__}: {error}"
+                    ),
+                )
+            actors = self._native_actors_from_independent(native_snapshot.monsters)
+            with self._lock:
+                self.last_diagnostics = ActorPoolDiagnostics(
+                    player_base=native_snapshot.player.base,
+                    world_base=0,
+                    discovered_slots=native_snapshot.cached_actor_slots,
+                    rejected_not_present=native_snapshot.dead_or_dormant_slots,
+                    rejected_dead=native_snapshot.zero_hp_monsters,
+                    rejected_species=native_snapshot.other_species_slots,
+                    rejected_distance=max(
+                        0,
+                        native_snapshot.living_monsters
+                        - native_snapshot.visible_living_monsters,
+                    ),
+                    unreadable_cached_slots=native_snapshot.unreadable_slots,
+                )
+            return CachedActorReadResult(
+                ActorCacheOutcome.READY,
+                0,
+                pointer_snapshot.generation,
+                actors=actors,
+            )
         with self._lock:
             if self._closed:
                 return CachedActorReadResult(
@@ -872,6 +1023,49 @@ class NativeFlyffMonsterProvider:
         force_rediscovery: bool = False,
         pointer_snapshot: NativePointerSnapshot | None = None,
     ) -> list[NativeActor]:
+        independent = self._independent_reader()
+        if independent is not None:
+            allowed = (
+                None
+                if allowed_species_ids is None
+                else {int(value) for value in allowed_species_ids}
+            )
+            radius = (
+                self.config.vision_radius_native
+                if vision_radius_native is None
+                else float(vision_radius_native)
+            )
+            if not math.isfinite(radius) or radius <= 0.0:
+                raise ValueError("vision_radius_native must be finite and positive")
+            try:
+                snapshot = independent.snapshot(
+                    allowed_species=allowed,
+                    vision_radius_native=radius,
+                )
+            except Exception as error:
+                raise NativeMonsterReadError(
+                    f"Independent actor read failed: {type(error).__name__}: {error}"
+                ) from error
+            actors = self._native_actors_from_independent(snapshot.monsters)
+            with self._lock:
+                self._slot_bases = independent.actor_slots
+                self._cached_world = 0
+                if pointer_snapshot is not None:
+                    self._cached_generation = pointer_snapshot.generation
+                self.last_diagnostics = ActorPoolDiagnostics(
+                    player_base=snapshot.player.base,
+                    world_base=0,
+                    discovered_slots=snapshot.cached_actor_slots,
+                    rejected_not_present=snapshot.dead_or_dormant_slots,
+                    rejected_dead=snapshot.zero_hp_monsters,
+                    rejected_species=snapshot.other_species_slots,
+                    rejected_distance=max(
+                        0,
+                        snapshot.living_monsters - snapshot.visible_living_monsters,
+                    ),
+                    unreadable_cached_slots=snapshot.unreadable_slots,
+                )
+            return list(actors)
         with self._lock:
             shared = self._shared_pointer_snapshot(pointer_snapshot)
             player = self.read_player_base(pointer_snapshot=shared)
@@ -1003,6 +1197,11 @@ class NativeFlyffMonsterProvider:
         *,
         pointer_snapshot: NativePointerSnapshot | None = None,
     ) -> NativeActor:
+        if self._independent_reader() is not None:
+            raise NativeMonsterReadError(
+                "Selected-actor capture is unavailable in independent pointer mode; "
+                "use the GUI monster registry and selected species for training."
+            )
         with self._lock:
             shared = self._shared_pointer_snapshot(pointer_snapshot)
             player = self.read_player_base(pointer_snapshot=shared)

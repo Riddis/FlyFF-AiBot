@@ -1,4 +1,22 @@
-from .AnchoredPointerDiscovery import PointerRecoveryHints
+from .AutonomousPointerSelection import (
+    DirectPlayerSlotEvidence,
+    PassivePlayerProof,
+    historical_direct_offset_counts,
+    load_matching_snapshot_history,
+    prove_player_and_rank_direct_slots,
+)
+from .AggregateMonsterRootScan import (
+    AggregateCandidate,
+    AggregateCohortReport,
+    CohortActorState,
+    save_aggregate_report,
+    scan_aggregate_monster_roots,
+)
+from .AnchoredPointerDiscovery import (
+    AnchoredMonsterObservation,
+    AnchoredPlayerObservation,
+    PointerRecoveryHints,
+)
 from .attachment_factory import (
     NativeProviderAttachment,
     create_native_provider_attachment,
@@ -72,8 +90,20 @@ from .Win32ProcessMemory import (
 
 __all__ = [
     "ActorCacheOutcome",
+    "AggregateCandidate",
+    "AggregateCohortReport",
+    "CohortActorState",
+    "scan_aggregate_monster_roots",
+    "save_aggregate_report",
+    "prove_player_and_rank_direct_slots",
+    "historical_direct_offset_counts",
+    "load_matching_snapshot_history",
+    "PassivePlayerProof",
+    "DirectPlayerSlotEvidence",
     "ActorCacheRefreshResult",
     "ActorPoolDiagnostics",
+    "AnchoredMonsterObservation",
+    "AnchoredPlayerObservation",
     "CachedActorReadResult",
     "DEFAULT_MONSTER_CONFIG_PATH",
     "MonsterConfigurationError",
@@ -125,3 +155,19 @@ __all__ = [
     "recover_interrupted_pointer_persistence",
     "run_native_diagnostic",
 ]
+
+from .IndependentMonsterRediscovery import (
+    MonsterRediscoveryEvidence,
+    MonsterRediscoveryResult,
+    rediscover_known_layout_monsters,
+)
+from .IndependentNativeReader import (
+    ActorCacheMergeResult,
+    IndependentActorSlotRead,
+    IndependentMonsterRead,
+    IndependentNativeReadError,
+    IndependentNativeReader,
+    IndependentNativeSnapshot,
+    IndependentPlayerRead,
+    infer_actor_stride,
+)
