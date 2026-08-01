@@ -12,6 +12,7 @@ from .native_world import NativeWorldFrame
 class CastCandidate:
     base_address: int
     species_id: int
+    initial_hp: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,10 @@ class CandidateKillDiagnostic:
     minimum_seen_hp: int | None
     last_seen_hp: int | None
     confirmed: bool
+    initial_hp: int | None = None
+    zero_hp_reads: int = 0
+    maximum_consecutive_zero_hp: int = 0
+    hp_decreased: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,46 +53,58 @@ class NativeKillResult:
 
 
 class NativeKillTracker:
-    """Confirm cast-scoped kills from repeated native actor absence."""
+    """Confirm EVA kills from same-slot live-HP transitions.
+
+    The FlyFF client keeps an actor slot allocated after death. The same actor
+    base therefore remains readable with live HP set to zero until the slot is
+    reused by a respawn. Disappearance is not kill evidence and EVA range is
+    deliberately not assumed here. ``begin_cast`` snapshots every selected,
+    living actor already admitted by the native world's broad vision radius;
+    ``confirm_cast`` then requires the same base/species to reach HP zero.
+    """
 
     def __init__(
         self,
         *,
-        minimum_absence_seconds: float = 0.85,
+        zero_hp_confirmation_reads: int = 2,
         result_timeout_seconds: float = 2.0,
         poll_seconds: float = 0.05,
-        dedupe_seconds: float = 4.0,
+        # Backward-compatible constructor inputs from the old absence tracker.
+        minimum_absence_seconds: float | None = None,
+        dedupe_seconds: float | None = None,
         clock: Callable[[], float] = monotonic,
         sleeper: Callable[[float], None] = sleep,
     ) -> None:
-        if minimum_absence_seconds <= 0.0:
-            raise ValueError("minimum_absence_seconds must be positive")
-        if result_timeout_seconds < minimum_absence_seconds:
-            raise ValueError(
-                "result_timeout_seconds cannot be shorter than minimum absence"
-            )
-        if poll_seconds <= 0.0 or dedupe_seconds <= 0.0:
-            raise ValueError("poll_seconds and dedupe_seconds must be positive")
-        self.minimum_absence_seconds = float(minimum_absence_seconds)
+        if (
+            isinstance(zero_hp_confirmation_reads, bool)
+            or not isinstance(zero_hp_confirmation_reads, int)
+            or zero_hp_confirmation_reads < 1
+        ):
+            raise ValueError("zero_hp_confirmation_reads must be a positive integer")
+        if result_timeout_seconds <= 0.0 or poll_seconds <= 0.0:
+            raise ValueError("result_timeout_seconds and poll_seconds must be positive")
+        if minimum_absence_seconds is not None and minimum_absence_seconds <= 0.0:
+            raise ValueError("minimum_absence_seconds must be positive when provided")
+        if dedupe_seconds is not None and dedupe_seconds <= 0.0:
+            raise ValueError("dedupe_seconds must be positive when provided")
+        self.zero_hp_confirmation_reads = int(zero_hp_confirmation_reads)
         self.result_timeout_seconds = float(result_timeout_seconds)
         self.poll_seconds = float(poll_seconds)
-        self.dedupe_seconds = float(dedupe_seconds)
         self._clock = clock
         self._sleep = sleeper
-        self._recent_confirmations: dict[tuple[int, int], float] = {}
 
-    def begin_cast(
-        self,
-        frame: NativeWorldFrame,
-        *,
-        eva_radius_native: float,
-    ) -> CastWindow:
-        if eva_radius_native <= 0.0:
-            raise ValueError("eva_radius_native must be positive")
+    def begin_cast(self, frame: NativeWorldFrame) -> CastWindow:
+        # ``frame.actors`` already contains only selected, living monsters inside
+        # the configured broad native vision radius. Do not apply an assumed EVA
+        # radius: the policy must learn which distances actually produce kills.
         candidates = tuple(
-            CastCandidate(actor.base_address, actor.species_id)
+            CastCandidate(
+                base_address=int(actor.base_address),
+                species_id=int(actor.species_id),
+                initial_hp=int(actor.hp),
+            )
             for actor in frame.actors
-            if actor.distance_native <= float(eva_radius_native)
+            if int(actor.hp) > 0
         )
         return CastWindow(started_at=self._clock(), candidates=candidates)
 
@@ -108,6 +125,14 @@ class NativeKillTracker:
         else:
             self._sleep(self.poll_seconds)
 
+    @staticmethod
+    def _tracked_actor_map(frame: NativeWorldFrame) -> dict[tuple[int, int], object]:
+        tracked = frame.tracked_actors if frame.tracked_actors else frame.actors
+        return {
+            (int(actor.base_address), int(actor.species_id)): actor
+            for actor in tracked
+        }
+
     def confirm_cast(
         self,
         window: CastWindow,
@@ -115,28 +140,26 @@ class NativeKillTracker:
         *,
         cancellation: object | None = None,
     ) -> NativeKillResult:
-        now = self._clock()
-        self._recent_confirmations = {
-            key: confirmed_at
-            for key, confirmed_at in self._recent_confirmations.items()
-            if now - confirmed_at < self.dedupe_seconds
-        }
-        pending = {
+        candidate_by_key = {
             (candidate.base_address, candidate.species_id): candidate
             for candidate in window.candidates
-            if (candidate.base_address, candidate.species_id)
-            not in self._recent_confirmations
+            if candidate.initial_hp > 0
         }
-        absence_reads = {key: 0 for key in pending}
+        pending = dict(candidate_by_key)
         diagnostic_state = {
             key: {
                 "present_reads": 0,
                 "absent_reads": 0,
                 "maximum_consecutive_absence": 0,
-                "minimum_seen_hp": None,
-                "last_seen_hp": None,
+                "consecutive_absence": 0,
+                "minimum_seen_hp": candidate.initial_hp,
+                "last_seen_hp": candidate.initial_hp,
+                "zero_hp_reads": 0,
+                "maximum_consecutive_zero_hp": 0,
+                "consecutive_zero_hp": 0,
+                "hp_decreased": False,
             }
-            for key in pending
+            for key, candidate in pending.items()
         }
         confirmed: list[CastCandidate] = []
 
@@ -167,9 +190,16 @@ class NativeKillTracker:
                             else int(state["last_seen_hp"])
                         ),
                         confirmed=key in confirmed_keys,
+                        initial_hp=int(candidate_by_key[key].initial_hp),
+                        zero_hp_reads=int(state["zero_hp_reads"]),
+                        maximum_consecutive_zero_hp=int(
+                            state["maximum_consecutive_zero_hp"]
+                        ),
+                        hp_decreased=bool(state["hp_decreased"]),
                     )
                 )
             return tuple(result)
+
         polls = successful = failed = 0
         deadline = window.started_at + self.result_timeout_seconds
 
@@ -194,38 +224,49 @@ class NativeKillTracker:
                 failed += 1
                 continue
             successful += 1
-            present = {
-                (actor.base_address, actor.species_id): actor
-                for actor in frame.actors
-            }
-            for key in tuple(pending):
-                actor = present.get(key)
-                if actor is None:
-                    continue
+            tracked = self._tracked_actor_map(frame)
+            for key, candidate in tuple(pending.items()):
                 state = diagnostic_state[key]
+                actor = tracked.get(key)
+                if actor is None:
+                    state["absent_reads"] = int(state["absent_reads"]) + 1
+                    state["consecutive_absence"] = int(
+                        state["consecutive_absence"]
+                    ) + 1
+                    state["maximum_consecutive_absence"] = max(
+                        int(state["maximum_consecutive_absence"]),
+                        int(state["consecutive_absence"]),
+                    )
+                    state["consecutive_zero_hp"] = 0
+                    # Missing slots are diagnostic only. This client does not
+                    # remove the actor object on death, so absence cannot reward.
+                    continue
+
                 state["present_reads"] = int(state["present_reads"]) + 1
-                hp = int(actor.hp)
+                state["consecutive_absence"] = 0
+                hp = int(getattr(actor, "hp"))
                 state["last_seen_hp"] = hp
                 minimum = state["minimum_seen_hp"]
                 state["minimum_seen_hp"] = hp if minimum is None else min(int(minimum), hp)
-            if self._clock() - window.started_at < self.minimum_absence_seconds:
-                continue
-            for key, candidate in tuple(pending.items()):
-                state = diagnostic_state[key]
-                if key in present:
-                    absence_reads[key] = 0
-                    continue
-                absence_reads[key] += 1
-                state["absent_reads"] = int(state["absent_reads"]) + 1
-                state["maximum_consecutive_absence"] = max(
-                    int(state["maximum_consecutive_absence"]),
-                    absence_reads[key],
-                )
-                if absence_reads[key] < 2:
-                    continue
-                confirmed.append(candidate)
-                self._recent_confirmations[key] = self._clock()
-                pending.pop(key)
+                if hp < candidate.initial_hp:
+                    state["hp_decreased"] = True
+                if hp <= 0:
+                    state["zero_hp_reads"] = int(state["zero_hp_reads"]) + 1
+                    state["consecutive_zero_hp"] = int(
+                        state["consecutive_zero_hp"]
+                    ) + 1
+                    state["maximum_consecutive_zero_hp"] = max(
+                        int(state["maximum_consecutive_zero_hp"]),
+                        int(state["consecutive_zero_hp"]),
+                    )
+                    if (
+                        int(state["consecutive_zero_hp"])
+                        >= self.zero_hp_confirmation_reads
+                    ):
+                        confirmed.append(candidate)
+                        pending.pop(key)
+                else:
+                    state["consecutive_zero_hp"] = 0
 
         return NativeKillResult(
             confirmed=tuple(confirmed),

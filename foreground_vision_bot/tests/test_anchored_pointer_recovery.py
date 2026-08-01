@@ -1224,6 +1224,54 @@ def test_explicit_anchor_does_not_persist_until_movement(
     assert monster["layout"]["hp_offset"] == "0x814"
 
 
+def test_exact_anchor_discovers_monster_hp_field_and_applies_layout_to_other_species() -> None:
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+    )
+    _populate(memory, config)
+    discovered_hp_offset = config.hp_offset + 8
+    for base, hp in (
+        (memory.heap_base + 0x0000, 1000),
+        (memory.heap_base + 0x3000, 1200),
+    ):
+        # Reproduce the real regression: configured +0x814 contains unrelated
+        # index/float-like data while live HP moved to a dynamically found field.
+        memory.i32(base + config.hp_offset, 1065353216)
+        memory.i32(base + discovered_hp_offset, hp)
+
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+        monster_hp_by_species=((944, 1000),),
+        require_verified_monster_hp=True,
+    )
+    state = PointerRecoveryState()
+
+    assert recover_local_player_pointer(
+        memory,
+        module_base=memory.module_base_value,
+        configured_player_pointer_offset=config.player_pointer_offset,
+        monster_config=config,
+        state=state,
+        hints=hints,
+        chunk_size=0x1000,
+        timeout_seconds=2.0,
+    ) is None
+
+    metrics = state.metrics_for(memory.pid, memory.module_base_value)
+    assert metrics is not None
+    assert metrics.outcome == "movement_required"
+    assert metrics.inferred_hp_offset == discovered_hp_offset
+    assert metrics.monster_candidates == 2
+    assert metrics.monster_layout_species_support == 2
+
+
 def test_optional_monster_hp_anchor_filters_false_species_hits() -> None:
     memory = AnchoredMemory()
     config = NativeMonsterConfig(
@@ -1395,6 +1443,79 @@ def test_independent_recovery_drives_gui_selected_species_without_world_pointer(
     )
     assert actors.ready is True
     assert [actor.species_id for actor in actors.actors] == [948]
+
+
+def test_independent_runtime_keeps_dynamically_discovered_hp_for_selected_species() -> None:
+    from position.NativeFlyffMonsterProvider import NativeFlyffMonsterProvider
+    from position.PositionProvider import PlayerPose
+
+    memory = AnchoredMemory()
+    config = NativeMonsterConfig(
+        player_pointer_offset=0x1000,
+        world_pointer_offset=0x1100,
+        discovery_chunk_bytes=0x1000,
+        vision_radius_native=80.0,
+    )
+    _populate(memory, config)
+    discovered_hp_offset = config.hp_offset + 8
+    asterius = memory.heap_base + 0x0000
+    dantalian = memory.heap_base + 0x3000
+    for base, hp in ((asterius, 1000), (dantalian, 1200)):
+        memory.i32(base + config.hp_offset, 1065353216)
+        memory.i32(base + discovered_hp_offset, hp)
+
+    hints = PointerRecoveryHints(
+        known_species_ids=(944, 948),
+        player_spawn_x=253.0,
+        player_spawn_z=86.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+        monster_hp_by_species=((944, 1000),),
+        require_verified_monster_hp=True,
+    )
+    service = NativeProcessService(
+        memory,
+        config,
+        owns_memory=False,
+        allow_independent_recovery=True,
+    )
+
+    result = service.recover_pointers(hints=hints, timeout_seconds=2.0)
+
+    assert result.succeeded is True
+    assert result.recovery is not None
+    assert result.recovery.strategy == "anchored_independent"
+    assert result.recovery.hp_offset == discovered_hp_offset
+    assert service.hp_offset == discovered_hp_offset
+
+    snapshot = service.read_pointer_snapshot()
+    provider = NativeFlyffMonsterProvider.from_native_service(service, config)
+    assert provider.refresh_slot_cache(snapshot, force=True).ready is True
+    pose = PlayerPose(253.0, 14.0, 86.0, None, 0.0)
+    living = provider.read_cached_active_actors(
+        snapshot,
+        pose,
+        allowed_species_ids={948},
+        vision_radius_native=80.0,
+    )
+    assert living.ready is True
+    assert [actor.hp for actor in living.actors] == [1200]
+
+    # A death keeps the reusable slot and changes only the dynamically proven
+    # live-HP field. It leaves the policy's living actor list but remains in the
+    # tracked actor states for same-slot kill confirmation.
+    memory.i32(dantalian + discovered_hp_offset, 0)
+    dead = provider.read_cached_active_actors(
+        snapshot,
+        pose,
+        allowed_species_ids={948},
+        vision_radius_native=80.0,
+    )
+    assert dead.ready is True
+    assert dead.actors == ()
+    assert [(actor.base_address, actor.hp) for actor in dead.tracked_actors] == [
+        (dantalian, 0)
+    ]
 
 
 def test_independent_recovery_uses_structural_fallback_when_hp_ocr_is_missing() -> None:

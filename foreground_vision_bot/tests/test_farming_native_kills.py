@@ -23,7 +23,10 @@ class FakeClock:
         self.value += seconds
 
 
-def _frame(*actors: NativeActor) -> NativeWorldFrame:
+def _frame(
+    *living: NativeActor,
+    tracked: tuple[NativeActor, ...] | None = None,
+) -> NativeWorldFrame:
     return NativeWorldFrame(
         pointer_snapshot=NativePointerSnapshot(
             player_pointer_address=1,
@@ -34,28 +37,38 @@ def _frame(*actors: NativeActor) -> NativeWorldFrame:
             captured_at=0.0,
         ),
         player_pose=PlayerPose(0.0, 0.0, 0.0, None, 0.0),
-        actors=tuple(actors),
+        actors=tuple(living),
+        tracked_actors=tuple(living) if tracked is None else tracked,
     )
 
 
-def _actor() -> NativeActor:
-    return NativeActor(10, 874, 100, 0.0, 0.0, 0.0, 3.0, 874)
+def _actor(
+    *,
+    base: int = 10,
+    species: int = 874,
+    hp: int = 100,
+    distance: float = 3.0,
+) -> NativeActor:
+    return NativeActor(base, species, hp, 0.0, 0.0, 0.0, distance, species)
 
 
-def test_native_kill_requires_two_successful_absence_reads_and_ignores_failures() -> (
-    None
-):
+def test_native_kill_confirms_same_slot_hp_zero_after_two_reads() -> None:
     clock = FakeClock()
     tracker = NativeKillTracker(
-        minimum_absence_seconds=0.10,
+        zero_hp_confirmation_reads=2,
         result_timeout_seconds=0.50,
         poll_seconds=0.05,
-        dedupe_seconds=4.0,
         clock=clock,
         sleeper=clock.sleep,
     )
-    window = tracker.begin_cast(_frame(_actor()), eva_radius_native=5.0)
-    outcomes: list[object] = [RuntimeError("read failed"), _frame(), _frame()]
+    living = _actor(hp=100, distance=30.0)
+    dead = _actor(hp=0, distance=30.0)
+    window = tracker.begin_cast(_frame(living))
+    outcomes: list[object] = [
+        RuntimeError("read failed"),
+        _frame(tracked=(dead,)),
+        _frame(tracked=(dead,)),
+    ]
 
     def read_frame() -> NativeWorldFrame:
         result = outcomes.pop(0)
@@ -66,35 +79,68 @@ def test_native_kill_requires_two_successful_absence_reads_and_ignores_failures(
 
     result = tracker.confirm_cast(window, read_frame)
 
+    assert len(window.candidates) == 1
+    assert window.candidates[0].initial_hp == 100
     assert result.kill_count == 1
     assert result.failed_reads == 1
     assert result.successful_reads == 2
     assert result.elapsed_seconds == pytest.approx(0.15)
-    assert len(result.diagnostics) == 1
     diagnostic = result.diagnostics[0]
     assert diagnostic.confirmed
-    assert diagnostic.absent_reads == 2
-    assert diagnostic.maximum_consecutive_absence == 2
+    assert diagnostic.initial_hp == 100
+    assert diagnostic.minimum_seen_hp == 0
+    assert diagnostic.zero_hp_reads == 2
+    assert diagnostic.maximum_consecutive_zero_hp == 2
+    assert diagnostic.hp_decreased is True
 
 
-def test_native_kill_dedupe_prevents_double_reward() -> None:
+def test_actor_disappearance_is_diagnostic_only_and_never_a_kill() -> None:
     clock = FakeClock()
     tracker = NativeKillTracker(
-        minimum_absence_seconds=0.05,
-        result_timeout_seconds=0.30,
+        zero_hp_confirmation_reads=2,
+        result_timeout_seconds=0.16,
         poll_seconds=0.05,
-        dedupe_seconds=4.0,
         clock=clock,
         sleeper=clock.sleep,
     )
-    first = tracker.begin_cast(_frame(_actor()), eva_radius_native=5.0)
-    assert tracker.confirm_cast(first, lambda: _frame()).kill_count == 1
+    window = tracker.begin_cast(_frame(_actor()))
+    result = tracker.confirm_cast(window, lambda: _frame(tracked=()))
 
-    second = tracker.begin_cast(_frame(_actor()), eva_radius_native=5.0)
-    duplicate = tracker.confirm_cast(second, lambda: _frame())
+    assert result.kill_count == 0
+    assert result.diagnostics[0].absent_reads >= 2
+    assert result.diagnostics[0].zero_hp_reads == 0
 
-    assert duplicate.kill_count == 0
-    assert duplicate.polls == 0
+
+def test_same_slot_can_reward_again_after_respawn() -> None:
+    clock = FakeClock()
+    tracker = NativeKillTracker(
+        zero_hp_confirmation_reads=1,
+        result_timeout_seconds=0.20,
+        poll_seconds=0.05,
+        clock=clock,
+        sleeper=clock.sleep,
+    )
+    living = _actor(hp=100)
+    dead = _actor(hp=0)
+
+    first = tracker.begin_cast(_frame(living))
+    assert tracker.confirm_cast(first, lambda: _frame(tracked=(dead,))).kill_count == 1
+
+    # The same reusable actor slot is alive again, so a later HP->0 transition
+    # is a new kill rather than a time-window duplicate.
+    second = tracker.begin_cast(_frame(living))
+    assert tracker.confirm_cast(second, lambda: _frame(tracked=(dead,))).kill_count == 1
+
+
+def test_begin_cast_tracks_all_selected_living_actors_in_world_frame() -> None:
+    tracker = NativeKillTracker()
+    near = _actor(base=10, distance=2.0)
+    far_but_visible = _actor(base=20, distance=49.0)
+    dead = _actor(base=30, hp=0, distance=1.0)
+
+    window = tracker.begin_cast(_frame(near, far_but_visible, dead))
+
+    assert [item.base_address for item in window.candidates] == [10, 20]
 
 
 def test_ocr_diagnostics_never_claim_native_reward() -> None:

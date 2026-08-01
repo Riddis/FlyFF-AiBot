@@ -300,6 +300,8 @@ def test_managed_recovery_uses_worker_token_deadline_and_progress() -> None:
     assert hints.player_spawn_z == 86.0
     assert hints.player_current_hp == 5000
     assert hints.player_max_hp == 6000
+    assert hints.monster_hp_by_species == ((944, 400236),)
+    assert hints.require_verified_monster_hp is True
     assert completion.result.persistence_requested is True
     token = service.recovery_kwargs["cancellation"]
     assert token.cancelled
@@ -432,3 +434,5 @@ def test_pointer_recovery_hints_load_selected_map_frame_before_overlay_exists() 
     assert hints.player_spawn_z == 86.0
     assert hints.player_current_hp == 5000
     assert hints.player_max_hp == 6000
+    assert hints.monster_hp_by_species == ((944, 400236),)
+    assert hints.require_verified_monster_hp is True

@@ -62,8 +62,8 @@ class TrainingDataValidationRecorder:
         self._kill_poll_successful_reads = 0
         self._kill_poll_failed_reads = 0
         self._candidate_traces = 0
-        self._candidate_always_present = 0
-        self._candidate_single_absence = 0
+        self._candidate_never_zero = 0
+        self._candidate_single_zero = 0
         self._candidate_confirmed_traces = 0
         self._actor_samples = 0
         self._maximum_visible_actors = 0
@@ -100,7 +100,9 @@ class TrainingDataValidationRecorder:
     def _actor_map(world: object) -> dict[int, Mapping[str, object]]:
         if not isinstance(world, Mapping):
             return {}
-        actors = world.get("actors")
+        actors = world.get("tracked_actors")
+        if not isinstance(actors, list) or not actors:
+            actors = world.get("actors")
         if not isinstance(actors, list):
             return {}
         result: dict[int, Mapping[str, object]] = {}
@@ -226,15 +228,15 @@ class TrainingDataValidationRecorder:
                         continue
                     self._candidate_traces += 1
                     try:
-                        maximum_absence = int(
-                            item.get("maximum_consecutive_absence", 0)
+                        maximum_zero = int(
+                            item.get("maximum_consecutive_zero_hp", 0)
                         )
                     except (TypeError, ValueError):
-                        maximum_absence = 0
-                    if maximum_absence <= 0:
-                        self._candidate_always_present += 1
-                    elif maximum_absence == 1:
-                        self._candidate_single_absence += 1
+                        maximum_zero = 0
+                    if maximum_zero <= 0:
+                        self._candidate_never_zero += 1
+                    elif maximum_zero == 1:
+                        self._candidate_single_zero += 1
                     if bool(item.get("confirmed", False)):
                         self._candidate_confirmed_traces += 1
 
@@ -350,41 +352,38 @@ class TrainingDataValidationRecorder:
                 recommendations.append("Keep the kill/Penya tracker fully visible and inspect the included OCR screenshots.")
 
         if self._casts_with_candidates <= 0:
-            add("eva_candidate_input", "inconclusive", f"EVA casts={self._casts}, but none had a native target inside the configured radius.")
-            recommendations.append("Repeat validation while standing near at least one selected monster.")
+            add("eva_candidate_input", "inconclusive", f"EVA casts={self._casts}, but none had a selected living monster inside the broad native vision radius.")
+            recommendations.append("Repeat validation while at least one selected monster is visible to the native reader.")
         else:
             add("eva_candidate_input", "pass", f"{self._casts_with_candidates}/{self._casts} casts had candidates; total candidates={self._cast_candidate_total}.")
 
         if self._ocr_positive_delta > 0 and self._native_kills == 0:
             if self._casts_with_candidates <= 0:
                 cause = (
-                    "OCR increased, but the EVA casts had no native candidates "
-                    "inside the configured radius."
+                    "OCR increased, but the EVA casts had no selected living "
+                    "native candidates inside the broad vision radius."
                 )
                 recommendation = (
-                    "Check actor distances, EVA radius scaling, and whether the "
-                    "selected monsters are present in the native observation."
+                    "Check selected species and actor-cache coverage."
                 )
             elif (
                 self._candidate_traces > 0
-                and self._candidate_always_present == self._candidate_traces
+                and self._candidate_never_zero == self._candidate_traces
             ):
                 cause = (
-                    "OCR increased, but every native candidate remained visible "
-                    "through all post-cast polls."
+                    "OCR increased, but no tracked candidate ever reached native HP zero."
                 )
                 recommendation = (
-                    "The recovered monster HP/presence fields or cached actor-slot "
-                    "state are likely not reflecting death."
+                    "The recovered monster live-HP field is wrong or is not being "
+                    "propagated into the tracked actor states."
                 )
-            elif self._candidate_single_absence > 0:
+            elif self._candidate_single_zero > 0:
                 cause = (
-                    "OCR increased, but at least one candidate disappeared for only "
-                    "one successful poll; two consecutive absence reads are required."
+                    "OCR increased, but at least one candidate reached HP zero for "
+                    "only one successful poll; two zero-HP reads are required."
                 )
                 recommendation = (
-                    "Review cast polling timing and slot reuse before changing the "
-                    "confirmation threshold."
+                    "Review HP polling stability before lowering the confirmation threshold."
                 )
             elif self._kill_poll_failed_reads > 0:
                 cause = (
@@ -468,8 +467,8 @@ class TrainingDataValidationRecorder:
                 "kill_poll_successful_reads": self._kill_poll_successful_reads,
                 "kill_poll_failed_reads": self._kill_poll_failed_reads,
                 "candidate_traces": self._candidate_traces,
-                "candidate_always_present": self._candidate_always_present,
-                "candidate_single_absence": self._candidate_single_absence,
+                "candidate_never_zero": self._candidate_never_zero,
+                "candidate_single_zero": self._candidate_single_zero,
                 "candidate_confirmed_traces": self._candidate_confirmed_traces,
                 "actor_samples": self._actor_samples,
                 "visible_actor_minimum": self._minimum_visible_actors,

@@ -123,10 +123,9 @@ class UnifiedFarmingEnv:
             )
         )
         self.kill_tracker = kill_tracker or NativeKillTracker(
-            minimum_absence_seconds=self.config.cast_minimum_absence_seconds,
+            zero_hp_confirmation_reads=self.config.kill_zero_confirmation_reads,
             result_timeout_seconds=self.config.cast_result_timeout_seconds,
             poll_seconds=self.config.cast_poll_seconds,
-            dedupe_seconds=self.config.kill_dedupe_seconds,
             clock=clock,
             sleeper=sleeper,
         )
@@ -275,6 +274,9 @@ class UnifiedFarmingEnv:
                 ),
             },
             "actors": [cls._actor_payload(actor) for actor in world.actors],
+            "tracked_actors": [
+                cls._actor_payload(actor) for actor in world.tracked_actors
+            ],
         }
 
     def _emit_diagnostic(
@@ -325,6 +327,7 @@ class UnifiedFarmingEnv:
                     {
                         "base": int(candidate.base_address),
                         "species": int(candidate.species_id),
+                        "initial_hp": int(candidate.initial_hp),
                     }
                     for candidate in cast_window.candidates
                 ]
@@ -356,6 +359,12 @@ class UnifiedFarmingEnv:
                             ),
                             "minimum_seen_hp": item.minimum_seen_hp,
                             "last_seen_hp": item.last_seen_hp,
+                            "initial_hp": item.initial_hp,
+                            "zero_hp_reads": int(item.zero_hp_reads),
+                            "maximum_consecutive_zero_hp": int(
+                                item.maximum_consecutive_zero_hp
+                            ),
+                            "hp_decreased": bool(item.hp_decreased),
                             "confirmed": bool(item.confirmed),
                         }
                         for item in kill_result.diagnostics
@@ -447,13 +456,7 @@ class UnifiedFarmingEnv:
         try:
             cast_window = None
             if selected is FarmingAction.CAST_EVA and eva_available:
-                cast_window = self.kill_tracker.begin_cast(
-                    before.world,
-                    eva_radius_native=(
-                        self.config.eva_radius_cells
-                        * self.map_context.native_units_per_cell
-                    ),
-                )
+                cast_window = self.kill_tracker.begin_cast(before.world)
             self.control.execute(selected)
             if selected is FarmingAction.CAST_EVA:
                 self._last_cast_at = started
@@ -670,6 +673,12 @@ class UnifiedFarmingEnv:
                         ),
                         "minimum_seen_hp": item.minimum_seen_hp,
                         "last_seen_hp": item.last_seen_hp,
+                        "initial_hp": item.initial_hp,
+                        "zero_hp_reads": int(item.zero_hp_reads),
+                        "maximum_consecutive_zero_hp": int(
+                            item.maximum_consecutive_zero_hp
+                        ),
+                        "hp_decreased": bool(item.hp_decreased),
                         "confirmed": bool(item.confirmed),
                     }
                     for item in kill_result.diagnostics

@@ -99,6 +99,7 @@ class CachedActorReadResult:
     generation: int
     actors: tuple[NativeActor, ...] = ()
     message: str = ""
+    tracked_actors: tuple[NativeActor, ...] = ()
 
     @property
     def ready(self) -> bool:
@@ -268,10 +269,50 @@ class NativeFlyffMonsterProvider:
                 y=item.y,
                 z=item.z,
                 distance_native=item.distance_native,
-                active_species_id=item.species,
+                active_species_id=getattr(item, "active_species", item.species),
             )
             for item in monsters
         )
+
+    @staticmethod
+    def _tracked_actors_from_independent(
+        actor_states,
+        *,
+        vision_radius_native: float,
+    ) -> tuple[NativeActor, ...]:
+        tracked: list[NativeActor] = []
+        for item in actor_states:
+            if not bool(getattr(item, "target_species", False)):
+                continue
+            species = int(getattr(item, "species", 0))
+            hp = int(getattr(item, "hp", -1))
+            distance = float(getattr(item, "distance_native", math.inf))
+            x = float(getattr(item, "x", math.nan))
+            y = float(getattr(item, "y", math.nan))
+            z = float(getattr(item, "z", math.nan))
+            if (
+                species <= 0
+                or hp < 0
+                or not all(math.isfinite(value) for value in (x, y, z, distance))
+                or distance > float(vision_radius_native)
+            ):
+                continue
+            tracked.append(
+                NativeActor(
+                    base_address=int(getattr(item, "base")),
+                    species_id=species,
+                    hp=hp,
+                    x=x,
+                    y=y,
+                    z=z,
+                    distance_native=distance,
+                    active_species_id=int(
+                        getattr(item, "active_species", species)
+                    ),
+                )
+            )
+        tracked.sort(key=lambda actor: (actor.distance_native, actor.base_address))
+        return tuple(tracked)
 
     def _read_u32(self, address: int) -> int:
         return int(struct.unpack("<I", self._memory.read(address, 4))[0])
@@ -842,6 +883,10 @@ class NativeFlyffMonsterProvider:
                     ),
                 )
             actors = self._native_actors_from_independent(native_snapshot.monsters)
+            tracked_actors = self._tracked_actors_from_independent(
+                native_snapshot.actor_states,
+                vision_radius_native=radius,
+            )
             with self._lock:
                 self.last_diagnostics = ActorPoolDiagnostics(
                     player_base=native_snapshot.player.base,
@@ -862,6 +907,7 @@ class NativeFlyffMonsterProvider:
                 0,
                 pointer_snapshot.generation,
                 actors=actors,
+                tracked_actors=tracked_actors,
             )
         with self._lock:
             if self._closed:
@@ -905,6 +951,7 @@ class NativeFlyffMonsterProvider:
 
         wrong_world = not_present = dead = wrong_species = too_far = unreadable = 0
         actors: list[NativeActor] = []
+        tracked_actors: list[NativeActor] = []
         for base in slot_bases:
             if base == pointer_snapshot.player_base:
                 continue
@@ -925,11 +972,8 @@ class NativeFlyffMonsterProvider:
             if actor_world != pointer_snapshot.world_base:
                 wrong_world += 1
                 continue
-            if species <= 0 or active_species != species:
+            if species <= 0:
                 not_present += 1
-                continue
-            if hp <= 0:
-                dead += 1
                 continue
             if allowed is not None and species not in allowed:
                 wrong_species += 1
@@ -944,20 +988,30 @@ class NativeFlyffMonsterProvider:
             if distance > radius:
                 too_far += 1
                 continue
-            actors.append(
-                NativeActor(
-                    base_address=base,
-                    species_id=species,
-                    hp=hp,
-                    x=x,
-                    y=y,
-                    z=z,
-                    distance_native=distance,
-                    active_species_id=active_species,
-                )
+            tracked = NativeActor(
+                base_address=base,
+                species_id=species,
+                hp=hp,
+                x=x,
+                y=y,
+                z=z,
+                distance_native=distance,
+                active_species_id=active_species,
             )
+            if hp >= 0:
+                tracked_actors.append(tracked)
+            if active_species != species:
+                not_present += 1
+                continue
+            if hp <= 0:
+                dead += 1
+                continue
+            actors.append(tracked)
 
         actors.sort(key=lambda actor: (actor.distance_native, actor.base_address))
+        tracked_actors.sort(
+            key=lambda actor: (actor.distance_native, actor.base_address)
+        )
         with self._lock:
             previous = self.last_diagnostics
             self.last_diagnostics = ActorPoolDiagnostics(
@@ -997,6 +1051,7 @@ class NativeFlyffMonsterProvider:
             pointer_snapshot.world_base,
             pointer_snapshot.generation,
             actors=tuple(actors),
+            tracked_actors=tuple(tracked_actors),
         )
 
     def _read_actor_fields(

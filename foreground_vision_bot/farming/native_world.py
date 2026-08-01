@@ -61,6 +61,7 @@ class NativeWorldFrame:
     pointer_snapshot: NativePointerSnapshot
     player_pose: PlayerPose
     actors: tuple[NativeActor, ...]
+    tracked_actors: tuple[NativeActor, ...] = ()
 
     @property
     def world_base(self) -> int:
@@ -128,6 +129,11 @@ class NativeWorldReader:
             pointer_snapshot=snapshot,
             player_pose=pose,
             actors=actor_result.actors,
+            tracked_actors=(
+                actor_result.tracked_actors
+                if actor_result.tracked_actors
+                else actor_result.actors
+            ),
         )
 
 

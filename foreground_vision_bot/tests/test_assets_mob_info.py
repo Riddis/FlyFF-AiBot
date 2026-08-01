@@ -30,11 +30,26 @@ def test_add_new_mob_skips_copy_when_legacy_image_is_already_destination(
         height_offset=50,
         element="water",
         species_id=944,
+        recovery_anchor_hp=400236,
     )
 
     assert stored_image.read_bytes() == b"existing-image"
     saved = json.loads((assets_dir / "mobs_list.json").read_text())
     assert saved["Captain Asterius"]["species_id"] == 944
+    assert saved["Captain Asterius"]["recovery_anchor_hp"] == 400236
+
+    # Editing the same mob through the existing GUI call path must preserve the
+    # trusted recovery anchor even though the dialog does not ask for it.
+    MobInfo.add_new_mob(
+        name="Captain Asterius",
+        map_name="Tower AoE",
+        image_path=str(stored_image),
+        height_offset=60,
+        element="water",
+        species_id=944,
+    )
+    saved = json.loads((assets_dir / "mobs_list.json").read_text())
+    assert saved["Captain Asterius"]["recovery_anchor_hp"] == 400236
 
 
 def test_add_new_mob_still_copies_a_distinct_legacy_image(

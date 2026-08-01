@@ -56,6 +56,9 @@ class FarmingRuntimeConfig:
     pointer_grace_seconds: float = 3.0
     pointer_poll_seconds: float = 0.10
     actor_refresh_timeout_seconds: float = 5.0
+    kill_zero_confirmation_reads: int = 2
+    # Retained only so older user configs still load. Native kill confirmation
+    # no longer uses actor absence or a time-based dedupe window.
     cast_minimum_absence_seconds: float = 0.85
     cast_result_timeout_seconds: float = 2.0
     cast_poll_seconds: float = 0.05
@@ -74,6 +77,7 @@ class FarmingRuntimeConfig:
             "minimum_dry_run_cast_targets": self.minimum_dry_run_cast_targets,
             "validation_minimum_cast_targets": self.validation_minimum_cast_targets,
             "validation_max_screenshots": self.validation_max_screenshots,
+            "kill_zero_confirmation_reads": self.kill_zero_confirmation_reads,
         }
         for name, value in integer_fields.items():
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:

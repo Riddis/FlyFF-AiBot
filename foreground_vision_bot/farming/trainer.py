@@ -408,7 +408,6 @@ class _TrainingCallback(BaseCallback):
                 "NATIVE TRAINING | "
                 f"steps={self.num_timesteps:,}/{self.config.total_timesteps:,} "
                 f"actors={self.stats.latest_info.get('visible_actors', 0)} "
-                f"eva={self.stats.latest_info.get('eva_actors', 0)} "
                 f"candidates={self.stats.latest_info.get('native_kill_candidates', 0)} "
                 f"native_kills={self.stats.kills} "
                 f"ocr_delta={self.stats.ocr_kill_delta} "
@@ -672,10 +671,10 @@ def validate_native_farming_data(
             now = monotonic()
             if now - started >= selected.validation_run_seconds:
                 break
-            eva_count = int(cast(Any, info.get("eva_actors", 0)))
+            visible_count = int(cast(Any, info.get("visible_actors", 0)))
             if (
                 now >= next_cast_at
-                and eva_count >= selected.validation_minimum_cast_targets
+                and visible_count >= selected.validation_minimum_cast_targets
             ):
                 action = FarmingAction.CAST_EVA
                 next_cast_at = now + selected.eva_cooldown_seconds
@@ -695,8 +694,7 @@ def validate_native_farming_data(
                 _status(
                     status_callback,
                     "DATA VALIDATION | "
-                    f"steps={stats.steps} actors={info.get('visible_actors', 0)} "
-                    f"eva={info.get('eva_actors', 0)} "
+                    f"steps={stats.steps} visible={info.get('visible_actors', 0)} "
                     f"candidates={info.get('native_kill_candidates', 0)} "
                     f"native_kills={stats.kills} "
                     f"ocr_delta={stats.ocr_kill_delta} "
@@ -753,10 +751,10 @@ def validate_native_farming_data(
                     selected.validation_minimum_cast_targets
                 ),
                 "vision_radius_cells": selected.vision_radius_cells,
-                "eva_radius_cells": selected.eva_radius_cells,
+                "eva_radius_cells_observation_only": selected.eva_radius_cells,
                 "eva_cooldown_seconds": selected.eva_cooldown_seconds,
-                "cast_minimum_absence_seconds": (
-                    selected.cast_minimum_absence_seconds
+                "kill_zero_confirmation_reads": (
+                    selected.kill_zero_confirmation_reads
                 ),
                 "cast_result_timeout_seconds": (
                     selected.cast_result_timeout_seconds
@@ -798,8 +796,8 @@ def dry_run_native_farming(
         while bot.rl_enabled and not token.cancelled:
             if stats.steps and monotonic() - stats.started_at >= selected.dry_run_seconds:
                 break
-            eva_count = int(cast(Any, info.get("eva_actors", 0)))
-            if eva_count >= selected.minimum_dry_run_cast_targets:
+            visible_count = int(cast(Any, info.get("visible_actors", 0)))
+            if visible_count >= selected.minimum_dry_run_cast_targets:
                 action = FarmingAction.CAST_EVA
             else:
                 movement = (

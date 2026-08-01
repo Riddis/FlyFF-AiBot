@@ -37,6 +37,7 @@ class PointerRecoveryHints:
     player_max_hp: int | None = None
     monster_hp_by_species: tuple[tuple[int, int], ...] = ()
     require_exact_monster_hp: bool = True
+    require_verified_monster_hp: bool = False
     spawn_tolerance_native: float = 2.0
     movement_minimum_native: float = 0.5
 
@@ -462,6 +463,7 @@ def _monster_anchors(
     evidence: AnchoredDiscoveryEvidence,
     monster_hp_by_species: Mapping[int, int] | None = None,
     require_exact_monster_hp: bool = True,
+    require_verified_monster_hp: bool = False,
 ) -> tuple[tuple[_MonsterAnchor, ...], _InferredActorLayout | None]:
     hypotheses: list[_MonsterHypothesis] = []
     accepted_by_species: dict[int, int] = defaultdict(int)
@@ -478,8 +480,19 @@ def _monster_anchors(
     maximum_species_offset = 0x1000
     maximum_actor_span = max(0x4000, object_span)
     per_species_limit = max(2, maximum_candidates // max(1, len(species_matches)))
+    trusted_hp = {
+        int(species): int(value)
+        for species, value in (monster_hp_by_species or {}).items()
+        if int(species) > 0 and int(value) > 0
+    }
+    trusted_hp_offset_support: dict[int, int] = defaultdict(int)
+    ordered_species = sorted(
+        species_matches,
+        key=lambda species: (species not in trusted_hp, int(species)),
+    )
 
-    for expected_species, matches in species_matches.items():
+    for expected_species in ordered_species:
+        matches = species_matches[expected_species]
         for address in sorted(matches):
             check()
             if accepted_by_species[expected_species] >= per_species_limit:
@@ -569,17 +582,12 @@ def _monster_anchors(
                         offset - (current_species_offset + active_delta)
                     ),
                 )
-                expected_monster_hp = (
-                    None
-                    if monster_hp_by_species is None
-                    else monster_hp_by_species.get(expected_species)
-                )
+                expected_monster_hp = trusted_hp.get(expected_species)
+                discovered_from_exact_anchor = False
                 if expected_monster_hp is not None and require_exact_monster_hp:
-                    # The exact live HP is trusted, but the old HP offset is not.
-                    # Find every aligned occurrence in this structurally validated
-                    # actor and select the one nearest the historical field only as
-                    # a deterministic tie-breaker. Cohort consensus below still
-                    # requires the same selected offset across multiple actors.
+                    # The exact live HP is trusted, but no field offset is. Find
+                    # it dynamically in structurally validated actors. This is
+                    # the same proof used by the successful standalone reader.
                     exact_hp_offsets = _aligned_value_offsets(
                         data,
                         expected_monster_hp,
@@ -595,7 +603,35 @@ def _monster_anchors(
                         ),
                     )
                     hp = expected_monster_hp
+                    discovered_from_exact_anchor = True
+                elif trusted_hp and require_exact_monster_hp:
+                    # Species without a known full-HP constant may share the
+                    # actor layout, but they must use an offset already proven by
+                    # an exact anchored species. Never fall back to configured
+                    # 0x814 after an exact layout anchor has been requested.
+                    if not trusted_hp_offset_support:
+                        evidence.monster_hp_rejections += 1
+                        continue
+                    current_hp_offset = max(
+                        trusted_hp_offset_support,
+                        key=lambda offset: (
+                            trusted_hp_offset_support[offset],
+                            -abs(offset - configured_hp_candidate),
+                            -offset,
+                        ),
+                    )
+                    try:
+                        hp = _i32(data, current_hp_offset)
+                    except Exception:
+                        evidence.monster_hp_rejections += 1
+                        continue
+                    if hp <= 0:
+                        evidence.monster_hp_rejections += 1
+                        continue
                 else:
+                    if require_verified_monster_hp:
+                        evidence.monster_hp_rejections += 1
+                        continue
                     current_hp_offset = configured_hp_candidate
                     try:
                         hp = _i32(data, current_hp_offset)
@@ -616,6 +652,8 @@ def _monster_anchors(
                 ):
                     evidence.monster_coordinate_rejections += 1
                     continue
+                if discovered_from_exact_anchor:
+                    trusted_hp_offset_support[current_hp_offset] += 1
                 hypotheses.append(
                     _MonsterHypothesis(
                         actor=_MonsterAnchor(base, species, data),
@@ -1293,6 +1331,7 @@ def discover_anchored_pointer_candidate(
         evidence=evidence,
         monster_hp_by_species=dict(hints.monster_hp_by_species),
         require_exact_monster_hp=hints.require_exact_monster_hp,
+        require_verified_monster_hp=hints.require_verified_monster_hp,
     )
     if len(anchors) < 2:
         return AnchoredDiscoveryResult(

@@ -7,11 +7,15 @@ from pathlib import Path
 from farming.debug_validation import TrainingDataValidationRecorder
 
 
-def _world(*actors: dict[str, object]) -> dict[str, object]:
+def _world(
+    *actors: dict[str, object],
+    tracked: tuple[dict[str, object], ...] | None = None,
+) -> dict[str, object]:
     return {
         "pointer": {"mode": "independent", "generation": 1},
         "player": {"x": 1.0, "y": 0.0, "z": 2.0, "heading_degrees": 90.0},
         "actors": list(actors),
+        "tracked_actors": list(actors if tracked is None else tracked),
     }
 
 
@@ -68,7 +72,7 @@ def test_validation_package_correlates_native_and_ocr_kills(tmp_path: Path) -> N
             "action": 3,
             "action_name": "CAST_EVA",
             "before": _world(_actor(10), _actor(20)),
-            "after": _world(_actor(20)),
+            "after": _world(_actor(20), tracked=(_actor(10, 0), _actor(20))),
             "observation": {"size": 3, "finite": True, "values": [0.1, 0.5, 0.5]},
             "info": {
                 "native_kill_delta": 1,
@@ -146,6 +150,10 @@ def test_validation_flags_native_kill_channel_when_ocr_increases(tmp_path: Path)
                         "maximum_consecutive_absence": 0,
                         "minimum_seen_hp": 100,
                         "last_seen_hp": 100,
+                        "initial_hp": 100,
+                        "zero_hp_reads": 0,
+                        "maximum_consecutive_zero_hp": 0,
+                        "hp_decreased": False,
                         "confirmed": False,
                     }
                 ],
@@ -164,4 +172,4 @@ def test_validation_flags_native_kill_channel_when_ocr_increases(tmp_path: Path)
         item for item in summary["checks"] if item["name"] == "kill_channel_agreement"
     )
     assert agreement["status"] == "fail"
-    assert "HP/presence fields" in " ".join(summary["recommendations"])
+    assert "live-HP field" in " ".join(summary["recommendations"])

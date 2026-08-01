@@ -2142,6 +2142,17 @@ def _perform_recovery_attempt(
         return None, "not_found", None
     if module_extent is None:
         return None, "anchor_module_metadata_required", None
+    if hints.require_verified_monster_hp and not hints.monster_hp_by_species:
+        _notify(
+            status_callback,
+            "monster_hp_anchor_required",
+            (
+                "The selected monster set has no trusted full-HP recovery anchor; "
+                "refusing to reuse the configured monster HP field."
+            ),
+            _progress_metrics(metrics, control),
+        )
+        return None, "monster_hp_anchor_required", None
     metrics.strategy = "known_species_spawn_anchor"
     _notify(
         status_callback,
@@ -2149,6 +2160,7 @@ def _perform_recovery_attempt(
         (
             "Scanning private memory for anchored actor layout; "
             f"species={hints.known_species_ids}, "
+            f"monster_hp_anchors={hints.monster_hp_by_species}, "
             f"spawn=({hints.player_spawn_x}, {hints.player_spawn_z}), "
             + (
                 f"player_hp={hints.player_current_hp}/{hints.player_max_hp}."

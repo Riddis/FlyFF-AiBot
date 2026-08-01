@@ -8,6 +8,7 @@ from time import monotonic
 from typing import cast
 
 import cv2 as cv
+from assets.Assets import MobInfo
 from capture_service import CaptureService, FrameSource
 from libs.WindowCapture import WindowCapture
 from mapper import Mapper
@@ -524,6 +525,7 @@ class RuntimeController:
     ) -> PointerRecoveryHints:
         config = getattr(self.bot, "config", {})
         species: set[int] = set()
+        monster_hp_by_species: dict[int, int] = {}
         for entry in config.get("selected_mobs", ()):
             if not isinstance(entry, dict):
                 continue
@@ -534,8 +536,36 @@ class RuntimeController:
                 parsed = int(value)
             except (TypeError, ValueError):
                 continue
-            if parsed > 0:
-                species.add(parsed)
+            if parsed <= 0:
+                continue
+            species.add(parsed)
+            anchor_value = entry.get("recovery_anchor_hp")
+            if isinstance(anchor_value, bool):
+                continue
+            try:
+                anchor_hp = int(anchor_value)
+            except (TypeError, ValueError):
+                continue
+            if anchor_hp > 0:
+                monster_hp_by_species[parsed] = anchor_hp
+
+        # Existing saved selections predate recovery_anchor_hp. Resolve trusted
+        # anchors from the current mob registry by species ID so users do not
+        # need to delete/reselect mobs or manually enter HP values.
+        try:
+            registered_mobs = MobInfo.get_all_mobs().values()
+        except Exception:  # noqa: BLE001 - registry hints remain optional.
+            registered_mobs = ()
+        for entry in registered_mobs:
+            if not isinstance(entry, dict):
+                continue
+            try:
+                registered_species = int(entry.get("species_id"))
+                anchor_hp = int(entry.get("recovery_anchor_hp"))
+            except (TypeError, ValueError):
+                continue
+            if registered_species in species and anchor_hp > 0:
+                monster_hp_by_species[registered_species] = anchor_hp
 
         current_hp = player_current_hp
         maximum_hp = player_max_hp
@@ -605,6 +635,8 @@ class RuntimeController:
             player_spawn_z=None if spawn_z is None else float(spawn_z),
             player_current_hp=current_hp,
             player_max_hp=maximum_hp,
+            monster_hp_by_species=tuple(sorted(monster_hp_by_species.items())),
+            require_verified_monster_hp=True,
         )
 
     def stop_native_diagnostic(self) -> bool:

@@ -30,5 +30,6 @@
   "validation_run_seconds": 120.0,
   "validation_status_interval_seconds": 5.0,
   "validation_minimum_cast_targets": 1,
-  "validation_max_screenshots": 16
+  "validation_max_screenshots": 16,
+  "kill_zero_confirmation_reads": 2
 }

@@ -36,6 +36,7 @@ class MobInfo:
         height_offset: int,
         element: str,
         species_id: int | None = None,
+        recovery_anchor_hp: int | None = None,
     ) -> None:
         """
         Add new mob to json collection (mobs_list.json)
@@ -73,6 +74,12 @@ class MobInfo:
                 shutil.copyfile(source_path, destination_path)
 
         current_mobs_list = MobInfo.get_all_mobs()
+        existing = current_mobs_list.get(name)
+        existing_anchor_hp = (
+            existing.get("recovery_anchor_hp")
+            if isinstance(existing, dict)
+            else None
+        )
         current_mobs_list[name] = {
             "name": name,
             "element": element,
@@ -83,6 +90,16 @@ class MobInfo:
             if isinstance(species_id, bool) or int(species_id) < 0:
                 raise ValueError("species_id must be a non-negative integer")
             current_mobs_list[name]["species_id"] = int(species_id)
+
+        anchor_value = (
+            existing_anchor_hp
+            if recovery_anchor_hp is None
+            else recovery_anchor_hp
+        )
+        if anchor_value is not None:
+            if isinstance(anchor_value, bool) or int(anchor_value) <= 0:
+                raise ValueError("recovery_anchor_hp must be a positive integer")
+            current_mobs_list[name]["recovery_anchor_hp"] = int(anchor_value)
 
         with open(json_collection_path, "w+") as file:
             json.dump(current_mobs_list, file)
