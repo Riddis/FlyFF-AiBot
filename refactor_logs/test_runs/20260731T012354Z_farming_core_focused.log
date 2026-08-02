@@ -1,8 +1,0 @@
-Command:
-.venv\Scripts\python.exe -m pytest -q foreground_vision_bot/tests/test_farming_actions.py foreground_vision_bot/tests/test_farming_observation_contract.py foreground_vision_bot/tests/test_farming_map_features.py foreground_vision_bot/tests/test_farming_reward_and_session.py foreground_vision_bot/tests/test_farming_model_contract.py
-
-Result:
-23 passed, 1 warning in 0.35s
-
-Warning:
-Existing PytestCacheWarning WinError 183 while creating .pytest_cache.

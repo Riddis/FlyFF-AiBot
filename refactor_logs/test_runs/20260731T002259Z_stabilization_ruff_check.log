@@ -1,6 +1,0 @@
-Command: .venv\Scripts\ruff.exe check .
-Exit code: 1
-Result: 343 errors; 150 fixable.
-Baseline: 332 errors; 146 fixable.
-The increase includes journal profiling scripts and newly added tests. A focused
-`--select F,I` run over every changed production/test Python file passed.

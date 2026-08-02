@@ -1,8 +1,0 @@
-Command:
-.venv\Scripts\python.exe -m pytest -q foreground_vision_bot/tests/test_worker_manager.py foreground_vision_bot/tests/test_runtime_controller.py foreground_vision_bot/tests/test_pointer_recovery_stabilization.py foreground_vision_bot/tests/test_pointer_persistence_transaction.py foreground_vision_bot/tests/test_v0708_pointer_recovery.py foreground_vision_bot/tests/test_native_process_service.py foreground_vision_bot/tests/test_native_attachment_factory.py foreground_vision_bot/tests/test_native_position_provider.py foreground_vision_bot/tests/test_native_monster_provider.py foreground_vision_bot/tests/test_position_factory.py foreground_vision_bot/tests/test_position_config.py foreground_vision_bot/tests/test_native_monster_config.py foreground_vision_bot/tests/test_native_diagnostics.py foreground_vision_bot/tests/test_native_monster_map_overlay.py foreground_vision_bot/tests/test_bot_preview.py foreground_vision_bot/tests/test_bot_native_monster_map_publish.py
-
-Result:
-92 passed, 1 warning in 2.44s
-
-Warning:
-Existing PytestCacheWarning WinError 183 while creating .pytest_cache.

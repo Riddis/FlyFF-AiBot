@@ -1,40 +1,62 @@
-# Python caches
+# Python caches and test output
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .pytest_tmp/
 .ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
 
-# Runtime diagnostics and generated mapping output
+# Local Python environments
+.venv/
+venv/
+env/
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Runtime logs, diagnostics, debug captures, and crash output
+*.log
+*.trace
+*.dmp
+*.dump
+*.crash
+*.prof
+*.pstats
 debug/
+training_logs/
 mapper/mapping_runs/
-gui_crash.log
 
-# Machine-specific online learning state
+# Generated support/debug packages and other archives
+*.zip
+*.bundle
+*.patch
+
+# Local RL models and checkpoints
+models/
+
+# Generated map and adaptive runtime state
+mapper/maps/
 mapper/adaptive_motion.json
 mapper/adaptive_motion.invalid_*.json
 
-# Temporary archives produced during development
-mapper.zip
-foreground_vision_bot.zip
-refactor_logs.zip
+# Build and packaging output
+build/
+dist/
+*.egg-info/
+*.whl
 
-# Persistent learned map data (keep locally; map_profiles.json is tracked)
-mapper/maps/
-
-# RL model and TensorBoard output (folder layout remains tracked)
-models/farming/*
-!models/farming/.gitkeep
-models/mapping/*
-!models/mapping/.gitkeep
-training_logs/farming/*
-!training_logs/farming/.gitkeep
-training_logs/mapping/*
-!training_logs/mapping/.gitkeep
-training_logs/movement/
-
-# One-time layout repair backups
+# Migration, recovery, and temporary backups
 migration_backups/
+*.bak
+*.tmp
+*.temp
 
-# Transactional native-pointer recovery backups
-*.pre_pointer_recovery.bak
+# Generated Git comparison reports
+CURRENT_VS_KNOWN_GOOD_*.txt

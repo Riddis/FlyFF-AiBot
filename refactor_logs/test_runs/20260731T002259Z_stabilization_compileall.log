@@ -1,4 +1,0 @@
-Command: .venv\Scripts\python.exe -m compileall -q foreground_vision_bot
-Exit code: 0
-Result: pass.
-Warnings: four pre-existing inaccessible foreground_vision_bot/.pytest_tmp/run-* paths could not be listed.

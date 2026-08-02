@@ -79,6 +79,13 @@ class TrainingDataValidationRecorder:
         self._candidate_disappearances = 0
         self._pointer_modes: Counter[str] = Counter()
         self._pointer_generations: Counter[int] = Counter()
+        self._actor_sources: Counter[str] = Counter()
+        self._relation_offsets: Counter[int] = Counter()
+        self._active_offsets: Counter[int] = Counter()
+        self._authoritative_relation_validated_samples = 0
+        self._active_species_validated_samples = 0
+        self._authoritative_refresh_failures = 0
+        self._authoritative_species_max: Counter[int] = Counter()
         self._errors: list[str] = []
         self._finished = False
 
@@ -286,6 +293,44 @@ class TrainingDataValidationRecorder:
                 except (TypeError, ValueError):
                     pass
 
+        source = str(info.get("native_actor_source", "unknown"))
+        self._actor_sources[source] += 1
+        try:
+            relation_offset = info.get("native_authoritative_relation_offset")
+            if relation_offset is not None:
+                self._relation_offsets[int(relation_offset)] += 1
+        except (TypeError, ValueError):
+            pass
+        if bool(info.get("native_authoritative_relation_validated", False)):
+            self._authoritative_relation_validated_samples += 1
+        try:
+            active_offset = info.get("native_active_species_offset")
+            if active_offset is not None:
+                self._active_offsets[int(active_offset)] += 1
+        except (TypeError, ValueError):
+            pass
+        if bool(info.get("native_active_species_validated", False)):
+            self._active_species_validated_samples += 1
+        try:
+            self._authoritative_refresh_failures = max(
+                self._authoritative_refresh_failures,
+                int(info.get("native_authoritative_refresh_failures", 0)),
+            )
+        except (TypeError, ValueError):
+            pass
+        species_counts = info.get("native_authoritative_species_counts")
+        if isinstance(species_counts, list):
+            for item in species_counts:
+                if not isinstance(item, list) or len(item) != 2:
+                    continue
+                try:
+                    species, count = int(item[0]), int(item[1])
+                except (TypeError, ValueError):
+                    continue
+                self._authoritative_species_max[species] = max(
+                    self._authoritative_species_max[species], count
+                )
+
         observation = event.get("observation")
         if isinstance(observation, Mapping):
             try:
@@ -328,6 +373,43 @@ class TrainingDataValidationRecorder:
             recommendations.append("Verify selected species and actor-cache coverage.")
         else:
             add("native_actor_input", "pass", f"Observed {self._actor_samples} actor samples; peak visible={self._maximum_visible_actors}.")
+
+        actor_source_evidence = {
+            key: value
+            for key, value in self._actor_sources.items()
+            if key not in {"", "unknown"}
+        }
+        if actor_source_evidence:
+            if self._authoritative_relation_validated_samples > 0:
+                add(
+                    "authoritative_actor_relation",
+                    "pass",
+                    "The runtime used a dynamically validated global actor relation; "
+                    f"sources={dict(self._actor_sources)}, offsets={dict(self._relation_offsets)}, "
+                    f"species_max={dict(self._authoritative_species_max)}.",
+                )
+            else:
+                add(
+                    "authoritative_actor_relation",
+                    "warn",
+                    "The runtime never reported a validated global actor relation; "
+                    f"sources={dict(self._actor_sources)}.",
+                )
+                recommendations.append(
+                    "Inspect extra.authoritative_actor_discovery and relation scans before changing offsets."
+                )
+            if self._authoritative_refresh_failures:
+                add(
+                    "authoritative_actor_refresh",
+                    "warn",
+                    f"Global actor refresh failures={self._authoritative_refresh_failures}.",
+                )
+            else:
+                add(
+                    "authoritative_actor_refresh",
+                    "pass",
+                    "No global actor refresh failures were reported.",
+                )
 
         if self._movement_steps and self._movement_steps_with_displacement == 0:
             add("player_movement", "fail", "Movement actions were sent but native coordinates never changed.")
@@ -482,6 +564,13 @@ class TrainingDataValidationRecorder:
                 "candidate_disappearances": self._candidate_disappearances,
                 "pointer_modes": dict(self._pointer_modes),
                 "pointer_generations": {str(key): value for key, value in sorted(self._pointer_generations.items())},
+                "actor_sources": dict(self._actor_sources),
+                "authoritative_relation_offsets": {str(key): value for key, value in sorted(self._relation_offsets.items())},
+                "authoritative_relation_validated_samples": self._authoritative_relation_validated_samples,
+                "authoritative_species_max": {str(key): value for key, value in sorted(self._authoritative_species_max.items())},
+                "active_species_offsets": {str(key): value for key, value in sorted(self._active_offsets.items())},
+                "active_species_validated_samples": self._active_species_validated_samples,
+                "authoritative_refresh_failures": self._authoritative_refresh_failures,
                 "observation_sizes": {str(key): value for key, value in sorted(self._observation_sizes.items())},
                 "nonfinite_observations": self._nonfinite_observations,
                 "screenshots": self._screenshots,

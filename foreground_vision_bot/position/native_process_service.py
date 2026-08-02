@@ -609,6 +609,26 @@ class NativeProcessService:
                         "Independent recovery requires the mapped module extent"
                     )
                 try:
+                    selected_species = {
+                        int(value)
+                        for value in (() if hints is None else hints.known_species_ids)
+                        if int(value) > 0
+                    }
+
+                    def actor_status(message: str) -> None:
+                        if status_callback is None:
+                            return
+                        try:
+                            status_callback(
+                                PointerRecoveryProgress(
+                                    phase="authoritative_actor_discovery",
+                                    message=str(message),
+                                    metrics=metrics,
+                                )
+                            )
+                        except Exception:
+                            pass
+
                     independent_reader = IndependentNativeReader(
                         self._memory,
                         self._module_info,
@@ -624,41 +644,36 @@ class NativeProcessService:
                             recovery.independent_expected_full_hp_by_species
                         ),
                         slots_each_direction=31,
+                        selected_species_ids=selected_species,
+                        maximum_scan_address=(
+                            self.monster_config.maximum_scan_address
+                        ),
+                        private_memory_only=(
+                            self.monster_config.private_memory_only
+                        ),
+                        discovery_chunk_bytes=(
+                            self.monster_config.discovery_chunk_bytes
+                        ),
+                        coordinate_limit=(
+                            self.monster_config.maximum_absolute_coordinate
+                        ),
+                        authoritative_refresh_interval_seconds=(
+                            self.monster_config.discovery_interval_seconds
+                        ),
+                        cancellation=cancellation,
+                        deadline=deadline,
+                        status_callback=actor_status,
                     )
                     independent_reader.read_player()
-
-                    selected_species = {
-                        int(value)
-                        for value in (() if hints is None else hints.known_species_ids)
-                        if int(value) > 0
-                    }
-                    anchored_species = {
-                        int(species)
-                        for species, _hp in (
-                            recovery.independent_expected_full_hp_by_species
-                        )
-                    }
-                    additional_species = tuple(
-                        sorted(selected_species - anchored_species)
+                    actor_status(
+                        "Independent actor reader ready: "
+                        f"source={independent_reader.actor_source}, "
+                        f"actors={len(independent_reader.actor_slots)}, "
+                        f"species={dict(independent_reader.authoritative_species_counts)}, "
+                        f"relation={None if independent_reader.authoritative_relation_offset is None else hex(independent_reader.authoritative_relation_offset)}, "
+                        f"active={None if independent_reader.active_species_offset is None else hex(independent_reader.active_species_offset)}, "
+                        f"active_validated={independent_reader.active_species_validated}."
                     )
-                    if additional_species and status_callback is not None:
-                        try:
-                            status_callback(
-                                PointerRecoveryProgress(
-                                    phase="runtime_actor_slots_ready",
-                                    message=(
-                                        "Pointer and actor layout recovery is complete. "
-                                        f"The independent reader will inspect {len(independent_reader.actor_slots)} "
-                                        "bounded slab addresses directly; no timed slot promotion "
-                                        "or active-field gate is used. Additional selected species "
-                                        f"{additional_species} are included whenever instantiated; "
-                                        "pointer recovery is not rescanned."
-                                    ),
-                                    metrics=metrics,
-                                )
-                            )
-                        except Exception:
-                            pass
                 except Exception as error:
                     raise NativeProcessServiceError(
                         "Independent player/actor reader could not be activated"

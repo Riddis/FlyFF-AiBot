@@ -1,9 +1,0 @@
-Command:
-.venv\Scripts\python.exe -m pytest -q foreground_vision_bot/tests/test_pointer_recovery_stabilization.py foreground_vision_bot/tests/test_v0708_pointer_recovery.py foreground_vision_bot/tests/test_native_position_provider.py foreground_vision_bot/tests/test_native_monster_provider.py foreground_vision_bot/tests/test_farming_startup_cancellation.py foreground_vision_bot/tests/test_v0706_camera_focus_regressions.py foreground_vision_bot/tests/test_native_farming_env.py foreground_vision_bot/tests/test_native_farming_config.py foreground_vision_bot/tests/test_runtime_bus.py foreground_vision_bot/tests/test_worker_manager.py foreground_vision_bot/tests/test_capture_service.py foreground_vision_bot/tests/test_preview_service.py foreground_vision_bot/tests/test_runtime_controller.py foreground_vision_bot/tests/test_gui_responsive_preview.py
-
-Result:
-66 passed, 1 warning in 1.48 seconds.
-
-The former import-order failures are fixed. Importing native_farming no longer
-mutates NativeFarmingEnv. Runtime patches are installed only after native startup
-preflight and cancellation checks.
