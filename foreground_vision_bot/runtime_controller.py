@@ -749,12 +749,32 @@ class RuntimeController:
         session_id = self._control_session_id
 
         def report(message: str) -> None:
+            rendered = str(message)
             self.bus.publish_status(
                 status_key,
-                str(message),
+                rendered,
                 session_id=session_id,
             )
-            self.bus.log(str(message), "msg_blue")
+            self.bus.log(rendered, "msg_blue")
+            if (
+                status_key == "rl_status"
+                and "reason=external_teleport" in rendered
+            ):
+                pulse_completed = "teleport_pulse=completed" in rendered
+                pulse_text = (
+                    "The bot sent the configured 300 ms forward recovery pulse"
+                    if pulse_completed
+                    else "The bot attempted the forward recovery pulse, but it failed"
+                )
+                self.bus.alert(
+                    "Unexpected teleport detected",
+                    "The character teleported while outside the mapped teleport "
+                    f"area. {pulse_text}, released all movement keys, and stopped. "
+                    "Any active training session was saved safely before this "
+                    "alert. Review the session diagnostics for the recorded "
+                    "coordinates and pulse result.",
+                    session_id=session_id,
+                )
             self.bus.heartbeat(worker)
 
         return report

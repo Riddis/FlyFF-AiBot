@@ -111,6 +111,11 @@ class SessionStats:
     reward: float = 0.0
     action_counts: Counter[str] = field(default_factory=Counter)
     reward_components: dict[str, float] = field(default_factory=dict)
+    jump_requests: int = 0
+    jumps_performed: int = 0
+    teleport_suspicions: int = 0
+    teleport_rejections: int = 0
+    last_teleport_diagnostic: dict[str, object] = field(default_factory=dict)
     latest_info: dict[str, object] = field(default_factory=dict)
 
     def observe(self, info: Mapping[str, object], reward: float) -> None:
@@ -139,6 +144,19 @@ class SessionStats:
             and raw_delta > 0
         ):
             self.ocr_kill_delta += raw_delta
+        if info.get("jump_requested") is True:
+            self.jump_requests += 1
+        if info.get("jump_performed") is True:
+            self.jumps_performed += 1
+        if info.get("teleport_suspected") is True:
+            self.teleport_suspicions += 1
+            if info.get("teleport_confirmed") is not True:
+                self.teleport_rejections += 1
+            self.last_teleport_diagnostic = {
+                key: value
+                for key, value in info.items()
+                if key.startswith("teleport_")
+            }
         raw_components = info.get("reward_components")
         if isinstance(raw_components, Mapping):
             for name, value in raw_components.items():
@@ -152,6 +170,16 @@ class SessionStats:
 def _status(callback: StatusCallback | None, message: str) -> None:
     if callback is not None:
         callback(message)
+
+
+def _teleport_pulse_status(info: Mapping[str, object]) -> str:
+    if info.get("unexpected_teleport") is not True:
+        return "not_applicable"
+    if info.get("teleport_recovery_pulse_completed") is True:
+        return "completed"
+    if info.get("teleport_recovery_pulse_attempted") is True:
+        return "failed"
+    return "not_attempted"
 
 
 def _raise_if_cancelled(cancellation: CancellationToken) -> None:
@@ -270,6 +298,7 @@ def build_live_farming_runtime(
         cancellation,
         keymap=FarmingKeyMap.for_layout(config.keyboard_layout),
         eva_press_seconds=config.eva_press_seconds,
+        jump_press_seconds=config.jump_press_seconds,
         focus_service=focus,
     )
     domain = UnifiedFarmingEnv(
@@ -362,6 +391,15 @@ def _report_payload(
         "total_reward": stats.reward,
         "reward_components": dict(stats.reward_components),
         "action_counts": dict(stats.action_counts),
+        "jump": {
+            "requests": stats.jump_requests,
+            "performed": stats.jumps_performed,
+        },
+        "teleport_diagnostics": {
+            "suspicions": stats.teleport_suspicions,
+            "rejected_outliers": stats.teleport_rejections,
+            "last": stats.last_teleport_diagnostic,
+        },
         "latest_info": stats.latest_info,
         "error": None if error is None else {
             "type": type(error).__name__,
@@ -401,6 +439,19 @@ class _TrainingCallback(BaseCallback):
             if isinstance(info, Mapping):
                 reward = float(rewards[index]) if index < rewards.size else 0.0
                 self.stats.observe(info, reward)
+                if (
+                    info.get("teleport_suspected") is True
+                    and info.get("teleport_confirmed") is not True
+                ):
+                    _status(
+                        self.status_callback,
+                        "TELEPORT OUTLIER REJECTED | "
+                        f"reason={info.get('teleport_reason', '--')} "
+                        f"before={info.get('teleport_before_native_position', [])} "
+                        f"samples={info.get('teleport_native_positions', [])} "
+                        f"displacements={info.get('teleport_displacements_cells', [])} "
+                        f"thresholds={info.get('teleport_thresholds_cells', [])}",
+                    )
         now = monotonic()
         if now - self._last_status >= self.config.stats_interval_seconds:
             _status(
@@ -415,6 +466,8 @@ class _TrainingCallback(BaseCallback):
                 f"ocr_delta={self.stats.ocr_kill_delta} "
                 f"ocr={self.stats.ocr_latest if self.stats.ocr_latest is not None else '--'} "
                 f"reward={self.stats.reward:+.2f} "
+                f"jumps={self.stats.jumps_performed}/{self.stats.jump_requests} "
+                f"teleport_rejects={self.stats.teleport_rejections} "
                 f"action={self.stats.latest_info.get('action_name', '--')}",
             )
             self._last_status = now
@@ -522,7 +575,7 @@ def train_native_farming(
         _raise_if_cancelled(token)
         _status(
             status_callback,
-            "Farming preflight passed; enabling direct four-action PPO control.",
+            "Farming preflight passed; enabling direct five-action PPO control.",
         )
         bot.start()
         callback = _TrainingCallback(
@@ -571,7 +624,10 @@ def train_native_farming(
         )
         _status(
             status_callback,
-            f"Farming session saved safely | reason={reason} model={model_path}",
+            "Farming session saved safely | "
+            f"reason={reason} "
+            f"teleport_pulse={_teleport_pulse_status(stats.latest_info)} "
+            f"model={model_path}",
         )
         return model_path
     except WorkerCancelled as error:
@@ -686,6 +742,7 @@ def validate_native_farming_data(
                     FarmingAction.RUN_FORWARD,
                     FarmingAction.RUN_FORWARD_LEFT,
                     FarmingAction.RUN_FORWARD_RIGHT,
+                    FarmingAction.RUN_FORWARD_JUMP,
                 )
                 action = movement[(turn // 12) % len(movement)]
             result = runtime.domain.step(action)
@@ -792,6 +849,8 @@ def validate_native_farming_data(
     _status(
         status_callback,
         "Training-data validation finished | "
+        f"reason={session_reason} "
+        f"teleport_pulse={_teleport_pulse_status(stats.latest_info)} "
         f"native_kills={stats.kills} ocr_delta={stats.ocr_kill_delta} "
         f"archive={artifacts.archive_path}",
     )
@@ -827,6 +886,7 @@ def dry_run_native_farming(
                     FarmingAction.RUN_FORWARD,
                     FarmingAction.RUN_FORWARD_LEFT,
                     FarmingAction.RUN_FORWARD_RIGHT,
+                    FarmingAction.RUN_FORWARD_JUMP,
                 )
                 action = movement[(turn // 10) % len(movement)]
             result = runtime.domain.step(action)
@@ -839,6 +899,7 @@ def dry_run_native_farming(
             status_callback,
             "Native dry run finished | "
             f"reason={info.get('session_end_reason', 'dry_run_complete')} "
+            f"teleport_pulse={_teleport_pulse_status(stats.latest_info)} "
             f"steps={stats.steps} native_kills={stats.kills} "
             f"ocr_delta={stats.ocr_kill_delta} "
             f"ocr={stats.ocr_latest if stats.ocr_latest is not None else '--'} "
@@ -891,6 +952,7 @@ def run_native_farming_agent(
             status_callback,
             "Native farming agent finished | "
             f"reason={stats.latest_info.get('session_end_reason', 'stopped')} "
+            f"teleport_pulse={_teleport_pulse_status(stats.latest_info)} "
             f"steps={stats.steps} native_kills={stats.kills} "
             f"ocr_delta={stats.ocr_kill_delta}",
         )

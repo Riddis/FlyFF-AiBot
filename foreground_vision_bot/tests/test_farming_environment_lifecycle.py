@@ -79,17 +79,25 @@ class FakeWorldReader:
         return item
 
 
-def _frame(x: float, z: float = 0.0) -> NativeWorldFrame:
+def _frame(
+    x: float,
+    z: float = 0.0,
+    *,
+    timestamp: float | None = None,
+    player_base: int = 3,
+    pointer_slot: int = 1,
+) -> NativeWorldFrame:
+    captured = x if timestamp is None else float(timestamp)
     return NativeWorldFrame(
         pointer_snapshot=NativePointerSnapshot(
-            player_pointer_address=1,
+            player_pointer_address=pointer_slot,
             world_pointer_address=2,
-            player_base=3,
+            player_base=player_base,
             world_base=4,
             generation=0,
-            captured_at=x,
+            captured_at=captured,
         ),
-        player_pose=PlayerPose(x, 0.0, z, 90.0, x),
+        player_pose=PlayerPose(x, 0.0, z, 90.0, captured),
         actors=(),
     )
 
@@ -220,3 +228,247 @@ def test_external_world_change_raises_before_gym_tuple_and_cannot_reset() -> Non
     assert environment.state is FarmingEnvironmentState.SEALED
     with pytest.raises(RuntimeError, match="cannot be auto-reset"):
         adapter.reset()
+
+
+def test_teleport_guard_allows_large_displacement_after_long_step() -> None:
+    environment, _clock, _keyboard = _environment(FakeWorldReader())
+    before = _frame(0.0, timestamp=0.0)
+    after = _frame(30.0, timestamp=2.0)
+
+    selected, diagnostic = environment._confirm_teleport_sample(before, after)
+
+    assert selected is after
+    assert diagnostic.suspected is False
+    assert diagnostic.confirmed is False
+    assert diagnostic.reason == "below_threshold"
+    assert diagnostic.effective_threshold_cells == pytest.approx(43.0)
+    assert diagnostic.displacements_cells == pytest.approx((30.0,))
+
+
+def test_teleport_guard_rejects_one_bad_coordinate_sample() -> None:
+    environment, _clock, _keyboard = _environment(
+        FakeWorldReader(
+            _frame(0.2, timestamp=0.25),
+            _frame(0.3, timestamp=0.30),
+        )
+    )
+    before = _frame(0.0, timestamp=0.0)
+    outlier = _frame(30.0, timestamp=0.20)
+
+    selected, diagnostic = environment._confirm_teleport_sample(before, outlier)
+
+    assert selected.player_pose.x == pytest.approx(0.3)
+    assert diagnostic.suspected is True
+    assert diagnostic.confirmed is False
+    assert diagnostic.reason == "returned_below_threshold"
+    assert diagnostic.selected_sample_index == 2
+    assert diagnostic.displacements_cells == pytest.approx((30.0, 0.2, 0.3))
+    assert diagnostic.native_positions == (
+        (30.0, 0.0, 0.0),
+        (0.2, 0.0, 0.0),
+        (0.3, 0.0, 0.0),
+    )
+    assert diagnostic.before_native_position == (0.0, 0.0, 0.0)
+    assert diagnostic.pose_timestamps == pytest.approx((0.20, 0.25, 0.30))
+
+
+def test_teleport_guard_requires_stable_identity_and_destination() -> None:
+    environment, _clock, _keyboard = _environment(
+        FakeWorldReader(
+            _frame(101.0, timestamp=0.25),
+            _frame(101.5, timestamp=0.30),
+        )
+    )
+    before = _frame(0.0, timestamp=0.0)
+    first = _frame(100.0, timestamp=0.20)
+
+    selected, diagnostic = environment._confirm_teleport_sample(before, first)
+
+    assert selected.player_pose.x == pytest.approx(101.5)
+    assert diagnostic.confirmed is True
+    assert diagnostic.reason == "stable_repeated_discontinuity_same_player"
+    assert diagnostic.destination_spread_cells == pytest.approx(1.5)
+    assert diagnostic.player_bases == (3, 3, 3)
+
+
+def test_teleport_guard_rejects_unstable_far_destination() -> None:
+    environment, _clock, _keyboard = _environment(
+        FakeWorldReader(
+            _frame(-30.0, timestamp=0.25),
+            _frame(31.0, timestamp=0.30),
+        )
+    )
+    before = _frame(0.0, timestamp=0.0)
+    first = _frame(30.0, timestamp=0.20)
+
+    selected, diagnostic = environment._confirm_teleport_sample(before, first)
+
+    assert diagnostic.confirmed is False
+    assert diagnostic.reason == "destination_unstable"
+    assert diagnostic.destination_spread_cells == pytest.approx(61.0)
+    assert selected.player_pose.x == pytest.approx(30.0)
+
+
+def test_teleport_guard_rejects_unstable_player_identity_samples() -> None:
+    environment, _clock, _keyboard = _environment(
+        FakeWorldReader(
+            _frame(101.0, timestamp=0.25, player_base=9, pointer_slot=8),
+            _frame(101.5, timestamp=0.30, player_base=10, pointer_slot=9),
+        )
+    )
+    before = _frame(0.0, timestamp=0.0, player_base=3, pointer_slot=1)
+    first = _frame(100.0, timestamp=0.20, player_base=9, pointer_slot=8)
+
+    _selected, diagnostic = environment._confirm_teleport_sample(before, first)
+
+    assert diagnostic.confirmed is False
+    assert diagnostic.player_identity_stable is False
+    assert diagnostic.reason == "player_identity_unstable"
+    assert diagnostic.player_bases == (9, 9, 10)
+
+
+
+def test_teleport_guard_confirms_stable_relocation_to_new_player_object() -> None:
+    environment, _clock, _keyboard = _environment(
+        FakeWorldReader(
+            _frame(101.0, timestamp=0.25, player_base=9, pointer_slot=8),
+            _frame(101.5, timestamp=0.30, player_base=9, pointer_slot=8),
+        )
+    )
+    before = _frame(0.0, timestamp=0.0, player_base=3, pointer_slot=1)
+    first = _frame(100.0, timestamp=0.20, player_base=9, pointer_slot=8)
+
+    _selected, diagnostic = environment._confirm_teleport_sample(before, first)
+
+    assert diagnostic.confirmed is True
+    assert diagnostic.player_identity_stable is True
+    assert diagnostic.player_identity_changed is True
+    assert diagnostic.reason == "stable_repeated_discontinuity_new_player"
+    assert diagnostic.player_bases == (9, 9, 9)
+    assert diagnostic.pointer_slots == (8, 8, 8)
+
+
+def test_confirmed_outside_map_teleport_ends_cleanly_without_building_bad_frame() -> None:
+    environment, _clock, keyboard = _environment(
+        FakeWorldReader(
+            _frame(-4.0, timestamp=0.0),
+            _frame(100.0, timestamp=0.20),
+            _frame(101.0, timestamp=0.25),
+            _frame(101.5, timestamp=0.30),
+        )
+    )
+    adapter = UnifiedFarmingGymEnv(environment)
+    adapter.reset()
+
+    with pytest.raises(ExternalSessionEnded) as captured:
+        adapter.step(0)
+
+    result = captured.value.step_result
+    assert result.outcome.reason.value == "external_teleport"
+    assert result.info["teleport_confirmed"] is True
+    assert result.info["teleport_selected_map_cell"] is None
+    assert result.info["teleport_before_native_position"] == [-4.0, 0.0, 0.0]
+    assert result.info["unexpected_teleport"] is True
+    assert result.info["teleport_source_in_mapped_area"] is False
+    assert result.info["teleport_recovery_pulse_attempted"] is True
+    assert result.info["teleport_recovery_pulse_completed"] is True
+    assert result.info["teleport_recovery_pulse_seconds"] == pytest.approx(0.3)
+    assert result.info["teleport_recovery_pulse_error"] is None
+    assert environment.control.held_keys == ()
+    assert keyboard.trace[-3:] == [
+        ("up", 0x5A),
+        ("down", 0x5A),
+        ("up", 0x5A),
+    ]
+    assert environment.state is FarmingEnvironmentState.SEALED
+
+
+def test_confirmed_teleport_from_mapped_area_does_not_send_recovery_pulse() -> None:
+    environment, _clock, keyboard = _environment(
+        FakeWorldReader(
+            _frame(0.0, timestamp=0.0),
+            _frame(100.0, timestamp=0.20),
+            _frame(101.0, timestamp=0.25),
+            _frame(101.5, timestamp=0.30),
+        )
+    )
+    adapter = UnifiedFarmingGymEnv(environment)
+    adapter.reset()
+
+    observation, reward, terminated, truncated, info = adapter.step(0)
+
+    assert observation.shape == (482,)
+    assert reward < -40.0
+    assert terminated is True
+    assert truncated is False
+    assert info["session_end_reason"] == "forbidden_zone_entered"
+    assert info["teleport_source_in_mapped_area"] is True
+    assert info["unexpected_teleport"] is False
+    assert info["teleport_recovery_pulse_attempted"] is False
+    assert info["teleport_recovery_pulse_completed"] is False
+    assert keyboard.trace == [("down", 0x5A), ("up", 0x5A)]
+
+
+def test_incoherent_far_samples_stop_without_consuming_untrusted_position() -> None:
+    environment, _clock, _keyboard = _environment(
+        FakeWorldReader(
+            _frame(0.0, timestamp=0.0),
+            _frame(30.0, timestamp=0.20),
+            _frame(-30.0, timestamp=0.25),
+            _frame(31.0, timestamp=0.30),
+        )
+    )
+    adapter = UnifiedFarmingGymEnv(environment)
+    adapter.reset()
+
+    with pytest.raises(ExternalSessionEnded) as captured:
+        adapter.step(0)
+
+    result = captured.value.step_result
+    assert result.outcome.reason.value == "pointer_grace_exhausted"
+    assert result.info["teleport_suspected"] is True
+    assert result.info["teleport_confirmed"] is False
+    assert result.info["teleport_usable_sample_found"] is False
+    assert result.info["teleport_reason"] == "destination_unstable"
+    assert result.observation.shape == (482,)
+    assert environment.state is FarmingEnvironmentState.SEALED
+
+
+def test_jump_action_always_executes_but_flair_reward_obeys_cooldown() -> None:
+    environment, _clock, keyboard = _environment(
+        FakeWorldReader(
+            _frame(0.0, timestamp=0.0),
+            _frame(0.2, timestamp=0.2),
+            _frame(0.4, timestamp=0.4),
+        )
+    )
+    environment.reset()
+
+    first = environment.step(4)
+    first_trace = tuple(keyboard.trace)
+    repeated = environment.step(4)
+
+    assert first.info["jump_requested"] is True
+    assert first.info["jump_available"] is True
+    assert first.info["jump_reward_available"] is True
+    assert first.info["jump_rewarded"] is True
+    assert first.info["jump_performed"] is True
+    assert first.info["executed_action_name"] == "RUN_FORWARD_JUMP"
+    assert first.reward.components.jump_flair == pytest.approx(0.001)
+    assert first_trace == (
+        ("down", 0x5A),
+        ("down", 0x20),
+        ("up", 0x20),
+    )
+
+    assert repeated.info["jump_requested"] is True
+    assert repeated.info["jump_available"] is True
+    assert repeated.info["jump_reward_available"] is False
+    assert repeated.info["jump_rewarded"] is False
+    assert repeated.info["jump_performed"] is True
+    assert repeated.info["executed_action_name"] == "RUN_FORWARD_JUMP"
+    assert repeated.reward.components.jump_flair == 0.0
+    assert tuple(keyboard.trace)[len(first_trace) :] == (
+        ("down", 0x20),
+        ("up", 0x20),
+    )

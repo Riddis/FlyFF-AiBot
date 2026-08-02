@@ -39,7 +39,12 @@ from .observation import (
     PlayerObservation,
 )
 from .reward import RewardCalculator, RewardConfig, RewardEvidence, RewardResult
-from .session import SessionEvidence, SessionOutcome, classify_session_outcome
+from .session import (
+    SessionEndReason,
+    SessionEvidence,
+    SessionOutcome,
+    classify_session_outcome,
+)
 
 FloatArray = NDArray[np.float32]
 
@@ -81,6 +86,39 @@ class _FrameFeatures:
     forbidden_distance_cells: float | None
 
 
+@dataclass(frozen=True, slots=True)
+class _TeleportConfirmation:
+    suspected: bool = False
+    confirmed: bool = False
+    reason: str = "below_threshold"
+    effective_threshold_cells: float = 0.0
+    elapsed_seconds: float = 0.0
+    thresholds_cells: tuple[float, ...] = ()
+    selected_sample_index: int = 0
+    displacements_cells: tuple[float, ...] = ()
+    destination_spread_cells: float | None = None
+    player_identity_stable: bool = True
+    player_identity_changed: bool = False
+    usable_sample_found: bool = True
+    before_player_base: int = 0
+    before_pointer_slot: int = 0
+    before_native_position: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    before_pose_timestamp: float = 0.0
+    player_bases: tuple[int, ...] = ()
+    pointer_slots: tuple[int, ...] = ()
+    native_positions: tuple[tuple[float, float, float], ...] = ()
+    pose_timestamps: tuple[float, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class _UnexpectedTeleportResponse:
+    source_in_mapped_teleport_area: bool = False
+    pulse_attempted: bool = False
+    pulse_completed: bool = False
+    pulse_seconds: float = 0.0
+    pulse_error: str | None = None
+
+
 class UnifiedFarmingEnv:
     """One explicit live farming session with exactly one reset."""
 
@@ -120,6 +158,7 @@ class UnifiedFarmingEnv:
                 teleport_proximity_penalty=self.config.teleport_proximity_penalty,
                 teleport_buffer_penalty=self.config.teleport_buffer_penalty,
                 teleport_trigger_penalty=self.config.teleport_trigger_penalty,
+                jump_flair_reward=self.config.jump_flair_reward,
             )
         )
         self.kill_tracker = kill_tracker or NativeKillTracker(
@@ -137,6 +176,7 @@ class UnifiedFarmingEnv:
         self._state = FarmingEnvironmentState.NEW
         self._started_at: float | None = None
         self._last_cast_at: float | None = None
+        self._last_jump_at: float | None = None
         self._last_features: _FrameFeatures | None = None
         self._terminal_observation: FloatArray | None = None
 
@@ -184,6 +224,29 @@ class UnifiedFarmingEnv:
             )
         )
 
+    def _jump_cooldown_fraction(self, now: float) -> float:
+        if self._last_jump_at is None:
+            return 1.0
+        return float(
+            np.clip(
+                (now - self._last_jump_at) / self.config.jump_cooldown_seconds,
+                0.0,
+                1.0,
+            )
+        )
+
+    def _jump_available(self, before: _FrameFeatures, now: float) -> bool:
+        # The policy may request forward+jump from any movement state.  The
+        # action itself is never masked or degraded; selecting it always holds
+        # forward and taps Space.  ``jump_cooldown_seconds`` limits only how
+        # often the tiny flair reward can be earned, preventing reward farming
+        # without restricting the physical action.
+        del before, now
+        return True
+
+    def _jump_reward_available(self, now: float) -> bool:
+        return self._jump_cooldown_fraction(now) >= 1.0
+
     def _build_features(
         self,
         world: NativeWorldFrame,
@@ -220,7 +283,7 @@ class UnifiedFarmingEnv:
             contact=contact,
             held_movement=self.control.held_movement,
             last_policy_action=action,
-            time_since_cast_fraction=cooldown,
+            jump_cooldown_fraction=self._jump_cooldown_fraction(now),
             map_available=True,
         )
         built = self.observation_builder.build(
@@ -456,6 +519,234 @@ class UnifiedFarmingEnv:
             f"Native world remained unavailable through pointer grace: {last_error}",
         )
 
+    def _displacement_cells(
+        self,
+        before: NativeWorldFrame,
+        after: NativeWorldFrame,
+    ) -> float:
+        return float(
+            hypot(
+                after.player_pose.x - before.player_pose.x,
+                after.player_pose.z - before.player_pose.z,
+            )
+            / self.map_context.native_units_per_cell
+        )
+
+    @staticmethod
+    def _frame_identity(frame: NativeWorldFrame) -> tuple[int, int]:
+        snapshot = frame.pointer_snapshot
+        return int(snapshot.player_base), int(snapshot.player_pointer_address)
+
+    @staticmethod
+    def _native_position(frame: NativeWorldFrame) -> tuple[float, float, float]:
+        pose = frame.player_pose
+        return float(pose.x), float(pose.y), float(pose.z)
+
+    @staticmethod
+    def _elapsed_pose_seconds(
+        before: NativeWorldFrame,
+        after: NativeWorldFrame,
+    ) -> float:
+        return max(
+            0.0,
+            float(after.player_pose.timestamp) - float(before.player_pose.timestamp),
+        )
+
+    def _teleport_threshold_cells(
+        self,
+        before: NativeWorldFrame,
+        after: NativeWorldFrame,
+    ) -> float:
+        elapsed = self._elapsed_pose_seconds(before, after)
+        motion_allowance = (
+            self.config.teleport_motion_allowance_cells_per_second * elapsed
+            + self.config.teleport_motion_margin_cells
+        )
+        return float(
+            max(self.config.teleport_jump_threshold_cells, motion_allowance)
+        )
+
+    def _destination_spread_cells(
+        self,
+        samples: tuple[NativeWorldFrame, ...],
+    ) -> float:
+        maximum = 0.0
+        units = self.map_context.native_units_per_cell
+        for index, left in enumerate(samples):
+            for right in samples[index + 1 :]:
+                maximum = max(
+                    maximum,
+                    hypot(
+                        right.player_pose.x - left.player_pose.x,
+                        right.player_pose.z - left.player_pose.z,
+                    )
+                    / units,
+                )
+        return float(maximum)
+
+    def _confirm_teleport_sample(
+        self,
+        before: NativeWorldFrame,
+        first_after: NativeWorldFrame,
+    ) -> tuple[NativeWorldFrame, _TeleportConfirmation]:
+        first_displacement = self._displacement_cells(before, first_after)
+        first_threshold = self._teleport_threshold_cells(before, first_after)
+        first_elapsed = self._elapsed_pose_seconds(before, first_after)
+        if first_displacement < first_threshold:
+            return first_after, _TeleportConfirmation(
+                reason="below_threshold",
+                effective_threshold_cells=first_threshold,
+                elapsed_seconds=first_elapsed,
+                thresholds_cells=(first_threshold,),
+                displacements_cells=(first_displacement,),
+                player_identity_stable=True,
+                player_identity_changed=(
+                    self._frame_identity(first_after) != self._frame_identity(before)
+                ),
+                usable_sample_found=True,
+                before_player_base=int(before.pointer_snapshot.player_base),
+                before_pointer_slot=int(
+                    before.pointer_snapshot.player_pointer_address
+                ),
+                before_native_position=self._native_position(before),
+                before_pose_timestamp=float(before.player_pose.timestamp),
+                player_bases=(int(first_after.pointer_snapshot.player_base),),
+                pointer_slots=(
+                    int(first_after.pointer_snapshot.player_pointer_address),
+                ),
+                native_positions=(self._native_position(first_after),),
+                pose_timestamps=(float(first_after.player_pose.timestamp),),
+            )
+
+        samples: list[NativeWorldFrame] = [first_after]
+        while len(samples) < self.config.teleport_confirmation_samples:
+            self._wait(self.config.teleport_confirmation_interval_seconds)
+            samples.append(self._read_after_with_grace())
+
+        sample_tuple = tuple(samples)
+        displacements = tuple(
+            self._displacement_cells(before, sample) for sample in sample_tuple
+        )
+        thresholds = tuple(
+            self._teleport_threshold_cells(before, sample) for sample in sample_tuple
+        )
+        identities = tuple(self._frame_identity(sample) for sample in sample_tuple)
+        before_identity = self._frame_identity(before)
+        same_as_before = tuple(
+            identity == before_identity for identity in identities
+        )
+        after_identity_stable = len(set(identities)) == 1
+        after_identity_changed = bool(
+            after_identity_stable and identities[0] != before_identity
+        )
+        spread = self._destination_spread_cells(sample_tuple)
+        all_far = all(
+            displacement >= threshold
+            for displacement, threshold in zip(
+                displacements,
+                thresholds,
+                strict=True,
+            )
+        )
+        destination_stable = (
+            spread <= self.config.teleport_confirmation_tolerance_cells
+        )
+        confirmed = bool(
+            after_identity_stable and all_far and destination_stable
+        )
+
+        if confirmed:
+            selected_index = len(sample_tuple) - 1
+            reason = (
+                "stable_repeated_discontinuity_new_player"
+                if after_identity_changed
+                else "stable_repeated_discontinuity_same_player"
+            )
+        else:
+            safe_matching_indices = [
+                index
+                for index, matches in enumerate(same_as_before)
+                if matches and displacements[index] < thresholds[index]
+            ]
+            matching_indices = [
+                index for index, matches in enumerate(same_as_before) if matches
+            ]
+            if safe_matching_indices:
+                selected_index = safe_matching_indices[-1]
+            else:
+                pool = matching_indices or list(range(len(sample_tuple)))
+                selected_index = min(pool, key=lambda index: displacements[index])
+            if not after_identity_stable:
+                reason = "player_identity_unstable"
+            elif not all_far:
+                reason = "returned_below_threshold"
+            else:
+                reason = "destination_unstable"
+
+        selected = sample_tuple[selected_index]
+        return selected, _TeleportConfirmation(
+            suspected=True,
+            confirmed=confirmed,
+            reason=reason,
+            effective_threshold_cells=max(thresholds),
+            elapsed_seconds=max(
+                self._elapsed_pose_seconds(before, sample) for sample in sample_tuple
+            ),
+            thresholds_cells=thresholds,
+            selected_sample_index=selected_index,
+            displacements_cells=displacements,
+            destination_spread_cells=spread,
+            player_identity_stable=after_identity_stable,
+            player_identity_changed=after_identity_changed,
+            usable_sample_found=bool(confirmed or safe_matching_indices),
+            before_player_base=int(before.pointer_snapshot.player_base),
+            before_pointer_slot=int(
+                before.pointer_snapshot.player_pointer_address
+            ),
+            before_native_position=self._native_position(before),
+            before_pose_timestamp=float(before.player_pose.timestamp),
+            player_bases=tuple(identity[0] for identity in identities),
+            pointer_slots=tuple(identity[1] for identity in identities),
+            native_positions=tuple(
+                self._native_position(sample) for sample in sample_tuple
+            ),
+            pose_timestamps=tuple(
+                float(sample.player_pose.timestamp) for sample in sample_tuple
+            ),
+        )
+
+    def _respond_to_unexpected_teleport(
+        self,
+        *,
+        source_in_mapped_teleport_area: bool,
+    ) -> _UnexpectedTeleportResponse:
+        if source_in_mapped_teleport_area:
+            return _UnexpectedTeleportResponse(
+                source_in_mapped_teleport_area=True,
+            )
+
+        seconds = float(self.config.unexpected_teleport_forward_pulse_seconds)
+        try:
+            self.control.pulse_forward(seconds)
+        except Exception as error:  # Stop even when the recovery pulse fails.
+            try:
+                self.control.release()
+            except Exception:
+                pass
+            return _UnexpectedTeleportResponse(
+                source_in_mapped_teleport_area=False,
+                pulse_attempted=True,
+                pulse_completed=False,
+                pulse_seconds=seconds,
+                pulse_error=f"{type(error).__name__}: {error}",
+            )
+        return _UnexpectedTeleportResponse(
+            source_in_mapped_teleport_area=False,
+            pulse_attempted=True,
+            pulse_completed=True,
+            pulse_seconds=seconds,
+        )
+
     def step(self, action: FarmingAction | int) -> FarmingStep:
         self._ensure_state(FarmingEnvironmentState.ACTIVE)
         selected = coerce_farming_action(action)
@@ -463,13 +754,24 @@ class UnifiedFarmingEnv:
         assert before is not None
         started = self._clock()
         eva_available = self._cooldown_fraction(started) >= 1.0
+        jump_requested = selected is FarmingAction.RUN_FORWARD_JUMP
+        jump_available = bool(
+            jump_requested and self._jump_available(before, started)
+        )
+        jump_reward_available = bool(
+            jump_requested and self._jump_reward_available(started)
+        )
+        executed = selected
+        jump_performed = bool(jump_requested)
         kill_result = NativeKillResult((), 0, 0, 0, False, 0.0)
         ocr: OcrDiagnostic | None = None
         try:
             cast_window = None
             if selected is FarmingAction.CAST_EVA and eva_available:
                 cast_window = self.kill_tracker.begin_cast(before.world)
-            self.control.execute(selected)
+            self.control.execute(executed)
+            if jump_reward_available:
+                self._last_jump_at = started
             if selected is FarmingAction.CAST_EVA:
                 self._last_cast_at = started
                 if cast_window is not None:
@@ -485,15 +787,136 @@ class UnifiedFarmingEnv:
 
             if self._read_ocr_kills is not None:
                 ocr = self.ocr_diagnostics.observe(self._read_ocr_kills())
-            after_world = self._read_after_with_grace()
-            finished = self._clock()
-            displacement = (
-                hypot(
-                    after_world.player_pose.x - before.world.player_pose.x,
-                    after_world.player_pose.z - before.world.player_pose.z,
-                )
-                / self.map_context.native_units_per_cell
+            first_after_world = self._read_after_with_grace()
+            after_world, teleport = self._confirm_teleport_sample(
+                before.world,
+                first_after_world,
             )
+            finished = self._clock()
+            displacement = self._displacement_cells(before.world, after_world)
+            source_in_mapped_teleport_area = bool(
+                self.map_context.features.is_forbidden(before.player_cell)
+                or (
+                    before.forbidden_distance_cells is not None
+                    and before.forbidden_distance_cells
+                    <= self.config.teleport_buffer_radius_cells
+                )
+            )
+            if teleport.confirmed:
+                response = self._respond_to_unexpected_teleport(
+                    source_in_mapped_teleport_area=source_in_mapped_teleport_area,
+                )
+                if source_in_mapped_teleport_area:
+                    outcome = SessionOutcome.forbidden_zone_entered()
+                    event_name = "expected_map_teleport"
+                else:
+                    outcome = classify_session_outcome(
+                        SessionEvidence(
+                            user_cancelled=self._cancelled(self.cancellation),
+                            session_time_expired=bool(
+                                self._started_at is not None
+                                and finished - self._started_at
+                                >= self.config.episode_seconds
+                            ),
+                            map_transition=(
+                                after_world.world_base != before.world.world_base
+                            ),
+                            external_teleport_confirmed=True,
+                            displacement_cells=displacement,
+                            teleport_jump_threshold_cells=(
+                                self.config.teleport_jump_threshold_cells
+                            ),
+                        )
+                    )
+                    event_name = "external_teleport"
+                reward = self.reward_calculator.calculate(
+                    RewardEvidence(
+                        native_kill_delta=kill_result.kill_count,
+                        forbidden_distance_cells=(
+                            0.0 if source_in_mapped_teleport_area else None
+                        ),
+                        session_outcome=outcome,
+                    )
+                )
+                info = self._info(
+                    action=selected,
+                    features=before,
+                    reward=reward,
+                    outcome=outcome,
+                    native_kills=kill_result.kill_count,
+                    ocr=ocr,
+                    kill_result=kill_result,
+                    cast_window=cast_window,
+                    eva_available=eva_available,
+                    displacement_cells=displacement,
+                    teleport=teleport,
+                    teleport_response=response,
+                    executed_action=executed,
+                    jump_requested=jump_requested,
+                    jump_available=jump_available,
+                    jump_reward_available=jump_reward_available,
+                    jump_performed=jump_performed,
+                )
+                self._emit_diagnostic(
+                    event=event_name,
+                    action=selected,
+                    before=before,
+                    after=before,
+                    observation=before.built.vector,
+                    info=info,
+                    eva_available=eva_available,
+                    cast_window=cast_window,
+                    kill_result=kill_result,
+                    ocr=ocr,
+                )
+                self._seal(before.built.vector)
+                return FarmingStep(before.built.vector, reward, outcome, info)
+
+            if teleport.suspected and not teleport.usable_sample_found:
+                outcome = SessionOutcome.external(
+                    SessionEndReason.POINTER_GRACE_EXHAUSTED,
+                    "coordinate confirmation samples remained incoherent; "
+                    "training stopped before consuming an untrusted position",
+                )
+                reward = self.reward_calculator.calculate(
+                    RewardEvidence(
+                        native_kill_delta=kill_result.kill_count,
+                        session_outcome=outcome,
+                    )
+                )
+                info = self._info(
+                    action=selected,
+                    features=before,
+                    reward=reward,
+                    outcome=outcome,
+                    native_kills=kill_result.kill_count,
+                    ocr=ocr,
+                    kill_result=kill_result,
+                    cast_window=cast_window,
+                    eva_available=eva_available,
+                    displacement_cells=displacement,
+                    teleport=teleport,
+                    executed_action=executed,
+                    jump_requested=jump_requested,
+                    jump_available=jump_available,
+                    jump_reward_available=jump_reward_available,
+                    jump_performed=jump_performed,
+                )
+                self._emit_diagnostic(
+                    event="incoherent_position_samples",
+                    action=selected,
+                    before=before,
+                    after=before,
+                    observation=before.built.vector,
+                    info=info,
+                    eva_available=eva_available,
+                    cast_window=cast_window,
+                    kill_result=kill_result,
+                    ocr=ocr,
+                )
+                self._seal(before.built.vector)
+                return FarmingStep(before.built.vector, reward, outcome, info)
+
             contact = bool(selected.is_movement and displacement <= 0.05)
             after = self._build_features(
                 after_world,
@@ -509,6 +932,7 @@ class UnifiedFarmingEnv:
                     and finished - self._started_at >= self.config.episode_seconds
                 ),
                 map_transition=(after.world.world_base != before.world.world_base),
+                external_teleport_confirmed=teleport.confirmed,
                 sampled_forbidden_occupancy=self.map_context.features.is_forbidden(
                     after.player_cell
                 ),
@@ -532,6 +956,7 @@ class UnifiedFarmingEnv:
                     eva_attempted=selected is FarmingAction.CAST_EVA,
                     eva_available=eva_available,
                     contact=contact,
+                    jump_performed=jump_reward_available,
                     forbidden_distance_cells=after.forbidden_distance_cells,
                     session_outcome=outcome,
                 )
@@ -548,6 +973,12 @@ class UnifiedFarmingEnv:
                 eva_available=eva_available,
                 displacement_cells=displacement,
                 contact=contact,
+                teleport=teleport,
+                executed_action=executed,
+                jump_requested=jump_requested,
+                jump_available=jump_available,
+                jump_reward_available=jump_reward_available,
+                jump_performed=jump_performed,
             )
             self._emit_diagnostic(
                 event="step",
@@ -649,6 +1080,13 @@ class UnifiedFarmingEnv:
         eva_available: bool | None = None,
         displacement_cells: float = 0.0,
         contact: bool = False,
+        teleport: _TeleportConfirmation | None = None,
+        teleport_response: _UnexpectedTeleportResponse | None = None,
+        executed_action: FarmingAction | None = None,
+        jump_requested: bool = False,
+        jump_available: bool = False,
+        jump_reward_available: bool = False,
+        jump_performed: bool = False,
     ) -> dict[str, object]:
         tracked_actors = (
             features.world.tracked_actors
@@ -656,9 +1094,8 @@ class UnifiedFarmingEnv:
             else features.world.actors
         )
         hp_actor = tracked_actors[0] if tracked_actors else None
-        actor_diagnostics = getattr(
-            self.world_reader.actor_reader, "last_diagnostics", None
-        )
+        actor_reader = getattr(self.world_reader, "actor_reader", None)
+        actor_diagnostics = getattr(actor_reader, "last_diagnostics", None)
         return {
             "action": int(action),
             "action_name": action.name,
@@ -728,8 +1165,125 @@ class UnifiedFarmingEnv:
                 ]
             ),
             "eva_available": eva_available,
+            "executed_action": int(
+                action if executed_action is None else executed_action
+            ),
+            "executed_action_name": (
+                action.name if executed_action is None else executed_action.name
+            ),
+            "jump_requested": bool(jump_requested),
+            "jump_available": bool(jump_available),
+            "jump_reward_available": bool(jump_reward_available),
+            "jump_rewarded": bool(jump_requested and jump_reward_available),
+            "jump_performed": bool(jump_performed),
+            "jump_cooldown_fraction": float(
+                self._jump_cooldown_fraction(self._clock())
+            ),
             "player_displacement_cells": float(displacement_cells),
             "contact": bool(contact),
+            "teleport_suspected": bool(
+                False if teleport is None else teleport.suspected
+            ),
+            "teleport_confirmed": bool(
+                False if teleport is None else teleport.confirmed
+            ),
+            "teleport_source_in_mapped_area": bool(
+                False
+                if teleport_response is None
+                else teleport_response.source_in_mapped_teleport_area
+            ),
+            "unexpected_teleport": bool(
+                teleport is not None
+                and teleport.confirmed
+                and teleport_response is not None
+                and not teleport_response.source_in_mapped_teleport_area
+            ),
+            "teleport_recovery_pulse_attempted": bool(
+                False
+                if teleport_response is None
+                else teleport_response.pulse_attempted
+            ),
+            "teleport_recovery_pulse_completed": bool(
+                False
+                if teleport_response is None
+                else teleport_response.pulse_completed
+            ),
+            "teleport_recovery_pulse_seconds": float(
+                0.0
+                if teleport_response is None
+                else teleport_response.pulse_seconds
+            ),
+            "teleport_recovery_pulse_error": (
+                None
+                if teleport_response is None
+                else teleport_response.pulse_error
+            ),
+            "teleport_reason": (
+                None if teleport is None else teleport.reason
+            ),
+            "teleport_effective_threshold_cells": (
+                None if teleport is None else teleport.effective_threshold_cells
+            ),
+            "teleport_elapsed_seconds": (
+                None if teleport is None else teleport.elapsed_seconds
+            ),
+            "teleport_thresholds_cells": (
+                [] if teleport is None else list(teleport.thresholds_cells)
+            ),
+            "teleport_displacements_cells": (
+                [] if teleport is None else list(teleport.displacements_cells)
+            ),
+            "teleport_destination_spread_cells": (
+                None if teleport is None else teleport.destination_spread_cells
+            ),
+            "teleport_player_identity_stable": (
+                None if teleport is None else teleport.player_identity_stable
+            ),
+            "teleport_player_identity_changed": (
+                None if teleport is None else teleport.player_identity_changed
+            ),
+            "teleport_usable_sample_found": (
+                None if teleport is None else teleport.usable_sample_found
+            ),
+            "teleport_selected_sample_index": (
+                None if teleport is None else teleport.selected_sample_index
+            ),
+            "teleport_selected_map_cell": (
+                None
+                if teleport is None or not teleport.native_positions
+                else self.map_context.native_to_layout_cell(
+                    teleport.native_positions[teleport.selected_sample_index][0],
+                    teleport.native_positions[teleport.selected_sample_index][2],
+                )
+            ),
+            "teleport_before_player_base": (
+                None if teleport is None else teleport.before_player_base
+            ),
+            "teleport_before_pointer_slot": (
+                None if teleport is None else teleport.before_pointer_slot
+            ),
+            "teleport_before_native_position": (
+                None
+                if teleport is None
+                else list(teleport.before_native_position)
+            ),
+            "teleport_before_pose_timestamp": (
+                None if teleport is None else teleport.before_pose_timestamp
+            ),
+            "teleport_player_bases": (
+                [] if teleport is None else list(teleport.player_bases)
+            ),
+            "teleport_pointer_slots": (
+                [] if teleport is None else list(teleport.pointer_slots)
+            ),
+            "teleport_native_positions": (
+                []
+                if teleport is None
+                else [list(position) for position in teleport.native_positions]
+            ),
+            "teleport_pose_timestamps": (
+                [] if teleport is None else list(teleport.pose_timestamps)
+            ),
             "player_native_position": (
                 float(features.world.player_pose.x),
                 float(features.world.player_pose.y),

@@ -37,3 +37,20 @@ def test_mapper_recovery_request_roundtrip() -> None:
     worker.join(timeout=1.0)
 
     assert result == ["retry"]
+
+
+def test_runtime_alerts_are_reliable_and_drained_once() -> None:
+    bus = RuntimeBus()
+
+    bus.alert(
+        "Unexpected teleport detected",
+        "Forward pulse completed and control stopped.",
+        session_id=7,
+    )
+
+    alerts = bus.drain_alerts()
+    assert len(alerts) == 1
+    assert alerts[0].title == "Unexpected teleport detected"
+    assert alerts[0].message == "Forward pulse completed and control stopped."
+    assert alerts[0].session_id == 7
+    assert bus.drain_alerts() == []

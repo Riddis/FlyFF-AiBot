@@ -104,6 +104,40 @@ def test_focus_service_wait_is_cancellable_and_control_releases_keys() -> None:
     assert keyboard.trace[-2:] == [("focus", None), ("up", keys.forward)]
 
 
+
+
+def test_emergency_forward_pulse_releases_existing_movement_and_stops() -> None:
+    keyboard = FakeKeyboard()
+
+    class RecordingToken(FakeToken):
+        def __init__(self) -> None:
+            super().__init__()
+            self.waits: list[float] = []
+
+        def wait(self, seconds: float) -> bool:
+            self.waits.append(float(seconds))
+            return False
+
+    token = RecordingToken()
+    keys = FarmingKeyMap.azerty()
+    control = DirectFarmingControl(keyboard, token, keymap=keys)
+    control.execute(1)
+
+    control.pulse_forward(0.3)
+
+    assert token.waits == [pytest.approx(0.3)]
+    assert control.held_keys == ()
+    assert control.held_movement is None
+    assert keyboard.trace == [
+        ("down", keys.forward),
+        ("down", keys.left),
+        ("up", keys.left),
+        ("up", keys.forward),
+        ("down", keys.forward),
+        ("up", keys.forward),
+    ]
+
+
 def test_shipped_config_migrates_without_using_hierarchical_navigation() -> None:
     root = Path(__file__).parents[1]
 
@@ -112,6 +146,11 @@ def test_shipped_config_migrates_without_using_hierarchical_navigation() -> None
     assert config.control_interval_seconds == pytest.approx(0.2)
     assert config.pointer_grace_seconds == pytest.approx(3.0)
     assert config.keyboard_layout == "azerty"
+    assert config.model_path.endswith("native_strategy_jump_ppo")
+    assert config.jump_cooldown_seconds == pytest.approx(2.0)
+    assert config.jump_flair_reward == pytest.approx(0.001)
+    assert config.teleport_confirmation_samples == 3
+    assert config.unexpected_teleport_forward_pulse_seconds == pytest.approx(0.3)
     assert "movement_model_path" not in config.contract_payload()
 
 
@@ -176,6 +215,24 @@ def test_direct_control_persists_movement_and_eva_never_releases_it() -> None:
     control.close()
     assert tuple(keyboard.trace) == after_close
     assert keyboard.trace[-2:] == [("up", keys.right), ("up", keys.forward)]
+
+
+def test_direct_control_forward_jump_keeps_forward_held_and_taps_space() -> None:
+    keyboard = FakeKeyboard()
+    token = FakeToken()
+    keys = FarmingKeyMap.azerty()
+    control = DirectFarmingControl(keyboard, token, keymap=keys)
+
+    control.execute(0)
+    before_jump = tuple(keyboard.trace)
+    control.execute(4)
+
+    assert control.held_keys == (keys.forward,)
+    assert control.held_movement is not None
+    assert keyboard.trace[len(before_jump) :] == [
+        ("down", keys.jump),
+        ("up", keys.jump),
+    ]
 
 
 def test_direct_control_releases_on_focus_loss_and_eva_cancellation() -> None:

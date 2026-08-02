@@ -394,3 +394,22 @@ def test_rl_startup_recovery_verifies_snapshot_before_entering_trainer(
     assert invoked == ["dry"]
     assert service.recovery_kwargs["persist"] is False
     assert bot.stop_calls == 1
+
+
+def test_rl_reporter_queues_unexpected_teleport_alert() -> None:
+    bus = RuntimeBus()
+    controller = object.__new__(RuntimeController)
+    controller.bus = bus
+    controller._control_session_id = 12
+
+    report = controller._reporter("rl_status", "rl")
+    report(
+        "Farming session saved safely | reason=external_teleport "
+        "teleport_pulse=completed model=test.zip"
+    )
+
+    alerts = bus.drain_alerts()
+    assert len(alerts) == 1
+    assert alerts[0].title == "Unexpected teleport detected"
+    assert "300 ms forward recovery pulse" in alerts[0].message
+    assert alerts[0].session_id == 12

@@ -8,6 +8,7 @@ from typing import Protocol
 from .actions import FarmingAction, coerce_farming_action
 
 VKEY_F1 = 0x70
+VKEY_SPACE = 0x20
 VKEY_A = 0x41
 VKEY_D = 0x44
 VKEY_Q = 0x51
@@ -103,6 +104,7 @@ class FarmingKeyMap:
     left: int
     right: int
     eva: int = VKEY_F1
+    jump: int = VKEY_SPACE
 
     @classmethod
     def azerty(cls) -> FarmingKeyMap:
@@ -122,7 +124,7 @@ class FarmingKeyMap:
 
 
 class DirectFarmingControl:
-    """One persistent physical-key lease for the four policy actions."""
+    """One persistent physical-key lease for the five policy actions."""
 
     def __init__(
         self,
@@ -131,6 +133,7 @@ class DirectFarmingControl:
         *,
         keymap: FarmingKeyMap | None = None,
         eva_press_seconds: float = 0.03,
+        jump_press_seconds: float = 0.03,
         focus_service: WindowFocusService | None = None,
         sleeper: Callable[[float], None] = sleep,
     ) -> None:
@@ -138,10 +141,13 @@ class DirectFarmingControl:
             raise ValueError("The worker cancellation token is required")
         if eva_press_seconds <= 0.0:
             raise ValueError("eva_press_seconds must be positive")
+        if jump_press_seconds <= 0.0:
+            raise ValueError("jump_press_seconds must be positive")
         self.keyboard = keyboard
         self.cancellation = cancellation
         self.keymap = keymap or FarmingKeyMap.azerty()
         self.eva_press_seconds = float(eva_press_seconds)
+        self.jump_press_seconds = float(jump_press_seconds)
         self.focus = focus_service or WindowFocusService(keyboard, cancellation)
         self._sleep = sleeper
         self._held_keys: tuple[int, ...] = ()
@@ -186,6 +192,13 @@ class DirectFarmingControl:
         if selected is FarmingAction.CAST_EVA:
             self._cast_eva()
             return
+        if selected is FarmingAction.RUN_FORWARD_JUMP:
+            self._set_movement(
+                FarmingAction.RUN_FORWARD,
+                (self.keymap.forward,),
+            )
+            self._tap_jump()
+            return
         desired = {
             FarmingAction.RUN_FORWARD: (self.keymap.forward,),
             FarmingAction.RUN_FORWARD_LEFT: (
@@ -229,12 +242,26 @@ class DirectFarmingControl:
         self._held_keys = desired
         self._held_movement = action
 
-    def _wait_eva_press(self) -> None:
+    def _wait_press(self, seconds: float) -> None:
         wait = getattr(self.cancellation, "wait", None)
         if callable(wait):
-            wait(self.eva_press_seconds)
+            wait(seconds)
         else:
-            self._sleep(self.eva_press_seconds)
+            self._sleep(seconds)
+
+    def _wait_eva_press(self) -> None:
+        self._wait_press(self.eva_press_seconds)
+
+    def _tap_jump(self) -> None:
+        pressed = False
+        try:
+            self.keyboard.key_down(self.keymap.jump)
+            pressed = True
+            self._wait_press(self.jump_press_seconds)
+        finally:
+            if pressed:
+                self.keyboard.key_up(self.keymap.jump)
+        self._raise_if_cancelled()
 
     def _cast_eva(self) -> None:
         pressed = False
@@ -246,6 +273,28 @@ class DirectFarmingControl:
             if pressed:
                 self.keyboard.key_up(self.keymap.eva)
         self._raise_if_cancelled()
+
+    def pulse_forward(self, seconds: float) -> None:
+        """Run forward for a bounded emergency pulse, then release every key."""
+
+        duration = float(seconds)
+        if duration <= 0.0:
+            raise ValueError("forward pulse duration must be positive")
+        self._ensure_ready()
+        self.release()
+        pressed = False
+        try:
+            self.keyboard.key_down(self.keymap.forward)
+            pressed = True
+            self._held_keys = (self.keymap.forward,)
+            self._held_movement = FarmingAction.RUN_FORWARD
+            self._wait_press(duration)
+            self._raise_if_cancelled(release=False)
+        finally:
+            self._held_keys = ()
+            self._held_movement = None
+            if pressed:
+                self.keyboard.key_up(self.keymap.forward)
 
     def release(self) -> None:
         held = self._held_keys

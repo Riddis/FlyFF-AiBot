@@ -1,6 +1,11 @@
 import difflib
 import math
 import re
+
+try:
+    import winsound
+except ImportError:  # pragma: no cover - Windows production dependency.
+    winsound = None
 from time import monotonic
 
 import cv2 as cv
@@ -8,7 +13,7 @@ import PySimpleGUI as sg
 from mapper.ManualMapEditor import ManualMapEditorSession
 from mapper.MapCatalog import MapCatalog
 from mapper.OccupancyGrid import OccupancyGrid
-from runtime_bus import RuntimeBus, RuntimeStatus
+from runtime_bus import RuntimeAlert, RuntimeBus, RuntimeStatus
 from runtime_controller import RuntimeController
 from utils.helpers import get_window_handlers, hex_variant
 
@@ -589,6 +594,14 @@ class Gui:
                 "msg_red",
             )
 
+        for alert in self.runtime_bus.drain_alerts():
+            if (
+                alert.session_id is not None
+                and alert.session_id != self.controller.control_session_id
+            ):
+                continue
+            self.__show_runtime_alert(alert)
+
         request = self.runtime_bus.pop_confirmation()
         if request is not None:
             result = self.__confirm_heading_reading(
@@ -794,6 +807,20 @@ class Gui:
         if self.controller is None:
             self.runtime_bus.close()
         self.window.close()
+
+    def __show_runtime_alert(self, alert: RuntimeAlert) -> None:
+        if winsound is not None:
+            try:
+                winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+            except RuntimeError:
+                pass
+        sg.popup_error(
+            alert.message,
+            title=alert.title,
+            keep_on_top=True,
+            modal=True,
+            location=(80, 80),
+        )
 
     def show_error(self, message: str) -> None:
         """Display an error above the main window from the GUI thread."""

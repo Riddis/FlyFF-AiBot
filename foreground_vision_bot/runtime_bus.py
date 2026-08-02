@@ -58,6 +58,15 @@ class RuntimeStatus:
     session_id: int | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class RuntimeAlert:
+    """Reliable low-rate GUI alert emitted by a background worker."""
+
+    title: str
+    message: str
+    session_id: int | None = None
+
+
 class RuntimeBus:
     """Bounded high-rate state and reliable low-rate runtime delivery."""
 
@@ -76,6 +85,7 @@ class RuntimeBus:
         # messages. They must never be silently evicted.
         self._completions: deque[TaskCompletion] = deque()
         self._failures: deque[WorkerFailure] = deque()
+        self._alerts: deque[RuntimeAlert] = deque()
         self._confirmations: deque[ConfirmationRequest] = deque()
         self._mapper_recoveries: deque[MapperRecoveryRequest] = deque()
         self._next_confirmation_id = 1
@@ -189,6 +199,28 @@ class RuntimeBus:
         with self._lock:
             items = list(self._failures)
             self._failures.clear()
+        return items
+
+    def alert(
+        self,
+        title: str,
+        message: str,
+        *,
+        session_id: int | None = None,
+    ) -> None:
+        item = RuntimeAlert(
+            title=str(title),
+            message=str(message),
+            session_id=session_id,
+        )
+        with self._lock:
+            if not self._closed:
+                self._alerts.append(item)
+
+    def drain_alerts(self) -> list[RuntimeAlert]:
+        with self._lock:
+            items = list(self._alerts)
+            self._alerts.clear()
         return items
 
     def heartbeat(self, worker: str) -> None:

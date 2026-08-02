@@ -7,7 +7,7 @@ from numbers import Real
 from pathlib import Path
 from typing import Final
 
-CONFIG_VERSION: Final = 3
+CONFIG_VERSION: Final = 4
 _DEPRECATED_KEYS: Final = frozenset(
     {
         "version",
@@ -30,9 +30,9 @@ class FarmingRuntimeConfig:
     total_timesteps: int = 100_000
     checkpoint_frequency: int = 10_000
     stats_interval_seconds: float = 10.0
-    model_path: str = "models/farming/native_strategy_ppo"
-    checkpoint_dir: str = "models/farming/native_checkpoints"
-    tensorboard_dir: str = "training_logs/farming/native_strategy"
+    model_path: str = "models/farming/native_strategy_jump_ppo"
+    checkpoint_dir: str = "models/farming/native_strategy_jump_checkpoints"
+    tensorboard_dir: str = "training_logs/farming/native_strategy_jump"
     session_report_dir: str = "training_logs/farming/native_sessions"
     validation_session_dir: str = "training_logs/farming/data_validation"
     validation_run_seconds: float = 120.0
@@ -64,6 +64,15 @@ class FarmingRuntimeConfig:
     cast_poll_seconds: float = 0.05
     kill_dedupe_seconds: float = 4.0
     eva_press_seconds: float = 0.03
+    jump_press_seconds: float = 0.03
+    jump_cooldown_seconds: float = 2.0
+    jump_flair_reward: float = 0.001
+    teleport_confirmation_samples: int = 3
+    teleport_confirmation_interval_seconds: float = 0.05
+    teleport_confirmation_tolerance_cells: float = 4.0
+    teleport_motion_allowance_cells_per_second: float = 20.0
+    teleport_motion_margin_cells: float = 3.0
+    unexpected_teleport_forward_pulse_seconds: float = 0.30
     keyboard_layout: str = "azerty"
     autofocus: bool = True
     focus_grace_seconds: float = 2.0
@@ -78,6 +87,7 @@ class FarmingRuntimeConfig:
             "validation_minimum_cast_targets": self.validation_minimum_cast_targets,
             "validation_max_screenshots": self.validation_max_screenshots,
             "kill_zero_confirmation_reads": self.kill_zero_confirmation_reads,
+            "teleport_confirmation_samples": self.teleport_confirmation_samples,
         }
         for name, value in integer_fields.items():
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
@@ -108,6 +118,21 @@ class FarmingRuntimeConfig:
             "cast_poll_seconds": self.cast_poll_seconds,
             "kill_dedupe_seconds": self.kill_dedupe_seconds,
             "eva_press_seconds": self.eva_press_seconds,
+            "jump_press_seconds": self.jump_press_seconds,
+            "jump_cooldown_seconds": self.jump_cooldown_seconds,
+            "teleport_confirmation_interval_seconds": (
+                self.teleport_confirmation_interval_seconds
+            ),
+            "teleport_confirmation_tolerance_cells": (
+                self.teleport_confirmation_tolerance_cells
+            ),
+            "teleport_motion_allowance_cells_per_second": (
+                self.teleport_motion_allowance_cells_per_second
+            ),
+            "teleport_motion_margin_cells": self.teleport_motion_margin_cells,
+            "unexpected_teleport_forward_pulse_seconds": (
+                self.unexpected_teleport_forward_pulse_seconds
+            ),
             "focus_grace_seconds": self.focus_grace_seconds,
             "focus_poll_seconds": self.focus_poll_seconds,
         }
@@ -139,6 +164,18 @@ class FarmingRuntimeConfig:
                 "cast_result_timeout_seconds cannot be shorter than the minimum "
                 "absence interval"
             )
+        if (
+            isinstance(self.jump_flair_reward, bool)
+            or not isinstance(self.jump_flair_reward, Real)
+            or not isfinite(float(self.jump_flair_reward))
+            or not 0.0 <= float(self.jump_flair_reward) <= 0.01
+        ):
+            raise ValueError(
+                "jump_flair_reward must be a real number between 0 and 0.01"
+            )
+        object.__setattr__(self, "jump_flair_reward", float(self.jump_flair_reward))
+        if self.teleport_confirmation_samples < 2:
+            raise ValueError("teleport_confirmation_samples must be at least two")
         if not isinstance(self.keyboard_layout, str) or self.keyboard_layout not in {
             "azerty",
             "qwerty",
