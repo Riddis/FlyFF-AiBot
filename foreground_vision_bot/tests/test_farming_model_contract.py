@@ -24,7 +24,7 @@ def _current_spaces() -> ModelSpaceSignature:
     return ModelSpaceSignature(
         observation_shape=(482,),
         observation_dtype="float32",
-        action_count=4,
+        action_count=5,
         action_start=0,
     )
 
@@ -34,43 +34,51 @@ def test_new_model_metadata_binds_semantic_observation_and_action_contract() -> 
     validation = validate_model_contract(_current_spaces(), metadata=metadata)
 
     assert metadata.contract_hash == MODEL_CONTRACT_HASH
-    assert metadata.observation_schema_id == "native-unified-482-v1"
+    assert metadata.observation_schema_id == "native-unified-482-v2"
     assert metadata.action_names == (
         "RUN_FORWARD",
         "RUN_FORWARD_LEFT",
         "RUN_FORWARD_RIGHT",
         "CAST_EVA",
+        "RUN_FORWARD_JUMP",
     )
-    assert metadata.action_values == (0, 1, 2, 3)
+    assert metadata.action_values == (0, 1, 2, 3, 4)
     assert validation.source is ModelContractSource.EMBEDDED_METADATA
     descriptor = CURRENT_MODEL_CONTRACT.descriptor()
     assert descriptor["action_space"] == {
         "kind": "Discrete",
-        "count": 4,
+        "count": 5,
         "start": 0,
         "coercion": "integral index only; booleans and foreign enums rejected",
     }
     assert descriptor["action_execution"] == {
-        "persistent_movement_values": (0, 1, 2),
+        "persistent_movement_values": (0, 1, 2, 4),
         "cast_eva_value": 3,
+        "run_forward_jump_value": 4,
         "movement_persists_until_replaced": True,
         "cast_eva_releases_movement": False,
+        "jump_always_executes_forward_and_space": True,
+        "jump_action_is_never_masked_or_degraded": True,
+        "jump_flair_reward_has_cooldown": True,
     }
 
 
-def test_recorded_active_model_is_only_metadata_less_model_accepted() -> None:
-    accepted = validate_model_contract(
-        _current_spaces(),
-        artifact_sha256=ACTIVE_METADATALESS_MODEL_SHA256.lower(),
-    )
-    assert accepted.source is ModelContractSource.ACTIVE_LEGACY_HASH
-    assert accepted.artifact_sha256 == ACTIVE_METADATALESS_MODEL_SHA256
-    assert accepted.contract_hash == ACTIVE_METADATALESS_MODEL_CONTRACT_HASH
+def test_old_metadata_less_four_action_model_is_rejected_after_jump_upgrade() -> None:
+    with pytest.raises(ModelContractError, match="action-space mismatch"):
+        validate_model_contract(
+            ModelSpaceSignature(
+                observation_shape=(482,),
+                observation_dtype="float32",
+                action_count=4,
+                action_start=0,
+            ),
+            artifact_sha256=ACTIVE_METADATALESS_MODEL_SHA256,
+        )
 
-    with pytest.raises(ModelContractError, match="Unknown metadata-less"):
+    with pytest.raises(ModelContractError, match="bound to contract"):
         validate_model_contract(
             _current_spaces(),
-            artifact_sha256="0" * 64,
+            artifact_sha256=ACTIVE_METADATALESS_MODEL_SHA256,
         )
 
 
@@ -84,6 +92,7 @@ def test_approved_artifact_hash_cannot_bypass_same_shape_semantic_drift() -> Non
             "RUN_FORWARD_RIGHT",
             "RUN_FORWARD_LEFT",
             "CAST_EVA",
+            "RUN_FORWARD_JUMP",
         ),
         action_values=CURRENT_MODEL_CONTRACT.action_values,
     )
@@ -102,7 +111,7 @@ def test_model_space_mismatch_fails_before_semantic_or_hash_fallback() -> None:
             ModelSpaceSignature(
                 observation_shape=(481,),
                 observation_dtype="float32",
-                action_count=4,
+                action_count=5,
                 action_start=0,
             ),
             artifact_sha256=ACTIVE_METADATALESS_MODEL_SHA256,
@@ -112,7 +121,7 @@ def test_model_space_mismatch_fails_before_semantic_or_hash_fallback() -> None:
             ModelSpaceSignature(
                 observation_shape=(482,),
                 observation_dtype="float32",
-                action_count=5,
+                action_count=4,
                 action_start=0,
             ),
             artifact_sha256=ACTIVE_METADATALESS_MODEL_SHA256,
@@ -126,6 +135,7 @@ def test_same_shape_model_with_changed_action_semantics_is_rejected() -> None:
         "RUN_FORWARD_RIGHT",
         "RUN_FORWARD_LEFT",
         "CAST_EVA",
+        "RUN_FORWARD_JUMP",
     ]
 
     with pytest.raises(ModelContractError, match="action_names"):
@@ -137,7 +147,7 @@ def test_space_signature_reads_box_shape_and_discrete_count_without_gym_import()
 ):
     signature = ModelSpaceSignature.from_spaces(
         SimpleNamespace(shape=(482,), dtype=np.dtype("float32")),
-        SimpleNamespace(n=4, start=0),
+        SimpleNamespace(n=5, start=0),
     )
     assert signature == _current_spaces()
     assert CURRENT_MODEL_CONTRACT.semantic_hash == MODEL_CONTRACT_HASH
@@ -147,22 +157,22 @@ def test_space_signature_rejects_coercible_or_missing_space_contract_fields() ->
     with pytest.raises(ModelContractError, match="observation shape dimension"):
         ModelSpaceSignature.from_spaces(
             SimpleNamespace(shape=(482.0,), dtype=np.dtype("float32")),
-            SimpleNamespace(n=4, start=0),
+            SimpleNamespace(n=5, start=0),
         )
     with pytest.raises(ModelContractError, match="scalar discrete"):
         ModelSpaceSignature.from_spaces(
             SimpleNamespace(shape=(482,), dtype=np.dtype("float32")),
-            SimpleNamespace(n=4.0, start=0),
+            SimpleNamespace(n=5.0, start=0),
         )
     with pytest.raises(ModelContractError, match="start index"):
         ModelSpaceSignature.from_spaces(
             SimpleNamespace(shape=(482,), dtype=np.dtype("float32")),
-            SimpleNamespace(n=4),
+            SimpleNamespace(n=5),
         )
     with pytest.raises(ModelContractError, match="dtype"):
         ModelSpaceSignature.from_spaces(
             SimpleNamespace(shape=(482,)),
-            SimpleNamespace(n=4, start=0),
+            SimpleNamespace(n=5, start=0),
         )
 
 
@@ -172,7 +182,7 @@ def test_model_space_dtype_and_discrete_start_fail_closed() -> None:
             ModelSpaceSignature(
                 observation_shape=(482,),
                 observation_dtype="float64",
-                action_count=4,
+                action_count=5,
                 action_start=0,
             ),
             artifact_sha256=ACTIVE_METADATALESS_MODEL_SHA256,
@@ -182,7 +192,7 @@ def test_model_space_dtype_and_discrete_start_fail_closed() -> None:
             ModelSpaceSignature(
                 observation_shape=(482,),
                 observation_dtype="float32",
-                action_count=4,
+                action_count=5,
                 action_start=1,
             ),
             artifact_sha256=ACTIVE_METADATALESS_MODEL_SHA256,
@@ -193,12 +203,14 @@ def test_literal_contract_hashes_are_pinned_and_runtime_drift_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     assert OBSERVATION_SCHEMA_HASH == (
-        "7B8E1FC27E67CD5ECF200382DD1644DF9B253FCB654AA9F11413694F97C3DC15"
+        "48304E57C6A71ADFC3CE1B687B5849FFCA7CBF4B41B203346C96F467E7D79323"
     )
     assert MODEL_CONTRACT_HASH == (
+        "A166C3A6D1349FA4A1AB734834B3171639D1050BF908F1D4585D94F68E108AAC"
+    )
+    assert ACTIVE_METADATALESS_MODEL_CONTRACT_HASH == (
         "03E1DA9C110611659DA10DF3CE27117C78E15F9E316ED080E4B75911768A8B18"
     )
-    assert ACTIVE_METADATALESS_MODEL_CONTRACT_HASH == MODEL_CONTRACT_HASH
 
     monkeypatch.setattr(
         model_contract_module,
@@ -208,5 +220,5 @@ def test_literal_contract_hashes_are_pinned_and_runtime_drift_is_rejected(
     with pytest.raises(ModelContractError, match="semantic drift"):
         validate_model_contract(
             _current_spaces(),
-            artifact_sha256=ACTIVE_METADATALESS_MODEL_SHA256,
+            metadata=ModelContractMetadata.current(),
         )

@@ -31,7 +31,7 @@ class BoundaryEnv(gym.Env[np.ndarray, int]):
             shape=(482,),
             dtype=np.float32,
         )
-        self.action_space = gym.spaces.Discrete(4, start=0)
+        self.action_space = gym.spaces.Discrete(5, start=0)
         self.boundary = boundary
         self.prefix_steps = prefix_steps
         self.steps = 0

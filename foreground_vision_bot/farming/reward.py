@@ -22,6 +22,7 @@ class RewardConfig:
     invalid_eva_penalty: float = 0.10
     eva_miss_penalty: float = 0.05
     contact_penalty: float = 0.035
+    jump_flair_reward: float = 0.001
     teleport_warning_radius_cells: float = 6.0
     teleport_buffer_radius_cells: float = 2.0
     teleport_proximity_penalty: float = 3.0
@@ -55,6 +56,7 @@ class RewardComponents:
     invalid_eva: float = 0.0
     eva_miss: float = 0.0
     contact: float = 0.0
+    jump_flair: float = 0.0
     teleport_proximity: float = 0.0
     teleport_buffer: float = 0.0
     teleport_trigger: float = 0.0
@@ -75,6 +77,7 @@ class RewardEvidence:
     eva_attempted: bool = False
     eva_available: bool = True
     contact: bool = False
+    jump_performed: bool = False
     forbidden_distance_cells: float | None = None
     session_outcome: SessionOutcome = SessionOutcome.continuing()
 
@@ -162,6 +165,9 @@ class RewardCalculator:
                 -config.contact_penalty
                 if evidence.contact and not evidence.eva_attempted
                 else 0.0
+            ),
+            jump_flair=(
+                config.jump_flair_reward if evidence.jump_performed else 0.0
             ),
             teleport_proximity=proximity,
             teleport_buffer=buffer,

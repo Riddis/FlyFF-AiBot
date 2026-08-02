@@ -117,8 +117,19 @@ class ModelContract:
                     (value for name, value in action_pairs if name == "CAST_EVA"),
                     None,
                 ),
+                "run_forward_jump_value": next(
+                    (
+                        value
+                        for name, value in action_pairs
+                        if name == "RUN_FORWARD_JUMP"
+                    ),
+                    None,
+                ),
                 "movement_persists_until_replaced": True,
                 "cast_eva_releases_movement": False,
+                "jump_always_executes_forward_and_space": True,
+                "jump_action_is_never_masked_or_degraded": True,
+                "jump_flair_reward_has_cooldown": True,
             },
         }
 
@@ -140,9 +151,14 @@ CURRENT_MODEL_CONTRACT = ModelContract(
     action_values=tuple(int(action) for action in FarmingAction),
 )
 MODEL_CONTRACT_HASH: Final = (
+    "A166C3A6D1349FA4A1AB734834B3171639D1050BF908F1D4585D94F68E108AAC"
+)
+# The approved metadata-less artifact predates the jump action. It remains
+# recorded for explicit rejection/migration diagnostics, but cannot run under
+# the five-action contract because its Discrete(4) space fails closed first.
+ACTIVE_METADATALESS_MODEL_CONTRACT_HASH: Final = (
     "03E1DA9C110611659DA10DF3CE27117C78E15F9E316ED080E4B75911768A8B18"
 )
-ACTIVE_METADATALESS_MODEL_CONTRACT_HASH: Final = MODEL_CONTRACT_HASH
 
 
 @dataclass(frozen=True, slots=True)

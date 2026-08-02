@@ -182,7 +182,7 @@ def test_external_training_end_saves_model_report_and_recovery_manifest(
 
     assert events[:4] == ["preflight", "model_preflight", "start", "learn"]
     assert events[-3:] == ["release", "save", "close"]
-    assert result == tmp_path / "native_strategy_ppo.zip"
+    assert result == tmp_path / "native_strategy_jump_ppo.zip"
     report = json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))
     assert report["session_reason"] == "external_teleport"
     assert report["session_classification"] == "external_truncation"
@@ -203,7 +203,7 @@ def test_fatal_training_failure_preserves_last_known_good_model(
     runtime = FakeRuntime(events)
     model = FakeModel(events, failure=RuntimeError("policy failure"))
     bot = FakeBot(events)
-    destination = tmp_path / "native_strategy_ppo.zip"
+    destination = tmp_path / "native_strategy_jump_ppo.zip"
     destination.write_bytes(b"LAST-KNOWN-GOOD")
 
     try:

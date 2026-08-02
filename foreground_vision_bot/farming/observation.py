@@ -19,7 +19,7 @@ from .map_features import (
 
 FloatArray = NDArray[np.float32]
 
-OBSERVATION_SCHEMA_ID: Final = "native-unified-482-v1"
+OBSERVATION_SCHEMA_ID: Final = "native-unified-482-v2"
 LEGACY_ACTOR_SLOTS: Final = 32
 ACTOR_FEATURES: Final = 7
 LEGACY_AGGREGATE_FEATURES: Final = 5
@@ -73,7 +73,7 @@ _UNIFIED_STATE_FIELD_NAMES: Final = (
     "held_forward_left_bipolar",
     "held_forward_right_bipolar",
     "last_action_cast_bipolar",
-    "time_since_cast_bipolar",
+    "jump_cooldown_bipolar",
     "direct_clear_fraction_bipolar",
     "map_available_bipolar",
 )
@@ -178,7 +178,7 @@ class PlayerObservation:
     contact: bool
     held_movement: FarmingAction | None
     last_policy_action: FarmingAction
-    time_since_cast_fraction: float
+    jump_cooldown_fraction: float
     map_available: bool
 
     def __post_init__(self) -> None:
@@ -188,7 +188,7 @@ class PlayerObservation:
             "heading_radians": self.heading_radians,
             "eva_cooldown_fraction": self.eva_cooldown_fraction,
             "displacement_cells": self.displacement_cells,
-            "time_since_cast_fraction": self.time_since_cast_fraction,
+            "jump_cooldown_fraction": self.jump_cooldown_fraction,
         }
         for name, value in finite_values.items():
             if not isfinite(float(value)):
@@ -424,12 +424,12 @@ def observation_schema_hash(scales: ObservationScales | None = None) -> str:
 
 
 OBSERVATION_SCHEMA_HASH: Final = (
-    "7B8E1FC27E67CD5ECF200382DD1644DF9B253FCB654AA9F11413694F97C3DC15"
+    "48304E57C6A71ADFC3CE1B687B5849FFCA7CBF4B41B203346C96F467E7D79323"
 )
 
 
 class ObservationBuilder:
-    """Build the exact ``native-unified-482-v1`` vector from typed inputs."""
+    """Build the exact ``native-unified-482-v2`` vector from typed inputs."""
 
     def __init__(self, scales: ObservationScales | None = None) -> None:
         self.scales = scales or ObservationScales()
@@ -695,7 +695,7 @@ class ObservationBuilder:
                 held[1],
                 held[2],
                 1.0 if player.last_policy_action is FarmingAction.CAST_EVA else -1.0,
-                _bipolar_fraction(player.time_since_cast_fraction),
+                _bipolar_fraction(player.jump_cooldown_fraction),
                 _bipolar_fraction(direct_clear_fraction),
                 1.0 if player.map_available else -1.0,
             ),

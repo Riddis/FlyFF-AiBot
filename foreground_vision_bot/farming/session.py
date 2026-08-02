@@ -232,10 +232,10 @@ def classify_session_outcome(evidence: SessionEvidence) -> SessionOutcome:
             SessionEndReason.MAP_TRANSITION,
             "the selected farm map changed",
         )
-    if evidence.external_teleport_confirmed or evidence.large_discontinuity:
+    if evidence.external_teleport_confirmed:
         return SessionOutcome.external(
             SessionEndReason.EXTERNAL_TELEPORT,
-            "a large coordinate discontinuity had no sampled trigger proof",
+            "a stable repeated coordinate discontinuity confirmed an external teleport",
         )
     if evidence.pointer_grace_exhausted:
         return SessionOutcome.external(

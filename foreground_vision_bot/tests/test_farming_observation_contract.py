@@ -66,14 +66,14 @@ def _frame() -> ObservationFrame:
         contact=True,
         held_movement=FarmingAction.RUN_FORWARD_LEFT,
         last_policy_action=FarmingAction.CAST_EVA,
-        time_since_cast_fraction=0.25,
+        jump_cooldown_fraction=0.25,
         map_available=True,
     )
     return ObservationFrame(player=player, actors=actors, local_map=local_map)
 
 
 def test_observation_schema_freezes_every_segment_and_field_index() -> None:
-    assert OBSERVATION_SCHEMA_ID == "native-unified-482-v1"
+    assert OBSERVATION_SCHEMA_ID == "native-unified-482-v2"
     assert len(OBSERVATION_FIELDS) == OBSERVATION_SIZE == 482
     assert OBSERVATION_FIELDS[0] == "legacy_actor[00].dx_over_vision"
     assert OBSERVATION_FIELDS[223] == "legacy_actor[31].active"
@@ -82,6 +82,7 @@ def test_observation_schema_freezes_every_segment_and_field_index() -> None:
     assert OBSERVATION_FIELDS[256] == "legacy_aggregate.visible_over_scale"
     assert OBSERVATION_FIELDS[260] == "legacy_aggregate.has_selected_actor"
     assert OBSERVATION_FIELDS[261] == "unified_state.player_normalized_x"
+    assert OBSERVATION_FIELDS[274] == "unified_state.jump_cooldown_bipolar"
     assert OBSERVATION_FIELDS[276] == "unified_state.map_available_bipolar"
     assert OBSERVATION_FIELDS[277] == "local_map[dy=-5,dx=-5]"
     assert OBSERVATION_FIELDS[397] == "local_map[dy=+5,dx=+5]"
@@ -266,7 +267,7 @@ def test_nonzero_native_z_uses_distinct_layout_and_direct_offsets_full_golden() 
         contact=False,
         held_movement=FarmingAction.RUN_FORWARD_RIGHT,
         last_policy_action=FarmingAction.RUN_FORWARD_RIGHT,
-        time_since_cast_fraction=0.75,
+        jump_cooldown_fraction=0.75,
         map_available=True,
     )
     vector = ObservationBuilder().build_vector(

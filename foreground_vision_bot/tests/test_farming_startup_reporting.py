@@ -42,7 +42,7 @@ def test_model_preflight_loads_without_live_env_and_validates_metadata(
                 shape=(482,),
                 dtype=np.float32,
             ),
-            action_space=gym.spaces.Discrete(4, start=0),
+            action_space=gym.spaces.Discrete(5, start=0),
             farming_contract_metadata=ModelContractMetadata.current().as_dict(),
         )
 
@@ -68,7 +68,7 @@ def test_model_preflight_rejects_space_mismatch_before_caller_can_start_input(
                 shape=(482,),
                 dtype=np.float32,
             ),
-            action_space=gym.spaces.Discrete(5, start=0),
+            action_space=gym.spaces.Discrete(4, start=0),
             farming_contract_metadata=ModelContractMetadata.current().as_dict(),
         )
 

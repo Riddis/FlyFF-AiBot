@@ -16,6 +16,7 @@ class FarmingAction(IntEnum):
     RUN_FORWARD_LEFT = 1
     RUN_FORWARD_RIGHT = 2
     CAST_EVA = 3
+    RUN_FORWARD_JUMP = 4
 
     @property
     def is_movement(self) -> bool:

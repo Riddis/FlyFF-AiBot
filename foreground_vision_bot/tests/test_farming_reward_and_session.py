@@ -36,11 +36,12 @@ def test_sampled_forbidden_entry_is_policy_termination_with_strong_penalty() -> 
     assert reward.total <= -64.0
 
 
-def test_large_jump_near_warning_is_external_without_policy_penalty() -> None:
+def test_confirmed_large_jump_is_external_without_policy_penalty() -> None:
     outcome = classify_session_outcome(
         SessionEvidence(
             started_inside_warning_radius=True,
             displacement_cells=30.0,
+            external_teleport_confirmed=True,
         )
     )
     assert outcome.reason is SessionEndReason.EXTERNAL_TELEPORT
@@ -68,6 +69,29 @@ def test_large_jump_near_warning_is_external_without_policy_penalty() -> None:
         for name, value in reward.components.as_dict().items()
         if name != "kill"
     )
+
+
+def test_unconfirmed_coordinate_discontinuity_does_not_end_session() -> None:
+    outcome = classify_session_outcome(
+        SessionEvidence(
+            displacement_cells=100.0,
+            external_teleport_confirmed=False,
+        )
+    )
+    assert outcome.reason is SessionEndReason.NONE
+    assert outcome.classification is SessionClassification.CONTINUING
+
+
+def test_jump_flair_reward_is_tiny_and_only_applies_when_performed() -> None:
+    calculator = RewardCalculator()
+    ordinary = calculator.calculate(RewardEvidence(elapsed_seconds=0.2))
+    jumped = calculator.calculate(
+        RewardEvidence(elapsed_seconds=0.2, jump_performed=True)
+    )
+
+    assert ordinary.components.jump_flair == 0.0
+    assert jumped.components.jump_flair == pytest.approx(0.001)
+    assert jumped.total - ordinary.total == pytest.approx(0.001)
 
 
 def test_native_kills_are_the_only_kill_reward_input() -> None:
