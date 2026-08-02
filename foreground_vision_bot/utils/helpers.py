@@ -52,8 +52,13 @@ def start_countdown(voice_engine, sleep_time_sec=5):
     print("\nReady, forcing dwarves to work!")
 
 
-def print_logo(text_logo: str):
-    figlet = Figlet(font="slant")
+def print_logo(text_logo: str, *, font: str = "doom") -> None:
+    """Print the application banner with a robust fancy-font fallback."""
+
+    try:
+        figlet = Figlet(font=font)
+    except Exception:  # noqa: BLE001 - a packaged font may be unavailable.
+        figlet = Figlet(font="slant")
     print(figlet.renderText(text_logo))
 
 

@@ -26,6 +26,7 @@ from .kills import (
     OcrKillDiagnostics,
 )
 from .map_context import FarmingMapContext
+from .map_features import MapCellRisk
 from .native_world import (
     NativeWorldFrame,
     NativeWorldReader,
@@ -83,6 +84,7 @@ class _FrameFeatures:
     world: NativeWorldFrame
     built: BuiltObservation
     player_cell: tuple[int, int]
+    map_cell_risk: MapCellRisk
     forbidden_distance_cells: float | None
 
 
@@ -158,6 +160,8 @@ class UnifiedFarmingEnv:
                 teleport_proximity_penalty=self.config.teleport_proximity_penalty,
                 teleport_buffer_penalty=self.config.teleport_buffer_penalty,
                 teleport_trigger_penalty=self.config.teleport_trigger_penalty,
+                obstacle_buffer_penalty=self.config.obstacle_buffer_penalty,
+                obstacle_cell_penalty=self.config.obstacle_cell_penalty,
                 jump_flair_reward=self.config.jump_flair_reward,
             )
         )
@@ -297,6 +301,7 @@ class UnifiedFarmingEnv:
             world=world,
             built=built,
             player_cell=player_cell,
+            map_cell_risk=self.map_context.features.cell_risk(player_cell),
             forbidden_distance_cells=self.map_context.features.forbidden_distance(
                 player_cell
             ),
@@ -813,11 +818,6 @@ class UnifiedFarmingEnv:
                     outcome = classify_session_outcome(
                         SessionEvidence(
                             user_cancelled=self._cancelled(self.cancellation),
-                            session_time_expired=bool(
-                                self._started_at is not None
-                                and finished - self._started_at
-                                >= self.config.episode_seconds
-                            ),
                             map_transition=(
                                 after_world.world_base != before.world.world_base
                             ),
@@ -927,10 +927,6 @@ class UnifiedFarmingEnv:
             )
             session_evidence = SessionEvidence(
                 user_cancelled=self._cancelled(self.cancellation),
-                session_time_expired=bool(
-                    self._started_at is not None
-                    and finished - self._started_at >= self.config.episode_seconds
-                ),
                 map_transition=(after.world.world_base != before.world.world_base),
                 external_teleport_confirmed=teleport.confirmed,
                 sampled_forbidden_occupancy=self.map_context.features.is_forbidden(
@@ -956,6 +952,7 @@ class UnifiedFarmingEnv:
                     eva_attempted=selected is FarmingAction.CAST_EVA,
                     eva_available=eva_available,
                     contact=contact,
+                    map_cell_risk=after.map_cell_risk,
                     jump_performed=jump_reward_available,
                     forbidden_distance_cells=after.forbidden_distance_cells,
                     session_outcome=outcome,
@@ -1378,6 +1375,7 @@ class UnifiedFarmingEnv:
             "map_name": self.map_context.map_name,
             "map_hash": self.map_context.content_hash,
             "map_cell": features.player_cell,
+            "map_cell_risk": features.map_cell_risk.name.lower(),
             "teleport_distance_cells": features.forbidden_distance_cells,
             "reward_components": (
                 {} if reward is None else reward.components.as_dict()

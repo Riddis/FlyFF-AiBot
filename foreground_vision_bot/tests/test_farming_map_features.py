@@ -7,6 +7,7 @@ import pytest
 from farming.map_features import (
     DirectPathState,
     FarmingMapFeatures,
+    MapCellRisk,
     bresenham_cells,
 )
 
@@ -17,6 +18,7 @@ def _map_features() -> FarmingMapFeatures:
     forbidden = np.zeros_like(traversable)
     forbidden[4, 4] = True
     safe = traversable & ~forbidden
+    safe[1, 2] = False
     return FarmingMapFeatures(
         traversable=traversable,
         forbidden=forbidden,
@@ -25,17 +27,24 @@ def _map_features() -> FarmingMapFeatures:
     )
 
 
-def test_local_map_crop_distinguishes_trigger_buffer_wall_and_outside() -> None:
+def test_local_map_crop_distinguishes_trigger_wall_buffer_and_outside() -> None:
     features = _map_features()
     crop = features.local_crop((4, 4), side=7).reshape(7, 7)
 
     assert crop[3, 3] == pytest.approx(1.0)
     assert crop[3, 4] == pytest.approx(0.75)
     wall_crop = features.local_crop((2, 2), side=5).reshape(5, 5)
-    assert wall_crop[1, 1] == pytest.approx(0.25)
+    assert wall_crop[1, 1] == pytest.approx(0.50)
+    assert wall_crop[1, 2] == pytest.approx(-0.25)
     outside_crop = features.local_crop((0, 0), side=3).reshape(3, 3)
     assert outside_crop[0, 0] == pytest.approx(0.0)
     assert outside_crop[1, 1] == pytest.approx(-1.0)
+
+    assert features.cell_risk((1, 1)) is MapCellRisk.OBSTACLE
+    assert features.cell_risk((2, 1)) is MapCellRisk.OBSTACLE_BUFFER
+    assert features.cell_risk((4, 4)) is MapCellRisk.TELEPORT_TRIGGER
+    assert features.cell_risk((5, 4)) is MapCellRisk.TELEPORT_BUFFER
+    assert features.cell_risk((8, 8)) is MapCellRisk.SAFE
 
 
 def test_forbidden_distance_field_is_exact_and_cached(

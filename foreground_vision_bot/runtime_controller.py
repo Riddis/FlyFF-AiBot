@@ -38,6 +38,7 @@ class RuntimeController:
     MAX_NATIVE_DIAGNOSTIC_TIMEOUT_SECONDS: float = 1200.0
     POINTER_RECOVERY_TIMEOUT_SECONDS: float = 1200.0
     STARTUP_POINTER_RECOVERY_TIMEOUT_SECONDS: float = 1200.0
+    PROFILE_VALIDATION_TIMEOUT_SECONDS: float = 120.0
 
     def __init__(self, bot, bus: RuntimeBus) -> None:
         self.bot = bot
@@ -142,7 +143,11 @@ class RuntimeController:
 
             report = self._reporter("rl_status", "rl")
             try:
-                if not self._prepare_native_pointer_startup(token, report):
+                if not self._prepare_native_pointer_startup(
+                    token,
+                    report,
+                    verbose=(mode != "train"),
+                ):
                     return {"started": False, "reason": "native_pointer_unavailable"}
                 if mode == "train":
                     return train_native_farming(
@@ -180,6 +185,8 @@ class RuntimeController:
         self,
         token: CancellationToken,
         report: Callable[[str], None],
+        *,
+        verbose: bool = True,
     ) -> bool:
         """Resolve expected stale/null native state inside the control worker."""
 
@@ -190,13 +197,64 @@ class RuntimeController:
             service.read_pointer_snapshot()
             return True
         except NativePointerSnapshotError:
-            report("Native pointers unavailable; running bounded startup recovery.")
+            pass
 
+        profile_hints = self._pointer_recovery_hints(
+            cancellation=token,
+            health_attempts=1,
+        )
+        profile_deadline = monotonic() + self.PROFILE_VALIDATION_TIMEOUT_SECONDS
+
+        def profile_status(message: str) -> None:
+            normalized = message.casefold()
+            if (
+                verbose
+                or normalized.startswith("checking the last known")
+                or "validated" in normalized
+                or "full recovery" in normalized
+            ):
+                report(message)
+            self.bus.heartbeat("control")
+
+        restore_profile = getattr(service, "try_restore_persisted_profile", None)
+        if callable(restore_profile):
+            try:
+                if restore_profile(
+                    hints=profile_hints,
+                    cancellation=token,
+                    deadline=profile_deadline,
+                    status_callback=profile_status,
+                ):
+                    snapshot = service.read_pointer_snapshot()
+                    report(
+                        "Native startup preflight restored the last known "
+                        "validated profile: "
+                        f"player=0x{snapshot.player_base:X}."
+                    )
+                    return True
+            except Exception as error:  # noqa: BLE001 - optional fast path.
+                report(
+                    "Last known native profile could not be used; full recovery "
+                    f"will run. {type(error).__name__}: {error}"
+                )
+
+        report("Native pointers unavailable; running full startup recovery.")
         timeout = self.STARTUP_POINTER_RECOVERY_TIMEOUT_SECONDS
         deadline = monotonic() + timeout
 
         def publish(progress) -> None:
-            report(progress.message)
+            message = str(progress.message)
+            phase = str(getattr(progress, "phase", ""))
+            if verbose or phase in {
+                "success",
+                "cache_hit",
+                "cancelled",
+                "deadline",
+                "error",
+            }:
+                report(message)
+            elif message.startswith("Dynamically recovered the authoritative"):
+                report(message)
             self.bus.heartbeat("control")
 
         try:

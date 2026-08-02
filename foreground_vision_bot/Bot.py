@@ -65,8 +65,11 @@ class Bot:
 
         self.config = {
             "show_frames": False,
-            "show_mobs_pos_boxes": False,
+            "show_detected_ui_elements": True,
             "show_mobs_pos_markers": True,
+            # Legacy preview keys remain accepted by set_config but no longer
+            # own separate GUI controls.
+            "show_mobs_pos_boxes": False,
             "show_matches_text": False,
             "mob_pos_match_threshold": 0.7,
             "mob_dedup_distance_px": 20.0,
@@ -382,6 +385,18 @@ class Bot:
     # Public RL API
     # ------------------------------------------------------------------
 
+    def _cv_monster_detection_enabled(self) -> bool:
+        """Return whether name-template mob CV is useful for this map.
+
+        AoE farming consumes the dynamically recovered native actor set. The
+        old name-template detector remains available for non-AoE maps and
+        future single-target modes, but it is deliberately skipped for map
+        profiles whose name identifies them as AoE.
+        """
+
+        map_name = str(self.config.get("selected_map_name") or "").strip()
+        return "aoe" not in map_name.casefold()
+
     def get_visible_mobs(self) -> list[Point]:
         """
         Detect all registered mob-name templates and return anonymous positions.
@@ -390,6 +405,10 @@ class Bot:
         detections are merged because different templates or overlapping
         matches can report the same on-screen mob more than once.
         """
+        if not self._cv_monster_detection_enabled():
+            self._cache_mob_points([])
+            return []
+
         frame, _debug_frame = self._frame_snapshot()
 
         if frame is None:
@@ -671,21 +690,30 @@ class Bot:
 
     def build_preview(self, frame: np.ndarray, cancellation=None) -> np.ndarray:
         now = time()
-        with self._frame_lock:
-            detected_at = self._latest_mob_points_at
-        if now - detected_at >= self._preview_detection_interval:
-            gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-            self._cache_mob_points(
-                self._detect_visible_mobs(gray, cancellation=cancellation)
-            )
+        show_mobs = bool(self.config.get("show_mobs_pos_markers", True))
+        cv_mobs_enabled = self._cv_monster_detection_enabled()
+        if show_mobs and cv_mobs_enabled:
+            with self._frame_lock:
+                detected_at = self._latest_mob_points_at
+            if now - detected_at >= self._preview_detection_interval:
+                gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+                self._cache_mob_points(
+                    self._detect_visible_mobs(gray, cancellation=cancellation)
+                )
+        elif not cv_mobs_enabled:
+            # Do not leave stale name-template markers visible after switching
+            # to an AoE map. Native actor markers continue on the map overlay.
+            self._cache_mob_points([])
 
         if cancellation is not None and cancellation.cancelled:
             return frame
 
-        self._draw_cached_mob_overlay(frame, now)
-        self._draw_heading_overlay(frame, now)
-        self._draw_kill_counter_overlay(frame, now)
-        self._draw_player_status_overlay(frame)
+        if show_mobs and cv_mobs_enabled:
+            self._draw_cached_mob_overlay(frame, now)
+        if bool(self.config.get("show_detected_ui_elements", True)):
+            self._draw_heading_overlay(frame, now)
+            self._draw_kill_counter_overlay(frame, now)
+            self._draw_player_status_overlay(frame)
         self._publish_native_monster_map(now)
         return frame
 

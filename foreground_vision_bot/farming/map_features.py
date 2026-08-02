@@ -38,6 +38,31 @@ class DirectPathState(IntEnum):
     CLEAR = 1
 
 
+@unique
+class MapCellRisk(IntEnum):
+    """Semantic map state at one player/layout cell.
+
+    The values are ordered by increasing policy risk.  They are not written
+    directly into the observation; ``local_crop`` uses the explicit encodings
+    below so outside/unknown can remain neutral.
+    """
+
+    OUTSIDE_OR_UNKNOWN = 0
+    SAFE = 1
+    OBSTACLE_BUFFER = 2
+    OBSTACLE = 3
+    TELEPORT_BUFFER = 4
+    TELEPORT_TRIGGER = 5
+
+
+LOCAL_MAP_SAFE: float = -1.0
+LOCAL_MAP_OBSTACLE_BUFFER: float = -0.25
+LOCAL_MAP_OUTSIDE_OR_UNKNOWN: float = 0.0
+LOCAL_MAP_OBSTACLE: float = 0.50
+LOCAL_MAP_TELEPORT_BUFFER: float = 0.75
+LOCAL_MAP_TELEPORT_TRIGGER: float = 1.0
+
+
 class FarmingMapFeatures:
     """Immutable farming map arrays with cached, bounded feature queries.
 
@@ -147,6 +172,50 @@ class FarmingMapFeatures:
         x, y = int(cell[0]), int(cell[1])
         return bool(self._forbidden[y, x])
 
+    def cell_risk(self, cell: Cell | None) -> MapCellRisk:
+        """Classify one cell without treating the hand-traced wall as exact.
+
+        Teleport evidence has precedence over ordinary wall evidence because
+        it is the only map state that can terminate a policy session.  A black
+        (non-traversable) cell remains distinct from its inflated traversable
+        buffer so reward and observation semantics can weight them differently.
+        """
+
+        if cell is None or not self.contains(cell):
+            return MapCellRisk.OUTSIDE_OR_UNKNOWN
+        x, y = int(cell[0]), int(cell[1])
+        forbidden_distance_field = (
+            self._get_forbidden_distance_field() if self._has_forbidden else None
+        )
+        return self._cell_risk_at(x, y, forbidden_distance_field)
+
+    def _cell_risk_at(
+        self,
+        x: int,
+        y: int,
+        forbidden_distance_field: FloatArray | None,
+    ) -> MapCellRisk:
+        height, width = self.shape
+        if x < 0 or y < 0 or x >= width or y >= height:
+            return MapCellRisk.OUTSIDE_OR_UNKNOWN
+        if bool(self._forbidden[y, x]):
+            return MapCellRisk.TELEPORT_TRIGGER
+        if forbidden_distance_field is not None:
+            distance = float(forbidden_distance_field[y, x])
+            if distance <= self._teleport_buffer_radius_cells:
+                return MapCellRisk.TELEPORT_BUFFER
+        if not bool(self._traversable[y, x]):
+            return MapCellRisk.OBSTACLE
+        if bool(self._safe_traversable[y, x]):
+            return MapCellRisk.SAFE
+        return MapCellRisk.OBSTACLE_BUFFER
+
+    def is_obstacle(self, cell: Cell | None) -> bool:
+        return self.cell_risk(cell) is MapCellRisk.OBSTACLE
+
+    def is_obstacle_buffer(self, cell: Cell | None) -> bool:
+        return self.cell_risk(cell) is MapCellRisk.OBSTACLE_BUFFER
+
     def cell_state(self, cell: Cell) -> float:
         """Return ``-1`` free, ``0`` outside/unknown, or ``+1`` blocked."""
 
@@ -179,8 +248,9 @@ class FarmingMapFeatures:
     def local_crop(self, center: Cell | None, side: int = 11) -> FloatArray:
         """Build the policy crop with distinct wall and teleport encodings.
 
-        ``1.0`` is an exact trigger, ``0.75`` its safety buffer, ``0.25`` an
-        ordinary blocked cell, ``-1.0`` safe traversable, and ``0.0`` outside.
+        ``1.0`` is an exact trigger, ``0.75`` its safety buffer, ``0.50`` a
+        hand-traced black obstacle, ``-0.25`` the inflated obstacle buffer,
+        ``-1.0`` safe traversable, and ``0.0`` outside/unknown.
         """
 
         side = int(side)
@@ -190,33 +260,25 @@ class FarmingMapFeatures:
         if center is None:
             return result
 
+        height, width = self.shape
         forbidden_distance_field = (
             self._get_forbidden_distance_field() if self._has_forbidden else None
         )
-        height, width = self.shape
         center_x, center_y = int(center[0]), int(center[1])
         radius = side // 2
         offset = 0
         for dy in range(-radius, radius + 1):
             for dx in range(-radius, radius + 1):
                 x, y = center_x + dx, center_y + dy
-                if x < 0 or y < 0 or x >= width or y >= height:
-                    state = 0.0
-                elif self._forbidden[y, x]:
-                    state = 1.0
-                else:
-                    distance = (
-                        None
-                        if forbidden_distance_field is None
-                        else float(forbidden_distance_field[y, x])
-                    )
-                    if (
-                        distance is not None
-                        and distance <= self._teleport_buffer_radius_cells
-                    ):
-                        state = 0.75
-                    else:
-                        state = -1.0 if self._safe_traversable[y, x] else 0.25
+                risk = self._cell_risk_at(x, y, forbidden_distance_field)
+                state = {
+                    MapCellRisk.OUTSIDE_OR_UNKNOWN: LOCAL_MAP_OUTSIDE_OR_UNKNOWN,
+                    MapCellRisk.SAFE: LOCAL_MAP_SAFE,
+                    MapCellRisk.OBSTACLE_BUFFER: LOCAL_MAP_OBSTACLE_BUFFER,
+                    MapCellRisk.OBSTACLE: LOCAL_MAP_OBSTACLE,
+                    MapCellRisk.TELEPORT_BUFFER: LOCAL_MAP_TELEPORT_BUFFER,
+                    MapCellRisk.TELEPORT_TRIGGER: LOCAL_MAP_TELEPORT_TRIGGER,
+                }[risk]
                 result[offset] = np.float32(state)
                 offset += 1
         return result

@@ -73,7 +73,7 @@ def _frame() -> ObservationFrame:
 
 
 def test_observation_schema_freezes_every_segment_and_field_index() -> None:
-    assert OBSERVATION_SCHEMA_ID == "native-unified-482-v2"
+    assert OBSERVATION_SCHEMA_ID == "native-unified-482-v3"
     assert len(OBSERVATION_FIELDS) == OBSERVATION_SIZE == 482
     assert OBSERVATION_FIELDS[0] == "legacy_actor[00].dx_over_vision"
     assert OBSERVATION_FIELDS[223] == "legacy_actor[31].active"
@@ -107,6 +107,14 @@ def test_schema_hash_covers_field_order_and_normalization_scales() -> None:
     assert descriptor["actor_populations"]["direct_density"] == (  # type: ignore[index]
         "all direct-eligible actors, including unselected actors and self"
     )
+    assert descriptor["encodings"]["local_map"] == {  # type: ignore[index]
+        "safe": -1.0,
+        "obstacle_buffer": -0.25,
+        "outside_or_unknown": 0.0,
+        "obstacle": 0.5,
+        "teleport_buffer": 0.75,
+        "teleport_trigger": 1.0,
+    }
 
 
 def test_builder_emits_exact_482_vector_from_one_typed_frame() -> None:
@@ -246,7 +254,7 @@ def test_direct_density_uses_all_eligible_actors_after_blocked_filtering() -> No
 
 def test_nonzero_native_z_uses_distinct_layout_and_direct_offsets_full_golden() -> None:
     local_map = np.resize(
-        np.asarray((-1.0, 0.25, 0.75, 1.0, 0.0), dtype=np.float32),
+        np.asarray((-1.0, -0.25, 0.50, 0.75, 1.0, 0.0), dtype=np.float32),
         121,
     ).reshape(11, 11)
     actor = ActorObservation(
@@ -315,5 +323,5 @@ def test_nonzero_native_z_uses_distinct_layout_and_direct_offsets_full_golden() 
 
     np.testing.assert_array_equal(vector, golden)
     assert sha256(vector.tobytes()).hexdigest().upper() == (
-        "8DE516E1AFF51DE0CB4234D5F16E17F5DBB921F1A6A15DF693E61713C306DD10"
+        "DB04BCC48EA86D4A971E4BB4AC94FFAC6350981E283C06729E58113E453D9ED9"
     )

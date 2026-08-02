@@ -34,7 +34,7 @@ def test_new_model_metadata_binds_semantic_observation_and_action_contract() -> 
     validation = validate_model_contract(_current_spaces(), metadata=metadata)
 
     assert metadata.contract_hash == MODEL_CONTRACT_HASH
-    assert metadata.observation_schema_id == "native-unified-482-v2"
+    assert metadata.observation_schema_id == "native-unified-482-v3"
     assert metadata.action_names == (
         "RUN_FORWARD",
         "RUN_FORWARD_LEFT",
@@ -142,6 +142,17 @@ def test_same_shape_model_with_changed_action_semantics_is_rejected() -> None:
         validate_model_contract(_current_spaces(), metadata=payload)
 
 
+def test_same_shape_v2_map_model_is_rejected_after_map_risk_upgrade() -> None:
+    payload = ModelContractMetadata.current().as_dict()
+    payload["observation_schema_id"] = "native-unified-482-v2"
+    payload["observation_schema_hash"] = (
+        "48304E57C6A71ADFC3CE1B687B5849FFCA7CBF4B41B203346C96F467E7D79323"
+    )
+
+    with pytest.raises(ModelContractError, match="observation_schema"):
+        validate_model_contract(_current_spaces(), metadata=payload)
+
+
 def test_space_signature_reads_box_shape_and_discrete_count_without_gym_import() -> (
     None
 ):
@@ -203,10 +214,10 @@ def test_literal_contract_hashes_are_pinned_and_runtime_drift_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     assert OBSERVATION_SCHEMA_HASH == (
-        "48304E57C6A71ADFC3CE1B687B5849FFCA7CBF4B41B203346C96F467E7D79323"
+        "0132FB13764E83FD3754AC895E872479537C45EDB2AAB83B73F87448397F69EC"
     )
     assert MODEL_CONTRACT_HASH == (
-        "A166C3A6D1349FA4A1AB734834B3171639D1050BF908F1D4585D94F68E108AAC"
+        "AB596A58173B724A57EA8FE5C71A66F6C102ACB5DD3E52C375F8FA80B2C89ABA"
     )
     assert ACTIVE_METADATALESS_MODEL_CONTRACT_HASH == (
         "03E1DA9C110611659DA10DF3CE27117C78E15F9E316ED080E4B75911768A8B18"

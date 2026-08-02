@@ -29,7 +29,12 @@ from .native_world import (
     PointerSnapshotReader,
     SnapshotPoseReader,
 )
-from .reporting import atomic_save_model, atomic_write_json, save_session_artifacts
+from .reporting import (
+    atomic_copy_artifact,
+    atomic_save_model,
+    atomic_write_json,
+    save_session_artifacts,
+)
 from .sb3_adapter import (
     ExternalSessionEnded,
     FarmingSessionCancelled,
@@ -419,7 +424,6 @@ class _TrainingCallback(BaseCallback):
         config: FarmingRuntimeConfig,
         cancellation: CancellationToken,
         stats: SessionStats,
-        checkpoint_dir: Path,
         status_callback: StatusCallback | None,
     ) -> None:
         super().__init__(verbose=0)
@@ -427,10 +431,9 @@ class _TrainingCallback(BaseCallback):
         self.config = config
         self.cancellation = cancellation
         self.stats = stats
-        self.checkpoint_dir = checkpoint_dir
         self.status_callback = status_callback
-        self._next_checkpoint = config.checkpoint_frequency
         self._last_status = monotonic()
+        self._last_reported_reward = 0.0
 
     def _on_step(self) -> bool:
         infos = self.locals.get("infos") or []
@@ -452,32 +455,26 @@ class _TrainingCallback(BaseCallback):
                         f"displacements={info.get('teleport_displacements_cells', [])} "
                         f"thresholds={info.get('teleport_thresholds_cells', [])}",
                     )
+
         now = monotonic()
         if now - self._last_status >= self.config.stats_interval_seconds:
+            elapsed_seconds = max(1e-6, now - self.stats.started_at)
+            kills_per_hour = self.stats.kills * 3600.0 / elapsed_seconds
+            reward_delta = self.stats.reward - self._last_reported_reward
             _status(
                 self.status_callback,
-                "NATIVE TRAINING | "
-                f"steps={self.num_timesteps:,}/{self.config.total_timesteps:,} "
-                f"actors={self.stats.latest_info.get('visible_actors', 0)} "
-                f"cache={self.stats.latest_info.get('native_cached_actor_slots', 0)} "
-                f"promoted={self.stats.latest_info.get('native_runtime_promoted_slots', 0)} "
-                f"candidates={self.stats.latest_info.get('native_kill_candidates', 0)} "
-                f"native_kills={self.stats.kills} "
-                f"ocr_delta={self.stats.ocr_kill_delta} "
-                f"ocr={self.stats.ocr_latest if self.stats.ocr_latest is not None else '--'} "
+                "TRAINING | "
+                f"steps={self.num_timesteps:,} "
                 f"reward={self.stats.reward:+.2f} "
+                f"reward_delta={reward_delta:+.2f} "
+                f"kills={self.stats.kills} "
+                f"kills/hr={kills_per_hour:.1f} "
                 f"jumps={self.stats.jumps_performed}/{self.stats.jump_requests} "
-                f"teleport_rejects={self.stats.teleport_rejections} "
                 f"action={self.stats.latest_info.get('action_name', '--')}",
             )
             self._last_status = now
-        if self.num_timesteps >= self._next_checkpoint:
-            self.runtime.domain.control.release()
-            checkpoint = self.checkpoint_dir / (
-                f"native_strategy_ppo_{self.num_timesteps}_steps.zip"
-            )
-            atomic_save_model(cast(Any, self.model), checkpoint)
-            self._next_checkpoint += self.config.checkpoint_frequency
+            self._last_reported_reward = self.stats.reward
+
         # Cancellation is delivered through the domain environment so the
         # collector can discard the incomplete prefix explicitly.
         return True
@@ -507,7 +504,7 @@ def _load_training_model(
     model = SessionAwarePPO(
         "MlpPolicy",
         runtime.gym,
-        verbose=1,
+        verbose=0,
         tensorboard_log=str(tensorboard_dir),
         n_steps=256,
         batch_size=64,
@@ -583,20 +580,57 @@ def train_native_farming(
             config=selected,
             cancellation=token,
             stats=stats,
-            checkpoint_dir=checkpoint_dir,
             status_callback=status_callback,
         )
-        model.learn(
-            total_timesteps=selected.total_timesteps,
-            callback=callback,
-            reset_num_timesteps=reset_timesteps,
-            tb_log_name="native_strategy_ppo",
-            progress_bar=False,
+        _status(
+            status_callback,
+            "TRAINING STARTED | "
+            f"total_steps={model.num_timesteps:,} "
+            f"checkpoint_every={selected.checkpoint_frequency:,}",
         )
-        boundary = model.session_boundary
+        first_learn_call = True
+        boundary = None
+        checkpoint_frequency = selected.checkpoint_frequency
+        next_checkpoint = (
+            (max(0, int(model.num_timesteps)) // checkpoint_frequency) + 1
+        ) * checkpoint_frequency
+        while bot.rl_enabled and not token.cancelled:
+            model.session_boundary = None
+            remaining_to_checkpoint = max(
+                1,
+                next_checkpoint - max(0, int(model.num_timesteps)),
+            )
+            model.learn(
+                total_timesteps=remaining_to_checkpoint,
+                callback=callback,
+                reset_num_timesteps=(reset_timesteps if first_learn_call else False),
+                tb_log_name="native_strategy_ppo",
+                progress_bar=False,
+            )
+            first_learn_call = False
+            boundary = model.session_boundary
+            if boundary is not None:
+                break
+
+            current_steps = max(0, int(model.num_timesteps))
+            if current_steps >= next_checkpoint:
+                runtime.domain.control.release()
+                canonical = atomic_save_model(cast(Any, model), model_path)
+                checkpoint = checkpoint_dir / (
+                    f"{model_path.stem}_{current_steps:012d}_steps.zip"
+                )
+                atomic_copy_artifact(canonical.path, checkpoint)
+                _status(
+                    status_callback,
+                    "TRAINING CHECKPOINT | "
+                    f"steps={current_steps:,} checkpoint={checkpoint}",
+                )
+                next_checkpoint = (
+                    (current_steps // checkpoint_frequency) + 1
+                ) * checkpoint_frequency
         if boundary is None:
-            reason = "training_target_reached"
-            classification = "completed"
+            reason = "user_cancelled" if token.cancelled or not bot.rl_enabled else "training_stopped"
+            classification = "user_cancellation" if token.cancelled or not bot.rl_enabled else "external_truncation"
         else:
             reason = str(boundary.info.get("session_end_reason", boundary.kind.value))
             classification = str(

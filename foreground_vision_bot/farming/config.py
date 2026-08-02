@@ -7,13 +7,15 @@ from numbers import Real
 from pathlib import Path
 from typing import Final
 
-CONFIG_VERSION: Final = 4
+CONFIG_VERSION: Final = 6
 _DEPRECATED_KEYS: Final = frozenset(
     {
         "version",
         "navigation_burst_seconds",
         "movement_model_path",
         "movement_training_config_path",
+        "total_timesteps",
+        "episode_seconds",
     }
 )
 
@@ -27,12 +29,11 @@ class FarmingRuntimeConfig:
     rewritten, but they are never represented in or consumed by production.
     """
 
-    total_timesteps: int = 100_000
-    checkpoint_frequency: int = 10_000
+    checkpoint_frequency: int = 50_000
     stats_interval_seconds: float = 10.0
-    model_path: str = "models/farming/native_strategy_jump_ppo"
-    checkpoint_dir: str = "models/farming/native_strategy_jump_checkpoints"
-    tensorboard_dir: str = "training_logs/farming/native_strategy_jump"
+    model_path: str = "models/farming/native_strategy_map_risk_ppo"
+    checkpoint_dir: str = "models/farming/native_strategy_map_risk_checkpoints"
+    tensorboard_dir: str = "training_logs/farming/native_strategy_map_risk"
     session_report_dir: str = "training_logs/farming/native_sessions"
     validation_session_dir: str = "training_logs/farming/data_validation"
     validation_run_seconds: float = 120.0
@@ -42,7 +43,6 @@ class FarmingRuntimeConfig:
     max_targets: int = 32
     vision_radius_cells: float = 50.0
     eva_radius_cells: float = 8.0
-    episode_seconds: float = 300.0
     eva_cooldown_seconds: float = 2.0
     minimum_dry_run_cast_targets: int = 4
     dry_run_seconds: float = 90.0
@@ -52,6 +52,8 @@ class FarmingRuntimeConfig:
     teleport_proximity_penalty: float = 3.0
     teleport_buffer_penalty: float = 12.0
     teleport_trigger_penalty: float = 50.0
+    obstacle_buffer_penalty: float = 0.025
+    obstacle_cell_penalty: float = 0.75
     teleport_jump_threshold_cells: float = 25.0
     pointer_grace_seconds: float = 3.0
     pointer_poll_seconds: float = 0.10
@@ -80,7 +82,6 @@ class FarmingRuntimeConfig:
 
     def __post_init__(self) -> None:
         integer_fields = {
-            "total_timesteps": self.total_timesteps,
             "checkpoint_frequency": self.checkpoint_frequency,
             "max_targets": self.max_targets,
             "minimum_dry_run_cast_targets": self.minimum_dry_run_cast_targets,
@@ -101,7 +102,6 @@ class FarmingRuntimeConfig:
             ),
             "vision_radius_cells": self.vision_radius_cells,
             "eva_radius_cells": self.eva_radius_cells,
-            "episode_seconds": self.episode_seconds,
             "eva_cooldown_seconds": self.eva_cooldown_seconds,
             "dry_run_seconds": self.dry_run_seconds,
             "control_interval_seconds": self.control_interval_seconds,
@@ -109,6 +109,8 @@ class FarmingRuntimeConfig:
             "teleport_proximity_penalty": self.teleport_proximity_penalty,
             "teleport_buffer_penalty": self.teleport_buffer_penalty,
             "teleport_trigger_penalty": self.teleport_trigger_penalty,
+            "obstacle_buffer_penalty": self.obstacle_buffer_penalty,
+            "obstacle_cell_penalty": self.obstacle_cell_penalty,
             "teleport_jump_threshold_cells": self.teleport_jump_threshold_cells,
             "pointer_grace_seconds": self.pointer_grace_seconds,
             "pointer_poll_seconds": self.pointer_poll_seconds,
@@ -159,6 +161,10 @@ class FarmingRuntimeConfig:
         object.__setattr__(self, "teleport_buffer_radius_cells", buffer_radius)
         if self.teleport_warning_radius_cells <= buffer_radius:
             raise ValueError("teleport warning radius must exceed its buffer radius")
+        if self.obstacle_cell_penalty <= self.obstacle_buffer_penalty:
+            raise ValueError(
+                "obstacle_cell_penalty must exceed obstacle_buffer_penalty"
+            )
         if self.cast_result_timeout_seconds < self.cast_minimum_absence_seconds:
             raise ValueError(
                 "cast_result_timeout_seconds cannot be shorter than the minimum "

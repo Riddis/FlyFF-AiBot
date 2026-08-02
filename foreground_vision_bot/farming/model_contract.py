@@ -151,7 +151,7 @@ CURRENT_MODEL_CONTRACT = ModelContract(
     action_values=tuple(int(action) for action in FarmingAction),
 )
 MODEL_CONTRACT_HASH: Final = (
-    "A166C3A6D1349FA4A1AB734834B3171639D1050BF908F1D4585D94F68E108AAC"
+    "AB596A58173B724A57EA8FE5C71A66F6C102ACB5DD3E52C375F8FA80B2C89ABA"
 )
 # The approved metadata-less artifact predates the jump action. It remains
 # recorded for explicit rejection/migration diagnostics, but cannot run under

@@ -145,3 +145,46 @@ def test_player_status_preview_draws_green_ocr_rectangle() -> None:
 
     assert frame[20, 15].tolist() == [0, 255, 0]
     assert frame[75, 105].tolist() == [0, 255, 0]
+
+
+def test_aoe_map_disables_cv_monster_template_detection() -> None:
+    bot = _preview_bot()
+    bot.config = {"selected_map_name": "Tower AoE"}
+    bot._latest_mob_points = [(10, 20)]
+    bot._latest_mob_points_at = 5.0
+    bot._frame_snapshot = lambda: (_ for _ in ()).throw(
+        AssertionError("AoE map must not capture a frame for CV monster detection")
+    )
+
+    assert bot.get_visible_mobs() == []
+    assert bot._latest_mob_points == []
+    assert not bot._cv_monster_detection_enabled()
+
+
+def test_non_aoe_map_keeps_cv_monster_template_detection_available() -> None:
+    bot = _preview_bot()
+    bot.config = {"selected_map_name": "Garden"}
+
+    assert bot._cv_monster_detection_enabled()
+
+
+def test_preview_toggles_ui_overlays_and_mob_markers_independently() -> None:
+    bot = _preview_bot()
+    bot.config = {
+        "selected_map_name": "Garden",
+        "show_mobs_pos_markers": False,
+        "show_detected_ui_elements": False,
+    }
+    calls: list[str] = []
+    bot._detect_visible_mobs = lambda *_args, **_kwargs: calls.append("detect") or []
+    bot._draw_cached_mob_overlay = lambda *_args, **_kwargs: calls.append("mobs")
+    bot._draw_heading_overlay = lambda *_args, **_kwargs: calls.append("heading")
+    bot._draw_kill_counter_overlay = lambda *_args, **_kwargs: calls.append("kills")
+    bot._draw_player_status_overlay = lambda *_args, **_kwargs: calls.append("hp")
+    bot._publish_native_monster_map = lambda *_args, **_kwargs: calls.append("native")
+    frame = np.zeros((40, 40, 3), dtype=np.uint8)
+
+    result = bot.build_preview(frame)
+
+    assert result is frame
+    assert calls == ["native"]

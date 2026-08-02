@@ -1,4 +1,4 @@
-# Foreground Vision Bot Architecture
+# FlyFF AiBot Architecture
 
 ## Production path
 
@@ -33,29 +33,36 @@ GUI event adapter
 | Native memory handle and pointers | `NativeProcessService` | One coherent player/world pointer snapshot shared by both readers. Ordinary reads never recover. |
 | Pointer diagnostics/recovery | Diagnostic or control worker | Health uses one fixed pointer/pose sample plus cached actor/OCR/focus facts and map conversion. Recovery is single-flight, cancellable, deadline-bounded, negatively cached, and never runs on Tk. Explicit GUI recovery persists a strongly validated pair transactionally; automatic startup recovery does not persist. |
 | Farming key state and focus | `DirectFarmingControl` / `WindowFocusService` | One held-key ledger; autofocus plus cancellable manual grace; terminal paths release it. |
-| Farming behavior | `UnifiedFarmingEnv` | Visible `reset()`/`step()`, four actions, coherent native frame per step, typed terminal outcome. |
+| Farming behavior | `UnifiedFarmingEnv` | Visible `reset()`/`step()`, five actions, coherent native frame per step, typed terminal outcome. |
 | Model/report publication | `farming.reporting` | Temporary file plus atomic replace; report and recovery manifest identify the published artifact. |
 
 ## Canonical farming contract
 
-The action space is `Discrete(4)` in this stable order:
+The action space is `Discrete(5)` in this stable order:
 
 1. `RUN_FORWARD`
 2. `RUN_FORWARD_LEFT`
 3. `RUN_FORWARD_RIGHT`
 4. `CAST_EVA`
+5. `RUN_FORWARD_JUMP`
 
 Movement is persistent. Steering changes only the lateral key while retaining
-forward. EVA taps F1 without releasing movement. The observation is a stable
-482-element `float32` vector containing normalized absolute pose, heading,
-local Tower safety/teleport features, movement/contact/EVA state, and bounded
-native actor features.
+forward. EVA taps F1 without releasing movement. Jump holds forward and taps
+Space; its tiny reward is cooldown-limited without suppressing the physical
+action. The observation is a stable 482-element `float32` vector containing
+normalized absolute pose, heading, local Tower safety/teleport features,
+movement/contact/EVA state, and bounded native actor features.
 
 Native actor lifecycle/HP transitions scoped to a cast are the reward signal.
 OCR can validate a kill count but cannot create reward. The mapped teleport
-zone is explicit in observations and reward components. A policy-caused entry
-is penalized; an external map/session teleport is a non-policy terminal that
-saves the valid model and report without training that terminal prefix.
+zone is explicit in observations and reward components. The hand-traced black
+obstacle mask and its inflated buffer remain distinct: the buffer receives a
+small steering penalty, black cells receive a heavy but non-terminal penalty,
+and red teleport cells retain the extreme terminal penalty. This tolerates map
+imprecision while still strongly discouraging routes that can wedge the bot.
+A policy-caused red entry is penalized; an external map/session teleport is a
+non-policy terminal that saves the valid model and report without training
+that terminal prefix.
 
 ## Native and map boundaries
 

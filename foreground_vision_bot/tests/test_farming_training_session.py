@@ -5,7 +5,7 @@ import json
 import sys
 import zipfile
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -19,6 +19,8 @@ from farming.trainer import (
     FarmingPreflight,
     FarmingRuntime,
     FarmingSessionServices,
+    SessionStats,
+    _TrainingCallback,
     train_native_farming,
 )
 from runtime_bus import RuntimeBus
@@ -102,12 +104,15 @@ class FakeModel:
         events: list[str],
         *,
         failure: BaseException | None = None,
+        boundary_after_learns: int = 1,
     ) -> None:
         self.events = events
         self.failure = failure
+        self.boundary_after_learns = int(boundary_after_learns)
+        self.learn_calls: list[dict[str, object]] = []
         self.num_timesteps = 17
         self.farming_contract_metadata: dict[str, object] | None = None
-        self.session_boundary = TrainingBoundary(
+        self._boundary = TrainingBoundary(
             TrainingBoundaryKind.EXTERNAL_END,
             {
                 "session_end_reason": "external_teleport",
@@ -118,11 +123,19 @@ class FakeModel:
             },
             2.0,
         )
+        self.session_boundary = self._boundary
 
-    def learn(self, **_kwargs: object) -> FakeModel:
+    def learn(self, **kwargs: object) -> FakeModel:
         self.events.append("learn")
+        self.learn_calls.append(dict(kwargs))
         if self.failure is not None:
             raise self.failure
+        requested = int(kwargs.get("total_timesteps", 0))
+        self.num_timesteps += requested
+        if len(self.learn_calls) >= self.boundary_after_learns:
+            self.session_boundary = self._boundary
+        else:
+            self.session_boundary = None
         return self
 
     def save(self, path: str) -> None:
@@ -171,7 +184,7 @@ def test_external_training_end_saves_model_report_and_recovery_manifest(
     runtime = FakeRuntime(events)
     model = FakeModel(events)
     bot = FakeBot(events)
-    config = FarmingRuntimeConfig(total_timesteps=8)
+    config = FarmingRuntimeConfig(checkpoint_frequency=8)
 
     result = train_native_farming(
         bot,  # pyright: ignore[reportArgumentType]
@@ -182,7 +195,7 @@ def test_external_training_end_saves_model_report_and_recovery_manifest(
 
     assert events[:4] == ["preflight", "model_preflight", "start", "learn"]
     assert events[-3:] == ["release", "save", "close"]
-    assert result == tmp_path / "native_strategy_jump_ppo.zip"
+    assert result == tmp_path / "native_strategy_map_risk_ppo.zip"
     report = json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))
     assert report["session_reason"] == "external_teleport"
     assert report["session_classification"] == "external_truncation"
@@ -196,6 +209,87 @@ def test_external_training_end_saves_model_report_and_recovery_manifest(
     assert len(manifest["model"]["sha256"]) == 64
 
 
+
+def test_normal_training_status_is_concise_and_uses_total_model_steps() -> None:
+    events: list[str] = []
+    runtime = FakeRuntime(events)
+    statuses: list[str] = []
+    callback = _TrainingCallback(
+        runtime=cast(FarmingRuntime, cast(object, runtime)),
+        config=FarmingRuntimeConfig(stats_interval_seconds=0.001),
+        cancellation=CancellationToken(),
+        stats=SessionStats(),
+        status_callback=statuses.append,
+    )
+    callback.model = SimpleNamespace(num_timesteps=123_456)
+    callback.locals = {
+        "infos": [
+            {
+                "native_kill_delta": 2,
+                "action_name": "CAST_EVA",
+                "jump_requested": False,
+                "jump_performed": False,
+            }
+        ],
+        "rewards": [1.75],
+    }
+    callback._last_status = 0.0
+
+    assert callback._on_step()
+
+    message = statuses[-1]
+    assert message.startswith(
+        "TRAINING | steps=123,456 reward=+1.75 reward_delta=+1.75 "
+        "kills=2 kills/hr="
+    )
+    assert "action=CAST_EVA" in message
+    for noisy_field in ("actors=", "cache=", "candidates=", "ocr="):
+        assert noisy_field not in message
+
+
+def test_training_continues_past_checkpoint_and_uses_total_model_steps(
+    tmp_path: Path,
+) -> None:
+    events: list[str] = []
+    runtime = FakeRuntime(events)
+    model = FakeModel(events, boundary_after_learns=2)
+    bot = FakeBot(events)
+    statuses: list[str] = []
+    config = FarmingRuntimeConfig(checkpoint_frequency=8)
+
+    result = train_native_farming(
+        bot,  # pyright: ignore[reportArgumentType]
+        config,
+        status_callback=statuses.append,
+        cancellation=CancellationToken(),
+        services=_services(tmp_path, runtime, model, events),
+    )
+
+    assert result == tmp_path / "native_strategy_map_risk_ppo.zip"
+    assert len(model.learn_calls) == 2
+    assert model.learn_calls[0]["total_timesteps"] == 7
+    assert model.learn_calls[0]["reset_num_timesteps"] is False
+    assert model.learn_calls[1]["total_timesteps"] == 8
+    assert model.learn_calls[1]["reset_num_timesteps"] is False
+    assert model.num_timesteps == 32
+    checkpoint = (
+        tmp_path
+        / "native_strategy_map_risk_checkpoints"
+        / "native_strategy_map_risk_ppo_000000000024_steps.zip"
+    )
+    assert checkpoint.is_file()
+    assert any(
+        message.startswith("TRAINING STARTED | total_steps=17 checkpoint_every=8")
+        for message in statuses
+    )
+    assert any(
+        message.startswith("TRAINING CHECKPOINT | steps=24")
+        for message in statuses
+    )
+    assert events.count("learn") == 2
+    assert events.count("save") == 2
+
+
 def test_fatal_training_failure_preserves_last_known_good_model(
     tmp_path: Path,
 ) -> None:
@@ -203,13 +297,13 @@ def test_fatal_training_failure_preserves_last_known_good_model(
     runtime = FakeRuntime(events)
     model = FakeModel(events, failure=RuntimeError("policy failure"))
     bot = FakeBot(events)
-    destination = tmp_path / "native_strategy_jump_ppo.zip"
+    destination = tmp_path / "native_strategy_map_risk_ppo.zip"
     destination.write_bytes(b"LAST-KNOWN-GOOD")
 
     try:
         train_native_farming(
             bot,  # pyright: ignore[reportArgumentType]
-            FarmingRuntimeConfig(total_timesteps=8),
+            FarmingRuntimeConfig(checkpoint_frequency=8),
             cancellation=CancellationToken(),
             services=_services(tmp_path, runtime, model, events),
         )
@@ -256,7 +350,7 @@ def test_fake_launch_attach_preview_dry_run_and_external_training_session(
     ) -> Path:
         return real_train(
             selected_bot,  # pyright: ignore[reportArgumentType]
-            FarmingRuntimeConfig(total_timesteps=8),
+            FarmingRuntimeConfig(checkpoint_frequency=8),
             status_callback=status_callback,
             cancellation=cancellation,
             services=training_services,

@@ -52,6 +52,21 @@ def test_gui_exposes_managed_native_health_and_recovery_commands() -> None:
     assert 'key="-RECOVER_POINTERS-"' in gui_source
     assert "self.controller.start_native_diagnostic(" in gui_source
     assert "self.controller.stop_native_diagnostic()" in gui_source
-    assert "Player HP is read automatically from the status panel." in gui_source
+    assert "Player HP is read automatically from the status panel." not in gui_source
     assert "-POINTER-CURRENT-HP-" not in gui_source
     assert "-POINTER-MAX-HP-" not in gui_source
+
+
+def test_gui_exposes_three_functional_bot_vision_toggles() -> None:
+    gui_source = (Path(__file__).resolve().parents[1] / "Gui.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'key="-SHOW_FRAMES-"' in gui_source
+    assert 'key="-SHOW_UI_ELEMENTS-"' in gui_source
+    assert 'key="-SHOW_MOB_MARKERS-"' in gui_source
+    assert "Show bot vision" in gui_source
+    assert "Show detected UI elements" in gui_source
+    assert "Show mobs markers" in gui_source
+    assert 'key="-SHOW_MATCHES_TEXT-"' not in gui_source
+    assert 'key="-SHOW_BOXES-"' not in gui_source

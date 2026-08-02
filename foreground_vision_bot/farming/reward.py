@@ -6,6 +6,7 @@ from numbers import Integral
 
 import numpy as np
 
+from .map_features import MapCellRisk
 from .session import (
     SessionClassification,
     SessionEndReason,
@@ -22,6 +23,8 @@ class RewardConfig:
     invalid_eva_penalty: float = 0.10
     eva_miss_penalty: float = 0.05
     contact_penalty: float = 0.035
+    obstacle_buffer_penalty: float = 0.025
+    obstacle_cell_penalty: float = 0.75
     jump_flair_reward: float = 0.001
     teleport_warning_radius_cells: float = 6.0
     teleport_buffer_radius_cells: float = 2.0
@@ -44,6 +47,10 @@ class RewardConfig:
             raise ValueError(
                 "teleport_trigger_penalty must dominate one confirmed kill"
             )
+        if self.obstacle_cell_penalty <= self.obstacle_buffer_penalty:
+            raise ValueError(
+                "obstacle_cell_penalty must exceed obstacle_buffer_penalty"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +63,8 @@ class RewardComponents:
     invalid_eva: float = 0.0
     eva_miss: float = 0.0
     contact: float = 0.0
+    obstacle_buffer: float = 0.0
+    obstacle_cell: float = 0.0
     jump_flair: float = 0.0
     teleport_proximity: float = 0.0
     teleport_buffer: float = 0.0
@@ -77,6 +86,7 @@ class RewardEvidence:
     eva_attempted: bool = False
     eva_available: bool = True
     contact: bool = False
+    map_cell_risk: MapCellRisk = MapCellRisk.OUTSIDE_OR_UNKNOWN
     jump_performed: bool = False
     forbidden_distance_cells: float | None = None
     session_outcome: SessionOutcome = SessionOutcome.continuing()
@@ -104,6 +114,8 @@ class RewardEvidence:
                 raise ValueError(
                     "forbidden_distance_cells must be finite and non-negative"
                 )
+        if not isinstance(self.map_cell_risk, MapCellRisk):
+            raise ValueError("map_cell_risk must be a MapCellRisk value")
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +176,16 @@ class RewardCalculator:
             contact=(
                 -config.contact_penalty
                 if evidence.contact and not evidence.eva_attempted
+                else 0.0
+            ),
+            obstacle_buffer=(
+                -config.obstacle_buffer_penalty
+                if evidence.map_cell_risk is MapCellRisk.OBSTACLE_BUFFER
+                else 0.0
+            ),
+            obstacle_cell=(
+                -config.obstacle_cell_penalty
+                if evidence.map_cell_risk is MapCellRisk.OBSTACLE
                 else 0.0
             ),
             jump_flair=(

@@ -323,6 +323,62 @@ def test_rl_startup_pointer_failure_is_clean_and_never_enters_trainer(
     assert any("No input was activated" in message for message in messages)
 
 
+def test_rl_startup_prefers_validated_persisted_profile_before_full_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ProfileService:
+        def __init__(self) -> None:
+            self.ready = False
+            self.profile_calls = 0
+            self.recovery_calls = 0
+
+        def read_pointer_snapshot(self):
+            if not self.ready:
+                raise NativePointerSnapshotError("Local-player pointer is null")
+            return NativePointerSnapshot(
+                player_pointer_address=0x500000,
+                world_pointer_address=0,
+                player_base=0x20000000,
+                world_base=0,
+                generation=1,
+                captured_at=1.0,
+            )
+
+        def try_restore_persisted_profile(self, **kwargs):
+            self.profile_calls += 1
+            assert kwargs["deadline"] > 0.0
+            assert kwargs["cancellation"] is not None
+            self.ready = True
+            return True
+
+        def recover_pointers(self, **_kwargs):
+            self.recovery_calls += 1
+            raise AssertionError("full recovery should not run")
+
+    bot = FakeBot()
+    service = ProfileService()
+    bot.native_process_service = service
+    controller = RuntimeController(bot, RuntimeBus())
+    module = ModuleType("farming.trainer")
+    invoked: list[str] = []
+    module.dry_run_native_farming = lambda *_args, **_kwargs: invoked.append("dry")
+    module.run_native_farming_agent = lambda *_args, **_kwargs: invoked.append("agent")
+    module.train_native_farming = lambda *_args, **_kwargs: invoked.append("train")
+    module.validate_native_farming_data = lambda *_args, **_kwargs: invoked.append("validate")
+    monkeypatch.setitem(sys.modules, "farming.trainer", module)
+    monkeypatch.setattr(
+        controller,
+        "_start_control",
+        lambda _name, target: target(CancellationToken()),
+    )
+
+    controller.start_rl("train")
+
+    assert invoked == ["train"]
+    assert service.profile_calls == 1
+    assert service.recovery_calls == 0
+
+
 def test_rl_startup_recovery_verifies_snapshot_before_entering_trainer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -18,7 +18,6 @@ class SessionEndReason(str, Enum):
     FORBIDDEN_ZONE_ENTERED = "forbidden_zone_entered"
     EXTERNAL_TELEPORT = "external_teleport"
     MAP_TRANSITION = "map_transition"
-    SESSION_TIME_EXPIRED = "session_time_expired"
     CLIENT_EXITED = "client_exited"
     POINTER_GRACE_EXHAUSTED = "pointer_grace_exhausted"
     USER_CANCELLED = "user_cancelled"
@@ -31,7 +30,6 @@ _CLASSIFICATION_BY_REASON: dict[SessionEndReason, SessionClassification] = {
     SessionEndReason.FORBIDDEN_ZONE_ENTERED: (SessionClassification.POLICY_TERMINATION),
     SessionEndReason.EXTERNAL_TELEPORT: SessionClassification.EXTERNAL_TRUNCATION,
     SessionEndReason.MAP_TRANSITION: SessionClassification.EXTERNAL_TRUNCATION,
-    SessionEndReason.SESSION_TIME_EXPIRED: (SessionClassification.EXTERNAL_TRUNCATION),
     SessionEndReason.CLIENT_EXITED: SessionClassification.EXTERNAL_TRUNCATION,
     SessionEndReason.POINTER_GRACE_EXHAUSTED: (
         SessionClassification.EXTERNAL_TRUNCATION
@@ -169,7 +167,6 @@ class SessionEvidence:
 
     user_cancelled: bool = False
     client_exited: bool = False
-    session_time_expired: bool = False
     map_transition: bool = False
     focus_lost: bool = False
     pointer_grace_exhausted: bool = False
@@ -219,11 +216,6 @@ def classify_session_outcome(evidence: SessionEvidence) -> SessionOutcome:
         return SessionOutcome.external(
             SessionEndReason.CLIENT_EXITED,
             "the attached client process exited",
-        )
-    if evidence.session_time_expired:
-        return SessionOutcome.external(
-            SessionEndReason.SESSION_TIME_EXPIRED,
-            "the farm-map session time expired",
         )
     if evidence.forbidden_entry_proven:
         return SessionOutcome.forbidden_zone_entered()

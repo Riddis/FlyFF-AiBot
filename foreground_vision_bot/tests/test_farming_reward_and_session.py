@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from farming.map_features import MapCellRisk
 from farming.reward import RewardCalculator, RewardEvidence
 from farming.session import (
     SessionClassification,
@@ -110,6 +111,35 @@ def test_native_kills_are_the_only_kill_reward_input() -> None:
     assert reward.total == pytest.approx(sum(reward.components.as_dict().values()))
 
 
+def test_map_risk_penalties_distinguish_buffer_obstacle_and_red_trigger() -> None:
+    calculator = RewardCalculator()
+    safe = calculator.calculate(RewardEvidence())
+    buffer = calculator.calculate(
+        RewardEvidence(map_cell_risk=MapCellRisk.OBSTACLE_BUFFER)
+    )
+    obstacle = calculator.calculate(
+        RewardEvidence(map_cell_risk=MapCellRisk.OBSTACLE)
+    )
+    trigger_outcome = SessionOutcome.forbidden_zone_entered()
+    trigger = calculator.calculate(
+        RewardEvidence(
+            map_cell_risk=MapCellRisk.TELEPORT_TRIGGER,
+            forbidden_distance_cells=0.0,
+            session_outcome=trigger_outcome,
+        )
+    )
+
+    assert safe.components.obstacle_buffer == 0.0
+    assert safe.components.obstacle_cell == 0.0
+    assert buffer.components.obstacle_buffer == pytest.approx(-0.025)
+    assert buffer.components.obstacle_cell == 0.0
+    assert obstacle.components.obstacle_buffer == 0.0
+    assert obstacle.components.obstacle_cell == pytest.approx(-0.75)
+    assert abs(trigger.components.teleport_trigger) > abs(
+        obstacle.components.obstacle_cell
+    )
+
+
 def test_invalid_eva_and_valid_miss_are_distinct_components() -> None:
     calculator = RewardCalculator()
     invalid = calculator.calculate(
@@ -161,18 +191,6 @@ def test_user_cancellation_and_fatal_failure_do_not_allow_auto_reset() -> None:
         assert all(value == 0.0 for value in reward.components.as_dict().values())
 
 
-def test_session_expiry_is_external_even_if_last_position_was_near_warning() -> None:
-    outcome = classify_session_outcome(
-        SessionEvidence(
-            session_time_expired=True,
-            sampled_forbidden_occupancy=True,
-            started_inside_warning_radius=True,
-        )
-    )
-    assert outcome.reason is SessionEndReason.SESSION_TIME_EXPIRED
-    assert not outcome.policy_caused
-
-
 @pytest.mark.parametrize(
     ("field", "value"),
     [
@@ -198,9 +216,6 @@ def test_every_session_reason_has_one_exhaustive_classification() -> None:
         ),
         SessionEndReason.EXTERNAL_TELEPORT: (SessionClassification.EXTERNAL_TRUNCATION),
         SessionEndReason.MAP_TRANSITION: SessionClassification.EXTERNAL_TRUNCATION,
-        SessionEndReason.SESSION_TIME_EXPIRED: (
-            SessionClassification.EXTERNAL_TRUNCATION
-        ),
         SessionEndReason.CLIENT_EXITED: SessionClassification.EXTERNAL_TRUNCATION,
         SessionEndReason.POINTER_GRACE_EXHAUSTED: (
             SessionClassification.EXTERNAL_TRUNCATION

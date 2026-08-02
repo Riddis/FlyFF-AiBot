@@ -1,15 +1,13 @@
 {
-  "version": 4,
-  "total_timesteps": 100000,
-  "checkpoint_frequency": 10000,
+  "version": 6,
+  "checkpoint_frequency": 50000,
   "stats_interval_seconds": 10.0,
-  "model_path": "models/farming/native_strategy_jump_ppo",
-  "checkpoint_dir": "models/farming/native_strategy_jump_checkpoints",
-  "tensorboard_dir": "training_logs/farming/native_strategy_jump",
+  "model_path": "models/farming/native_strategy_map_risk_ppo",
+  "checkpoint_dir": "models/farming/native_strategy_map_risk_checkpoints",
+  "tensorboard_dir": "training_logs/farming/native_strategy_map_risk",
   "max_targets": 32,
   "vision_radius_cells": 50.0,
   "eva_radius_cells": 8.0,
-  "episode_seconds": 300.0,
   "eva_cooldown_seconds": 2.0,
   "minimum_dry_run_cast_targets": 4,
   "dry_run_seconds": 90.0,
@@ -40,5 +38,7 @@
   "teleport_confirmation_interval_seconds": 0.05,
   "teleport_motion_allowance_cells_per_second": 20.0,
   "teleport_motion_margin_cells": 3.0,
-  "unexpected_teleport_forward_pulse_seconds": 0.3
+  "unexpected_teleport_forward_pulse_seconds": 0.3,
+  "obstacle_buffer_penalty": 0.025,
+  "obstacle_cell_penalty": 0.75
 }

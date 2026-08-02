@@ -146,11 +146,16 @@ def test_shipped_config_migrates_without_using_hierarchical_navigation() -> None
     assert config.control_interval_seconds == pytest.approx(0.2)
     assert config.pointer_grace_seconds == pytest.approx(3.0)
     assert config.keyboard_layout == "azerty"
-    assert config.model_path.endswith("native_strategy_jump_ppo")
+    assert config.model_path.endswith("native_strategy_map_risk_ppo")
+    assert config.checkpoint_frequency == 50_000
+    assert not hasattr(config, "total_timesteps")
+    assert not hasattr(config, "episode_seconds")
     assert config.jump_cooldown_seconds == pytest.approx(2.0)
     assert config.jump_flair_reward == pytest.approx(0.001)
     assert config.teleport_confirmation_samples == 3
     assert config.unexpected_teleport_forward_pulse_seconds == pytest.approx(0.3)
+    assert config.obstacle_buffer_penalty == pytest.approx(0.025)
+    assert config.obstacle_cell_penalty == pytest.approx(0.75)
     assert "movement_model_path" not in config.contract_payload()
 
 
@@ -174,7 +179,7 @@ def test_config_rejects_unknown_or_boolean_numeric_values(tmp_path: Path) -> Non
         FarmingRuntimeConfig.load(unknown)
 
     invalid = tmp_path / "invalid.json"
-    invalid.write_text(json.dumps({"total_timesteps": True}), encoding="utf-8")
+    invalid.write_text(json.dumps({"checkpoint_frequency": True}), encoding="utf-8")
     with pytest.raises(ValueError, match="positive integer"):
         FarmingRuntimeConfig.load(invalid)
 

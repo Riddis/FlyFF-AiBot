@@ -75,7 +75,7 @@ class Gui:
     def init(self):
         layout = self.__get_layout()
         self.window = sg.Window(
-            "Flyff FVF",
+            "FlyFF AiBot",
             layout,
             location=(0, 0),
             size=(1320, 990),
@@ -210,29 +210,24 @@ class Gui:
                     if recover:
                         self.__set_rl_buttons(attached=True, running=True)
 
-            # BOT OPTIONS - Video options
+            # BOT OPTIONS - Preview options
             if event == "-SHOW_FRAMES-":
-                bot.set_config(show_frames=values["-SHOW_FRAMES-"])
-                sg.user_settings_set_entry("-SHOW_FRAMES-", values["-SHOW_FRAMES-"])
-                self.window["-SHOW_MATCHES_TEXT-"].update(
-                    visible=(values["-SHOW_FRAMES-"])
-                )
-                self.window["-SHOW_BOXES-"].update(visible=(values["-SHOW_FRAMES-"]))
-                self.window["-SHOW_MARKERS-"].update(visible=(values["-SHOW_FRAMES-"]))
-                self.window["-VISION_FRAME-"].update(visible=(values["-SHOW_FRAMES-"]))
-                self.window.refresh()  # Combined with contents_changed, will compute the new size of the element
+                enabled = bool(values["-SHOW_FRAMES-"])
+                bot.set_config(show_frames=enabled)
+                sg.user_settings_set_entry("-SHOW_FRAMES-", enabled)
+                self.window["-SHOW_UI_ELEMENTS-"].update(visible=enabled)
+                self.window["-SHOW_MOB_MARKERS-"].update(visible=enabled)
+                self.window["-VISION_FRAME-"].update(visible=enabled)
+                self.window.refresh()
                 self.window["-MAIN_COLUMN-"].contents_changed()
-            if event == "-SHOW_MATCHES_TEXT-":
-                bot.set_config(show_matches_text=values["-SHOW_MATCHES_TEXT-"])
-                sg.user_settings_set_entry(
-                    "-SHOW_MATCHES_TEXT-", values["-SHOW_MATCHES_TEXT-"]
-                )
-            if event == "-SHOW_BOXES-":
-                bot.set_config(show_mobs_pos_boxes=values["-SHOW_BOXES-"])
-                sg.user_settings_set_entry("-SHOW_BOXES-", values["-SHOW_BOXES-"])
-            if event == "-SHOW_MARKERS-":
-                bot.set_config(show_mobs_pos_markers=values["-SHOW_MARKERS-"])
-                sg.user_settings_set_entry("-SHOW_MARKERS-", values["-SHOW_MARKERS-"])
+            if event == "-SHOW_UI_ELEMENTS-":
+                enabled = bool(values["-SHOW_UI_ELEMENTS-"])
+                bot.set_config(show_detected_ui_elements=enabled)
+                sg.user_settings_set_entry("-SHOW_UI_ELEMENTS-", enabled)
+            if event == "-SHOW_MOB_MARKERS-":
+                enabled = bool(values["-SHOW_MOB_MARKERS-"])
+                bot.set_config(show_mobs_pos_markers=enabled)
+                sg.user_settings_set_entry("-SHOW_MOB_MARKERS-", enabled)
 
             # BOT OPTIONS - Threshold options
             if isinstance(event, str) and event.startswith("-BOT_THRESHOLD_OPTIONS-"):
@@ -826,32 +821,37 @@ class Gui:
         """Display an error above the main window from the GUI thread."""
         sg.popup_error(
             str(message),
-            title="Flyff FVF Error",
+            title="FlyFF AiBot Error",
             keep_on_top=True,
             modal=True,
             location=(80, 80),
         )
 
     def __load_settings(self, bot):
-        show_frames = sg.user_settings_get_entry("-SHOW_FRAMES-", True)
+        show_frames = bool(sg.user_settings_get_entry("-SHOW_FRAMES-", True))
         self.window["-SHOW_FRAMES-"].update(show_frames)
-        self.window["-SHOW_MATCHES_TEXT-"].update(visible=show_frames)
-        self.window["-SHOW_BOXES-"].update(visible=show_frames)
-        self.window["-SHOW_MARKERS-"].update(visible=show_frames)
+        self.window["-SHOW_UI_ELEMENTS-"].update(visible=show_frames)
+        self.window["-SHOW_MOB_MARKERS-"].update(visible=show_frames)
         self.window["-VISION_FRAME-"].update(visible=show_frames)
         bot.set_config(show_frames=show_frames)
 
-        show_matches_text = sg.user_settings_get_entry("-SHOW_MATCHES_TEXT-", False)
-        self.window["-SHOW_MATCHES_TEXT-"].update(show_matches_text)
-        bot.set_config(show_matches_text=show_matches_text)
+        show_ui = bool(
+            sg.user_settings_get_entry(
+                "-SHOW_UI_ELEMENTS-",
+                sg.user_settings_get_entry("-SHOW_MATCHES_TEXT-", True),
+            )
+        )
+        self.window["-SHOW_UI_ELEMENTS-"].update(show_ui)
+        bot.set_config(show_detected_ui_elements=show_ui)
 
-        show_mobs_pos_boxes = sg.user_settings_get_entry("-SHOW_BOXES-", False)
-        self.window["-SHOW_BOXES-"].update(show_mobs_pos_boxes)
-        bot.set_config(show_mobs_pos_boxes=show_mobs_pos_boxes)
-
-        show_mobs_pos_markers = sg.user_settings_get_entry("-SHOW_MARKERS-", True)
-        self.window["-SHOW_MARKERS-"].update(show_mobs_pos_markers)
-        bot.set_config(show_mobs_pos_markers=show_mobs_pos_markers)
+        show_mobs = bool(
+            sg.user_settings_get_entry(
+                "-SHOW_MOB_MARKERS-",
+                sg.user_settings_get_entry("-SHOW_MARKERS-", True),
+            )
+        )
+        self.window["-SHOW_MOB_MARKERS-"].update(show_mobs)
+        bot.set_config(show_mobs_pos_markers=show_mobs)
 
         bot.set_config(
             mob_pos_match_threshold=0.7,
@@ -1354,7 +1354,7 @@ class Gui:
         self.window.bind("<Alt_L><s>", "-STOP_BOT-")
 
     def __get_layout(self):
-        title = [sg.Text("Flyff FVF", font="Any 18")]
+        title = [sg.Text("FlyFF AiBot", font="Any 18")]
 
         actions = sg.Frame(
             "Actions:",
@@ -1406,12 +1406,6 @@ class Gui:
                         disabled=True,
                         key="-SET_MINIMAP_ANCHOR-",
                         expand_x=True,
-                    ),
-                ],
-                [
-                    sg.Text(
-                        "Player HP is read automatically from the status panel.",
-                        tooltip="Keep the full player-status panel visible.",
                     ),
                 ],
                 [
@@ -1524,7 +1518,7 @@ class Gui:
             [
                 [
                     sg.Checkbox(
-                        "Show bot's vision",
+                        "Show bot vision",
                         True,
                         enable_events=True,
                         key="-SHOW_FRAMES-",
@@ -1533,20 +1527,10 @@ class Gui:
                 [
                     sg.pin(
                         sg.Checkbox(
-                            "Show matches text",
-                            False,
+                            "Show detected UI elements",
+                            True,
                             enable_events=True,
-                            key="-SHOW_MATCHES_TEXT-",
-                        )
-                    )
-                ],
-                [
-                    sg.pin(
-                        sg.Checkbox(
-                            "Show mobs boxes",
-                            False,
-                            enable_events=True,
-                            key="-SHOW_BOXES-",
+                            key="-SHOW_UI_ELEMENTS-",
                         )
                     )
                 ],
@@ -1556,7 +1540,7 @@ class Gui:
                             "Show mobs markers",
                             True,
                             enable_events=True,
-                            key="-SHOW_MARKERS-",
+                            key="-SHOW_MOB_MARKERS-",
                         )
                     )
                 ],
@@ -1769,7 +1753,7 @@ class Gui:
         log_text = self.window["-ML-"].get()
 
         self._log_window = sg.Window(
-            "Flyff FVF Log",
+            "FlyFF AiBot Log",
             [
                 [
                     sg.Multiline(

@@ -123,8 +123,33 @@ def _map_context() -> FarmingMapContext:
     )
 
 
+def _map_context_with_obstacle() -> FarmingMapContext:
+    traversable = np.ones((11, 11), dtype=np.bool_)
+    traversable[5, 6] = False
+    forbidden = np.zeros_like(traversable)
+    forbidden[5, 9] = True
+    safe = traversable & ~forbidden
+    safe[5, 5] = False
+    return FarmingMapContext(
+        map_name="Tower AoE",
+        map_directory=Path("."),
+        coordinate_frame=CoordinateFrame(native_units_per_cell=1.0),
+        grid_origin=5,
+        source_bounds=(0, 0, 10, 10),
+        features=FarmingMapFeatures(
+            traversable=traversable,
+            forbidden=forbidden,
+            safe_traversable=safe,
+            teleport_buffer_radius_cells=1.0,
+        ),
+        content_hash="OBSTACLE-TEST",
+    )
+
+
 def _environment(
     world: FakeWorldReader,
+    *,
+    map_context: FarmingMapContext | None = None,
 ) -> tuple[UnifiedFarmingEnv, FakeClock, FakeKeyboard]:
     clock = FakeClock()
     token = FakeToken(clock)
@@ -136,7 +161,6 @@ def _environment(
         sleeper=clock.sleep,
     )
     config = FarmingRuntimeConfig(
-        episode_seconds=100.0,
         control_interval_seconds=0.20,
         pointer_grace_seconds=0.10,
         pointer_poll_seconds=0.05,
@@ -152,7 +176,7 @@ def _environment(
 
     environment = UnifiedFarmingEnv(
         world,  # type: ignore[arg-type]
-        _map_context(),
+        _map_context() if map_context is None else map_context,
         control,
         token,
         config=config,
@@ -162,6 +186,31 @@ def _environment(
     )
     environment._test_ocr_reads = ocr_reads  # type: ignore[attr-defined]
     return environment, clock, keyboard
+
+
+def test_environment_applies_distinct_map_buffer_and_obstacle_penalties() -> None:
+    context = _map_context_with_obstacle()
+    buffer_env, _clock, _keyboard = _environment(
+        FakeWorldReader(_frame(-1.0), _frame(0.0)),
+        map_context=context,
+    )
+    buffer_env.reset()
+    buffer_step = buffer_env.step(0)
+
+    assert buffer_step.info["map_cell_risk"] == "obstacle_buffer"
+    assert buffer_step.reward.components.obstacle_buffer == pytest.approx(-0.025)
+    assert buffer_step.reward.components.obstacle_cell == 0.0
+
+    obstacle_env, _clock, _keyboard = _environment(
+        FakeWorldReader(_frame(0.0), _frame(1.0)),
+        map_context=context,
+    )
+    obstacle_env.reset()
+    obstacle_step = obstacle_env.step(0)
+
+    assert obstacle_step.info["map_cell_risk"] == "obstacle"
+    assert obstacle_step.reward.components.obstacle_buffer == 0.0
+    assert obstacle_step.reward.components.obstacle_cell == pytest.approx(-0.75)
 
 
 def test_environment_has_one_live_reset_and_one_reward_calculation() -> None:

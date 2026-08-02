@@ -57,6 +57,3 @@ migration_backups/
 *.bak
 *.tmp
 *.temp
-
-# Generated Git comparison reports
-CURRENT_VS_KNOWN_GOOD_*.txt

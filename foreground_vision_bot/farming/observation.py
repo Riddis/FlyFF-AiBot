@@ -15,11 +15,17 @@ from .map_features import (
     DEFAULT_MAXIMUM_GEODESIC_EXPANSIONS,
     DEFAULT_TELEPORT_BUFFER_RADIUS_CELLS,
     DirectPathState,
+    LOCAL_MAP_OBSTACLE,
+    LOCAL_MAP_OBSTACLE_BUFFER,
+    LOCAL_MAP_OUTSIDE_OR_UNKNOWN,
+    LOCAL_MAP_SAFE,
+    LOCAL_MAP_TELEPORT_BUFFER,
+    LOCAL_MAP_TELEPORT_TRIGGER,
 )
 
 FloatArray = NDArray[np.float32]
 
-OBSERVATION_SCHEMA_ID: Final = "native-unified-482-v2"
+OBSERVATION_SCHEMA_ID: Final = "native-unified-482-v3"
 LEGACY_ACTOR_SLOTS: Final = 32
 ACTOR_FEATURES: Final = 7
 LEGACY_AGGREGATE_FEATURES: Final = 5
@@ -381,7 +387,8 @@ def observation_schema_descriptor(
                 "outside_or_unknown",
                 "exact forbidden trigger",
                 "non-trigger cell within inclusive teleport buffer",
-                "ordinary blocked",
+                "hand-traced black obstacle",
+                "inflated obstacle buffer",
                 "safe traversable",
             ),
             "input_validation": "finite float32-compatible values already in [-1,1]",
@@ -404,11 +411,12 @@ def observation_schema_descriptor(
             "direct_path_unknown": int(DirectPathState.UNKNOWN),
             "direct_path_clear": int(DirectPathState.CLEAR),
             "local_map": {
-                "safe": -1.0,
-                "outside_or_unknown": 0.0,
-                "ordinary_blocked": 0.25,
-                "teleport_buffer": 0.75,
-                "teleport_trigger": 1.0,
+                "safe": LOCAL_MAP_SAFE,
+                "obstacle_buffer": LOCAL_MAP_OBSTACLE_BUFFER,
+                "outside_or_unknown": LOCAL_MAP_OUTSIDE_OR_UNKNOWN,
+                "obstacle": LOCAL_MAP_OBSTACLE,
+                "teleport_buffer": LOCAL_MAP_TELEPORT_BUFFER,
+                "teleport_trigger": LOCAL_MAP_TELEPORT_TRIGGER,
             },
         },
     }
@@ -424,12 +432,12 @@ def observation_schema_hash(scales: ObservationScales | None = None) -> str:
 
 
 OBSERVATION_SCHEMA_HASH: Final = (
-    "48304E57C6A71ADFC3CE1B687B5849FFCA7CBF4B41B203346C96F467E7D79323"
+    "0132FB13764E83FD3754AC895E872479537C45EDB2AAB83B73F87448397F69EC"
 )
 
 
 class ObservationBuilder:
-    """Build the exact ``native-unified-482-v2`` vector from typed inputs."""
+    """Build the exact ``native-unified-482-v3`` vector from typed inputs."""
 
     def __init__(self, scales: ObservationScales | None = None) -> None:
         self.scales = scales or ObservationScales()

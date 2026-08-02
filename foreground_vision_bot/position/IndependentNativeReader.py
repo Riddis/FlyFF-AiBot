@@ -10,6 +10,7 @@ from typing import Callable, Iterable, Mapping, Protocol
 
 from .AuthoritativeActorDiscovery import (
     AuthoritativeActorDiscovery,
+    AuthoritativeActorRefresh,
     ActiveFieldCandidate,
     discover_authoritative_actors,
     refresh_authoritative_actors,
@@ -251,6 +252,10 @@ class IndependentNativeReader:
         cancellation: object | None = None,
         deadline: float | None = None,
         status_callback: Callable[[str], None] | None = None,
+        restored_authoritative: AuthoritativeActorRefresh | None = None,
+        restored_relation_offset: int | None = None,
+        restored_relation_value: int | None = None,
+        known_actor_stride: int | None = None,
     ) -> None:
         if discovery.outcome != "success" or discovery.player is None:
             raise ValueError("successful target discovery with one player is required")
@@ -293,8 +298,13 @@ class IndependentNativeReader:
             for species, hp in (expected_full_hp_by_species or {}).items()
             if int(species) > 0 and int(hp) > 0
         }
-        self.actor_stride = infer_actor_stride(
+        inferred_stride = infer_actor_stride(
             tuple(item.base for item in discovery.monsters)
+        )
+        self.actor_stride = (
+            int(known_actor_stride)
+            if known_actor_stride is not None and int(known_actor_stride) > 0
+            else inferred_stride
         )
         self._player_slots = self._rank_player_slots(
             discovery.player,
@@ -347,7 +357,34 @@ class IndependentNativeReader:
         )
         self._actor_slots = fallback_slots
         finder = getattr(self._memory, "find_u32", None)
-        if callable(finder):
+        if (
+            restored_authoritative is not None
+            and restored_relation_offset is not None
+            and restored_relation_value is not None
+            and restored_authoritative.actor_bases
+        ):
+            self._actor_source = "authoritative_global"
+            self._actor_slots = tuple(restored_authoritative.actor_bases)
+            self._authoritative_relation_offset = int(restored_relation_offset)
+            self._authoritative_relation_value = int(restored_relation_value)
+            self._authoritative_species_counts = tuple(
+                restored_authoritative.species_counts
+            )
+            self._authoritative_active_candidates = tuple(
+                restored_authoritative.active_candidates
+            )
+            self._active_species_offset = restored_authoritative.active_species_offset
+            self._active_species_validated = bool(
+                restored_authoritative.active_species_validated
+            )
+            self._last_authoritative_refresh_at = monotonic()
+            if status_callback is not None:
+                status_callback(
+                    "Validated the last known native actor profile against the "
+                    f"current process; {len(self._actor_slots)} selected actors "
+                    "were recovered without relation inference."
+                )
+        elif callable(finder):
             if status_callback is not None:
                 status_callback(
                     "Inferring the current authoritative global actor relation "

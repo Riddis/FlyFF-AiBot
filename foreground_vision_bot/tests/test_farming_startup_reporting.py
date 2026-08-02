@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 from farming.model_contract import ModelContractError, ModelContractMetadata
 from farming.reporting import (
+    atomic_copy_artifact,
     atomic_save_model,
     atomic_write_json,
     save_session_artifacts,
@@ -114,3 +115,16 @@ def test_session_manifest_points_to_validated_model_and_report(tmp_path: Path) -
     manifest = json.loads(Path(artifacts.manifest.path).read_text(encoding="utf-8"))
     assert manifest["model"]["sha256"] == artifacts.model.sha256
     assert manifest["report"]["sha256"] == artifacts.report.sha256
+
+
+def test_atomic_checkpoint_copy_is_byte_exact_and_creates_parent(tmp_path: Path) -> None:
+    source = tmp_path / "model.zip"
+    source.write_bytes(b"MODEL-CHECKPOINT")
+    destination = tmp_path / "checkpoints" / "model_000050000.zip"
+
+    record = atomic_copy_artifact(source, destination)
+
+    assert destination.read_bytes() == source.read_bytes()
+    assert record.path == str(destination)
+    assert record.size_bytes == len(b"MODEL-CHECKPOINT")
+    assert len(record.sha256) == 64

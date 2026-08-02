@@ -22,6 +22,13 @@ from .NativePointerRecovery import (
     recover_local_player_pointer,
 )
 from .PositionConfig import NativePositionConfig
+from .RecoveredNativeProfile import (
+    default_profile_path,
+    load_profile,
+    profile_from_reader,
+    restore_profile,
+    save_profile,
+)
 from .PositionProvider import PositionProviderError
 from .Win32ProcessMemory import ModuleInfo, Win32MemoryBackend, Win32ProcessMemory
 
@@ -124,6 +131,7 @@ class NativeProcessService:
         owns_memory: bool = True,
         clock: Callable[[], float] = monotonic,
         allow_independent_recovery: bool = False,
+        recovery_profile_path: str | Path | None = None,
     ) -> None:
         self._memory = memory
         self.monster_config = monster_config
@@ -133,6 +141,11 @@ class NativeProcessService:
         self._owns_memory = bool(owns_memory)
         self._clock = clock
         self._allow_independent_recovery = bool(allow_independent_recovery)
+        self.recovery_profile_path = (
+            default_profile_path()
+            if recovery_profile_path is None
+            else Path(recovery_profile_path)
+        )
         self._lock = RLock()
         self._closed = False
         self._resources_closed = False
@@ -232,6 +245,7 @@ class NativeProcessService:
         backend: Win32MemoryBackend | None = None,
         clock: Callable[[], float] = monotonic,
         allow_independent_recovery: bool = True,
+        recovery_profile_path: str | Path | None = None,
     ) -> NativeProcessService:
         memory = Win32ProcessMemory.from_window_handle(
             window_handle,
@@ -247,6 +261,7 @@ class NativeProcessService:
                 owns_memory=True,
                 clock=clock,
                 allow_independent_recovery=allow_independent_recovery,
+                recovery_profile_path=recovery_profile_path,
             )
         except Exception:
             memory.close()
@@ -550,6 +565,149 @@ class NativeProcessService:
                 captured_at=float(self._clock()),
             )
 
+
+    def try_restore_persisted_profile(
+        self,
+        *,
+        hints: PointerRecoveryHints | None = None,
+        cancellation: object | None = None,
+        deadline: float | None = None,
+        status_callback: Callable[[str], None] | None = None,
+    ) -> bool:
+        """Validate the last known independent profile against this process.
+
+        Only module-relative slots and recovered layout relationships are
+        persisted. Heap addresses and relation values are always resolved fresh.
+        A failed validation leaves the service unchanged so callers can run the
+        normal full recovery path.
+        """
+
+        with self._lock:
+            self._require_open()
+            if self._independent_reader is not None:
+                try:
+                    self._independent_reader.read_player()
+                    return True
+                except Exception:
+                    self._independent_reader = None
+            module = self._module_info
+            observed_generation = self._generation
+        if module is None or not self._allow_independent_recovery:
+            return False
+        profile = load_profile(self.recovery_profile_path)
+        if profile is None:
+            return False
+        if status_callback is not None:
+            status_callback("Checking the last known native pointer profile...")
+        try:
+            selected_species = {
+                int(value)
+                for value in (() if hints is None else hints.known_species_ids)
+                if int(value) > 0
+            }
+            restored = restore_profile(
+                self._memory,  # type: ignore[arg-type]
+                module,
+                profile,
+                selected_species_ids=selected_species,
+                maximum_address=self.monster_config.maximum_scan_address,
+                private_memory_only=self.monster_config.private_memory_only,
+                chunk_size=self.monster_config.discovery_chunk_bytes,
+                coordinate_limit=self.monster_config.maximum_absolute_coordinate,
+                cancellation=cancellation,
+                deadline=deadline,
+            )
+            reader = IndependentNativeReader(
+                self._memory,
+                module,
+                restored.discovery,
+                configured_player_offset=(
+                    restored.discovery.player.direct_module_slots[0]
+                    - module.base_address
+                ),
+                monster_current_hp_offset=self.monster_config.hp_offset,
+                monster_active_species_offset=(
+                    self.monster_config.active_species_offset
+                ),
+                expected_full_hp_by_species=dict(
+                    restored.profile.expected_full_hp_by_species
+                ),
+                slots_each_direction=31,
+                selected_species_ids=selected_species,
+                maximum_scan_address=self.monster_config.maximum_scan_address,
+                private_memory_only=self.monster_config.private_memory_only,
+                discovery_chunk_bytes=self.monster_config.discovery_chunk_bytes,
+                coordinate_limit=self.monster_config.maximum_absolute_coordinate,
+                authoritative_refresh_interval_seconds=(
+                    self.monster_config.discovery_interval_seconds
+                ),
+                cancellation=cancellation,
+                deadline=deadline,
+                status_callback=status_callback,
+                restored_authoritative=restored.authoritative,
+                restored_relation_offset=restored.relation_offset,
+                restored_relation_value=restored.relation_value,
+                known_actor_stride=restored.profile.actor_stride,
+            )
+            player = reader.read_player()
+        except Exception as error:
+            if status_callback is not None:
+                status_callback(
+                    "Last known native profile did not validate; full recovery "
+                    f"will run. {type(error).__name__}: {error}"
+                )
+            return False
+
+        with self._lock:
+            if self._closed or self._generation != observed_generation:
+                return False
+            self._independent_reader = reader
+            self._player_pointer_address = int(player.pointer_slot)
+            self._configured_player_pointer_offset = (
+                int(player.pointer_slot) - self._module_base
+            )
+            self._self_pointer_offset = int(
+                restored.profile.player_self_offsets[0]
+            )
+            self._species_offset = int(restored.profile.species_offset)
+            self._active_species_offset = int(restored.profile.active_species_offset)
+            self._hp_offset = int(restored.profile.monster_hp_offset)
+            self._x_offset = int(restored.profile.x_offset)
+            self._y_offset = int(restored.profile.y_offset)
+            self._z_offset = int(restored.profile.z_offset)
+            self._generation += 1
+        if status_callback is not None:
+            status_callback(
+                "Last known native profile validated; player/layout/relation "
+                "inference was skipped and current actors were enumerated from "
+                "the saved relation."
+            )
+        return True
+
+    def _persist_independent_profile(
+        self,
+        reader: IndependentNativeReader,
+    ) -> None:
+        module = self._module_info
+        relation_offset = reader.authoritative_relation_offset
+        if (
+            module is None
+            or relation_offset is None
+            or not reader.authoritative_relation_validated
+            or not reader.monster_targets
+        ):
+            return
+        profile = profile_from_reader(
+            module=module,
+            player_slots=reader.player_slots,
+            player_target=reader.player_target,
+            monster_target=reader.monster_targets[0],
+            actor_stride=reader.actor_stride,
+            authoritative_relation_offset=relation_offset,
+            expected_full_hp_by_species=reader.expected_full_hp_by_species,
+        )
+        save_profile(profile, self.recovery_profile_path)
+
     def recover_pointers(
         self,
         *,
@@ -736,7 +894,26 @@ class NativeProcessService:
                 )
                 if not self._closed:
                     self.last_recovery_result = result
-                return result
+            if applied and independent_reader is not None:
+                try:
+                    self._persist_independent_profile(independent_reader)
+                except Exception as error:
+                    if status_callback is not None:
+                        try:
+                            status_callback(
+                                PointerRecoveryProgress(
+                                    phase="profile_persistence",
+                                    message=(
+                                        "Native recovery succeeded, but the last "
+                                        "known profile could not be saved: "
+                                        f"{type(error).__name__}: {error}"
+                                    ),
+                                    metrics=metrics,
+                                )
+                            )
+                        except Exception:
+                            pass
+            return result
         finally:
             self._finish_recovery()
 

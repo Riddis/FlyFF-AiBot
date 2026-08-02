@@ -4,6 +4,7 @@ import struct
 from dataclasses import dataclass
 from threading import Event, Lock, Thread
 
+from position.AnchoredPointerDiscovery import PointerRecoveryHints
 from position.MonsterConfig import NativeMonsterConfig
 from position.native_process_service import (
     NativeProcessService,
@@ -12,6 +13,8 @@ from position.native_process_service import (
 from position.NativeFlyffMonsterProvider import NativeFlyffMonsterProvider
 from position.NativeFlyffPositionProvider import NativeFlyffPositionProvider
 from position.PositionConfig import NativePositionConfig
+from position.RecoveredNativeProfile import RecoveredNativeProfile, save_profile
+from position.Win32ProcessMemory import ModuleInfo
 
 
 @dataclass(frozen=True)
@@ -28,7 +31,7 @@ class _ServiceMemory:
         self.module_base_value = 0x10000000
         self.actor_base = 0x30000000
         self.module = bytearray(0x6000)
-        self.actor = bytearray(0x3000)
+        self.actor = bytearray(0x10000)
         self.reads: list[tuple[int, int]] = []
         self.readable_calls = 0
         self.closed = False
@@ -40,6 +43,38 @@ class _ServiceMemory:
     def module_base(self, module_name: str) -> int:
         assert module_name == "Neuz.exe"
         return self.module_base_value
+
+    def module_info(self, module_name: str) -> ModuleInfo:
+        assert module_name == "Neuz.exe"
+        return ModuleInfo(
+            name="Neuz.exe",
+            path=r"F:\Games\Neuz.exe",
+            base_address=self.module_base_value,
+            size=len(self.module),
+        )
+
+    def find_u32(
+        self,
+        value: int,
+        *,
+        maximum_address: int,
+        private_only: bool,
+        chunk_size: int,
+        cancellation: object | None = None,
+        deadline: float | None = None,
+    ) -> tuple[int, ...]:
+        del private_only, chunk_size, cancellation, deadline
+        needle = struct.pack("<I", int(value))
+        result: list[int] = []
+        for base, data in (
+            (self.module_base_value, self.module),
+            (self.actor_base, self.actor),
+        ):
+            for offset in range(0, len(data) - 3, 4):
+                address = base + offset
+                if address <= maximum_address and data[offset : offset + 4] == needle:
+                    result.append(address)
+        return tuple(result)
 
     def read(self, address: int, size: int) -> bytes:
         with self._lock:
@@ -361,3 +396,78 @@ def test_close_defers_handle_release_until_blocked_recovery_exits() -> None:
     assert len(results) == 1
     assert not results[0].applied
     assert memory.closed
+
+
+def test_persisted_independent_profile_is_validated_before_full_recovery(tmp_path) -> None:
+    memory = _ServiceMemory()
+    config = _config()
+    player = memory.actor_base
+    relation_value = memory.actor_base + 0xF000
+    slot = memory.module_base_value + config.player_pointer_offset
+    memory.module_u32(config.player_pointer_offset, player)
+    memory.actor_u32(0x3C8, player)
+    memory.actor_u32(0x16C, relation_value)
+    memory.actor_i32(0x81C, 26930)
+    memory.actor_f32(0x160, 253.0)
+    memory.actor_f32(0x164, 100.0)
+    memory.actor_f32(0x168, 86.0)
+    memory.actor_u32(0xF000, 0x12345678)
+
+    for relative, species, hp, x in (
+        (0x3000, 944, 400236, 250.0),
+        (0x6000, 948, 250000, 260.0),
+    ):
+        base = memory.actor_base + relative
+        memory.actor_u32(relative + 0x3C8, base)
+        memory.actor_u32(relative + 0x16C, relation_value)
+        memory.actor_i32(relative + 0x174, species)
+        memory.actor_i32(relative + 0x81C, hp)
+        memory.actor_f32(relative + 0x160, x)
+        memory.actor_f32(relative + 0x164, 100.0)
+        memory.actor_f32(relative + 0x168, 86.0)
+
+    profile_path = tmp_path / "native_profile.json"
+    save_profile(
+        RecoveredNativeProfile(
+            version=1,
+            module_name="Neuz.exe",
+            module_size=len(memory.module),
+            module_filename="Neuz.exe",
+            module_sha256="",
+            player_slot_offsets=(config.player_pointer_offset,),
+            player_self_offsets=(0x3C8,),
+            monster_self_offsets=(0x3C8,),
+            player_hp_offset=0x81C,
+            species_offset=0x174,
+            active_species_offset=0x1DBC,
+            monster_hp_offset=0x81C,
+            x_offset=0x160,
+            y_offset=0x164,
+            z_offset=0x168,
+            actor_stride=0x3000,
+            authoritative_relation_offset=0x16C,
+            anchor_species=944,
+            anchor_hp=400236,
+            expected_full_hp_by_species=((944, 400236),),
+            saved_at_utc="2026-08-02T00:00:00+00:00",
+        ),
+        profile_path,
+    )
+    service = NativeProcessService(
+        memory,
+        config,
+        allow_independent_recovery=True,
+        recovery_profile_path=profile_path,
+    )
+
+    restored = service.try_restore_persisted_profile(
+        hints=PointerRecoveryHints(known_species_ids=(944, 948)),
+    )
+
+    assert restored is True
+    snapshot = service.read_pointer_snapshot()
+    assert snapshot.mode == "independent"
+    assert snapshot.player_base == player
+    assert service.independent_reader is not None
+    assert dict(service.independent_reader.authoritative_species_counts) == {944: 1, 948: 1}
+    assert memory.readable_calls == 0

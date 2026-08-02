@@ -1,4 +1,4 @@
-# Foreground Vision Bot Runbook
+# FlyFF AiBot Runbook
 
 ## Install and launch
 
@@ -24,22 +24,36 @@ frame, not a farming camera-discovery sweep.
 4. Wait for Bot Vision and an FPS value. Use **Native Health**; expect `healthy`, pointer generation, non-null `world_vtable_offset`, `world_vtable_field`, and `world_identity_kind`, the selected map/local cell conversion, cached actor-slot count, OCR state, and focused input status in the log after anchored recovery has been persisted.
 5. If the window is not focused when control starts, the bot attempts activation and then gives a two-second cancellable manual-focus grace period.
 
-Farming startup first checks the shared player/world snapshot. If it is stale
-or null, the managed control worker performs one bounded recovery attempt. A
-failed or cancelled attempt stops cleanly before focus, input, or environment
-activation; it does not produce a worker traceback.
+Bot Vision has three controls: **Show bot vision**, **Show detected UI
+elements**, and **Show mobs markers**. AoE maps skip the legacy name-template
+monster CV path while retaining native map markers; non-AoE maps keep the CV
+code available.
+
+Farming startup first checks the current in-process native snapshot. If it is
+stale or null, it validates the last known local recovery profile from
+`%LOCALAPPDATA%\FlyFFCV\native_recovery_profile.json`. That profile contains no
+heap addresses: module-relative slots and recovered relationships are resolved
+fresh and checked against the current executable, player, coordinates, and
+authoritative actor relation. Only when this fast path is absent or invalid
+does the existing full recovery run. A failed or cancelled attempt stops
+cleanly before focus, input, or environment activation.
 
 ## Dry run, training, and agent
 
-- **Native Dry Run (No Learning)** runs the canonical four-action environment without loading or changing a policy.
-- **Start Training** loads `models/farming/native_strategy_ppo.zip` when present, validates its observation/action contract before enabling input, and otherwise creates a compatible PPO model.
+- **Native Dry Run (No Learning)** runs the canonical five-action environment without loading or changing a policy.
+- **Start Training** loads `models/farming/native_strategy_map_risk_ppo.zip` when present, validates its observation/action contract before enabling input, and otherwise creates a compatible PPO model. Training continues until Stop or a real session boundary; there is no time or 100,000-step expiry.
 - **Run Trained Agent** requires a compatible saved model and performs deterministic inference.
 
-Training checkpoints are written below `models/farming/native_checkpoints`.
-TensorBoard output goes below `training_logs/farming/native_strategy`. Session
-reports and publication manifests go below
-`training_logs/farming/native_sessions`; these are local runtime artifacts and
-are ignored by Git.
+Normal training status reports total model steps, cumulative session reward,
+reward delta since the previous status, kills, kills/hour, jumps, and the latest
+action. Detailed actor/pointer evidence remains in Dry Run and Validate Training
+Data. Complete-rollout checkpoints are published approximately every 50,000
+additional total steps below
+`models/farming/native_strategy_map_risk_checkpoints`; training continues after each
+checkpoint. TensorBoard output goes below
+`training_logs/farming/native_strategy_map_risk`. Session reports and publication
+manifests go below `training_logs/farming/native_sessions`; these are local
+runtime artifacts and are ignored by Git.
 
 ## Stop and close
 
