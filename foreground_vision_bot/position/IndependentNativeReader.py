@@ -6,8 +6,14 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 from threading import RLock
 from time import monotonic
-from typing import Iterable, Mapping, Protocol
+from typing import Callable, Iterable, Mapping, Protocol
 
+from .AuthoritativeActorDiscovery import (
+    AuthoritativeActorDiscovery,
+    ActiveFieldCandidate,
+    discover_authoritative_actors,
+    refresh_authoritative_actors,
+)
 from .NativeTraceTargets import (
     TraceMonsterTarget,
     TracePlayerTarget,
@@ -98,6 +104,17 @@ class IndependentNativeSnapshot:
     monster_hp_candidate_offsets: tuple[int, ...] = ()
     monster_hp_offset_validated: bool = True
     monster_hp_transition_support: tuple[tuple[int, int], ...] = ()
+    actor_source: str = "bounded_slab_fallback"
+    authoritative_relation_offset: int | None = None
+    authoritative_relation_value: int | None = None
+    authoritative_relation_validated: bool = False
+    authoritative_species_counts: tuple[tuple[int, int], ...] = ()
+    authoritative_refreshes: int = 0
+    authoritative_refresh_failures: int = 0
+    authoritative_last_error: str | None = None
+    active_species_offset: int | None = None
+    active_species_validated: bool = False
+    active_species_candidates: tuple[tuple[int, int, int, int, int, bool], ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         payload = asdict(self)
@@ -225,6 +242,15 @@ class IndependentNativeReader:
         expected_full_hp_by_species: Mapping[int, int] | None = None,
         object_span: int = 0x4000,
         slots_each_direction: int = 0,
+        selected_species_ids: Iterable[int] | None = None,
+        maximum_scan_address: int = 0x7FFFFFFF,
+        private_memory_only: bool = True,
+        discovery_chunk_bytes: int = 1 << 20,
+        coordinate_limit: float = 100_000.0,
+        authoritative_refresh_interval_seconds: float = 20.0,
+        cancellation: object | None = None,
+        deadline: float | None = None,
+        status_callback: Callable[[str], None] | None = None,
     ) -> None:
         if discovery.outcome != "success" or discovery.player is None:
             raise ValueError("successful target discovery with one player is required")
@@ -232,6 +258,7 @@ class IndependentNativeReader:
             raise ValueError("at least one validated monster anchor is required")
         self._memory = memory
         self.module = module
+        self._trace_discovery = discovery
         self.player_target = discovery.player
         self.monster_targets = discovery.monsters
         self.object_span = max(0x4000, int(object_span))
@@ -286,13 +313,103 @@ class IndependentNativeReader:
         )
         self._slots_each_direction = max(0, int(slots_each_direction))
         self._cache_lock = RLock()
-        # The exact discovery anchors prove the actor stride and slab layout.
-        # Keep every bounded stride-neighbour address in the ordinary read set.
-        # Do not require a slot to be instantiated during recovery before it can
-        # appear on the map or participate in kill tracking later.
-        self._actor_slots = self._build_actor_slot_cache(
+        self._selected_species_ids = {
+            int(value)
+            for value in (selected_species_ids or ())
+            if int(value) > 0
+        }
+        self._selected_species_ids.update(
+            int(item.species) for item in discovery.monsters
+        )
+        self._maximum_scan_address = int(maximum_scan_address)
+        self._private_memory_only = bool(private_memory_only)
+        self._discovery_chunk_bytes = max(4096, int(discovery_chunk_bytes))
+        self._coordinate_limit = float(coordinate_limit)
+        self._authoritative_refresh_interval_seconds = max(
+            0.0, float(authoritative_refresh_interval_seconds)
+        )
+        self._last_authoritative_refresh_at = -math.inf
+        self._authoritative_refreshes = 0
+        self._authoritative_refresh_failures = 0
+        self._authoritative_last_error: str | None = None
+        self._authoritative_discovery: AuthoritativeActorDiscovery | None = None
+        self._authoritative_relation_offset: int | None = None
+        self._authoritative_relation_value: int | None = None
+        self._authoritative_species_counts: tuple[tuple[int, int], ...] = ()
+        self._authoritative_active_candidates: tuple[ActiveFieldCandidate, ...] = ()
+        self._active_species_offset: int | None = None
+        self._active_species_validated = False
+        self._active_runtime_support: dict[int, list[int]] = {}
+        self._actor_source = "bounded_slab_fallback"
+
+        fallback_slots = self._build_actor_slot_cache(
             slots_each_direction=self._slots_each_direction
         )
+        self._actor_slots = fallback_slots
+        finder = getattr(self._memory, "find_u32", None)
+        if callable(finder):
+            if status_callback is not None:
+                status_callback(
+                    "Inferring the current authoritative global actor relation "
+                    "from the validated player and monster anchors..."
+                )
+            try:
+                authoritative = discover_authoritative_actors(
+                    self._memory,  # type: ignore[arg-type]
+                    discovery,
+                    selected_species_ids=self._selected_species_ids,
+                    actor_stride=self.actor_stride,
+                    object_span=self.object_span,
+                    maximum_address=self._maximum_scan_address,
+                    private_memory_only=self._private_memory_only,
+                    chunk_size=self._discovery_chunk_bytes,
+                    coordinate_limit=self._coordinate_limit,
+                    cancellation=cancellation,
+                    deadline=deadline,
+                )
+                self._authoritative_discovery = authoritative
+                if authoritative.succeeded:
+                    self._actor_source = "authoritative_global"
+                    self._actor_slots = authoritative.actor_bases
+                    self._authoritative_relation_offset = (
+                        authoritative.relation_offset
+                    )
+                    self._authoritative_relation_value = (
+                        authoritative.relation_value
+                    )
+                    self._authoritative_species_counts = (
+                        authoritative.species_counts
+                    )
+                    self._authoritative_active_candidates = (
+                        authoritative.active_candidates
+                    )
+                    self._active_species_offset = (
+                        authoritative.active_species_offset
+                    )
+                    self._active_species_validated = bool(
+                        authoritative.active_species_validated
+                    )
+                    self._last_authoritative_refresh_at = monotonic()
+                    if status_callback is not None:
+                        status_callback(authoritative.message)
+                else:
+                    self._authoritative_last_error = authoritative.message
+                    if status_callback is not None:
+                        status_callback(
+                            "Authoritative actor relation was not proven; using "
+                            "the bounded slab fallback and recording full evidence. "
+                            + authoritative.message
+                        )
+            except Exception as error:
+                self._authoritative_last_error = (
+                    f"{type(error).__name__}: {error}"
+                )
+                if status_callback is not None:
+                    status_callback(
+                        "Authoritative actor discovery failed safely; using the "
+                        "bounded slab fallback. " + self._authoritative_last_error
+                    )
+
         self._pending_actor_slots: set[int] = set()
         self._pending_actor_slot_order: tuple[int, ...] = ()
         self._pending_actor_slot_cursor = 0
@@ -318,12 +435,8 @@ class IndependentNativeReader:
             self.active_species_samples,
             _configured_active_field_matches,
         ) = self._probe_field_matches_species(self.monster_active_species_offset)
-        # Never use an active/loaded field as a correctness gate in independent
-        # mode. The dynamic candidate was a cross-slot species alias and the old
-        # configured field is stale on the validated client. Keep match counts
-        # only as diagnostics.
         del _configured_active_field_matches
-        self.active_species_reliable = False
+        self.active_species_reliable = self._active_species_validated
         (
             self.configured_hp_matches,
             self.configured_hp_samples,
@@ -380,6 +493,70 @@ class IndependentNativeReader:
     def runtime_promoted_slots(self) -> int:
         with self._cache_lock:
             return self._runtime_promoted_slots
+
+    @property
+    def actor_source(self) -> str:
+        return self._actor_source
+
+    @property
+    def authoritative_relation_offset(self) -> int | None:
+        return self._authoritative_relation_offset
+
+    @property
+    def authoritative_relation_value(self) -> int | None:
+        return self._authoritative_relation_value
+
+    @property
+    def authoritative_relation_validated(self) -> bool:
+        return self._actor_source == "authoritative_global"
+
+    @property
+    def authoritative_species_counts(self) -> tuple[tuple[int, int], ...]:
+        return self._authoritative_species_counts
+
+    @property
+    def authoritative_refreshes(self) -> int:
+        return self._authoritative_refreshes
+
+    @property
+    def authoritative_refresh_failures(self) -> int:
+        return self._authoritative_refresh_failures
+
+    @property
+    def authoritative_last_error(self) -> str | None:
+        return self._authoritative_last_error
+
+    @property
+    def active_species_offset(self) -> int | None:
+        return self._active_species_offset
+
+    @property
+    def active_species_validated(self) -> bool:
+        return self._active_species_validated
+
+    @property
+    def active_species_candidates(self) -> tuple[ActiveFieldCandidate, ...]:
+        return self._authoritative_active_candidates
+
+    def authoritative_diagnostics(self) -> dict[str, object]:
+        discovery = self._authoritative_discovery
+        return {
+            "actor_source": self._actor_source,
+            "relation_offset": self._authoritative_relation_offset,
+            "relation_value": self._authoritative_relation_value,
+            "relation_validated": self.authoritative_relation_validated,
+            "actor_count": len(self.actor_slots),
+            "species_counts": [list(item) for item in self._authoritative_species_counts],
+            "refreshes": self._authoritative_refreshes,
+            "refresh_failures": self._authoritative_refresh_failures,
+            "last_error": self._authoritative_last_error,
+            "active_species_offset": self._active_species_offset,
+            "active_species_validated": self._active_species_validated,
+            "active_candidates": [
+                item.to_dict() for item in self._authoritative_active_candidates
+            ],
+            "initial_discovery": None if discovery is None else discovery.to_dict(),
+        }
 
     @property
     def active_species_is_cross_slot_alias(self) -> bool:
@@ -530,21 +707,117 @@ class IndependentNativeReader:
         *,
         maximum_probes: int | None = None,
         force: bool = False,
+        cancellation: object | None = None,
+        deadline: float | None = None,
     ) -> ActorSlotProbeResult:
-        """Compatibility no-op for the removed promotion queue.
+        """Refresh the proven global actor relation without rerunning recovery.
 
-        Every bounded slab address is already part of ``actor_slots`` and is
-        inspected directly by ``snapshot``. No slot has to be promoted first.
+        In authoritative mode this repeats only the old-style global reference
+        scan for the already inferred relation value. Player recovery, layout
+        inference, and HP-field discovery are never touched. The bounded slab
+        fallback remains a no-op for compatibility.
         """
 
-        del maximum_probes, force
-        with self._cache_lock:
-            return ActorSlotProbeResult(
-                probed_slots=0,
-                promoted_slots=0,
-                cached_slots=len(self._actor_slots),
-                pending_slots=0,
+        del maximum_probes
+        if (
+            self._actor_source != "authoritative_global"
+            or self._authoritative_relation_offset is None
+            or self._authoritative_relation_value is None
+        ):
+            with self._cache_lock:
+                return ActorSlotProbeResult(
+                    probed_slots=0,
+                    promoted_slots=0,
+                    cached_slots=len(self._actor_slots),
+                    pending_slots=0,
+                )
+
+        now = monotonic()
+        age = now - self._last_authoritative_refresh_at
+        # A forced preflight refresh immediately after constructor discovery
+        # would scan the whole process twice for no new information.
+        if age < 2.0 or (
+            not force
+            and age < self._authoritative_refresh_interval_seconds
+        ):
+            with self._cache_lock:
+                return ActorSlotProbeResult(
+                    probed_slots=0,
+                    promoted_slots=0,
+                    cached_slots=len(self._actor_slots),
+                    pending_slots=0,
+                )
+
+        try:
+            refreshed = refresh_authoritative_actors(
+                self._memory,  # type: ignore[arg-type]
+                self._trace_discovery_contract(),
+                relation_offset=self._authoritative_relation_offset,
+                relation_value=self._authoritative_relation_value,
+                selected_species_ids=self._selected_species_ids,
+                actor_stride=self.actor_stride,
+                maximum_address=self._maximum_scan_address,
+                private_memory_only=self._private_memory_only,
+                chunk_size=self._discovery_chunk_bytes,
+                coordinate_limit=self._coordinate_limit,
+                cancellation=cancellation,
+                deadline=deadline,
             )
+            minimum_coverage = max(
+                2, math.ceil(len(self.monster_targets) * 0.60)
+            )
+            if refreshed.evidence.exact_anchor_coverage < minimum_coverage:
+                raise IndependentNativeReadError(
+                    "Authoritative refresh lost exact-anchor coverage: "
+                    f"{refreshed.evidence.exact_anchor_coverage}/"
+                    f"{len(self.monster_targets)}"
+                )
+            with self._cache_lock:
+                previous = set(self._actor_slots)
+                self._actor_slots = refreshed.actor_bases
+                current = set(self._actor_slots)
+                self._authoritative_species_counts = refreshed.species_counts
+                self._authoritative_active_candidates = (
+                    refreshed.active_candidates
+                )
+                if refreshed.active_species_validated:
+                    self._active_species_offset = (
+                        refreshed.active_species_offset
+                    )
+                    self._active_species_validated = True
+                    self.active_species_reliable = True
+                self._last_authoritative_refresh_at = now
+                self._authoritative_refreshes += 1
+                self._authoritative_last_error = None
+                return ActorSlotProbeResult(
+                    probed_slots=refreshed.evidence.references,
+                    promoted_slots=len(current - previous),
+                    cached_slots=len(self._actor_slots),
+                    pending_slots=0,
+                )
+        except Exception as error:
+            self._last_authoritative_refresh_at = now
+            self._authoritative_refresh_failures += 1
+            self._authoritative_last_error = f"{type(error).__name__}: {error}"
+            with self._cache_lock:
+                return ActorSlotProbeResult(
+                    probed_slots=0,
+                    promoted_slots=0,
+                    cached_slots=len(self._actor_slots),
+                    pending_slots=0,
+                )
+
+    def _trace_discovery_contract(self) -> TraceTargetDiscovery:
+        """Rebuild the immutable discovery contract for relation refreshes."""
+
+        # Evidence is not consumed by authoritative refresh. Reuse the original
+        # object when available rather than manufacturing pointer-recovery data.
+        discovery = getattr(self, "_trace_discovery", None)
+        if isinstance(discovery, TraceTargetDiscovery):
+            return discovery
+        raise IndependentNativeReadError(
+            "The original validated trace discovery is unavailable"
+        )
 
     def _build_actor_slot_cache(self, *, slots_each_direction: int) -> tuple[int, ...]:
         """Build the complete bounded slot universe around proven anchors.
@@ -659,45 +932,94 @@ class IndependentNativeReader:
         self,
         base: int,
     ) -> tuple[int, int, int, float, float, float]:
-        """Read one reusable actor slot with one compact request.
-
-        No active/loaded field participates in this read. The old configured
-        field is stale and discovery's apparent +0x217C match is the next actor
-        slot's species field. Reading only species, live HP, and coordinates is
-        both cheaper and correct for living, dead, dormant, and reused slots.
-        """
+        """Read one actor using only dynamically proven layout fields."""
 
         layout = self.monster_targets[0]
-        offsets = (
+        active_offset = (
+            self._active_species_offset
+            if self._active_species_offset is not None
+            else self.monster_active_species_offset
+        )
+        offsets = [
             layout.species_offset,
             self.monster_hp_offset,
             layout.x_offset,
             layout.y_offset,
             layout.z_offset,
-        )
+        ]
+        if active_offset is not None:
+            offsets.append(active_offset)
         first = min(offsets)
         last = max(offsets) + 4
         try:
             data = self._memory.read(base + first, last - first)
             if len(data) != last - first:
                 raise OSError("short actor read")
+            active = (
+                0
+                if active_offset is None
+                else _i32(data, active_offset - first)
+            )
             return (
                 _i32(data, layout.species_offset - first),
-                0,
+                active,
                 _i32(data, self.monster_hp_offset - first),
                 _f32(data, layout.x_offset - first),
                 _f32(data, layout.y_offset - first),
                 _f32(data, layout.z_offset - first),
             )
         except Exception:
+            active = 0
+            if active_offset is not None:
+                active = _i32(self._memory.read(base + active_offset, 4))
             return (
                 _i32(self._memory.read(base + layout.species_offset, 4)),
-                0,
+                active,
                 _i32(self._memory.read(base + self.monster_hp_offset, 4)),
                 _f32(self._memory.read(base + layout.x_offset, 4)),
                 _f32(self._memory.read(base + layout.y_offset, 4)),
                 _f32(self._memory.read(base + layout.z_offset, 4)),
             )
+
+    def _observe_active_candidates(
+        self,
+        base: int,
+        species: int,
+        hp: int,
+    ) -> None:
+        """Accumulate runtime proof for candidate loaded/instantiated fields."""
+
+        if species <= 0 or hp < 0 or self._active_species_validated:
+            return
+        for candidate in self._authoritative_active_candidates[:8]:
+            offset = int(candidate.offset)
+            try:
+                value = _i32(self._memory.read(base + offset, 4))
+            except Exception:
+                continue
+            support = self._active_runtime_support.setdefault(offset, [0, 0, 0, 0])
+            if hp == 0:
+                support[3] += 1
+                support[2] += int(value == species)
+            else:
+                support[1] += 1
+                support[0] += int(value == species)
+
+        ranked: list[tuple[float, float, int]] = []
+        for offset, (live_match, live_total, dead_match, dead_total) in (
+            self._active_runtime_support.items()
+        ):
+            if live_total < 20 or dead_total < 3:
+                continue
+            live_ratio = live_match / live_total
+            dead_ratio = dead_match / dead_total
+            if live_ratio >= 0.80 and dead_ratio <= 0.20:
+                ranked.append((live_ratio, -dead_ratio, offset))
+        if ranked:
+            _live, _dead, offset = max(ranked)
+            self._active_species_offset = int(offset)
+            self._active_species_validated = True
+            self.active_species_reliable = True
 
     def read_actor_hp_states(
         self,
@@ -761,6 +1083,7 @@ class IndependentNativeReader:
         invalid_hp = 0
         active_mismatches = 0
         unreadable = 0
+        active_probe_budget = 32
         with self._cache_lock:
             actor_slots = self._actor_slots
         for base in actor_slots:
@@ -775,7 +1098,18 @@ class IndependentNativeReader:
                     unreadable += 1
                     continue
                 distance = math.hypot(x - player.x, z - player.z)
-                active_match = species > 0 and active == species
+                if hp == 0 or active_probe_budget > 0:
+                    self._observe_active_candidates(base, species, hp)
+                    if hp > 0:
+                        active_probe_budget -= 1
+                raw_active_match = species > 0 and active == species
+                # The active/loaded field is valuable diagnostics, but it is
+                # not a correctness gate. The current client has already shown
+                # stale and cross-slot aliases at historical offsets. Excluding
+                # an actor here would hide it from both the minimap and kill
+                # tracking. Authoritative relation + self/species/HP/coordinates
+                # remain the inclusion contract.
+                active_match = True
                 target_species = (
                     species > 0
                     and (allowed_species is None or species in allowed_species)
@@ -785,7 +1119,7 @@ class IndependentNativeReader:
                     state = "empty"
                 else:
                     occupied += 1
-                    if not active_match:
+                    if not raw_active_match:
                         active_mismatches += 1
                     if not target_species:
                         other_species += 1
@@ -853,7 +1187,7 @@ class IndependentNativeReader:
                         y=y,
                         z=z,
                         active_species=active,
-                        active_matches_species=active_match,
+                        active_matches_species=raw_active_match,
                         target_species=target_species,
                         state=state,
                         distance_native=distance,
@@ -943,4 +1277,25 @@ class IndependentNativeReader:
             monster_hp_candidate_offsets=(self.monster_hp_offset,),
             monster_hp_offset_validated=True,
             monster_hp_transition_support=(),
+            actor_source=self._actor_source,
+            authoritative_relation_offset=self._authoritative_relation_offset,
+            authoritative_relation_value=self._authoritative_relation_value,
+            authoritative_relation_validated=self.authoritative_relation_validated,
+            authoritative_species_counts=self._authoritative_species_counts,
+            authoritative_refreshes=self._authoritative_refreshes,
+            authoritative_refresh_failures=self._authoritative_refresh_failures,
+            authoritative_last_error=self._authoritative_last_error,
+            active_species_offset=self._active_species_offset,
+            active_species_validated=self._active_species_validated,
+            active_species_candidates=tuple(
+                (
+                    int(item.offset),
+                    int(item.living_matches),
+                    int(item.living_samples),
+                    int(item.zero_hp_matches),
+                    int(item.zero_hp_samples),
+                    bool(item.validated),
+                )
+                for item in self._authoritative_active_candidates
+            ),
         )

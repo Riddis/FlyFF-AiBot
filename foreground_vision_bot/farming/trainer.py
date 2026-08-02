@@ -650,6 +650,7 @@ def validate_native_farming_data(
     session_reason = "validation_complete"
     session_classification = "completed"
     error: Exception | None = None
+    authoritative_diagnostics: dict[str, object] = {}
     try:
         runtime = build_live_farming_runtime(
             bot,
@@ -700,6 +701,11 @@ def validate_native_farming_data(
                     f"cache={info.get('native_cached_actor_slots', 0)} "
                     f"promoted={info.get('native_runtime_promoted_slots', 0)} "
                     f"pending={info.get('native_pending_actor_slot_probes', 0)} "
+                    f"source={info.get('native_actor_source', 'unknown')} "
+                    f"relation={('--' if info.get('native_authoritative_relation_offset') is None else hex(int(cast(Any, info.get('native_authoritative_relation_offset')))))} "
+                    f"species={info.get('native_authoritative_species_counts', [])} "
+                    f"active={('--' if info.get('native_active_species_offset') is None else hex(int(cast(Any, info.get('native_active_species_offset')))))} "
+                    f"active_ok={bool(info.get('native_active_species_validated', False))} "
                     f"candidates={info.get('native_kill_candidates', 0)} "
                     f"native_kills={stats.kills} "
                     f"ocr_delta={stats.ocr_kill_delta} "
@@ -730,6 +736,15 @@ def validate_native_farming_data(
     finally:
         if runtime is not None:
             try:
+                diagnostics_reader = runtime.domain.world_reader.actor_reader
+                diagnostics_fn = getattr(
+                    diagnostics_reader, "authoritative_diagnostics", None
+                )
+                if callable(diagnostics_fn):
+                    authoritative_diagnostics = dict(diagnostics_fn())
+            except Exception as diagnostics_error:
+                recorder.note_error(diagnostics_error)
+            try:
                 runtime.close()
             except Exception as close_error:
                 recorder.note_error(close_error)
@@ -752,6 +767,7 @@ def validate_native_farming_data(
             "reward": stats.reward,
             "latest_info": stats.latest_info,
             "selected_mobs": bot.config.get("selected_mobs"),
+            "authoritative_actor_discovery": authoritative_diagnostics,
             "validation_config": {
                 "run_seconds": selected.validation_run_seconds,
                 "minimum_cast_targets": (

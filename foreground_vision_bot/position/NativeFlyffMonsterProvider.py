@@ -129,6 +129,17 @@ class ActorPoolDiagnostics:
     unreadable_cached_slots: int = 0
     runtime_promoted_slots: int = 0
     pending_actor_slot_probes: int = 0
+    actor_source: str = "legacy_world"
+    authoritative_relation_offset: int | None = None
+    authoritative_relation_value: int | None = None
+    authoritative_relation_validated: bool = False
+    authoritative_species_counts: tuple[tuple[int, int], ...] = ()
+    authoritative_refreshes: int = 0
+    authoritative_refresh_failures: int = 0
+    authoritative_last_error: str | None = None
+    active_species_offset: int | None = None
+    active_species_validated: bool = False
+    active_species_candidates: tuple[tuple[int, int, int, int, int, bool], ...] = ()
 
 
 class NativeFlyffMonsterProvider:
@@ -257,6 +268,16 @@ class NativeFlyffMonsterProvider:
             result = self._native_service.last_recovery_result
             return None if result is None else result.recovery
         return self._last_pointer_recovery
+
+    def authoritative_diagnostics(self) -> dict[str, object]:
+        reader = self._independent_reader()
+        if reader is None:
+            return {
+                "actor_source": "legacy_world",
+                "relation_validated": False,
+                "message": "Independent authoritative discovery is not active.",
+            }
+        return reader.authoritative_diagnostics()
 
     def _independent_reader(self) -> IndependentNativeReader | None:
         if self._native_service is None:
@@ -671,6 +692,11 @@ class NativeFlyffMonsterProvider:
                     0,
                     pointer_snapshot.generation,
                 )
+            refresh = independent.refresh_runtime_actor_slots(
+                force=force,
+                cancellation=cancellation,
+                deadline=deadline,
+            )
             ordered = independent.actor_slots
             with self._lock:
                 if self._closed:
@@ -681,7 +707,7 @@ class NativeFlyffMonsterProvider:
                         message="Native actor provider is closed",
                     )
                 cached = bool(
-                    not force
+                    refresh.probed_slots == 0
                     and self._slot_bases == ordered
                     and self._cached_world == 0
                     and self._cached_generation == pointer_snapshot.generation
@@ -694,13 +720,42 @@ class NativeFlyffMonsterProvider:
                     player_base=pointer_snapshot.player_base,
                     world_base=0,
                     discovered_slots=len(ordered),
+                    runtime_promoted_slots=refresh.promoted_slots,
+                    actor_source=independent.actor_source,
+                    authoritative_relation_offset=(
+                        independent.authoritative_relation_offset
+                    ),
+                    authoritative_relation_value=(
+                        independent.authoritative_relation_value
+                    ),
+                    authoritative_relation_validated=(
+                        independent.authoritative_relation_validated
+                    ),
+                    authoritative_species_counts=(
+                        independent.authoritative_species_counts
+                    ),
+                    authoritative_refreshes=independent.authoritative_refreshes,
+                    authoritative_refresh_failures=(
+                        independent.authoritative_refresh_failures
+                    ),
+                    authoritative_last_error=(
+                        independent.authoritative_last_error
+                    ),
+                    active_species_offset=independent.active_species_offset,
+                    active_species_validated=(
+                        independent.active_species_validated
+                    ),
                 )
             return ActorCacheRefreshResult(
                 ActorCacheOutcome.CACHED if cached else ActorCacheOutcome.REFRESHED,
                 0,
                 pointer_snapshot.generation,
                 slot_count=len(ordered),
-                message="Independent anchored actor cache is ready",
+                message=(
+                    "Independent actor cache is ready; "
+                    f"source={independent.actor_source}, "
+                    f"relation={None if independent.authoritative_relation_offset is None else hex(independent.authoritative_relation_offset)}"
+                ),
             )
         with self._lock:
             if self._closed:
@@ -951,6 +1006,35 @@ class NativeFlyffMonsterProvider:
                     unreadable_cached_slots=native_snapshot.unreadable_slots,
                     runtime_promoted_slots=independent.runtime_promoted_slots,
                     pending_actor_slot_probes=independent.pending_actor_slots,
+                    actor_source=native_snapshot.actor_source,
+                    authoritative_relation_offset=(
+                        native_snapshot.authoritative_relation_offset
+                    ),
+                    authoritative_relation_value=(
+                        native_snapshot.authoritative_relation_value
+                    ),
+                    authoritative_relation_validated=(
+                        native_snapshot.authoritative_relation_validated
+                    ),
+                    authoritative_species_counts=(
+                        native_snapshot.authoritative_species_counts
+                    ),
+                    authoritative_refreshes=(
+                        native_snapshot.authoritative_refreshes
+                    ),
+                    authoritative_refresh_failures=(
+                        native_snapshot.authoritative_refresh_failures
+                    ),
+                    authoritative_last_error=(
+                        native_snapshot.authoritative_last_error
+                    ),
+                    active_species_offset=native_snapshot.active_species_offset,
+                    active_species_validated=(
+                        native_snapshot.active_species_validated
+                    ),
+                    active_species_candidates=(
+                        native_snapshot.active_species_candidates
+                    ),
                 )
             return CachedActorReadResult(
                 ActorCacheOutcome.READY,
@@ -1171,6 +1255,35 @@ class NativeFlyffMonsterProvider:
                     unreadable_cached_slots=snapshot.unreadable_slots,
                     runtime_promoted_slots=independent.runtime_promoted_slots,
                     pending_actor_slot_probes=independent.pending_actor_slots,
+                    actor_source=snapshot.actor_source,
+                    authoritative_relation_offset=(
+                        snapshot.authoritative_relation_offset
+                    ),
+                    authoritative_relation_value=(
+                        snapshot.authoritative_relation_value
+                    ),
+                    authoritative_relation_validated=(
+                        snapshot.authoritative_relation_validated
+                    ),
+                    authoritative_species_counts=(
+                        snapshot.authoritative_species_counts
+                    ),
+                    authoritative_refreshes=(
+                        snapshot.authoritative_refreshes
+                    ),
+                    authoritative_refresh_failures=(
+                        snapshot.authoritative_refresh_failures
+                    ),
+                    authoritative_last_error=(
+                        snapshot.authoritative_last_error
+                    ),
+                    active_species_offset=snapshot.active_species_offset,
+                    active_species_validated=(
+                        snapshot.active_species_validated
+                    ),
+                    active_species_candidates=(
+                        snapshot.active_species_candidates
+                    ),
                 )
             return list(actors)
         with self._lock:

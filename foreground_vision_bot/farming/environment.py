@@ -756,6 +756,64 @@ class UnifiedFarmingEnv:
             "native_pending_actor_slot_probes": int(
                 getattr(actor_diagnostics, "pending_actor_slot_probes", 0)
             ),
+            "native_actor_source": str(
+                getattr(actor_diagnostics, "actor_source", "unknown")
+            ),
+            "native_authoritative_relation_offset": getattr(
+                actor_diagnostics, "authoritative_relation_offset", None
+            ),
+            "native_authoritative_relation_value": getattr(
+                actor_diagnostics, "authoritative_relation_value", None
+            ),
+            "native_authoritative_relation_validated": bool(
+                getattr(
+                    actor_diagnostics,
+                    "authoritative_relation_validated",
+                    False,
+                )
+            ),
+            "native_authoritative_species_counts": [
+                [int(species), int(count)]
+                for species, count in tuple(
+                    getattr(
+                        actor_diagnostics,
+                        "authoritative_species_counts",
+                        (),
+                    )
+                )
+            ],
+            "native_authoritative_refreshes": int(
+                getattr(actor_diagnostics, "authoritative_refreshes", 0)
+            ),
+            "native_authoritative_refresh_failures": int(
+                getattr(
+                    actor_diagnostics,
+                    "authoritative_refresh_failures",
+                    0,
+                )
+            ),
+            "native_authoritative_last_error": getattr(
+                actor_diagnostics, "authoritative_last_error", None
+            ),
+            "native_active_species_offset": getattr(
+                actor_diagnostics, "active_species_offset", None
+            ),
+            "native_active_species_validated": bool(
+                getattr(actor_diagnostics, "active_species_validated", False)
+            ),
+            "native_active_species_candidates": [
+                {
+                    "offset": int(item[0]),
+                    "living_matches": int(item[1]),
+                    "living_samples": int(item[2]),
+                    "zero_hp_matches": int(item[3]),
+                    "zero_hp_samples": int(item[4]),
+                    "validated": bool(item[5]),
+                }
+                for item in tuple(
+                    getattr(actor_diagnostics, "active_species_candidates", ())
+                )
+            ],
             "eva_actors": features.built.eva_actor_count,
             "direct_clear_fraction": features.built.direct_clear_fraction,
             "held_movement": (
