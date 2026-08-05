@@ -28,7 +28,7 @@ def _json_key(value: object) -> str:
     if isinstance(value, Enum):
         value = value.value
     if isinstance(value, Path):
-        return str(value)
+        return value.as_posix()
     if isinstance(value, np.generic):
         value = value.item()
     if isinstance(value, (str, int, float, bool)) or value is None:
@@ -56,7 +56,7 @@ def to_json_safe(value: object, *, _seen: set[int] | None = None) -> object:
         return to_json_safe(value.tolist(), _seen=_seen)
 
     if isinstance(value, Path):
-        return str(value)
+        return value.as_posix()
 
     if isinstance(value, Enum):
         return to_json_safe(value.value, _seen=_seen)

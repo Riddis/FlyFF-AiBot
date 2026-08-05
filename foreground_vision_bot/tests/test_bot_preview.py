@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from threading import Lock
+from threading import Lock, RLock
+from time import time
 from types import SimpleNamespace
 
 import numpy as np
@@ -188,3 +189,91 @@ def test_preview_toggles_ui_overlays_and_mob_markers_independently() -> None:
 
     assert result is frame
     assert calls == ["native"]
+
+
+def test_penya_reader_reuses_recent_paired_counter_ocr() -> None:
+    bot = Bot.__new__(Bot)
+    bot._kill_counter_lock = RLock()
+    bot._latest_counter_reading = SimpleNamespace(kills=12, penya=345_000_000)
+    bot._latest_counter_reading_at = time()
+    bot._frame_snapshot = lambda: (_ for _ in ()).throw(
+        AssertionError("recent paired OCR should be reused")
+    )
+
+    assert bot.read_penya_count() == 345_000_000
+
+
+def test_native_map_overlay_is_silent_while_pointer_recovery_is_active() -> None:
+    bot = Bot.__new__(Bot)
+    bot.config = {
+        "show_native_monsters_on_map": True,
+        "selected_map_name": "Tower AoE",
+    }
+    bot.runtime_bus = object()
+    bot.monster_provider = object()
+    bot.position_provider = object()
+    bot.native_process_service = SimpleNamespace(recovery_active=True)
+    bot.get_player_pose = lambda: (_ for _ in ()).throw(
+        AssertionError("overlay should not read player pose during recovery")
+    )
+
+    bot._publish_native_monster_map(123.0)
+
+
+def test_redetect_ui_elements_invalidates_and_reacquires_both_panels() -> None:
+    bot = Bot.__new__(Bot)
+    bot._kill_counter_lock = RLock()
+    bot._player_status_lock = RLock()
+    bot._latest_counter_reading = None
+    bot._latest_counter_reading_at = 0.0
+    frame = np.zeros((120, 180, 3), dtype=np.uint8)
+    bot._frame_snapshot = lambda: (frame, frame)
+
+    events: list[str] = []
+    kill_reading = SimpleNamespace(kills=44, penya=123_456_789)
+    hp_reading = SimpleNamespace(current_hp=28_087, maximum_hp=28_087)
+    bot.kill_counter_reader = SimpleNamespace(
+        invalidate=lambda: events.append("kill.invalidate"),
+        read=lambda value: (
+            events.append("kill.read") or kill_reading
+            if value is frame
+            else None
+        ),
+    )
+    bot.player_status_reader = SimpleNamespace(
+        invalidate=lambda: events.append("hp.invalidate"),
+        read=lambda value: (
+            events.append("hp.read") or hp_reading
+            if value is frame
+            else None
+        ),
+    )
+
+    result = bot.redetect_ui_elements()
+
+    assert events == [
+        "kill.invalidate",
+        "kill.read",
+        "hp.invalidate",
+        "hp.read",
+    ]
+    assert result == {
+        "kill_counter_found": True,
+        "kill_count": 44,
+        "penya": 123_456_789,
+        "player_status_found": True,
+        "current_hp": 28_087,
+        "maximum_hp": 28_087,
+        "reason": None,
+    }
+
+
+def test_redetect_ui_elements_reports_missing_capture_without_touching_readers() -> None:
+    bot = Bot.__new__(Bot)
+    bot._frame_snapshot = lambda: (None, None)
+
+    result = bot.redetect_ui_elements()
+
+    assert result["kill_counter_found"] is False
+    assert result["player_status_found"] is False
+    assert result["reason"] == "no captured frame is available"

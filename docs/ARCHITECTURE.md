@@ -49,9 +49,10 @@ The action space is `Discrete(5)` in this stable order:
 Movement is persistent. Steering changes only the lateral key while retaining
 forward. EVA taps F1 without releasing movement. Jump holds forward and taps
 Space; its tiny reward is cooldown-limited without suppressing the physical
-action. The observation is a stable 482-element `float32` vector containing
-normalized absolute pose, heading, local Tower safety/teleport features,
-movement/contact/EVA state, and bounded native actor features.
+action. The observation is a stable 923-element `float32` vector containing
+normalized absolute pose, heading, an 11x11 fine local risk crop, a 21x21
+coarse +/-50-cell map context, movement/contact/EVA state, and bounded native
+actor features.
 
 Native actor lifecycle/HP transitions scoped to a cast are the reward signal.
 OCR can validate a kill count but cannot create reward. The mapped teleport

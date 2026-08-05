@@ -13,7 +13,11 @@ from position.native_process_service import (
 from position.NativeFlyffMonsterProvider import NativeFlyffMonsterProvider
 from position.NativeFlyffPositionProvider import NativeFlyffPositionProvider
 from position.PositionConfig import NativePositionConfig
-from position.RecoveredNativeProfile import RecoveredNativeProfile, save_profile
+from position.RecoveredNativeProfile import (
+    PROFILE_VERSION,
+    RecoveredNativeProfile,
+    save_profile,
+)
 from position.Win32ProcessMemory import ModuleInfo
 
 
@@ -338,6 +342,7 @@ def test_snapshot_is_not_blocked_by_inflight_recovery_enumeration() -> None:
     snapshot_thread = Thread(target=read_snapshot)
     recovery_thread.start()
     assert memory.enumeration_entered.wait(1.0)
+    assert service.recovery_active is True
 
     player, world = _populate_actor(
         memory,
@@ -363,6 +368,7 @@ def test_snapshot_is_not_blocked_by_inflight_recovery_enumeration() -> None:
     snapshot = snapshot_result[0]
     assert snapshot.player_base == player
     assert snapshot.world_base == world
+    assert service.recovery_active is False
 
 
 def test_close_defers_handle_release_until_blocked_recovery_exits() -> None:
@@ -429,7 +435,7 @@ def test_persisted_independent_profile_is_validated_before_full_recovery(tmp_pat
     profile_path = tmp_path / "native_profile.json"
     save_profile(
         RecoveredNativeProfile(
-            version=1,
+                version=PROFILE_VERSION,
             module_name="Neuz.exe",
             module_size=len(memory.module),
             module_filename="Neuz.exe",

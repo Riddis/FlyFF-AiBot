@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import gymnasium as gym
 import numpy as np
 
-from .actions import ACTION_COUNT
+from .actions import POLICY_ACTION_NVECS
 from .environment import (
     FarmingEnvironmentState,
     FarmingStep,
@@ -38,7 +38,7 @@ class PolicyTerminalDelivered(RuntimeError):
     """The real policy terminal was delivered; the sink must never be sampled."""
 
 
-class UnifiedFarmingGymEnv(gym.Env[np.ndarray, int]):
+class UnifiedFarmingGymEnv(gym.Env[np.ndarray, np.ndarray]):
     """Adapt typed session outcomes without exposing external ends to Gym."""
 
     metadata = {"render_modes": []}
@@ -52,7 +52,7 @@ class UnifiedFarmingGymEnv(gym.Env[np.ndarray, int]):
             shape=(OBSERVATION_SIZE,),
             dtype=np.float32,
         )
-        self.action_space = gym.spaces.Discrete(ACTION_COUNT, start=0)
+        self.action_space = gym.spaces.MultiDiscrete(np.asarray(POLICY_ACTION_NVECS, dtype=np.int64))
         self._sink_active = False
         self._policy_terminal_seen = False
 
@@ -83,7 +83,7 @@ class UnifiedFarmingGymEnv(gym.Env[np.ndarray, int]):
 
     def step(
         self,
-        action: int,
+        action: np.ndarray,
     ) -> tuple[np.ndarray, float, bool, bool, dict[str, object]]:
         if self._sink_active:
             raise PolicyTerminalDelivered(

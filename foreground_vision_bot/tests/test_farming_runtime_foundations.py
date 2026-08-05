@@ -9,7 +9,6 @@ from farming.config import FarmingRuntimeConfig
 from farming.control import (
     DirectFarmingControl,
     FarmingControlCancelled,
-    FarmingControlUnavailable,
     FarmingKeyMap,
     WindowFocusService,
 )
@@ -62,29 +61,40 @@ class FakeKeyboard:
         return self.foreground
 
 
-def test_focus_service_autofocuses_then_allows_manual_grace() -> None:
+def test_focus_service_autofocuses_only_once_then_waits_passively() -> None:
     keyboard = FakeKeyboard()
     keyboard.foreground = False
 
     class Token(FakeToken):
+        def __init__(self) -> None:
+            super().__init__()
+            self.waits = 0
+
         def wait(self, _seconds: float) -> bool:
+            self.waits += 1
             keyboard.foreground = True
             return False
 
+    token = Token()
     statuses: list[str] = []
     focus = WindowFocusService(
         keyboard,
-        Token(),
+        token,
         grace_seconds=0.1,
         poll_seconds=0.01,
         status_callback=statuses.append,
     )
 
     focus.ensure_focused()
+    keyboard.foreground = False
+    resumed = focus.wait_until_focused()
 
+    assert resumed is True
     assert keyboard.trace == [("focus", None)]
     assert statuses == [
-        "FlyFF did not accept automatic focus; focus it manually to continue."
+        "FlyFF did not accept automatic focus; focus it manually to continue.",
+        "FlyFF lost focus; farming control paused. Focus FlyFF to resume.",
+        "FlyFF regained focus; farming control resumed.",
     ]
 
 
@@ -101,7 +111,8 @@ def test_focus_service_wait_is_cancellable_and_control_releases_keys() -> None:
         control.execute(1)
 
     assert control.held_keys == ()
-    assert keyboard.trace[-2:] == [("focus", None), ("up", keys.forward)]
+    assert ("focus", None) not in keyboard.trace
+    assert keyboard.trace[-1] == ("up", keys.forward)
 
 
 
@@ -146,7 +157,7 @@ def test_shipped_config_migrates_without_using_hierarchical_navigation() -> None
     assert config.control_interval_seconds == pytest.approx(0.2)
     assert config.pointer_grace_seconds == pytest.approx(3.0)
     assert config.keyboard_layout == "azerty"
-    assert config.model_path.endswith("native_strategy_map_risk_ppo")
+    assert config.model_path.endswith("native_strategy_map_context_ppo")
     assert config.checkpoint_frequency == 50_000
     assert not hasattr(config, "total_timesteps")
     assert not hasattr(config, "episode_seconds")
@@ -259,11 +270,21 @@ def test_direct_control_releases_on_focus_loss_and_eva_cancellation() -> None:
     control.execute(2)
     keyboard.foreground = False
 
-    with pytest.raises(FarmingControlUnavailable):
-        control.execute(0)
-    assert control.held_keys == ()
+    class RestoreFocusToken(FakeToken):
+        def wait(self, _seconds: float) -> bool:
+            keyboard.foreground = True
+            return False
+
+    restore_token = RestoreFocusToken()
+    control.cancellation = restore_token
+    control.focus.cancellation = restore_token
+    control.execute(0)
+    assert control.held_keys == (keys.forward,)
+    assert ("focus", None) not in keyboard.trace
 
     keyboard.foreground = True
+    control.cancellation = token
+    control.focus.cancellation = token
     control.execute(1)
     token.cancel_during_wait = True
     with pytest.raises(FarmingControlCancelled):
@@ -419,3 +440,16 @@ def test_actor_observation_keeps_layout_y_and_native_z_signs_distinct() -> None:
     assert observed.legacy_dy_cells == pytest.approx(-1.0)
     assert observed.direct_dx_cells == pytest.approx(1.0)
     assert observed.direct_dz_cells == pytest.approx(1.0)
+
+
+def test_function_key_selection_changes_eva_without_changing_movement() -> None:
+    default = FarmingKeyMap.azerty()
+    selected = FarmingKeyMap.for_layout("azerty", eva_hotkey="F8")
+
+    assert selected.forward == default.forward
+    assert selected.left == default.left
+    assert selected.right == default.right
+    assert selected.eva == 0x77
+
+    with pytest.raises(ValueError, match="F1 through F12"):
+        FarmingKeyMap.for_layout("azerty", eva_hotkey="F13")

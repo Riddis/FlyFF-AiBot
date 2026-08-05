@@ -77,7 +77,7 @@ class MapperConfig:
     slide_min_forward_alignment: float = 0.70
     pause_when_unfocused: bool = True
     unfocused_poll_seconds: float = 0.25
-    local_map_radius_cells: int = 25
+    local_map_radius_cells: int = 50
     trap_score_threshold: int = 6
     partial_trap_score: int = 2
     blocked_trap_score: int = 3
@@ -2137,10 +2137,17 @@ class CoordinateMapper:
             return
         self.controller.stop()
         assert self.bot.keyboard is not None
-        self.bot.keyboard.press_key(VKEY["F1"], press_time=0.03)
+        eva_hotkey = str(self.bot.config.get("eva_hotkey", "F1")).upper()
+        eva_vkey = VKEY.get(eva_hotkey)
+        if eva_vkey is None or not eva_hotkey.startswith("F"):
+            eva_hotkey = "F1"
+            eva_vkey = VKEY[eva_hotkey]
+        self.bot.keyboard.press_key(eva_vkey, press_time=0.03)
         self.controller.settle(self.config.eva_settle_seconds)
         self._verify_pose_continuity("after EVA cast")
-        self.status_callback(f"map step={self._step}: cast EVA (F1).")
+        self.status_callback(
+            f"map step={self._step}: cast EVA ({eva_hotkey})."
+        )
 
     def _publish_map(self, *, force: bool = False) -> None:
         if self.frame_callback is None:

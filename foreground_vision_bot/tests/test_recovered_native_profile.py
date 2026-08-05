@@ -5,6 +5,8 @@ from dataclasses import replace
 from hashlib import sha256
 from types import SimpleNamespace
 
+from position.AuthoritativeActorDiscovery import PresenceFieldCandidate
+
 from position.RecoveredNativeProfile import (
     PROFILE_VERSION,
     RecoveredNativeProfile,
@@ -18,6 +20,8 @@ from position.Win32ProcessMemory import ModuleInfo
 class Memory:
     def __init__(self) -> None:
         self.data: dict[int, bytes] = {}
+        self.pid = 1234
+        self.find_calls = 0
         self.last_search_diagnostics = SimpleNamespace(bytes_read=0, regions_read=0)
 
     def write_u32(self, address: int, value: int) -> None:
@@ -45,6 +49,7 @@ class Memory:
         deadline: float | None = None,
     ) -> tuple[int, ...]:
         del private_only, chunk_size, cancellation, deadline
+        self.find_calls += 1
         needle = struct.pack("<I", value)
         hits = tuple(
             sorted(
@@ -71,6 +76,7 @@ X_OFFSET = 0x160
 Y_OFFSET = 0x164
 Z_OFFSET = 0x168
 ACTIVE_OFFSET = 0x1DBC
+PRESENCE_OFFSET = 0x19A4
 RELATION_VALUE = 0x71000000
 
 
@@ -105,6 +111,7 @@ def write_actor(memory: Memory, base: int, species: int, hp: int, x: float) -> N
     memory.write_u32(base + RELATION_OFFSET, RELATION_VALUE)
     memory.write_i32(base + SPECIES_OFFSET, species)
     memory.write_i32(base + HP_OFFSET, hp)
+    memory.write_i32(base + PRESENCE_OFFSET, species if species > 0 else 0)
     memory.write_f32(base + X_OFFSET, x)
     memory.write_f32(base + Y_OFFSET, 100.0)
     memory.write_f32(base + Z_OFFSET, 86.0)
@@ -115,6 +122,81 @@ def test_profile_round_trip(tmp_path) -> None:
     saved = save_profile(profile(), path)
     assert saved == path
     assert load_profile(path) == profile()
+
+
+def test_profile_persists_and_revalidates_moved_presence_field(tmp_path) -> None:
+    evidence = PresenceFieldCandidate(
+        offset=PRESENCE_OFFSET,
+        selected_matches=3,
+        selected_samples=3,
+        zero_hp_matches=1,
+        zero_hp_samples=1,
+        dormant_clears=2,
+        dormant_samples=2,
+        cross_slot_alias_matches=0,
+        lifecycle_death_retained=1,
+        lifecycle_dormant_clears=1,
+        lifecycle_reappearances=1,
+        validated=True,
+    )
+    cached = replace(
+        profile(),
+        presence_species_offset=PRESENCE_OFFSET,
+        presence_species_validated=True,
+        presence_evidence=evidence,
+    )
+    path = tmp_path / "native_profile.json"
+    save_profile(cached, path)
+    assert load_profile(path) == cached
+
+    memory = Memory()
+    module = ModuleInfo("Neuz.exe", r"F:\Games\Neuz.exe", MODULE_BASE, 0x943000)
+    player = 0x44000000
+    memory.write_u32(MODULE_BASE + PLAYER_SLOT_OFFSET, player)
+    memory.write_u32(player + PLAYER_SELF, player)
+    memory.write_u32(player + RELATION_OFFSET, RELATION_VALUE)
+    memory.write_i32(player + HP_OFFSET, 26930)
+    memory.write_f32(player + X_OFFSET, 253.0)
+    memory.write_f32(player + Y_OFFSET, 100.0)
+    memory.write_f32(player + Z_OFFSET, 86.0)
+    memory.write_u32(RELATION_VALUE, 0x12345678)
+    write_actor(memory, 0x50000000, 944, 400236, 250.0)
+    write_actor(memory, 0x51000000, 948, 250000, 260.0)
+    write_actor(memory, 0x52000000, 948, 0, 270.0)
+    write_actor(memory, 0x53000000, 0, 0, 0.0)
+    write_actor(memory, 0x54000000, 0, 0, 0.0)
+
+    restored = restore_profile(
+        memory,
+        module,
+        cached,
+        selected_species_ids=(944, 948),
+        maximum_address=0x7FFFFFFF,
+        private_memory_only=True,
+        chunk_size=4096,
+        coordinate_limit=100000.0,
+    )
+    assert restored.authoritative.presence_species_offset == PRESENCE_OFFSET
+    assert restored.authoritative.presence_species_validated is True
+
+    stale_evidence = replace(evidence, offset=0x1DCC)
+    stale = replace(
+        cached,
+        presence_species_offset=0x1DCC,
+        presence_evidence=stale_evidence,
+    )
+    revalidated = restore_profile(
+        memory,
+        module,
+        stale,
+        selected_species_ids=(944, 948),
+        maximum_address=0x7FFFFFFF,
+        private_memory_only=True,
+        chunk_size=4096,
+        coordinate_limit=100000.0,
+    )
+    assert revalidated.authoritative.presence_species_offset == PRESENCE_OFFSET
+    assert revalidated.authoritative.presence_species_validated is True
 
 
 def test_restore_resolves_fresh_addresses_and_global_actor_relation() -> None:
@@ -150,6 +232,8 @@ def test_restore_resolves_fresh_addresses_and_global_actor_relation() -> None:
     assert restored.relation_value == RELATION_VALUE
     assert set(restored.authoritative.actor_bases) == {0x50000000, 0x60000000}
     assert dict(restored.authoritative.species_counts) == {944: 1, 948: 1}
+    assert restored.restore_mode == "stable_profile_scan"
+    assert memory.find_calls == 1
 
 
 def test_restore_rejects_another_client_build() -> None:
@@ -200,3 +284,86 @@ def test_restore_rejects_changed_client_executable(tmp_path) -> None:
         assert "client executable" in str(error)
     else:
         raise AssertionError("changed client executable was accepted")
+
+
+
+def test_restore_reuses_validated_same_process_actor_cache_without_search() -> None:
+    memory = Memory()
+    module = ModuleInfo("Neuz.exe", r"F:\\Games\\Neuz.exe", MODULE_BASE, 0x943000)
+    player = 0x44000000
+    asterion = 0x50000000
+    dantalian = 0x60000000
+    memory.write_u32(MODULE_BASE + PLAYER_SLOT_OFFSET, player)
+    memory.write_u32(player + PLAYER_SELF, player)
+    memory.write_u32(player + RELATION_OFFSET, RELATION_VALUE)
+    memory.write_i32(player + HP_OFFSET, 26930)
+    memory.write_f32(player + X_OFFSET, 253.0)
+    memory.write_f32(player + Y_OFFSET, 100.0)
+    memory.write_f32(player + Z_OFFSET, 86.0)
+    memory.write_u32(RELATION_VALUE, 0x12345678)
+    write_actor(memory, asterion, 944, 400236, 250.0)
+    write_actor(memory, dantalian, 948, 250000, 260.0)
+    cached = replace(
+        profile(),
+        runtime_pid=memory.pid,
+        runtime_module_base=MODULE_BASE,
+        runtime_player_base=player,
+        runtime_relation_value=RELATION_VALUE,
+        runtime_actor_bases=(asterion, dantalian),
+        runtime_species_counts=((944, 1), (948, 1)),
+    )
+
+    restored = restore_profile(
+        memory,
+        module,
+        cached,
+        selected_species_ids=(944, 948),
+        maximum_address=0x7FFFFFFF,
+        private_memory_only=True,
+        chunk_size=4096,
+        coordinate_limit=100000.0,
+    )
+
+    assert restored.restore_mode == "same_process_cache"
+    assert set(restored.authoritative.actor_bases) == {asterion, dantalian}
+    assert memory.find_calls == 0
+
+
+def test_changed_process_ignores_runtime_cache_and_scans_saved_relation() -> None:
+    memory = Memory()
+    memory.pid = 9876
+    module = ModuleInfo("Neuz.exe", r"F:\\Games\\Neuz.exe", MODULE_BASE, 0x943000)
+    player = 0x44000000
+    memory.write_u32(MODULE_BASE + PLAYER_SLOT_OFFSET, player)
+    memory.write_u32(player + PLAYER_SELF, player)
+    memory.write_u32(player + RELATION_OFFSET, RELATION_VALUE)
+    memory.write_i32(player + HP_OFFSET, 26930)
+    memory.write_f32(player + X_OFFSET, 253.0)
+    memory.write_f32(player + Y_OFFSET, 100.0)
+    memory.write_f32(player + Z_OFFSET, 86.0)
+    memory.write_u32(RELATION_VALUE, 0x12345678)
+    write_actor(memory, 0x50000000, 944, 400236, 250.0)
+    write_actor(memory, 0x60000000, 948, 250000, 260.0)
+    cached = replace(
+        profile(),
+        runtime_pid=1234,
+        runtime_module_base=MODULE_BASE,
+        runtime_player_base=0x43000000,
+        runtime_relation_value=RELATION_VALUE,
+        runtime_actor_bases=(0x50000000, 0x60000000),
+        runtime_species_counts=((944, 1), (948, 1)),
+    )
+
+    restored = restore_profile(
+        memory,
+        module,
+        cached,
+        selected_species_ids=(944, 948),
+        maximum_address=0x7FFFFFFF,
+        private_memory_only=True,
+        chunk_size=4096,
+        coordinate_limit=100000.0,
+    )
+
+    assert restored.restore_mode == "stable_profile_scan"
+    assert memory.find_calls == 1

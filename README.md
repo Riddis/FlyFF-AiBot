@@ -57,15 +57,18 @@ Then:
 4. Start training only after native actors, kills, map coordinates, and rewards
    are validated.
 
-See `foreground_vision_bot/RUNBOOK.md` for the complete operating procedure and
-`foreground_vision_bot/CONFIGURATION.md` for runtime settings.
+See `foreground_vision_bot/RUNBOOK.md` for the complete operating procedure,
+`foreground_vision_bot/CONFIGURATION.md` for runtime settings, and
+`foreground_vision_bot/POINTER_RECOVERY_REFERENCE.md` before changing native
+pointer or authoritative actor discovery logic.
 
 ## Training and models
 
-The active farming model uses a 482-value observation and five discrete actions.
-The local map encoding is part of the model contract, so a model trained under
-an older map encoding is intentionally rejected rather than silently resumed
-with changed meanings.
+The active farming model uses a 923-value observation and five discrete actions.
+It combines a detailed 11x11 local risk crop with a coarse 21x21 overview that
+spans +/-50 map cells. This map contract is intentionally incompatible with the
+older 482-value model, which is rejected rather than silently resumed with
+changed meanings.
 
 The current model and checkpoints are stored under `foreground_vision_bot/models`
 and are ignored by Git. Training logs, validation archives, screenshots, and

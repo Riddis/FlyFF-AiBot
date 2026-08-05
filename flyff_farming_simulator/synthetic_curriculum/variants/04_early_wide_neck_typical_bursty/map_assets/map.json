@@ -1,0 +1,23 @@
+{
+  "size": 217,
+  "shape": [
+    217,
+    217
+  ],
+  "free_cells": 25228,
+  "forbidden_cells": 0,
+  "template": "wide_neck",
+  "free_fraction": 0.5357514493830831,
+  "safe_fraction_of_free": 0.9080386871729824,
+  "spawn_cell": [
+    108,
+    150
+  ],
+  "design": "large_open_farming_area",
+  "corridor_generation": false,
+  "variant": "04_early_wide_neck_typical_bursty",
+  "stage": "early",
+  "density_profile": "typical",
+  "respawn_profile": "bursty",
+  "seed": 20292480
+}

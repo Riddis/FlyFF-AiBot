@@ -1,0 +1,42 @@
+{
+  "window_title_prefix": "Spirit Of Madrigal - ",
+  "spawn_x": 253.0,
+  "spawn_z": 86.0,
+  "map_name": "Tower AoE",
+  "native_units_per_cell": 1.6,
+  "monster_hp_by_species": {
+    "944": 400236
+  },
+  "selected_species_ids": [
+    944,
+    948
+  ],
+  "discovery_timeout_seconds": 1200.0,
+  "maximum_scan_mib": 1536,
+  "object_span": 16384,
+  "slots_each_direction": 31,
+  "lifecycle_poll_seconds": 0.025,
+  "frame_interval_seconds": 0.2,
+  "full_keyframe_seconds": 5.0,
+  "rediscovery_timeout_seconds": 45.0,
+  "rediscovery_chunk_mib": 4,
+  "kill_event_radius_native": 14.0,
+  "position_quantum_native": 0.05,
+  "active_profile_interval_seconds": 0.5,
+  "active_profile_samples_per_interval": 8,
+  "active_profile_live_radius_native": 80.0,
+  "active_profile_dormant_radius_native": 160.0,
+  "active_profile_dormant_stable_seconds": 3.0,
+  "active_profile_dormant_after_near_seconds": 2.0,
+  "map_exit_max_distance_from_spawn_native": 1500.0,
+  "map_exit_jump_native": 250.0,
+  "map_exit_confirmation_samples": 2,
+  "output_directory_name": "FlyffFarmingRecorder",
+  "presence_clear_confirmation_samples": 3,
+  "presence_cold_verification_batch_size": 256,
+  "presence_dead_read_grace_seconds": 2.0,
+  "rediscovery_stable_scan_interval_seconds": 2.0,
+  "rediscovery_stable_scan_count": 3,
+  "rediscovery_movement_trigger_native": 12.0,
+  "presence_cold_poll_batch_size": 1024
+}

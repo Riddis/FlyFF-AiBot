@@ -40,10 +40,10 @@ def test_model_preflight_loads_without_live_env_and_validates_metadata(
             observation_space=gym.spaces.Box(
                 -1.0,
                 1.0,
-                shape=(482,),
+                shape=(923,),
                 dtype=np.float32,
             ),
-            action_space=gym.spaces.Discrete(5, start=0),
+            action_space=gym.spaces.MultiDiscrete(np.asarray([3, 3], dtype=np.int64)),
             farming_contract_metadata=ModelContractMetadata.current().as_dict(),
         )
 
@@ -66,14 +66,14 @@ def test_model_preflight_rejects_space_mismatch_before_caller_can_start_input(
             observation_space=gym.spaces.Box(
                 -1.0,
                 1.0,
-                shape=(482,),
+                shape=(923,),
                 dtype=np.float32,
             ),
-            action_space=gym.spaces.Discrete(4, start=0),
+            action_space=gym.spaces.Discrete(5, start=0),
             farming_contract_metadata=ModelContractMetadata.current().as_dict(),
         )
 
-    with pytest.raises(ModelContractError, match="Discrete"):
+    with pytest.raises(ModelContractError, match="scalar Discrete"):
         load_and_validate_model(artifact, loader)
 
 

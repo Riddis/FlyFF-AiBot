@@ -7,7 +7,7 @@ from numbers import Real
 from pathlib import Path
 from typing import Final
 
-CONFIG_VERSION: Final = 6
+CONFIG_VERSION: Final = 7
 _DEPRECATED_KEYS: Final = frozenset(
     {
         "version",
@@ -31,9 +31,9 @@ class FarmingRuntimeConfig:
 
     checkpoint_frequency: int = 50_000
     stats_interval_seconds: float = 10.0
-    model_path: str = "models/farming/native_strategy_map_risk_ppo"
-    checkpoint_dir: str = "models/farming/native_strategy_map_risk_checkpoints"
-    tensorboard_dir: str = "training_logs/farming/native_strategy_map_risk"
+    model_path: str = "models/farming/native_strategy_map_context_ppo"
+    checkpoint_dir: str = "models/farming/native_strategy_map_context_checkpoints"
+    tensorboard_dir: str = "training_logs/farming/native_strategy_map_context"
     session_report_dir: str = "training_logs/farming/native_sessions"
     validation_session_dir: str = "training_logs/farming/data_validation"
     validation_run_seconds: float = 120.0

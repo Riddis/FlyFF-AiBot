@@ -12,6 +12,8 @@ from numpy.typing import NDArray
 
 from .actions import FarmingAction, coerce_farming_action
 from .map_features import (
+    DEFAULT_CONTEXT_MAP_RADIUS_CELLS,
+    DEFAULT_CONTEXT_MAP_SIDE,
     DEFAULT_MAXIMUM_GEODESIC_EXPANSIONS,
     DEFAULT_TELEPORT_BUFFER_RADIUS_CELLS,
     DirectPathState,
@@ -25,12 +27,14 @@ from .map_features import (
 
 FloatArray = NDArray[np.float32]
 
-OBSERVATION_SCHEMA_ID: Final = "native-unified-482-v3"
+OBSERVATION_SCHEMA_ID: Final = "native-unified-923-v4"
 LEGACY_ACTOR_SLOTS: Final = 32
 ACTOR_FEATURES: Final = 7
 LEGACY_AGGREGATE_FEATURES: Final = 5
 UNIFIED_STATE_FEATURES: Final = 16
 LOCAL_MAP_SIDE: Final = 11
+CONTEXT_MAP_SIDE: Final = DEFAULT_CONTEXT_MAP_SIDE
+CONTEXT_MAP_RADIUS_CELLS: Final = DEFAULT_CONTEXT_MAP_RADIUS_CELLS
 DIRECT_ACTOR_SLOTS: Final = 12
 LEGACY_NEAREST_QUOTA: Final = 8
 LEGACY_UTILITY_DISTANCE_WEIGHT: Final = 0.045
@@ -45,8 +49,10 @@ UNIFIED_STATE_START: Final = 261
 UNIFIED_STATE_STOP: Final = 277
 LOCAL_MAP_START: Final = 277
 LOCAL_MAP_STOP: Final = 398
-DIRECT_ACTOR_START: Final = 398
-DIRECT_ACTOR_STOP: Final = 482
+CONTEXT_MAP_START: Final = LOCAL_MAP_STOP
+CONTEXT_MAP_STOP: Final = CONTEXT_MAP_START + CONTEXT_MAP_SIDE * CONTEXT_MAP_SIDE
+DIRECT_ACTOR_START: Final = CONTEXT_MAP_STOP
+DIRECT_ACTOR_STOP: Final = DIRECT_ACTOR_START + DIRECT_ACTOR_SLOTS * ACTOR_FEATURES
 OBSERVATION_SIZE: Final = DIRECT_ACTOR_STOP
 
 _LEGACY_ACTOR_FIELD_NAMES: Final = (
@@ -222,6 +228,7 @@ class ObservationFrame:
     player: PlayerObservation
     actors: tuple[ActorObservation, ...]
     local_map: np.ndarray
+    context_map: np.ndarray
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "actors", tuple(self.actors))
@@ -250,6 +257,10 @@ def _build_observation_fields() -> tuple[str, ...]:
     for dy in range(-radius, radius + 1):
         for dx in range(-radius, radius + 1):
             fields.append(f"local_map[dy={dy:+d},dx={dx:+d}]")
+    context_radius = CONTEXT_MAP_SIDE // 2
+    for gy in range(-context_radius, context_radius + 1):
+        for gx in range(-context_radius, context_radius + 1):
+            fields.append(f"context_map[gy={gy:+d},gx={gx:+d}]")
     for slot in range(DIRECT_ACTOR_SLOTS):
         fields.extend(
             f"direct_actor[{slot:02d}].{name}" for name in _DIRECT_ACTOR_FIELD_NAMES
@@ -393,6 +404,22 @@ def observation_schema_descriptor(
             ),
             "input_validation": "finite float32-compatible values already in [-1,1]",
         },
+        "context_map_contract": {
+            "side": CONTEXT_MAP_SIDE,
+            "radius_cells": CONTEXT_MAP_RADIUS_CELLS,
+            "flattening": "row-major coarse bins; gy outer, gx inner",
+            "center": "player layout cell",
+            "provider": "FarmingMapFeatures.context_crop",
+            "aggregation": (
+                "each coarse bin emits the highest-risk state present in its "
+                "roughly 5x5 source-cell area"
+            ),
+            "purpose": (
+                "minimap-scale +/-50 cell awareness while preserving the fine "
+                "11x11 local collision crop"
+            ),
+            "input_validation": "finite float32-compatible values in [-1,1]",
+        },
         "numeric_semantics": {
             "normalization_clipping": "unit [0,1], bipolar [-1,1]",
             "inactive_actor_records": "all zero",
@@ -432,12 +459,12 @@ def observation_schema_hash(scales: ObservationScales | None = None) -> str:
 
 
 OBSERVATION_SCHEMA_HASH: Final = (
-    "0132FB13764E83FD3754AC895E872479537C45EDB2AAB83B73F87448397F69EC"
+    "F2D568C1C4A4B5F577C9C2E36A37B1C5533C2CE28D415846C3B68EC293C84609"
 )
 
 
 class ObservationBuilder:
-    """Build the exact ``native-unified-482-v3`` vector from typed inputs."""
+    """Build the exact ``native-unified-923-v4`` vector from typed inputs."""
 
     def __init__(self, scales: ObservationScales | None = None) -> None:
         self.scales = scales or ObservationScales()
@@ -472,6 +499,19 @@ class ObservationBuilder:
         if np.any((local_map < -1.0) | (local_map > 1.0)):
             raise ValueError("local_map values must already be within [-1, 1]")
         local_map = np.ascontiguousarray(local_map, dtype=np.float32)
+
+        context_map = np.asarray(frame.context_map, dtype=np.float32).reshape(-1)
+        expected_context_size = CONTEXT_MAP_SIDE * CONTEXT_MAP_SIDE
+        if context_map.size != expected_context_size:
+            raise ValueError(
+                f"context_map must contain {expected_context_size} values, "
+                f"got {context_map.size}"
+            )
+        if not np.all(np.isfinite(context_map)):
+            raise ValueError("context_map values must be finite")
+        if np.any((context_map < -1.0) | (context_map > 1.0)):
+            raise ValueError("context_map values must already be within [-1, 1]")
+        context_map = np.ascontiguousarray(context_map, dtype=np.float32)
 
         legacy_nearby_counts = self._legacy_nearby_counts(actors)
         direct_eligible = self._direct_eligible_actors(actors)
@@ -519,6 +559,7 @@ class ObservationBuilder:
                 legacy_aggregate,
                 state,
                 local_map,
+                context_map,
                 direct_values.reshape(-1),
             )
         ).astype(np.float32, copy=False)

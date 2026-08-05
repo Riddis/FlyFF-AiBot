@@ -21,17 +21,17 @@ from farming.sb3_training import (
 from farming.startup import load_and_validate_model
 
 
-class BoundaryEnv(gym.Env[np.ndarray, int]):
+class BoundaryEnv(gym.Env[np.ndarray, np.ndarray]):
     def __init__(self, boundary: TrainingBoundaryKind, *, prefix_steps: int) -> None:
         super().__init__()
         self.metadata: dict[str, Any] = {"render_modes": []}
         self.observation_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
-            shape=(482,),
+            shape=(923,),
             dtype=np.float32,
         )
-        self.action_space = gym.spaces.Discrete(5, start=0)
+        self.action_space = gym.spaces.MultiDiscrete(np.asarray([3, 3], dtype=np.int64))
         self.boundary = boundary
         self.prefix_steps = prefix_steps
         self.steps = 0
@@ -39,7 +39,7 @@ class BoundaryEnv(gym.Env[np.ndarray, int]):
 
     @staticmethod
     def _observation(value: float) -> np.ndarray:
-        return np.full(482, value, dtype=np.float32)
+        return np.full(923, value, dtype=np.float32)
 
     def reset(
         self,
@@ -62,7 +62,7 @@ class BoundaryEnv(gym.Env[np.ndarray, int]):
 
     def step(
         self,
-        action: int,
+        action: np.ndarray,
     ) -> tuple[np.ndarray, float, bool, bool, dict[str, object]]:
         del action
         if self.sink:

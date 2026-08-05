@@ -78,6 +78,7 @@ class Bot:
             "dynamic_kill_counter": True,
             "show_kill_counter_crop": False,
             "selected_map_name": None,
+            "eva_hotkey": "F1",
             "show_native_monsters_on_map": True,
             "native_monster_map_refresh_seconds": 0.5,
             "native_monster_local_radius_cells": 50,
@@ -95,6 +96,8 @@ class Bot:
         self._frame_lock = Lock()
         self._heading_lock = RLock()
         self._kill_counter_lock = RLock()
+        self._latest_counter_reading = None
+        self._latest_counter_reading_at = 0.0
         self._player_status_lock = RLock()
         self._rl_enabled = False
         self._latest_mob_points: list[Point] = []
@@ -194,6 +197,8 @@ class Bot:
         self._native_course_tracker.reset()
         with self._kill_counter_lock:
             self.kill_counter_reader.invalidate()
+            self._latest_counter_reading = None
+            self._latest_counter_reading_at = 0.0
         with self._player_status_lock:
             self.player_status_reader.invalidate()
         self._emit(
@@ -472,6 +477,8 @@ class Bot:
                 self.kill_counter_reader = reader
             with self._kill_counter_lock:
                 reading = reader.read(frame)
+                self._latest_counter_reading = reading
+                self._latest_counter_reading_at = time()
             if reading is not None and reading.kills is not None:
                 if self.config["show_kill_counter_crop"]:
                     anchor = reading.anchor
@@ -519,7 +526,19 @@ class Bot:
         return max(0, int(kills))
 
     def read_penya_count(self) -> int | None:
-        """Read the Penya total from the same dynamically located tracker."""
+        """Read the Penya total from the same dynamically located tracker.
+
+        The farming environment already samples the kill counter every step.
+        Reuse that paired kill/Penya OCR result briefly so session statistics do
+        not run the same digit crops twice for one captured frame.
+        """
+
+        now = time()
+        with self._kill_counter_lock:
+            cached = self._latest_counter_reading
+            if cached is not None and now - self._latest_counter_reading_at <= 0.35:
+                return cached.penya
+
         frame, _ = self._frame_snapshot()
         if frame is None:
             return None
@@ -529,6 +548,8 @@ class Bot:
             self.kill_counter_reader = reader
         with self._kill_counter_lock:
             reading = reader.read(frame)
+            self._latest_counter_reading = reading
+            self._latest_counter_reading_at = now
         return None if reading is None else reading.penya
 
     def read_player_health(self) -> tuple[int, int] | None:
@@ -551,6 +572,63 @@ class Bot:
         if reading is None:
             return None
         return int(reading.current_hp), int(reading.maximum_hp)
+
+    def redetect_ui_elements(self) -> dict[str, object]:
+        """Forget and immediately reacquire the OCR panel anchors.
+
+        The operation is deliberately limited to the kill/Penya tracker and
+        player-status panel. It does not alter native pointers, actor discovery,
+        or monster-template CV. Reader locks make the button safe while the
+        farming worker is sampling the same panels.
+        """
+
+        gray_frame, color_frame = self._frame_snapshot()
+        frame = color_frame if color_frame is not None else gray_frame
+        if frame is None:
+            return {
+                "kill_counter_found": False,
+                "player_status_found": False,
+                "reason": "no captured frame is available",
+            }
+
+        kill_reader = getattr(self, "kill_counter_reader", None)
+        if kill_reader is None:
+            kill_reader = DynamicKillCounterReader(digit_reader=self.digit_reader)
+            self.kill_counter_reader = kill_reader
+        player_reader = getattr(self, "player_status_reader", None)
+        if player_reader is None:
+            player_reader = DynamicPlayerStatusReader(digit_reader=self.digit_reader)
+            self.player_status_reader = player_reader
+
+        with self._kill_counter_lock:
+            kill_reader.invalidate()
+            kill_reading = kill_reader.read(frame)
+            self._latest_counter_reading = kill_reading
+            self._latest_counter_reading_at = time()
+
+        lock = getattr(self, "_player_status_lock", None)
+        if lock is None:
+            lock = RLock()
+            self._player_status_lock = lock
+        with lock:
+            player_reader.invalidate()
+            player_reading = player_reader.read(frame)
+
+        return {
+            "kill_counter_found": kill_reading is not None,
+            "kill_count": (
+                None if kill_reading is None else kill_reading.kills
+            ),
+            "penya": None if kill_reading is None else kill_reading.penya,
+            "player_status_found": player_reading is not None,
+            "current_hp": (
+                None if player_reading is None else player_reading.current_hp
+            ),
+            "maximum_hp": (
+                None if player_reading is None else player_reading.maximum_hp
+            ),
+            "reason": None,
+        }
 
     def execute_action(
         self,
@@ -735,6 +813,14 @@ class Bot:
         if not map_name or self.runtime_bus is None:
             return
         if self.monster_provider is None or self.position_provider is None:
+            return
+        service = getattr(self, "native_process_service", None)
+        if service is not None and bool(
+            getattr(service, "recovery_active", False)
+        ):
+            # Pointer/profile recovery deliberately invalidates ordinary player
+            # reads while it rebuilds the independent reader. Suppress the
+            # expected overlay error instead of flooding the console.
             return
 
         refresh = max(

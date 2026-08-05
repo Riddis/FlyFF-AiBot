@@ -13,7 +13,12 @@ import PySimpleGUI as sg
 from mapper.ManualMapEditor import ManualMapEditorSession
 from mapper.MapCatalog import MapCatalog
 from mapper.OccupancyGrid import OccupancyGrid
-from runtime_bus import RuntimeAlert, RuntimeBus, RuntimeStatus
+from runtime_bus import (
+    FarmingSessionSnapshot,
+    RuntimeAlert,
+    RuntimeBus,
+    RuntimeStatus,
+)
 from runtime_controller import RuntimeController
 from utils.helpers import get_window_handlers, hex_variant
 
@@ -64,7 +69,9 @@ class Gui:
             "capture_status": 0,
             "runtime_status": 0,
             "native_diagnostic_status": 0,
+            "farming_session_stats": 0,
         }
+        self._last_session_snapshot: FarmingSessionSnapshot | None = None
         self._last_preview_render_at = 0.0
         self._last_map_render_at = 0.0
         self._last_log_render_at = 0.0
@@ -128,13 +135,6 @@ class Gui:
                     "Starting training...",
                 )
 
-            if event == "-DRY_RUN-":
-                self.__start_control(
-                    lambda: self.controller.start_rl("dry-run"),
-                    "Dry Run",
-                    "Starting native no-learning dry run...",
-                )
-
             if event == "-VALIDATE_DATA-":
                 self.__start_control(
                     lambda: self.controller.start_rl("validate-data"),
@@ -149,18 +149,6 @@ class Gui:
                     "Starting trained agent...",
                 )
 
-            if event == "-START_MAPPER-":
-                selected_map = values.get("-MAP-NAME-", self._selected_map_name)
-                self.__apply_map_selection(bot, selected_map, publish_preview=False)
-                self.__start_control(
-                    lambda: self.controller.start_mapper(
-                        self._selected_map_name,
-                        rl_shadow_enabled=False,
-                    ),
-                    "Mapping",
-                    f"Starting coordinate mapper for {self._selected_map_name}...",
-                )
-
             if event == "-START_MANUAL_MAPPER-":
                 selected_map = values.get("-MAP-NAME-", self._selected_map_name)
                 self.__apply_map_selection(bot, selected_map, publish_preview=False)
@@ -172,9 +160,6 @@ class Gui:
                     f"Tracking your movement on {self._selected_map_name}; "
                     "the bot will not send movement keys.",
                 )
-
-            if event == "-SET_MINIMAP_ANCHOR-":
-                self.__set_minimap_anchor(bot)
 
             if event == "-EDIT_MAP_CELLS-":
                 self.__edit_map_cells_popup()
@@ -215,11 +200,7 @@ class Gui:
                 enabled = bool(values["-SHOW_FRAMES-"])
                 bot.set_config(show_frames=enabled)
                 sg.user_settings_set_entry("-SHOW_FRAMES-", enabled)
-                self.window["-SHOW_UI_ELEMENTS-"].update(visible=enabled)
-                self.window["-SHOW_MOB_MARKERS-"].update(visible=enabled)
-                self.window["-VISION_FRAME-"].update(visible=enabled)
-                self.window.refresh()
-                self.window["-MAIN_COLUMN-"].contents_changed()
+                self.__set_bot_vision_visibility(enabled)
             if event == "-SHOW_UI_ELEMENTS-":
                 enabled = bool(values["-SHOW_UI_ELEMENTS-"])
                 bot.set_config(show_detected_ui_elements=enabled)
@@ -229,136 +210,45 @@ class Gui:
                 bot.set_config(show_mobs_pos_markers=enabled)
                 sg.user_settings_set_entry("-SHOW_MOB_MARKERS-", enabled)
 
-            # BOT OPTIONS - Threshold options
-            if isinstance(event, str) and event.startswith("-BOT_THRESHOLD_OPTIONS-"):
-                self.window["-BOT_THRESHOLD_OPTIONS-"].update(
-                    visible=not self.window["-BOT_THRESHOLD_OPTIONS-"].visible
-                )
-                self.window["-BOT_THRESHOLD_OPTIONS-" + "-BUTTON-"].update(
-                    self.window["-BOT_THRESHOLD_OPTIONS-"].metadata[0]
-                    if self.window["-BOT_THRESHOLD_OPTIONS-"].visible
-                    else self.window["-BOT_THRESHOLD_OPTIONS-"].metadata[1]
-                )
-                self.window.refresh()  # Combined with contents_changed, will compute the new size of the element
-                self.window["-MAIN_COLUMN-"].contents_changed()
-            if event == "-MOB_POS_MATCH_THRESHOLD-":
-                bot.set_config(
-                    mob_pos_match_threshold=values["-MOB_POS_MATCH_THRESHOLD-"]
-                )
-                sg.user_settings_set_entry(
-                    "-MOB_POS_MATCH_THRESHOLD-", values["-MOB_POS_MATCH_THRESHOLD-"]
-                )
-            if event == "-MOB_STILL_ALIVE_MATCH_THRESHOLD-":
-                bot.set_config(
-                    mob_still_alive_match_threshold=values[
-                        "-MOB_STILL_ALIVE_MATCH_THRESHOLD-"
-                    ]
-                )
-                sg.user_settings_set_entry(
-                    "-MOB_STILL_ALIVE_MATCH_THRESHOLD-",
-                    values["-MOB_STILL_ALIVE_MATCH_THRESHOLD-"],
-                )
-            if event == "-MOB_EXISTENCE_MATCH_THRESHOLD-":
-                bot.set_config(
-                    mob_existence_match_threshold=values[
-                        "-MOB_EXISTENCE_MATCH_THRESHOLD-"
-                    ]
-                )
-                sg.user_settings_set_entry(
-                    "-MOB_EXISTENCE_MATCH_THRESHOLD-",
-                    values["-MOB_EXISTENCE_MATCH_THRESHOLD-"],
-                )
-            if event == "-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-":
-                bot.set_config(
-                    inventory_perin_converter_match_threshold=values[
-                        "-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-"
-                    ]
-                )
-                sg.user_settings_set_entry(
-                    "-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-",
-                    values["-INVENTORY_PERIN_CONVERTER_MATCH_THRESHOLD-"],
-                )
-            if event == "-INVENTORY_ICONS_MATCH_THRESHOLD-":
-                bot.set_config(
-                    inventory_icons_match_threshold=values[
-                        "-INVENTORY_ICONS_MATCH_THRESHOLD-"
-                    ]
-                )
-                sg.user_settings_set_entry(
-                    "-INVENTORY_ICONS_MATCH_THRESHOLD-",
-                    values["-INVENTORY_ICONS_MATCH_THRESHOLD-"],
-                )
+            if event == "-EVA-HOTKEY-":
+                eva_hotkey = str(values.get("-EVA-HOTKEY-", "F1")).upper()
+                if eva_hotkey not in {f"F{index}" for index in range(1, 13)}:
+                    eva_hotkey = "F1"
+                    self.window["-EVA-HOTKEY-"].update(eva_hotkey)
+                bot.set_config(eva_hotkey=eva_hotkey)
+                sg.user_settings_set_entry("-EVA-HOTKEY-", eva_hotkey)
 
-            # BOT OPTIONS - General options
-            if event == "-MOBS_KILL_GOAL-":
-                if values["-MOBS_KILL_GOAL-"].lower() in ["infinite", "inf", "0", ""]:
-                    self.window["-MOBS_KILL_GOAL-"].update("infinite")
-                    bot.set_config(mobs_kill_goal=None)
-                    sg.user_settings_set_entry("-MOBS_KILL_GOAL-", "infinite")
+            if event == "-REDETECT-UI-":
+                self.__set_status("CV Redetection", "Reacquiring OCR panel anchors...")
+                try:
+                    result = bot.redetect_ui_elements()
+                except Exception as error:  # noqa: BLE001 - GUI command boundary.
+                    message = f"UI panel redetection failed: {error}"
+                    self.runtime_bus.log(message, "msg_red")
+                    self.__set_status("CV Redetection", message)
                 else:
-                    try:
-                        mobs_kill_goal = int(values["-MOBS_KILL_GOAL-"])
-                        bot.set_config(mobs_kill_goal=mobs_kill_goal)
-                        sg.user_settings_set_entry(
-                            "-MOBS_KILL_GOAL-", values["-MOBS_KILL_GOAL-"]
-                        )
-                    except ValueError:
-                        sg.cprint("Invalid mobs kill goal")
-                        self.window["-MOBS_KILL_GOAL-"].update("infinite")
-                        bot.set_config(mobs_kill_goal=None)
-                        sg.user_settings_set_entry("-MOBS_KILL_GOAL-", "infinite")
-            if event == "-FIGHT_TIME_LIMIT_SEC-":
-                try:
-                    fight_time_limit_sec = int(values["-FIGHT_TIME_LIMIT_SEC-"])
-                    bot.set_config(fight_time_limit_sec=fight_time_limit_sec)
-                    sg.user_settings_set_entry(
-                        "-FIGHT_TIME_LIMIT_SEC-", values["-FIGHT_TIME_LIMIT_SEC-"]
+                    kill_state = (
+                        "found" if result.get("kill_counter_found") else "not found"
                     )
-                except ValueError:
-                    sg.cprint("Invalid fight time limit")
-                    self.window["-FIGHT_TIME_LIMIT_SEC-"].update("8")
-                    bot.set_config(fight_time_limit_sec=8)
-                    sg.user_settings_set_entry("-FIGHT_TIME_LIMIT_SEC-", "8")
-            if event == "-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-":
-                try:
-                    delay_to_check_mob_still_alive_sec = float(
-                        values["-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-"]
+                    hp_state = (
+                        "found" if result.get("player_status_found") else "not found"
                     )
-                    bot.set_config(
-                        delay_to_check_mob_still_alive_sec=delay_to_check_mob_still_alive_sec
+                    reason = result.get("reason")
+                    message = (
+                        "UI panel redetection complete: "
+                        f"kill/Penya tracker {kill_state}; "
+                        f"player status {hp_state}."
                     )
-                    sg.user_settings_set_entry(
-                        "-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-",
-                        values["-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-"],
+                    if reason:
+                        message += f" {reason}."
+                    level = (
+                        "msg_green"
+                        if result.get("kill_counter_found")
+                        and result.get("player_status_found")
+                        else "msg_purple"
                     )
-                except ValueError:
-                    sg.cprint("Invalid delay to check if mob is still alive")
-                    self.window["-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-"].update("0.25")
-                    bot.set_config(delay_to_check_mob_still_alive_sec=0.25)
-                    sg.user_settings_set_entry(
-                        "-DELAY_TO_CHECK_MOB_STILL_ALIVE_SEC-", "0.25"
-                    )
-            if event == "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-":
-                try:
-                    convert_penya_to_perins_timer_min = float(
-                        values["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"]
-                    )
-                    bot.set_config(
-                        convert_penya_to_perins_timer_min=convert_penya_to_perins_timer_min
-                    )
-                    sg.user_settings_set_entry(
-                        "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-",
-                        values["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"],
-                    )
-                except ValueError:
-                    sg.cprint(
-                        "Invalid convert penya to perins timer, must be in minutes"
-                    )
-                    self.window["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"].update("30")
-                    bot.set_config(convert_penya_to_perins_timer_min=30)
-                    sg.user_settings_set_entry(
-                        "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-", "30"
-                    )
+                    self.runtime_bus.log(message, level)
+                    self.__set_status("CV Redetection", message)
 
             if event == "-MAP-NAME-":
                 if self.controller.control_active:
@@ -397,6 +287,7 @@ class Gui:
                 self.__select_mobs_popup(bot, is_delete_form=True)
 
     def __start_control(self, command, mode, message):
+        self.__reset_session_statistics(mode)
         try:
             command()
         except RuntimeError as error:
@@ -435,7 +326,9 @@ class Gui:
                 self.window["-DEBUG_IMAGE-"].update(data=encoded[1].tobytes())
             self._last_preview_render_at = now
 
-        # Map is latest-only and deliberately slow.
+        # Map is latest-only and deliberately slow. Keep the dashboard's
+        # native wide aspect ratio instead of letterboxing it into a taller
+        # panel, which created the large black band under the map.
         version, frame = self.runtime_bus.read_latest(
             "map_frame",
             self._last_versions["map_frame"],
@@ -445,7 +338,7 @@ class Gui:
             and now - self._last_map_render_at >= self._map_render_interval
         ):
             self._last_versions["map_frame"] = version
-            image = self.__fit_image(frame, 960, 245)
+            image = self.__resize_live_map(frame, target_width=920, max_height=240)
             encoded = cv.imencode(".png", image)
             if encoded[0]:
                 self.window["-MAPPER_IMAGE-"].update(data=encoded[1].tobytes())
@@ -476,6 +369,21 @@ class Gui:
                         continue
                     status = status.message
                 self.__set_status(mode, str(status))
+
+        version, session_snapshot = self.runtime_bus.read_latest(
+            "farming_session_stats",
+            self._last_versions["farming_session_stats"],
+        )
+        if isinstance(session_snapshot, FarmingSessionSnapshot):
+            self._last_versions["farming_session_stats"] = version
+            if (
+                session_snapshot.session_id is None
+                or session_snapshot.session_id == self.controller.control_session_id
+            ):
+                self._last_session_snapshot = session_snapshot
+                self.__render_session_statistics(session_snapshot, now)
+        elif self._last_session_snapshot is not None:
+            self.__render_session_statistics(self._last_session_snapshot, now)
 
         version, capture_status = self.runtime_bus.read_latest(
             "capture_status",
@@ -704,18 +612,17 @@ class Gui:
             # re-enable controls while the live worker is winding down.
             attached = False
             running = True
-        self.window["-DRY_RUN-"].update(disabled=(not attached or running))
         self.window["-VALIDATE_DATA-"].update(disabled=(not attached or running))
         self.window["-START_BOT-"].update(disabled=(not attached or running))
         self.window["-RUN_AGENT-"].update(disabled=(not attached or running))
-        self.window["-START_MAPPER-"].update(disabled=(not attached or running))
         self.window["-START_MANUAL_MAPPER-"].update(
             disabled=(not attached or running)
         )
-        self.window["-SET_MINIMAP_ANCHOR-"].update(disabled=(not attached or running))
         self.window["-STOP_BOT-"].update(disabled=(not attached or not running))
         self.window["-ATTACH_WINDOW-"].update(disabled=running)
         self.window["-MAP-NAME-"].update(disabled=running)
+        self.window["-EVA-HOTKEY-"].update(disabled=running)
+        self.window["-REDETECT-UI-"].update(disabled=not attached)
         self.window["-ADD_MAP-"].update(disabled=running)
         self.window["-EDIT_MAP_MOBS-"].update(disabled=running)
         self.window["-EDIT_MAP_CELLS-"].update(disabled=running)
@@ -725,6 +632,28 @@ class Gui:
         self.window["-RECOVER_POINTERS-"].update(
             disabled=(not attached or running)
         )
+
+    def __set_bot_vision_visibility(self, enabled: bool) -> None:
+        """Collapse the vision row so the live map moves up immediately."""
+
+        if not hasattr(self, "window"):
+            return
+        frame = self.window["-VISION_FRAME-"]
+        method_name = "unhide_row" if enabled else "hide_row"
+        method = getattr(frame, method_name, None)
+        if callable(method):
+            method()
+        else:
+            frame.update(visible=enabled)
+        try:
+            frame.update(visible=enabled)
+        except TypeError:
+            pass
+        self.window.refresh()
+        try:
+            self.window["-VISUALS-COLUMN-"].contents_changed()
+        except (AttributeError, KeyError):
+            pass
 
     def __set_minimap_anchor(self, bot):
         if self.controller.control_active:
@@ -830,9 +759,7 @@ class Gui:
     def __load_settings(self, bot):
         show_frames = bool(sg.user_settings_get_entry("-SHOW_FRAMES-", True))
         self.window["-SHOW_FRAMES-"].update(show_frames)
-        self.window["-SHOW_UI_ELEMENTS-"].update(visible=show_frames)
-        self.window["-SHOW_MOB_MARKERS-"].update(visible=show_frames)
-        self.window["-VISION_FRAME-"].update(visible=show_frames)
+        self.__set_bot_vision_visibility(show_frames)
         bot.set_config(show_frames=show_frames)
 
         show_ui = bool(
@@ -853,6 +780,14 @@ class Gui:
         self.window["-SHOW_MOB_MARKERS-"].update(show_mobs)
         bot.set_config(show_mobs_pos_markers=show_mobs)
 
+        eva_hotkey = str(
+            sg.user_settings_get_entry("-EVA-HOTKEY-", "F1")
+        ).upper()
+        if eva_hotkey not in {f"F{index}" for index in range(1, 13)}:
+            eva_hotkey = "F1"
+        self.window["-EVA-HOTKEY-"].update(eva_hotkey)
+        bot.set_config(eva_hotkey=eva_hotkey)
+
         bot.set_config(
             mob_pos_match_threshold=0.7,
             mob_still_alive_match_threshold=0.7,
@@ -863,12 +798,6 @@ class Gui:
             fight_time_limit_sec=8,
             delay_to_check_mob_still_alive_sec=0.25,
         )
-
-        convert_timer = sg.user_settings_get_entry(
-            "-CONVERT_PENYA_TO_PERINS_TIMER_MIN-", "30"
-        )
-        self.window["-CONVERT_PENYA_TO_PERINS_TIMER_MIN-"].update(convert_timer)
-        bot.set_config(convert_penya_to_perins_timer_min=convert_timer)
 
         saved_map = sg.user_settings_get_entry(
             "saved_map_name",
@@ -1353,8 +1282,56 @@ class Gui:
     def __set_hotkeys(self):
         self.window.bind("<Alt_L><s>", "-STOP_BOT-")
 
+    @staticmethod
+    def __format_duration(seconds: float) -> str:
+        total = max(0, int(seconds))
+        hours, remainder = divmod(total, 3600)
+        minutes, secs = divmod(remainder, 60)
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+    def __reset_session_statistics(self, mode: str) -> None:
+        self._last_session_snapshot = None
+        values = {
+            "-SESSION_MODE-": str(mode),
+            "-SESSION_LENGTH-": "00:00:00",
+            "-SESSION_KILLS-HR-": "0.0",
+            "-SESSION_PENYA-HR-": "0",
+            "-SESSION_TOTAL-KILLS-": "0",
+            "-SESSION_TOTAL-PERIN-": "0.00",
+        }
+        for key, value in values.items():
+            if hasattr(self, "window"):
+                self.window[key].update(value)
+
+    def __render_session_statistics(
+        self,
+        snapshot: FarmingSessionSnapshot,
+        now: float,
+    ) -> None:
+        elapsed = float(snapshot.elapsed_seconds)
+        if (
+            self.controller is not None
+            and self.controller.control_active
+            and snapshot.started_at_monotonic > 0.0
+        ):
+            elapsed = max(elapsed, now - snapshot.started_at_monotonic)
+        self.window["-SESSION_MODE-"].update(snapshot.mode)
+        self.window["-SESSION_LENGTH-"].update(
+            self.__format_duration(elapsed)
+        )
+        self.window["-SESSION_KILLS-HR-"].update(
+            f"{snapshot.kills_per_hour:,.1f}"
+        )
+        self.window["-SESSION_PENYA-HR-"].update(
+            f"{snapshot.penya_per_hour:,.0f}"
+        )
+        self.window["-SESSION_TOTAL-KILLS-"].update(f"{snapshot.kills:,}")
+        self.window["-SESSION_TOTAL-PERIN-"].update(
+            f"{snapshot.perin_earned:,.2f}"
+        )
+
     def __get_layout(self):
-        title = [sg.Text("FlyFF AiBot", font="Any 18")]
+        title = sg.Text("FlyFF AiBot", font="Any 18")
 
         actions = sg.Frame(
             "Actions:",
@@ -1363,14 +1340,6 @@ class Gui:
                     sg.Button(
                         "Attach Window",
                         key="-ATTACH_WINDOW-",
-                        expand_x=True,
-                    )
-                ],
-                [
-                    sg.Button(
-                        "Native Dry Run (No Learning)",
-                        disabled=True,
-                        key="-DRY_RUN-",
                         expand_x=True,
                     )
                 ],
@@ -1402,14 +1371,6 @@ class Gui:
                 ],
                 [
                     sg.Button(
-                        "Calibrate Minimap (optional)",
-                        disabled=True,
-                        key="-SET_MINIMAP_ANCHOR-",
-                        expand_x=True,
-                    ),
-                ],
-                [
-                    sg.Button(
                         "Native Health",
                         disabled=True,
                         key="-NATIVE_HEALTH-",
@@ -1421,14 +1382,6 @@ class Gui:
                         key="-RECOVER_POINTERS-",
                         expand_x=True,
                     ),
-                ],
-                [
-                    sg.Button(
-                        "Map Area (Automatic)",
-                        disabled=True,
-                        key="-START_MAPPER-",
-                        expand_x=True,
-                    )
                 ],
                 [
                     sg.Button(
@@ -1485,9 +1438,7 @@ class Gui:
                 [
                     sg.Button("Add Map", key="-ADD_MAP-"),
                     sg.Button("Edit Map Mobs", key="-EDIT_MAP_MOBS-"),
-                ],
-                [
-                    sg.Button("Edit Map Cells", key="-EDIT_MAP_CELLS-", expand_x=True),
+                    sg.Button("Edit Map Cells", key="-EDIT_MAP_CELLS-"),
                 ],
                 [
                     sg.Button("Reset Progress", key="-RESET_MAP-"),
@@ -1525,33 +1476,43 @@ class Gui:
                     )
                 ],
                 [
-                    sg.pin(
-                        sg.Checkbox(
-                            "Show detected UI elements",
-                            True,
-                            enable_events=True,
-                            key="-SHOW_UI_ELEMENTS-",
-                        )
+                    sg.Checkbox(
+                        "Show detected UI elements",
+                        True,
+                        enable_events=True,
+                        key="-SHOW_UI_ELEMENTS-",
                     )
                 ],
                 [
-                    sg.pin(
-                        sg.Checkbox(
-                            "Show mobs markers",
-                            True,
-                            enable_events=True,
-                            key="-SHOW_MOB_MARKERS-",
-                        )
+                    sg.Checkbox(
+                        "Show mobs markers",
+                        True,
+                        enable_events=True,
+                        key="-SHOW_MOB_MARKERS-",
                     )
+                ],
+                [
+                    sg.Text("EVA hotkey:"),
+                    sg.Combo(
+                        [f"F{index}" for index in range(1, 13)],
+                        default_value="F1",
+                        readonly=True,
+                        enable_events=True,
+                        key="-EVA-HOTKEY-",
+                        size=(8, 1),
+                    ),
                 ],
                 [sg.HorizontalSeparator()],
-                [sg.Text("Timer to convert penya to perins (m):")],
                 [
-                    sg.InputText(
-                        "30",
-                        size=(10, 1),
-                        enable_events=True,
-                        key="-CONVERT_PENYA_TO_PERINS_TIMER_MIN-",
+                    sg.Button(
+                        "Redetect UI Panels",
+                        key="-REDETECT-UI-",
+                        disabled=True,
+                        expand_x=True,
+                        tooltip=(
+                            "Forget and reacquire the kill/Penya tracker and "
+                            "player-status panel on the current frame."
+                        ),
                     )
                 ],
             ],
@@ -1656,12 +1617,63 @@ class Gui:
                             "Select a map to load its persistent progress."
                         ),
                         key="-MAPPER_IMAGE-",
-                        size=(960, 245),
+                        size=(920, 233),
                     )
                 ],
             ],
             expand_x=True,
             key="-MAPPER_FRAME-CONTAINER-",
+        )
+
+        def statistic(label, key, value, *, tooltip=None):
+            return sg.Column(
+                [
+                    [
+                        sg.Text(
+                            label,
+                            justification="center",
+                            expand_x=True,
+                        )
+                    ],
+                    [
+                        sg.Text(
+                            value,
+                            key=key,
+                            justification="center",
+                            tooltip=tooltip,
+                            font="Any 11 bold",
+                            expand_x=True,
+                        )
+                    ],
+                ],
+                pad=((4, 4), (1, 1)),
+                element_justification="center",
+                expand_x=True,
+            )
+
+        session_statistics = sg.Frame(
+            "Session Statistics:",
+            [
+                [
+                    statistic("Mode", "-SESSION_MODE-", "Idle"),
+                    sg.VSeparator(),
+                    statistic("Session length", "-SESSION_LENGTH-", "00:00:00"),
+                    sg.VSeparator(),
+                    statistic("Kills / hour", "-SESSION_KILLS-HR-", "0.0"),
+                    sg.VSeparator(),
+                    statistic("Penya / hour", "-SESSION_PENYA-HR-", "0"),
+                    sg.VSeparator(),
+                    statistic("Total kills", "-SESSION_TOTAL-KILLS-", "0"),
+                    sg.VSeparator(),
+                    statistic(
+                        "Total Perin",
+                        "-SESSION_TOTAL-PERIN-",
+                        "0.00",
+                        tooltip="Penya earned divided by 100,000,000",
+                    ),
+                ]
+            ],
+            expand_x=True,
         )
 
         visuals = sg.Column(
@@ -1672,9 +1684,15 @@ class Gui:
             pad=(0, 0),
             expand_x=True,
             expand_y=True,
+            vertical_alignment="top",
+            key="-VISUALS-COLUMN-",
         )
 
-        return [title, [controls, visuals]]
+        return [
+            [title],
+            [session_statistics],
+            [controls, visuals],
+        ]
 
     def __preview_target_size(self, selected_resolution):
         configured = self.frame_resolutions.get(selected_resolution)
@@ -1705,6 +1723,30 @@ class Gui:
         width = max(160, min(width, 3840))
         height = max(90, min(height, 2160))
         return width, height
+
+
+    def __resize_live_map(
+        self,
+        image,
+        *,
+        target_width: int,
+        max_height: int,
+    ):
+        """Resize the wide map dashboard without adding letterbox bands."""
+        if image is None or image.size == 0:
+            return image
+        source_height, source_width = image.shape[:2]
+        scale = min(
+            target_width / max(1, source_width),
+            max_height / max(1, source_height),
+        )
+        width = max(1, int(round(source_width * scale)))
+        height = max(1, int(round(source_height * scale)))
+        return cv.resize(
+            image,
+            (width, height),
+            interpolation=(cv.INTER_AREA if scale < 1.0 else cv.INTER_NEAREST),
+        )
 
     def __fit_image(self, image, target_width, target_height):
         """Letterbox an image without changing its aspect ratio."""
@@ -1781,8 +1823,8 @@ class Gui:
     def __make_live_map_placeholder(self, message):
         import numpy as np
 
-        canvas = np.full((245, 960, 3), 24, dtype=np.uint8)
-        cv.rectangle(canvas, (1, 1), (958, 243), (70, 70, 70), 1)
+        canvas = np.full((233, 920, 3), 24, dtype=np.uint8)
+        cv.rectangle(canvas, (1, 1), (918, 231), (70, 70, 70), 1)
 
         title = "LIVE MAP"
         cv.putText(

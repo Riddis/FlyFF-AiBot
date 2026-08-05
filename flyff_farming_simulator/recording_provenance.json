@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "recordings": {
+    "2A060230611CD228D359F32BDD752F0E7FD1355CA7CB2188F1ECB25A734D8BE2": {
+      "recording_role": "direct_keyboard_demonstration",
+      "movement_control_scheme": "keyboard_wasd",
+      "direct_movement_labels_allowed": true,
+      "evidence": "User attested on 2026-08-04 that this older Riddims session used direct WASD control."
+    }
+  }
+}

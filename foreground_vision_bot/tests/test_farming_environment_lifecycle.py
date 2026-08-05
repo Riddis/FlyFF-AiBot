@@ -11,6 +11,7 @@ from farming.environment import (
     FarmingEnvironmentState,
     UnifiedFarmingEnv,
 )
+from farming.kills import CastCandidate, NativeKillResult
 from farming.map_context import FarmingMapContext
 from farming.map_features import FarmingMapFeatures
 from farming.native_world import NativeWorldFrame, NativeWorldUnavailable
@@ -41,15 +42,20 @@ class FakeToken:
 
     def __init__(self, clock: FakeClock) -> None:
         self.clock = clock
+        self.on_wait = None
 
     def wait(self, seconds: float) -> bool:
         self.clock.sleep(seconds)
+        if callable(self.on_wait):
+            self.on_wait()
         return self.cancelled
 
 
 class FakeKeyboard:
     def __init__(self) -> None:
         self.trace: list[tuple[str, int]] = []
+        self.foreground = True
+        self.focus_calls = 0
 
     def key_down(self, key: int) -> None:
         self.trace.append(("down", key))
@@ -58,10 +64,11 @@ class FakeKeyboard:
         self.trace.append(("up", key))
 
     def is_target_foreground(self) -> bool:
-        return True
+        return self.foreground
 
     def focus_target_window(self) -> bool:
-        return True
+        self.focus_calls += 1
+        return self.foreground
 
 
 class FakeWorldReader:
@@ -77,6 +84,9 @@ class FakeWorldReader:
         if isinstance(item, Exception):
             raise item
         return item
+
+    def read_actor_hp_states(self, _candidates):
+        return {}
 
 
 def _frame(
@@ -213,6 +223,68 @@ def test_environment_applies_distinct_map_buffer_and_obstacle_penalties() -> Non
     assert obstacle_step.reward.components.obstacle_cell == pytest.approx(-0.75)
 
 
+def test_focus_pause_refreshes_the_motion_baseline_without_refocusing() -> None:
+    world = FakeWorldReader(
+        _frame(0.0, timestamp=0.0),
+        _frame(2.0, timestamp=10.0),
+        _frame(3.0, timestamp=11.0),
+    )
+    environment, clock, keyboard = _environment(world)
+    environment.control.focus.ensure_focused()
+    environment.reset()
+    statuses: list[str] = []
+    environment.control.focus.status_callback = statuses.append
+    keyboard.foreground = False
+    environment.cancellation.on_wait = lambda: setattr(
+        keyboard,
+        "foreground",
+        True,
+    )
+
+    step = environment.step(0)
+
+    assert keyboard.focus_calls == 0
+    assert world.calls == 3
+    assert clock.value == pytest.approx(0.25)
+    assert step.info["player_displacement_cells"] == pytest.approx(1.0)
+    assert statuses == [
+        "FlyFF lost focus; farming control paused. Focus FlyFF to resume.",
+        "FlyFF regained focus; farming control resumed.",
+    ]
+
+
+def test_focus_loss_during_eva_discards_kill_and_transition() -> None:
+    world = FakeWorldReader(_frame(0.0), _frame(2.0), _frame(3.0))
+    environment, _clock, keyboard = _environment(world)
+    environment.control.focus.ensure_focused()
+    environment.reset()
+
+    class FocusDroppingKillTracker:
+        def begin_cast(self, _frame):
+            return object()
+
+        def confirm_cast(self, *_args, **_kwargs):
+            keyboard.foreground = False
+            environment.cancellation.on_wait = lambda: setattr(
+                keyboard, "foreground", True
+            )
+            return NativeKillResult(
+                (CastCandidate(0x1000, 944, 100),),
+                1,
+                1,
+                0,
+                False,
+                0.05,
+            )
+
+    environment.kill_tracker = FocusDroppingKillTracker()  # type: ignore[assignment]
+    step = environment.step(3)
+
+    assert step.info["native_kill_delta"] == 0
+    assert step.reward.components.kill == 0.0
+    assert world.calls == 3
+
+
 def test_environment_has_one_live_reset_and_one_reward_calculation() -> None:
     environment, _clock, _keyboard = _environment(
         FakeWorldReader(_frame(0.0), _frame(1.0))
@@ -221,7 +293,7 @@ def test_environment_has_one_live_reset_and_one_reward_calculation() -> None:
     initial = environment.reset()
     step = environment.step(0)
 
-    assert initial.observation.shape == (482,)
+    assert initial.observation.shape == (923,)
     assert environment.state is FarmingEnvironmentState.ACTIVE
     assert step.outcome.should_stop_session is False
     assert step.info["action_name"] == "RUN_FORWARD"
@@ -241,7 +313,7 @@ def test_policy_forbidden_terminal_is_delivered_once_then_sink_refuses_step() ->
 
     observation, reward, terminated, truncated, info = adapter.step(0)
 
-    assert observation.shape == (482,)
+    assert observation.shape == (923,)
     assert reward < -40.0
     assert terminated is True
     assert truncated is False
@@ -446,7 +518,7 @@ def test_confirmed_teleport_from_mapped_area_does_not_send_recovery_pulse() -> N
 
     observation, reward, terminated, truncated, info = adapter.step(0)
 
-    assert observation.shape == (482,)
+    assert observation.shape == (923,)
     assert reward < -40.0
     assert terminated is True
     assert truncated is False
@@ -479,7 +551,7 @@ def test_incoherent_far_samples_stop_without_consuming_untrusted_position() -> N
     assert result.info["teleport_confirmed"] is False
     assert result.info["teleport_usable_sample_found"] is False
     assert result.info["teleport_reason"] == "destination_unstable"
-    assert result.observation.shape == (482,)
+    assert result.observation.shape == (923,)
     assert environment.state is FarmingEnvironmentState.SEALED
 
 

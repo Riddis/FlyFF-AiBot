@@ -7,11 +7,17 @@ import struct
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 from datetime import datetime, timezone
-from time import time_ns
+from time import monotonic, time_ns
 from pathlib import Path, PureWindowsPath
-from typing import Iterable, Mapping, Protocol
+from typing import Callable, Iterable, Mapping, Protocol
 
-from .AuthoritativeActorDiscovery import AuthoritativeActorRefresh, refresh_authoritative_actors
+from .AuthoritativeActorDiscovery import (
+    AuthoritativeActorRefresh,
+    PresenceFieldCandidate,
+    RelationScanEvidence,
+    _presence_field_candidates,
+    refresh_authoritative_actors,
+)
 from .NativeTraceTargets import (
     TraceMonsterTarget,
     TracePlayerTarget,
@@ -20,7 +26,7 @@ from .NativeTraceTargets import (
 )
 from .Win32ProcessMemory import ModuleInfo
 
-PROFILE_VERSION = 1
+PROFILE_VERSION = 2
 
 
 def _module_filename(value: str) -> str:
@@ -74,6 +80,15 @@ class RecoveredNativeProfile:
     anchor_hp: int
     expected_full_hp_by_species: tuple[tuple[int, int], ...]
     saved_at_utc: str
+    presence_species_offset: int | None = None
+    presence_species_validated: bool = False
+    presence_evidence: PresenceFieldCandidate | None = None
+    runtime_pid: int | None = None
+    runtime_module_base: int | None = None
+    runtime_player_base: int | None = None
+    runtime_relation_value: int | None = None
+    runtime_actor_bases: tuple[int, ...] = ()
+    runtime_species_counts: tuple[tuple[int, int], ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         payload = asdict(self)
@@ -82,6 +97,8 @@ class RecoveredNativeProfile:
             "player_self_offsets",
             "monster_self_offsets",
             "expected_full_hp_by_species",
+            "runtime_actor_bases",
+            "runtime_species_counts",
         ):
             payload[key] = [
                 list(item) if isinstance(item, tuple) else item
@@ -110,6 +127,37 @@ class RecoveredNativeProfile:
         )
         actor_stride_raw = payload.get("actor_stride")
         actor_stride = None if actor_stride_raw is None else int(actor_stride_raw)
+        raw_runtime_species = payload.get("runtime_species_counts", ())
+        if not isinstance(raw_runtime_species, (list, tuple)):
+            raise ValueError("runtime_species_counts must be a list")
+        runtime_species_counts = tuple(
+            (int(item[0]), int(item[1]))
+            for item in raw_runtime_species
+            if isinstance(item, (list, tuple)) and len(item) == 2
+        )
+        raw_presence_evidence = payload.get("presence_evidence")
+        presence_evidence = None
+        if isinstance(raw_presence_evidence, Mapping):
+            evidence_fields = {
+                field: int(raw_presence_evidence.get(field, 0))
+                for field in (
+                    "offset",
+                    "selected_matches",
+                    "selected_samples",
+                    "zero_hp_matches",
+                    "zero_hp_samples",
+                    "dormant_clears",
+                    "dormant_samples",
+                    "cross_slot_alias_matches",
+                    "lifecycle_death_retained",
+                    "lifecycle_dormant_clears",
+                    "lifecycle_reappearances",
+                )
+            }
+            presence_evidence = PresenceFieldCandidate(
+                **evidence_fields,
+                validated=bool(raw_presence_evidence.get("validated", False)),
+            )
         profile = cls(
             version=PROFILE_VERSION,
             module_name=str(payload["module_name"]),
@@ -132,6 +180,33 @@ class RecoveredNativeProfile:
             anchor_hp=int(payload["anchor_hp"]),
             expected_full_hp_by_species=expected,
             saved_at_utc=str(payload.get("saved_at_utc", "")),
+            presence_species_offset=(
+                None
+                if payload.get("presence_species_offset") is None
+                else int(payload["presence_species_offset"])
+            ),
+            presence_species_validated=bool(
+                payload.get("presence_species_validated", False)
+            ),
+            presence_evidence=presence_evidence,
+            runtime_pid=(
+                None if payload.get("runtime_pid") is None
+                else int(payload["runtime_pid"])
+            ),
+            runtime_module_base=(
+                None if payload.get("runtime_module_base") is None
+                else int(payload["runtime_module_base"])
+            ),
+            runtime_player_base=(
+                None if payload.get("runtime_player_base") is None
+                else int(payload["runtime_player_base"])
+            ),
+            runtime_relation_value=(
+                None if payload.get("runtime_relation_value") is None
+                else int(payload["runtime_relation_value"])
+            ),
+            runtime_actor_bases=ints("runtime_actor_bases"),
+            runtime_species_counts=runtime_species_counts,
         )
         profile.validate()
         return profile
@@ -169,6 +244,30 @@ class RecoveredNativeProfile:
             self.actor_stride <= 0 or self.actor_stride > 0x100000
         ):
             raise ValueError("invalid actor stride")
+        if self.presence_species_offset is not None:
+            offset = int(self.presence_species_offset)
+            if offset < 0 or offset > 0x10000 or offset % 4:
+                raise ValueError("invalid presence_species_offset")
+            if self.actor_stride is not None and offset >= self.actor_stride:
+                raise ValueError("presence_species_offset is outside the actor stride")
+        if self.presence_species_validated and self.presence_species_offset is None:
+            raise ValueError("validated presence field has no offset")
+        if (
+            self.presence_evidence is not None
+            and self.presence_species_offset != self.presence_evidence.offset
+        ):
+            raise ValueError("presence evidence does not match the saved offset")
+        runtime_values = (
+            self.runtime_pid,
+            self.runtime_module_base,
+            self.runtime_player_base,
+            self.runtime_relation_value,
+        )
+        if self.runtime_actor_bases or any(value is not None for value in runtime_values):
+            if any(value is None or int(value) <= 0 for value in runtime_values):
+                raise ValueError("runtime cache identity is incomplete")
+            if not self.runtime_actor_bases:
+                raise ValueError("runtime cache has no actor bases")
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,6 +277,8 @@ class RestoredNativeState:
     relation_offset: int
     relation_value: int
     authoritative: AuthoritativeActorRefresh
+    restore_mode: str = "stable_profile_scan"
+    elapsed_seconds: float = 0.0
 
 
 def load_profile(path: str | Path | None = None) -> RecoveredNativeProfile | None:
@@ -251,12 +352,19 @@ def _sha256_file(path: str) -> str:
 def profile_from_reader(
     *,
     module: ModuleInfo,
+    process_id: int | None = None,
     player_slots: Iterable[int],
     player_target: TracePlayerTarget,
     monster_target: TraceMonsterTarget,
     actor_stride: int | None,
     authoritative_relation_offset: int,
+    authoritative_relation_value: int | None = None,
+    actor_bases: Iterable[int] = (),
+    authoritative_species_counts: Iterable[tuple[int, int]] = (),
     expected_full_hp_by_species: Mapping[int, int],
+    presence_species_offset: int | None = None,
+    presence_species_validated: bool = False,
+    presence_evidence: PresenceFieldCandidate | None = None,
 ) -> RecoveredNativeProfile:
     offsets = tuple(
         sorted(
@@ -301,6 +409,31 @@ def profile_from_reader(
         anchor_hp=anchor_hp,
         expected_full_hp_by_species=expected,
         saved_at_utc=datetime.now(timezone.utc).isoformat(),
+        presence_species_offset=(
+            None if presence_species_offset is None else int(presence_species_offset)
+        ),
+        presence_species_validated=bool(presence_species_validated),
+        presence_evidence=presence_evidence,
+        runtime_pid=(None if process_id is None else int(process_id)),
+        runtime_module_base=(
+            None if process_id is None else int(module.base_address)
+        ),
+        runtime_player_base=(
+            None if process_id is None else int(player_target.base)
+        ),
+        runtime_relation_value=(
+            None
+            if process_id is None or authoritative_relation_value is None
+            else int(authoritative_relation_value)
+        ),
+        runtime_actor_bases=(
+            () if process_id is None else tuple(sorted({int(value) for value in actor_bases if int(value) > 0}))
+        ),
+        runtime_species_counts=(
+            ()
+            if process_id is None
+            else tuple(sorted((int(species), int(count)) for species, count in authoritative_species_counts if int(species) > 0 and int(count) >= 0))
+        ),
     )
     profile.validate()
     return profile
@@ -346,6 +479,245 @@ def _evidence(profile: RecoveredNativeProfile) -> TraceTargetEvidence:
     )
 
 
+
+def _runtime_cache_identity_matches(
+    memory: ProfileMemory,
+    module: ModuleInfo,
+    profile: RecoveredNativeProfile,
+) -> bool:
+    return bool(
+        profile.runtime_actor_bases
+        and profile.runtime_pid is not None
+        and int(getattr(memory, "pid", 0)) == int(profile.runtime_pid)
+        and profile.runtime_module_base is not None
+        and int(module.base_address) == int(profile.runtime_module_base)
+        and profile.runtime_player_base is not None
+        and profile.runtime_relation_value is not None
+    )
+
+
+def _restore_runtime_cache(
+    memory: ProfileMemory,
+    module: ModuleInfo,
+    profile: RecoveredNativeProfile,
+    *,
+    selected_species_ids: Iterable[int],
+    coordinate_limit: float,
+) -> RestoredNativeState | None:
+    """Validate the exact same-process actor cache without scanning memory."""
+
+    if not _runtime_cache_identity_matches(memory, module, profile):
+        return None
+    started = monotonic()
+    expected_player = int(profile.runtime_player_base or 0)
+    expected_relation = int(profile.runtime_relation_value or 0)
+    valid_slots: list[int] = []
+    for relative in profile.player_slot_offsets:
+        if relative < 0 or relative + 4 > module.size:
+            continue
+        slot = int(module.base_address) + int(relative)
+        try:
+            if _u32(memory, slot) == expected_player:
+                valid_slots.append(slot)
+        except Exception:
+            continue
+    if not valid_slots:
+        return None
+    try:
+        if not any(
+            _u32(memory, expected_player + offset) == expected_player
+            for offset in profile.player_self_offsets
+        ):
+            return None
+        player_hp = _i32(memory, expected_player + profile.player_hp_offset)
+        player_x = _f32(memory, expected_player + profile.x_offset)
+        player_y = _f32(memory, expected_player + profile.y_offset)
+        player_z = _f32(memory, expected_player + profile.z_offset)
+        current_relation = _u32(
+            memory,
+            expected_player + profile.authoritative_relation_offset,
+        )
+    except Exception:
+        return None
+    if current_relation != expected_relation or player_hp < 0:
+        return None
+    if not all(
+        math.isfinite(value) and abs(value) <= coordinate_limit
+        for value in (player_x, player_y, player_z)
+    ):
+        return None
+
+    selected = {int(value) for value in selected_species_ids if int(value) > 0}
+    selected.add(int(profile.anchor_species))
+    valid_bases: list[int] = []
+    real_targets: list[TraceMonsterTarget] = []
+    species_counts: dict[int, int] = {}
+    structural_matches = 0
+    unreadable = 0
+    self_rejections = 0
+    relation_rejections = 0
+    species_rejections = 0
+    hp_rejections = 0
+    coordinate_rejections = 0
+    structural_bases: list[int] = []
+
+    for actor_base in profile.runtime_actor_bases:
+        base = int(actor_base)
+        try:
+            if not any(
+                _u32(memory, base + offset) == base
+                for offset in profile.monster_self_offsets
+            ):
+                self_rejections += 1
+                continue
+            if _u32(memory, base + profile.authoritative_relation_offset) != expected_relation:
+                relation_rejections += 1
+                continue
+            structural_matches += 1
+            structural_bases.append(base)
+            species = _i32(memory, base + profile.species_offset)
+            actor_hp = _i32(memory, base + profile.monster_hp_offset)
+            actor_x = _f32(memory, base + profile.x_offset)
+            actor_y = _f32(memory, base + profile.y_offset)
+            actor_z = _f32(memory, base + profile.z_offset)
+        except Exception:
+            unreadable += 1
+            continue
+        if selected and species not in selected:
+            species_rejections += 1
+            continue
+        if actor_hp < 0:
+            hp_rejections += 1
+            continue
+        if not all(
+            math.isfinite(value) and abs(value) <= coordinate_limit
+            for value in (actor_x, actor_y, actor_z)
+        ):
+            coordinate_rejections += 1
+            continue
+        valid_bases.append(base)
+        species_counts[species] = species_counts.get(species, 0) + 1
+        if len(real_targets) < 256:
+            real_targets.append(
+                TraceMonsterTarget(
+                    base=base,
+                    species=species,
+                    hp=actor_hp,
+                    x=actor_x,
+                    y=actor_y,
+                    z=actor_z,
+                    self_pointer_offsets=profile.monster_self_offsets,
+                    species_offset=profile.species_offset,
+                    active_species_offset=profile.active_species_offset,
+                    hp_offset=profile.monster_hp_offset,
+                    x_offset=profile.x_offset,
+                    y_offset=profile.y_offset,
+                    z_offset=profile.z_offset,
+                )
+            )
+
+    cached_count = len(profile.runtime_actor_bases)
+    minimum_structural = max(2, math.ceil(cached_count * 0.60))
+    minimum_selected = max(2, math.ceil(cached_count * 0.25))
+    saved_species_counts = dict(profile.runtime_species_counts)
+    species_coverage_ok = all(
+        species in saved_species_counts
+        and species_counts.get(species, 0)
+        >= max(1, math.ceil(saved_species_counts[species] * 0.50))
+        for species in selected
+        if species in saved_species_counts or species != profile.anchor_species
+    )
+    if (
+        structural_matches < minimum_structural
+        or len(valid_bases) < minimum_selected
+        or not real_targets
+        or not species_coverage_ok
+    ):
+        return None
+
+    player = TracePlayerTarget(
+        base=expected_player,
+        hp=player_hp,
+        x=player_x,
+        y=player_y,
+        z=player_z,
+        self_pointer_offsets=profile.player_self_offsets,
+        direct_module_slots=tuple(sorted(set(valid_slots))),
+        hp_offset=profile.player_hp_offset,
+        species_offset=profile.species_offset,
+        active_species_offset=profile.active_species_offset,
+        x_offset=profile.x_offset,
+        y_offset=profile.y_offset,
+        z_offset=profile.z_offset,
+    )
+    discovery = TraceTargetDiscovery(
+        player=player,
+        monsters=tuple(real_targets),
+        evidence=_evidence(profile),
+        outcome="success",
+        message="Validated the same-process authoritative actor cache.",
+    )
+    presence_candidates = _presence_field_candidates(
+        memory,
+        discovery,
+        tuple(sorted(set(valid_bases))),
+        tuple(sorted(set(structural_bases))),
+        selected_species_ids=selected,
+        actor_stride=profile.actor_stride,
+        relation_offset=profile.authoritative_relation_offset,
+        preferred_offsets=tuple(
+            dict.fromkeys(
+                value
+                for value in (profile.presence_species_offset, 0x1DCC)
+                if value is not None
+            )
+        ),
+    )
+    presence = presence_candidates[0] if presence_candidates else None
+    evidence = RelationScanEvidence(
+        offset=int(profile.authoritative_relation_offset),
+        value=expected_relation,
+        references=cached_count,
+        unique_candidate_bases=cached_count,
+        valid_actor_bases=len(valid_bases),
+        exact_anchor_coverage=0,
+        exact_anchor_total=0,
+        selected_species_counts=tuple(sorted(species_counts.items())),
+        self_rejections=self_rejections,
+        relation_rejections=relation_rejections,
+        species_rejections=species_rejections,
+        hp_rejections=hp_rejections,
+        coordinate_rejections=coordinate_rejections,
+        unreadable_rejections=unreadable,
+        search_bytes_read=0,
+        search_regions_read=0,
+    )
+    authoritative = AuthoritativeActorRefresh(
+        actor_bases=tuple(sorted(set(valid_bases))),
+        species_counts=tuple(sorted(species_counts.items())),
+        evidence=evidence,
+        active_species_offset=None,
+        active_species_validated=False,
+        active_candidates=(),
+        presence_species_offset=(
+            None if presence is None else int(presence.offset)
+        ),
+        presence_species_validated=bool(
+            presence is not None and presence.validated
+        ),
+        presence_candidates=presence_candidates,
+    )
+    return RestoredNativeState(
+        profile=profile,
+        discovery=discovery,
+        relation_offset=int(profile.authoritative_relation_offset),
+        relation_value=expected_relation,
+        authoritative=authoritative,
+        restore_mode="same_process_cache",
+        elapsed_seconds=max(0.0, monotonic() - started),
+    )
+
+
 def restore_profile(
     memory: ProfileMemory,
     module: ModuleInfo,
@@ -358,7 +730,9 @@ def restore_profile(
     coordinate_limit: float,
     cancellation: object | None = None,
     deadline: float | None = None,
+    status_callback: Callable[[str], None] | None = None,
 ) -> RestoredNativeState:
+    started = monotonic()
     profile.validate()
     if module.name.casefold() != profile.module_name.casefold():
         raise ValueError("cached profile belongs to another module")
@@ -374,6 +748,16 @@ def restore_profile(
         current_hash = _sha256_file(module.path)
         if not current_hash or current_hash != profile.module_sha256.upper():
             raise ValueError("cached profile belongs to another client executable")
+
+    runtime_cached = _restore_runtime_cache(
+        memory,
+        module,
+        profile,
+        selected_species_ids=selected_species_ids,
+        coordinate_limit=coordinate_limit,
+    )
+    if runtime_cached is not None:
+        return runtime_cached
 
     valid_slots: list[int] = []
     candidate_rows: list[tuple[int, int, float, float, float, int]] = []
@@ -471,6 +855,14 @@ def restore_profile(
         coordinate_limit=coordinate_limit,
         cancellation=cancellation,
         deadline=deadline,
+        status_callback=status_callback,
+        preferred_presence_offsets=tuple(
+            dict.fromkeys(
+                value
+                for value in (profile.presence_species_offset, 0x1DCC)
+                if value is not None
+            )
+        ),
     )
     if len(authoritative.actor_bases) < 2:
         raise ValueError("cached authoritative relation did not recover enough actors")
@@ -520,4 +912,6 @@ def restore_profile(
         relation_offset=profile.authoritative_relation_offset,
         relation_value=relation_value,
         authoritative=authoritative,
+        restore_mode="stable_profile_scan",
+        elapsed_seconds=max(0.0, monotonic() - started),
     )

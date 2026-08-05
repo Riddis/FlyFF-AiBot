@@ -91,6 +91,10 @@ class NativeMonsterConfig:
     maximum_scan_address: int = 0x7FFFFFFF
     private_memory_only: bool = True
     maximum_absolute_coordinate: float = 100_000.0
+    presence_clear_confirmation_samples: int = 3
+    presence_cold_poll_batch_size: int = 1024
+    presence_cold_verification_batch_size: int = 256
+    presence_dead_read_grace_seconds: float = 2.0
 
     def __post_init__(self) -> None:
         if not isinstance(self.enabled, bool):
@@ -160,6 +164,17 @@ class NativeMonsterConfig:
             raise MonsterConfigurationError(
                 "maximum_absolute_coordinate must be positive"
             )
+        for name in (
+            "presence_clear_confirmation_samples",
+            "presence_cold_poll_batch_size",
+            "presence_cold_verification_batch_size",
+        ):
+            if int(getattr(self, name)) < 1:
+                raise MonsterConfigurationError(f"{name} must be positive")
+        if self.presence_dead_read_grace_seconds < 0.0:
+            raise MonsterConfigurationError(
+                "presence_dead_read_grace_seconds cannot be negative"
+            )
 
     @property
     def player_pointer_hint_offset(self) -> int:
@@ -182,6 +197,7 @@ class NativeMonsterConfig:
         layout = payload.get("layout", {})
         discovery = payload.get("discovery", {})
         recovery_hints = payload.get("recovery_hints", {})
+        presence_sampling = payload.get("presence_sampling", {})
         if not isinstance(layout, dict):
             raise MonsterConfigurationError("layout must be a JSON object")
         if not isinstance(discovery, dict):
@@ -189,6 +205,10 @@ class NativeMonsterConfig:
         if not isinstance(recovery_hints, dict):
             raise MonsterConfigurationError(
                 "recovery_hints must be a JSON object"
+            )
+        if not isinstance(presence_sampling, dict):
+            raise MonsterConfigurationError(
+                "presence_sampling must be a JSON object"
             )
 
         try:
@@ -198,6 +218,9 @@ class NativeMonsterConfig:
             )
             coordinate_limit = float(
                 payload.get("maximum_absolute_coordinate", 100_000.0)
+            )
+            presence_dead_grace = float(
+                presence_sampling.get("dead_read_grace_seconds", 2.0)
             )
         except (TypeError, ValueError) as error:
             raise MonsterConfigurationError(
@@ -311,6 +334,22 @@ class NativeMonsterConfig:
             discovery_interval_seconds=discovery_interval,
             private_memory_only=private_memory_only,
             maximum_absolute_coordinate=coordinate_limit,
+            presence_clear_confirmation_samples=_parse_int(
+                presence_sampling.get("clear_confirmation_samples", 3),
+                field_name="presence_sampling.clear_confirmation_samples",
+                minimum=1,
+            ),
+            presence_cold_poll_batch_size=_parse_int(
+                presence_sampling.get("cold_poll_batch_size", 1024),
+                field_name="presence_sampling.cold_poll_batch_size",
+                minimum=1,
+            ),
+            presence_cold_verification_batch_size=_parse_int(
+                presence_sampling.get("cold_verification_batch_size", 256),
+                field_name="presence_sampling.cold_verification_batch_size",
+                minimum=1,
+            ),
+            presence_dead_read_grace_seconds=presence_dead_grace,
         )
 
 

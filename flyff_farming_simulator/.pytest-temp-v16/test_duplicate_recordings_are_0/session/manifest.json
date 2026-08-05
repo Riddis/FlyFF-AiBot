@@ -1,0 +1,1 @@
+{"schema_version": 2, "recorder_version": "1.9.0", "status": "success", "sampling": {"position_quantum_native": 0.05}, "files": {"frames": "frames.msgpack.gz", "events": "events.msgpack.gz", "inputs": "inputs.msgpack.gz"}}

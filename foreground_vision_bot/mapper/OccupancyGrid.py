@@ -1316,15 +1316,11 @@ class OccupancyGrid:
                 self._draw_monster_marker(image, (sx, sy), color)
 
         if self.metadata.pose_known:
-            cv.circle(image, (px, py), 2, (0, 220, 255), -1)
-            dx, dy = self.DIRECTIONS[self.pose.heading_index]
-            cv.line(
-                image,
-                (px, py),
-                (px + dx * 5, py - dy * 5),
-                (0, 160, 255),
-                1,
-            )
+            # A compact yellow location dot is easier to spot on both panels
+            # than the old heading needle. The black outline keeps it visible
+            # over free, blocked, inferred, and monster-coloured cells.
+            cv.circle(image, (px, py), 3, (0, 0, 0), -1, cv.LINE_8)
+            cv.circle(image, (px, py), 2, (0, 220, 255), -1, cv.LINE_8)
         else:
             cv.line(image, (px - 3, py - 3), (px + 3, py + 3), (255, 0, 255), 1)
             cv.line(image, (px - 3, py + 3), (px + 3, py - 3), (255, 0, 255), 1)

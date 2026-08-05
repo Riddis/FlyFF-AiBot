@@ -1,0 +1,23 @@
+{
+  "size": 188,
+  "shape": [
+    188,
+    188
+  ],
+  "free_cells": 16665,
+  "forbidden_cells": 0,
+  "template": "broad_lobes",
+  "free_fraction": 0.47150860117700316,
+  "safe_fraction_of_free": 0.8655865586558655,
+  "spawn_cell": [
+    93,
+    131
+  ],
+  "design": "large_open_farming_area",
+  "corridor_generation": false,
+  "variant": "03_advanced_broad_lobes_shifting_variable",
+  "stage": "advanced",
+  "density_profile": "shifting",
+  "respawn_profile": "variable",
+  "seed": 23880
+}

@@ -195,7 +195,7 @@ def test_external_training_end_saves_model_report_and_recovery_manifest(
 
     assert events[:4] == ["preflight", "model_preflight", "start", "learn"]
     assert events[-3:] == ["release", "save", "close"]
-    assert result == tmp_path / "native_strategy_map_risk_ppo.zip"
+    assert result == tmp_path / "native_strategy_map_context_ppo.zip"
     report = json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))
     assert report["session_reason"] == "external_teleport"
     assert report["session_classification"] == "external_truncation"
@@ -240,9 +240,11 @@ def test_normal_training_status_is_concise_and_uses_total_model_steps() -> None:
     message = statuses[-1]
     assert message.startswith(
         "TRAINING | steps=123,456 reward=+1.75 reward_delta=+1.75 "
-        "kills=2 kills/hr="
+        "reward_delta_by_action=[FWD=+0.00 LEFT=+0.00 RIGHT=+0.00 "
+        "EVA=+1.75 JUMP=+0.00] kills=2 kills/hr="
     )
-    assert "action=CAST_EVA" in message
+    assert " action=" not in message
+    assert "penya/hr=" in message
     for noisy_field in ("actors=", "cache=", "candidates=", "ocr="):
         assert noisy_field not in message
 
@@ -265,7 +267,7 @@ def test_training_continues_past_checkpoint_and_uses_total_model_steps(
         services=_services(tmp_path, runtime, model, events),
     )
 
-    assert result == tmp_path / "native_strategy_map_risk_ppo.zip"
+    assert result == tmp_path / "native_strategy_map_context_ppo.zip"
     assert len(model.learn_calls) == 2
     assert model.learn_calls[0]["total_timesteps"] == 7
     assert model.learn_calls[0]["reset_num_timesteps"] is False
@@ -274,8 +276,8 @@ def test_training_continues_past_checkpoint_and_uses_total_model_steps(
     assert model.num_timesteps == 32
     checkpoint = (
         tmp_path
-        / "native_strategy_map_risk_checkpoints"
-        / "native_strategy_map_risk_ppo_000000000024_steps.zip"
+        / "native_strategy_map_context_checkpoints"
+        / "native_strategy_map_context_ppo_000000000024_steps.zip"
     )
     assert checkpoint.is_file()
     assert any(
@@ -297,7 +299,7 @@ def test_fatal_training_failure_preserves_last_known_good_model(
     runtime = FakeRuntime(events)
     model = FakeModel(events, failure=RuntimeError("policy failure"))
     bot = FakeBot(events)
-    destination = tmp_path / "native_strategy_map_risk_ppo.zip"
+    destination = tmp_path / "native_strategy_map_context_ppo.zip"
     destination.write_bytes(b"LAST-KNOWN-GOOD")
 
     try:
@@ -347,12 +349,14 @@ def test_fake_launch_attach_preview_dry_run_and_external_training_session(
         *,
         status_callback: Any,
         cancellation: CancellationToken,
+        session_stats_callback: Any = None,
     ) -> Path:
         return real_train(
             selected_bot,  # pyright: ignore[reportArgumentType]
             FarmingRuntimeConfig(checkpoint_frequency=8),
             status_callback=status_callback,
             cancellation=cancellation,
+            session_stats_callback=session_stats_callback,
             services=training_services,
         )
 
@@ -417,3 +421,72 @@ def test_fake_launch_attach_preview_dry_run_and_external_training_session(
     report = json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))
     assert report["session_reason"] == "external_teleport"
     assert (tmp_path / "session.manifest.json").is_file()
+
+
+def test_session_stats_accumulates_penya_and_handles_perin_conversion() -> None:
+    stats = SessionStats()
+
+    stats.observe_penya(90_000_000)
+    stats.observe_penya(125_000_000)
+    assert stats.penya_earned == 35_000_000
+
+    # Converting one Perin lowers the visible counter by exactly 100m and must
+    # not erase the session earnings or add a negative delta.
+    stats.observe_penya(25_000_000)
+    assert stats.penya_earned == 35_000_000
+    assert stats.penya_latest == 25_000_000
+    assert stats.penya_outcomes["perin_conversion"] == 1
+
+    stats.observe_penya(30_000_000)
+    assert stats.penya_earned == 40_000_000
+
+
+def test_session_stats_rejects_one_frame_penya_decrease() -> None:
+    stats = SessionStats()
+    stats.observe_penya(500_000_000)
+    stats.observe_penya(123_456_789)
+
+    assert stats.penya_latest == 500_000_000
+    assert stats.penya_earned == 0
+    assert stats.penya_outcomes["decrease_pending"] == 1
+
+    stats.observe_penya(510_000_000)
+    assert stats.penya_latest == 510_000_000
+    assert stats.penya_earned == 10_000_000
+
+
+def test_training_callback_publishes_structured_session_statistics() -> None:
+    events: list[str] = []
+    runtime = FakeRuntime(events)
+    snapshots: list[dict[str, object]] = []
+    penya_values = iter((100_000_000, 120_000_000))
+    callback = _TrainingCallback(
+        runtime=cast(FarmingRuntime, cast(object, runtime)),
+        config=FarmingRuntimeConfig(stats_interval_seconds=0.001),
+        cancellation=CancellationToken(),
+        stats=SessionStats(),
+        status_callback=lambda _message: None,
+        session_stats_callback=snapshots.append,
+        penya_reader=lambda: next(penya_values),
+    )
+    callback.model = SimpleNamespace(num_timesteps=5_000)
+    callback.locals = {
+        "infos": [{"native_kill_delta": 1, "action_name": "RUN_FORWARD"}],
+        "rewards": [0.25],
+    }
+    callback._last_status = 0.0
+    assert callback._on_step()
+
+    callback.locals = {
+        "infos": [{"native_kill_delta": 2, "action_name": "CAST_EVA"}],
+        "rewards": [2.0],
+    }
+    callback._last_status = 0.0
+    assert callback._on_step()
+
+    latest = snapshots[-1]
+    assert latest["total_steps"] == 5_000
+    assert latest["kills"] == 3
+    assert latest["penya_earned"] == 20_000_000
+    assert latest["perin_earned"] == 0.2
+    assert dict(latest["action_reward_deltas"])["EVA"] == 2.0

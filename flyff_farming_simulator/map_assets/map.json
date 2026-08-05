@@ -1,0 +1,286 @@
+{
+  "size": 1001,
+  "pose": {
+    "x": 0,
+    "y": 117,
+    "heading_index": 0
+  },
+  "continuous_pose": {
+    "x": 0.035991668701171875,
+    "y": 116.73690795898438,
+    "heading_deg": 52.50349511361307
+  },
+  "metadata": {
+    "version": 5,
+    "created_at": "2026-07-27T21:48:00.707635+00:00",
+    "spawn": [
+      0,
+      0
+    ],
+    "pang_sightings": [],
+    "teleport_zones": [
+      {
+        "x": 1,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 2,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 3,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 2,
+        "y": -9,
+        "radius": 0
+      },
+      {
+        "x": 2,
+        "y": -10,
+        "radius": 0
+      },
+      {
+        "x": 2,
+        "y": -11,
+        "radius": 0
+      },
+      {
+        "x": 5,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 5,
+        "y": -9,
+        "radius": 0
+      },
+      {
+        "x": 5,
+        "y": -10,
+        "radius": 0
+      },
+      {
+        "x": 5,
+        "y": -11,
+        "radius": 0
+      },
+      {
+        "x": 6,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 7,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 6,
+        "y": -10,
+        "radius": 0
+      },
+      {
+        "x": 7,
+        "y": -10,
+        "radius": 0
+      },
+      {
+        "x": 7,
+        "y": -9,
+        "radius": 0
+      },
+      {
+        "x": 0,
+        "y": -6,
+        "radius": 0
+      },
+      {
+        "x": 1,
+        "y": -6,
+        "radius": 0
+      },
+      {
+        "x": 2,
+        "y": -6,
+        "radius": 0
+      },
+      {
+        "x": 3,
+        "y": -6,
+        "radius": 0
+      },
+      {
+        "x": 4,
+        "y": -6,
+        "radius": 0
+      },
+      {
+        "x": 5,
+        "y": -6,
+        "radius": 0
+      },
+      {
+        "x": 6,
+        "y": -6,
+        "radius": 0
+      },
+      {
+        "x": 7,
+        "y": -6,
+        "radius": 0
+      },
+      {
+        "x": 8,
+        "y": -6,
+        "radius": 0
+      },
+      {
+        "x": 9,
+        "y": -6,
+        "radius": 0
+      },
+      {
+        "x": 9,
+        "y": -7,
+        "radius": 0
+      },
+      {
+        "x": 9,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": 9,
+        "y": -9,
+        "radius": 0
+      },
+      {
+        "x": 9,
+        "y": -10,
+        "radius": 0
+      },
+      {
+        "x": 9,
+        "y": -11,
+        "radius": 0
+      },
+      {
+        "x": 9,
+        "y": -12,
+        "radius": 0
+      },
+      {
+        "x": 9,
+        "y": -13,
+        "radius": 0
+      },
+      {
+        "x": 8,
+        "y": -13,
+        "radius": 0
+      },
+      {
+        "x": 7,
+        "y": -13,
+        "radius": 0
+      },
+      {
+        "x": 6,
+        "y": -13,
+        "radius": 0
+      },
+      {
+        "x": 5,
+        "y": -13,
+        "radius": 0
+      },
+      {
+        "x": 4,
+        "y": -13,
+        "radius": 0
+      },
+      {
+        "x": 3,
+        "y": -13,
+        "radius": 0
+      },
+      {
+        "x": 2,
+        "y": -13,
+        "radius": 0
+      },
+      {
+        "x": 1,
+        "y": -13,
+        "radius": 0
+      },
+      {
+        "x": 0,
+        "y": -13,
+        "radius": 0
+      },
+      {
+        "x": -1,
+        "y": -13,
+        "radius": 0
+      },
+      {
+        "x": -1,
+        "y": -12,
+        "radius": 0
+      },
+      {
+        "x": -1,
+        "y": -11,
+        "radius": 0
+      },
+      {
+        "x": -1,
+        "y": -10,
+        "radius": 0
+      },
+      {
+        "x": -1,
+        "y": -9,
+        "radius": 0
+      },
+      {
+        "x": -1,
+        "y": -8,
+        "radius": 0
+      },
+      {
+        "x": -1,
+        "y": -7,
+        "radius": 0
+      },
+      {
+        "x": -1,
+        "y": -6,
+        "radius": 0
+      }
+    ],
+    "suspected_transitions": [],
+    "contact_boundaries": [],
+    "inferred_wall_cells": [],
+    "inferred_free_cells": [],
+    "manual_cells": [],
+    "position_known": true,
+    "heading_known": true,
+    "heading_uncertainty_deg": 2.8804924576637974,
+    "pose_known": true,
+    "pose_note": "Manual-drive position is native-coordinate authoritative; heading is refined from each meaningful user-controlled movement segment.",
+    "pose_state_updated_at": "2026-07-29T23:08:36.092382+00:00",
+    "termination_reason": "Manual mapping stopped by user.",
+    "map_name": "Tower AoE",
+    "run_count": 58,
+    "heading_recovery_successes": 0,
+    "manual_spawn_resets": 0,
+    "updated_at": "2026-08-01T21:56:14.622389+00:00"
+  }
+}

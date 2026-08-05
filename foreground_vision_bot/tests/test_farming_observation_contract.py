@@ -8,6 +8,7 @@ import pytest
 from farming.actions import FarmingAction
 from farming.map_features import DirectPathState
 from farming.observation import (
+    CONTEXT_MAP_START,
     DIRECT_ACTOR_START,
     LEGACY_AGGREGATE_START,
     LEGACY_MASK_START,
@@ -57,6 +58,7 @@ def _frame() -> ObservationFrame:
         ),
     )
     local_map = np.linspace(-1.0, 1.0, 121, dtype=np.float32).reshape(11, 11)
+    context_map = np.linspace(-1.0, 1.0, 441, dtype=np.float32).reshape(21, 21)
     player = PlayerObservation(
         normalized_x=0.25,
         normalized_z=-0.5,
@@ -69,12 +71,17 @@ def _frame() -> ObservationFrame:
         jump_cooldown_fraction=0.25,
         map_available=True,
     )
-    return ObservationFrame(player=player, actors=actors, local_map=local_map)
+    return ObservationFrame(
+        player=player,
+        actors=actors,
+        local_map=local_map,
+        context_map=context_map,
+    )
 
 
 def test_observation_schema_freezes_every_segment_and_field_index() -> None:
-    assert OBSERVATION_SCHEMA_ID == "native-unified-482-v3"
-    assert len(OBSERVATION_FIELDS) == OBSERVATION_SIZE == 482
+    assert OBSERVATION_SCHEMA_ID == "native-unified-923-v4"
+    assert len(OBSERVATION_FIELDS) == OBSERVATION_SIZE == 923
     assert OBSERVATION_FIELDS[0] == "legacy_actor[00].dx_over_vision"
     assert OBSERVATION_FIELDS[223] == "legacy_actor[31].active"
     assert OBSERVATION_FIELDS[224] == "legacy_mask[00]"
@@ -86,9 +93,11 @@ def test_observation_schema_freezes_every_segment_and_field_index() -> None:
     assert OBSERVATION_FIELDS[276] == "unified_state.map_available_bipolar"
     assert OBSERVATION_FIELDS[277] == "local_map[dy=-5,dx=-5]"
     assert OBSERVATION_FIELDS[397] == "local_map[dy=+5,dx=+5]"
-    assert OBSERVATION_FIELDS[398] == "direct_actor[00].dx_over_vision"
-    assert OBSERVATION_FIELDS[399] == "direct_actor[00].dz_over_vision"
-    assert OBSERVATION_FIELDS[481] == "direct_actor[11].pack_density_bipolar"
+    assert OBSERVATION_FIELDS[398] == "context_map[gy=-10,gx=-10]"
+    assert OBSERVATION_FIELDS[838] == "context_map[gy=+10,gx=+10]"
+    assert OBSERVATION_FIELDS[839] == "direct_actor[00].dx_over_vision"
+    assert OBSERVATION_FIELDS[840] == "direct_actor[00].dz_over_vision"
+    assert OBSERVATION_FIELDS[922] == "direct_actor[11].pack_density_bipolar"
 
 
 def test_schema_hash_covers_field_order_and_normalization_scales() -> None:
@@ -115,13 +124,15 @@ def test_schema_hash_covers_field_order_and_normalization_scales() -> None:
         "teleport_buffer": 0.75,
         "teleport_trigger": 1.0,
     }
+    assert descriptor["context_map_contract"]["side"] == 21  # type: ignore[index]
+    assert descriptor["context_map_contract"]["radius_cells"] == 50  # type: ignore[index]
 
 
-def test_builder_emits_exact_482_vector_from_one_typed_frame() -> None:
+def test_builder_emits_exact_923_vector_from_one_typed_frame() -> None:
     built = ObservationBuilder().build(_frame())
     vector = built.vector
 
-    assert vector.shape == (482,)
+    assert vector.shape == (923,)
     assert vector.dtype == np.float32
     assert built.visible_actor_count == 3
     assert built.eva_actor_count == 2
@@ -162,6 +173,9 @@ def test_builder_emits_exact_482_vector_from_one_typed_frame() -> None:
     assert vector[LOCAL_MAP_START : LOCAL_MAP_START + 121] == pytest.approx(
         _frame().local_map.reshape(-1)
     )
+    assert vector[CONTEXT_MAP_START : CONTEXT_MAP_START + 441] == pytest.approx(
+        _frame().context_map.reshape(-1)
+    )
     assert vector[DIRECT_ACTOR_START : DIRECT_ACTOR_START + 7] == pytest.approx(
         (
             0.1,
@@ -182,6 +196,7 @@ def test_builder_rejects_ambiguous_actor_identity_and_wrong_local_crop() -> None
         player=frame.player,
         actors=(frame.actors[0], frame.actors[0]),
         local_map=frame.local_map,
+        context_map=frame.context_map,
     )
     with pytest.raises(ValueError, match="unique"):
         ObservationBuilder().build(duplicate)
@@ -190,6 +205,7 @@ def test_builder_rejects_ambiguous_actor_identity_and_wrong_local_crop() -> None
         player=frame.player,
         actors=frame.actors,
         local_map=np.zeros((3, 3), dtype=np.float32),
+        context_map=frame.context_map,
     )
     with pytest.raises(ValueError, match="121"):
         ObservationBuilder().build(malformed)
@@ -198,9 +214,19 @@ def test_builder_rejects_ambiguous_actor_identity_and_wrong_local_crop() -> None
         player=frame.player,
         actors=frame.actors,
         local_map=np.full((11, 11), 1.01, dtype=np.float32),
+        context_map=frame.context_map,
     )
     with pytest.raises(ValueError, match=r"within \[-1, 1\]"):
         ObservationBuilder().build(out_of_contract)
+
+    malformed_context = ObservationFrame(
+        player=frame.player,
+        actors=frame.actors,
+        local_map=frame.local_map,
+        context_map=np.zeros((3, 3), dtype=np.float32),
+    )
+    with pytest.raises(ValueError, match="441"):
+        ObservationBuilder().build(malformed_context)
 
 
 @pytest.mark.parametrize("actor_id", [True, 1.5])
@@ -242,6 +268,7 @@ def test_direct_density_uses_all_eligible_actors_after_blocked_filtering() -> No
         player=_frame().player,
         actors=actors,
         local_map=np.zeros((11, 11), dtype=np.float32),
+        context_map=np.zeros((21, 21), dtype=np.float32),
     )
 
     built = ObservationBuilder().build(frame)
@@ -278,8 +305,17 @@ def test_nonzero_native_z_uses_distinct_layout_and_direct_offsets_full_golden() 
         jump_cooldown_fraction=0.75,
         map_available=True,
     )
+    context_map = np.resize(
+        np.asarray((-1.0, -0.25, 0.50, 0.75, 1.0, 0.0), dtype=np.float32),
+        441,
+    ).reshape(21, 21)
     vector = ObservationBuilder().build_vector(
-        ObservationFrame(player=player, actors=(actor,), local_map=local_map)
+        ObservationFrame(
+            player=player,
+            actors=(actor,),
+            local_map=local_map,
+            context_map=context_map,
+        )
     )
 
     golden = np.zeros(OBSERVATION_SIZE, dtype=np.float32)
@@ -311,6 +347,7 @@ def test_nonzero_native_z_uses_distinct_layout_and_direct_offsets_full_golden() 
         1.0,
     )
     golden[LOCAL_MAP_START : LOCAL_MAP_START + 121] = local_map.reshape(-1)
+    golden[CONTEXT_MAP_START : CONTEXT_MAP_START + 441] = context_map.reshape(-1)
     golden[DIRECT_ACTOR_START : DIRECT_ACTOR_START + 7] = (
         0.06,
         0.08,
@@ -323,5 +360,5 @@ def test_nonzero_native_z_uses_distinct_layout_and_direct_offsets_full_golden() 
 
     np.testing.assert_array_equal(vector, golden)
     assert sha256(vector.tobytes()).hexdigest().upper() == (
-        "DB04BCC48EA86D4A971E4BB4AC94FFAC6350981E283C06729E58113E453D9ED9"
+        "F89B24EBBDD3B723276A810B9E30BA7044A12E6EEEE884473D9A55F2622AEBD0"
     )

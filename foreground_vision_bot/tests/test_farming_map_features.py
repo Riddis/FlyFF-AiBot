@@ -159,3 +159,38 @@ def test_explicit_safe_cells_must_be_a_traversable_non_forbidden_subset() -> Non
             forbidden=forbidden,
             safe_traversable=unsafe_safe,
         )
+
+
+def test_context_crop_spans_fifty_cells_and_preserves_highest_risk_per_bin() -> None:
+    traversable = np.ones((121, 121), dtype=np.bool_)
+    forbidden = np.zeros_like(traversable)
+    safe = traversable.copy()
+    center = (60, 60)
+
+    # These cells are much farther away than the fine +/-5 crop but remain
+    # inside the +/-50 context view.
+    traversable[20, 20] = False
+    forbidden[100, 100] = True
+    safe[60, 105] = False
+    features = FarmingMapFeatures(
+        traversable=traversable,
+        forbidden=forbidden,
+        safe_traversable=safe & traversable & ~forbidden,
+        teleport_buffer_radius_cells=2.0,
+    )
+
+    context = features.context_crop(center).reshape(21, 21)
+
+    assert context.shape == (21, 21)
+    assert context[2, 2] == pytest.approx(0.50)
+    assert context[18, 18] == pytest.approx(1.0)
+    assert context[10, 19] == pytest.approx(-0.25)
+    assert context[10, 10] == pytest.approx(-1.0)
+
+
+def test_context_crop_validates_shape_arguments() -> None:
+    features = _map_features()
+    with pytest.raises(ValueError, match="radius"):
+        features.context_crop((4, 4), radius_cells=0)
+    with pytest.raises(ValueError, match="odd"):
+        features.context_crop((4, 4), side=20)

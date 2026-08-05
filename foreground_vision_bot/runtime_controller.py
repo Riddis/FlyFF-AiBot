@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import traceback
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from datetime import datetime, timezone
 from math import isfinite
+from pathlib import Path
 from threading import Lock
 from time import monotonic
 from typing import cast
 
-import cv2 as cv
 from assets.Assets import MobInfo
 from capture_service import CaptureService, FrameSource
 from libs.WindowCapture import WindowCapture
@@ -20,13 +21,50 @@ from position import (
     run_native_diagnostic,
 )
 from preview_service import PreviewService
-from runtime_bus import RuntimeBus
+from runtime_bus import FarmingSessionSnapshot, RuntimeBus
 from worker_manager import (
     CancellationToken,
     WorkerKind,
     WorkerManager,
     WorkerSnapshot,
 )
+
+
+class _RecoveryLog:
+    """Best-effort persistent text log for pointer/profile recovery."""
+
+    def __init__(self, label: str) -> None:
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+        directory = (
+            Path(__file__).resolve().parent
+            / "training_logs"
+            / "native_recovery"
+        )
+        self.path: Path | None = directory / f"{label}-{timestamp}.log"
+        self._lock = Lock()
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            self.write(f"Recovery log started: {label}")
+        except OSError:
+            self.path = None
+
+    def write(self, message: str) -> None:
+        if self.path is None:
+            return
+        line = (
+            datetime.now(timezone.utc).isoformat()
+            + " "
+            + str(message).replace("\r", " ").replace("\n", " ")
+            + "\n"
+        )
+        try:
+            with self._lock:
+                with self.path.open("a", encoding="utf-8") as stream:
+                    stream.write(line)
+                    stream.flush()
+        except OSError:
+            # Recovery must not fail because a diagnostic log cannot be written.
+            pass
 
 
 class RuntimeController:
@@ -154,12 +192,18 @@ class RuntimeController:
                         self.bot,
                         status_callback=report,
                         cancellation=token,
+                        session_stats_callback=self._farming_stats_reporter(
+                            "Training"
+                        ),
                     )
                 if mode == "agent":
                     run_native_farming_agent(
                         self.bot,
                         status_callback=report,
                         cancellation=token,
+                        session_stats_callback=self._farming_stats_reporter(
+                            "Agent"
+                        ),
                     )
                     return None
                 if mode == "dry-run":
@@ -193,11 +237,18 @@ class RuntimeController:
         service = getattr(self.bot, "native_process_service", None)
         if service is None:
             return True
+        recovery_log = _RecoveryLog("startup-recovery")
+        recovery_log.write(
+            f"mode={'verbose' if verbose else 'training'}"
+        )
         try:
             service.read_pointer_snapshot()
+            recovery_log.write("Existing in-process native reader validated.")
             return True
         except NativePointerSnapshotError:
-            pass
+            recovery_log.write(
+                "Existing in-process native reader was unavailable or stale."
+            )
 
         profile_hints = self._pointer_recovery_hints(
             cancellation=token,
@@ -206,6 +257,7 @@ class RuntimeController:
         profile_deadline = monotonic() + self.PROFILE_VALIDATION_TIMEOUT_SECONDS
 
         def profile_status(message: str) -> None:
+            recovery_log.write(message)
             normalized = message.casefold()
             if (
                 verbose
@@ -239,12 +291,16 @@ class RuntimeController:
                 )
 
         report("Native pointers unavailable; running full startup recovery.")
+        recovery_log.write("Native pointers unavailable; running full startup recovery.")
+        if recovery_log.path is not None:
+            report(f"Native recovery log: {recovery_log.path}")
         timeout = self.STARTUP_POINTER_RECOVERY_TIMEOUT_SECONDS
         deadline = monotonic() + timeout
 
         def publish(progress) -> None:
             message = str(progress.message)
             phase = str(getattr(progress, "phase", ""))
+            recovery_log.write(f"[{phase or 'recovery'}] {message}")
             if verbose or phase in {
                 "success",
                 "cache_hit",
@@ -253,7 +309,15 @@ class RuntimeController:
                 "error",
             }:
                 report(message)
-            elif message.startswith("Dynamically recovered the authoritative"):
+            elif (
+                message.startswith("Dynamically recovered the authoritative")
+                or message.startswith("Validated target scan read")
+                or message.startswith("Authoritative actor scan")
+                or message.startswith("Authoritative actor candidate")
+                or message.startswith("Reusing the last validated authoritative")
+                or message.startswith("Found one selected player")
+                or message.startswith("Native player pointer recovered")
+            ):
                 report(message)
             self.bus.heartbeat("control")
 
@@ -270,12 +334,20 @@ class RuntimeController:
                 ),
             )
         except Exception as error:  # noqa: BLE001 - expected startup boundary.
+            recovery_log.write(
+                "Startup recovery failed: "
+                f"{type(error).__name__}: {error}"
+            )
             report(
                 "Native pointer startup recovery could not complete: "
                 f"{type(error).__name__}: {error}. No input was activated."
             )
             return False
         if not result.succeeded or not result.applied:
+            recovery_log.write(
+                "Startup recovery did not apply: "
+                f"outcome={result.outcome.value}."
+            )
             report(
                 "Native pointers remain unavailable after bounded recovery "
                 f"({result.outcome.value}). No input was activated."
@@ -284,12 +356,19 @@ class RuntimeController:
         try:
             snapshot = service.read_pointer_snapshot()
         except NativePointerSnapshotError as error:
+            recovery_log.write(
+                "Startup verification failed: " + str(error)
+            )
             report(
                 "Recovered native pointers did not pass startup verification: "
                 f"{error}. No input was activated."
             )
             return False
         if snapshot.mode == "independent":
+            recovery_log.write(
+                "Startup recovery completed in independent mode: "
+                f"player=0x{snapshot.player_base:X}."
+            )
             report(
                 "Native pointer startup preflight ready in independent mode: "
                 f"player=0x{snapshot.player_base:X}; world pointer not required."
@@ -357,12 +436,26 @@ class RuntimeController:
         self._start_control("manual-mapper", run)
 
     def publish_map_preview(self, map_name: str) -> bool:
-        from mapper.MapCatalog import MapCatalog
+        """Render the current map with today's configured local radius.
 
-        preview_path = MapCatalog().preview_path(map_name)
-        image = cv.imread(str(preview_path), cv.IMREAD_COLOR)
-        if image is None:
+        Loading the persisted preview PNG can preserve an obsolete local-map
+        radius forever. Rendering from the saved occupancy grid keeps idle GUI
+        previews consistent with live mapping and the native actor overlay.
+        """
+        from mapper.CoordinateMapper import load_mapper_config
+        from mapper.MapCatalog import MapCatalog
+        from mapper.OccupancyGrid import OccupancyGrid
+
+        catalog = MapCatalog()
+        profile = catalog.get(map_name)
+        directory = catalog.map_directory(profile.name)
+        grid, warning = OccupancyGrid.load(directory)
+        if warning is not None:
             return False
+        if not (directory / "map.json").is_file():
+            return False
+        radius = load_mapper_config().local_map_radius_cells
+        image = grid.render_dashboard(local_radius_cells=radius)
         self.bus.publish_latest("map_frame", image)
         return True
 
@@ -459,8 +552,21 @@ class RuntimeController:
         self._diagnostic_recovery_requested = bool(recover)
         def run(token: CancellationToken) -> NativeDiagnosticReport:
             deadline = monotonic() + bounded_timeout
+            recovery_log = (
+                _RecoveryLog("manual-recovery") if recover else None
+            )
+            if recovery_log is not None and recovery_log.path is not None:
+                self.bus.log(
+                    f"Native recovery log: {recovery_log.path}",
+                    "msg_blue",
+                )
 
             def publish(progress: NativeDiagnosticProgress) -> None:
+                if recovery_log is not None:
+                    recovery_log.write(
+                        f"[{getattr(progress, 'phase', 'recovery')}] "
+                        f"{progress.message}"
+                    )
                 self.bus.publish_status(
                     "native_diagnostic_status",
                     progress.message,
@@ -802,6 +908,52 @@ class RuntimeController:
             return dict(results)
         finally:
             self._shutdown_lock.release()
+
+    def _farming_stats_reporter(self, mode: str):
+        session_id = self._control_session_id
+
+        def report(payload: Mapping[str, object]) -> None:
+            action_values = payload.get("action_reward_deltas", ())
+            action_deltas: list[tuple[str, float]] = []
+            if isinstance(action_values, (tuple, list)):
+                for item in action_values:
+                    if (
+                        isinstance(item, (tuple, list))
+                        and len(item) == 2
+                        and isinstance(item[0], str)
+                        and isinstance(item[1], (int, float))
+                    ):
+                        action_deltas.append((item[0], float(item[1])))
+            snapshot = FarmingSessionSnapshot(
+                session_id=session_id,
+                mode=str(payload.get("mode", mode)),
+                started_at_monotonic=float(
+                    payload.get("started_at_monotonic", monotonic())
+                ),
+                elapsed_seconds=max(
+                    0.0, float(payload.get("elapsed_seconds", 0.0))
+                ),
+                total_steps=max(0, int(payload.get("total_steps", 0))),
+                session_steps=max(0, int(payload.get("session_steps", 0))),
+                reward=float(payload.get("reward", 0.0)),
+                reward_delta=float(payload.get("reward_delta", 0.0)),
+                kills=max(0, int(payload.get("kills", 0))),
+                kills_per_hour=max(
+                    0.0, float(payload.get("kills_per_hour", 0.0))
+                ),
+                penya_earned=max(0, int(payload.get("penya_earned", 0))),
+                penya_per_hour=max(
+                    0.0, float(payload.get("penya_per_hour", 0.0))
+                ),
+                perin_earned=max(
+                    0.0, float(payload.get("perin_earned", 0.0))
+                ),
+                action_reward_deltas=tuple(action_deltas),
+            )
+            self.bus.publish_latest("farming_session_stats", snapshot)
+            self.bus.heartbeat("rl")
+
+        return report
 
     def _reporter(self, status_key: str, worker: str):
         session_id = self._control_session_id

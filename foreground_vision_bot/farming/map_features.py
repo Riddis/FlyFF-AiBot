@@ -16,6 +16,8 @@ Cell = tuple[int, int]
 DEFAULT_TELEPORT_BUFFER_RADIUS_CELLS = 2.0
 DEFAULT_GEODESIC_CACHE_SIZE = 512
 DEFAULT_MAXIMUM_GEODESIC_EXPANSIONS = 8_192
+DEFAULT_CONTEXT_MAP_RADIUS_CELLS = 50
+DEFAULT_CONTEXT_MAP_SIDE = 21
 
 _DIRECTIONS: tuple[tuple[int, int, float], ...] = (
     (1, 0, 1.0),
@@ -63,12 +65,26 @@ LOCAL_MAP_TELEPORT_BUFFER: float = 0.75
 LOCAL_MAP_TELEPORT_TRIGGER: float = 1.0
 
 
+def _risk_encoding(risk: MapCellRisk) -> np.float32:
+    return np.float32(
+        {
+            MapCellRisk.OUTSIDE_OR_UNKNOWN: LOCAL_MAP_OUTSIDE_OR_UNKNOWN,
+            MapCellRisk.SAFE: LOCAL_MAP_SAFE,
+            MapCellRisk.OBSTACLE_BUFFER: LOCAL_MAP_OBSTACLE_BUFFER,
+            MapCellRisk.OBSTACLE: LOCAL_MAP_OBSTACLE,
+            MapCellRisk.TELEPORT_BUFFER: LOCAL_MAP_TELEPORT_BUFFER,
+            MapCellRisk.TELEPORT_TRIGGER: LOCAL_MAP_TELEPORT_TRIGGER,
+        }[risk]
+    )
+
+
 class FarmingMapFeatures:
     """Immutable farming map arrays with cached, bounded feature queries.
 
     Array coordinates use ``(x, y)`` while NumPy storage uses ``[y, x]``.
-    Local crops are emitted in row-major ``dy``/``dx`` order, matching the
-    active 482-value checkpoint.
+    Fine local crops and coarse context crops are emitted in row-major order.
+    The context crop spans a much wider radius while aggregating risk inside
+    each coarse bin so thin walls and teleport zones are not skipped.
     """
 
     def __init__(
@@ -271,16 +287,85 @@ class FarmingMapFeatures:
             for dx in range(-radius, radius + 1):
                 x, y = center_x + dx, center_y + dy
                 risk = self._cell_risk_at(x, y, forbidden_distance_field)
-                state = {
-                    MapCellRisk.OUTSIDE_OR_UNKNOWN: LOCAL_MAP_OUTSIDE_OR_UNKNOWN,
-                    MapCellRisk.SAFE: LOCAL_MAP_SAFE,
-                    MapCellRisk.OBSTACLE_BUFFER: LOCAL_MAP_OBSTACLE_BUFFER,
-                    MapCellRisk.OBSTACLE: LOCAL_MAP_OBSTACLE,
-                    MapCellRisk.TELEPORT_BUFFER: LOCAL_MAP_TELEPORT_BUFFER,
-                    MapCellRisk.TELEPORT_TRIGGER: LOCAL_MAP_TELEPORT_TRIGGER,
-                }[risk]
-                result[offset] = np.float32(state)
+                result[offset] = _risk_encoding(risk)
                 offset += 1
+        return result
+
+    def context_crop(
+        self,
+        center: Cell | None,
+        *,
+        radius_cells: int = DEFAULT_CONTEXT_MAP_RADIUS_CELLS,
+        side: int = DEFAULT_CONTEXT_MAP_SIDE,
+    ) -> FloatArray:
+        """Return a coarse risk overview centered on the player.
+
+        The default 21x21 grid covers +/-50 map cells. Each output value is
+        the highest-risk state found inside its roughly 5x5 source-cell bin.
+        This gives the policy minimap-scale awareness without expanding the
+        observation by the 10,201 values required by a raw 101x101 crop.
+        """
+
+        radius_cells = int(radius_cells)
+        side = int(side)
+        if radius_cells < 1:
+            raise ValueError("context crop radius must be positive")
+        if side < 3 or side % 2 == 0:
+            raise ValueError("context crop side must be an odd integer >= 3")
+        result = np.zeros(side * side, dtype=np.float32)
+        if center is None:
+            return result
+
+        offsets = np.arange(-radius_cells, radius_cells + 1, dtype=np.int32)
+        groups = tuple(np.array_split(offsets, side))
+        forbidden_distance_field = (
+            self._get_forbidden_distance_field() if self._has_forbidden else None
+        )
+        center_x, center_y = int(center[0]), int(center[1])
+        height, width = self.shape
+        output = 0
+        for y_offsets in groups:
+            y0 = center_y + int(y_offsets[0])
+            y1 = center_y + int(y_offsets[-1]) + 1
+            for x_offsets in groups:
+                x0 = center_x + int(x_offsets[0])
+                x1 = center_x + int(x_offsets[-1]) + 1
+                clip_x0 = max(0, x0)
+                clip_y0 = max(0, y0)
+                clip_x1 = min(width, x1)
+                clip_y1 = min(height, y1)
+                partly_outside = (
+                    x0 < 0 or y0 < 0 or x1 > width or y1 > height
+                )
+                risk = MapCellRisk.OUTSIDE_OR_UNKNOWN
+                if clip_x1 > clip_x0 and clip_y1 > clip_y0:
+                    forbidden = self._forbidden[clip_y0:clip_y1, clip_x0:clip_x1]
+                    if np.any(forbidden):
+                        risk = MapCellRisk.TELEPORT_TRIGGER
+                    elif forbidden_distance_field is not None and np.any(
+                        forbidden_distance_field[
+                            clip_y0:clip_y1, clip_x0:clip_x1
+                        ]
+                        <= self._teleport_buffer_radius_cells
+                    ):
+                        risk = MapCellRisk.TELEPORT_BUFFER
+                    else:
+                        traversable = self._traversable[
+                            clip_y0:clip_y1, clip_x0:clip_x1
+                        ]
+                        safe = self._safe_traversable[
+                            clip_y0:clip_y1, clip_x0:clip_x1
+                        ]
+                        if np.any(~traversable):
+                            risk = MapCellRisk.OBSTACLE
+                        elif np.any(traversable & ~safe):
+                            risk = MapCellRisk.OBSTACLE_BUFFER
+                        elif partly_outside:
+                            risk = MapCellRisk.OUTSIDE_OR_UNKNOWN
+                        elif np.any(safe):
+                            risk = MapCellRisk.SAFE
+                result[output] = _risk_encoding(risk)
+                output += 1
         return result
 
     def direct_path_state(

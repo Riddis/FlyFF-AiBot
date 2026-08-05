@@ -160,6 +160,33 @@ def test_process_memory_finds_u32_across_chunk_boundary() -> None:
     assert memory.last_search_diagnostics.bytes_read == 0x2000
 
 
+def test_process_memory_search_reports_progress_and_completion() -> None:
+    class ProgressBackend(FakeBackend):
+        def read_process_memory(
+            self,
+            handle: int,
+            address: int,
+            size: int,
+        ) -> bytes:
+            self.reads.append((handle, address, size))
+            return bytes(size)
+
+    backend = ProgressBackend()
+    memory = Win32ProcessMemory(backend.pid, backend=backend)
+    progress = []
+
+    memory.find_u32(
+        0xDEADBEEF,
+        chunk_size=4096,
+        progress_callback=progress.append,
+    )
+
+    assert progress
+    assert progress[-1].complete is True
+    assert progress[-1].bytes_read == memory.last_search_diagnostics.bytes_read
+    assert progress[-1].regions_read == memory.last_search_diagnostics.regions_read
+
+
 def test_process_memory_search_stops_before_enumeration_when_cancelled() -> None:
     backend = FakeBackend()
     memory = Win32ProcessMemory(backend.pid, backend=backend)

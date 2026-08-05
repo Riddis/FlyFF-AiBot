@@ -1,19 +1,32 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from time import monotonic, sleep
 from typing import Protocol
 
-from .actions import FarmingAction, coerce_farming_action
+from .actions import (
+    FarmingAction,
+    FarmingCommand,
+    FarmingEvent,
+    coerce_farming_command,
+)
 
 VKEY_F1 = 0x70
+FUNCTION_KEYS = tuple(f"F{index}" for index in range(1, 13))
 VKEY_SPACE = 0x20
 VKEY_A = 0x41
 VKEY_D = 0x44
 VKEY_Q = 0x51
 VKEY_W = 0x57
 VKEY_Z = 0x5A
+
+
+def function_key_virtual_code(name: str) -> int:
+    normalized = str(name).strip().upper()
+    if normalized not in FUNCTION_KEYS:
+        raise ValueError("EVA hotkey must be one of F1 through F12")
+    return VKEY_F1 + int(normalized[1:]) - 1
 
 
 class FarmingKeyboard(Protocol):
@@ -40,7 +53,7 @@ class FarmingControlUnavailable(FarmingControlError):
 
 @dataclass(slots=True)
 class WindowFocusService:
-    """Bounded, cancellable ownership of FlyFF foreground acquisition."""
+    """Own startup focus once, then pause without stealing it back."""
 
     keyboard: FarmingKeyboard
     cancellation: object
@@ -48,6 +61,8 @@ class WindowFocusService:
     grace_seconds: float = 2.0
     poll_seconds: float = 0.05
     status_callback: Callable[[str], None] | None = None
+    _startup_focus_complete: bool = field(default=False, init=False, repr=False)
+    _pause_announced: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.cancellation is None:
@@ -71,20 +86,34 @@ class WindowFocusService:
         else:
             sleep(max(0.0, seconds))
 
+    def _status(self, message: str) -> None:
+        if self.status_callback is not None:
+            self.status_callback(message)
+
     def ensure_focused(self) -> None:
+        """Acquire focus during startup only.
+
+        Once startup has completed, later calls become passive waits and never
+        invoke ``focus_target_window`` again.
+        """
+
+        if self._startup_focus_complete:
+            self.wait_until_focused()
+            return
         if self._cancelled():
             raise FarmingControlCancelled("Farming control was cancelled")
         if self.keyboard.is_target_foreground():
+            self._startup_focus_complete = True
             return
         if self.autofocus:
             self.keyboard.focus_target_window()
             if self.keyboard.is_target_foreground():
+                self._startup_focus_complete = True
                 return
 
-        if self.status_callback is not None:
-            self.status_callback(
-                "FlyFF did not accept automatic focus; focus it manually to continue."
-            )
+        self._status(
+            "FlyFF did not accept automatic focus; focus it manually to continue."
+        )
         deadline = monotonic() + self.grace_seconds
         while not self.keyboard.is_target_foreground():
             if self._cancelled():
@@ -96,6 +125,28 @@ class WindowFocusService:
                     "period"
                 )
             self._wait(min(self.poll_seconds, remaining))
+        self._startup_focus_complete = True
+
+    def wait_until_focused(self) -> bool:
+        """Wait passively for focus and return whether a pause occurred."""
+
+        if self._cancelled():
+            raise FarmingControlCancelled("Farming control was cancelled")
+        if self.keyboard.is_target_foreground():
+            return False
+
+        if not self._pause_announced:
+            self._status(
+                "FlyFF lost focus; farming control paused. Focus FlyFF to resume."
+            )
+            self._pause_announced = True
+        while not self.keyboard.is_target_foreground():
+            if self._cancelled():
+                raise FarmingControlCancelled("Farming focus wait was cancelled")
+            self._wait(self.poll_seconds)
+        self._status("FlyFF regained focus; farming control resumed.")
+        self._pause_announced = False
+        return True
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,24 +158,39 @@ class FarmingKeyMap:
     jump: int = VKEY_SPACE
 
     @classmethod
-    def azerty(cls) -> FarmingKeyMap:
-        return cls(forward=VKEY_Z, left=VKEY_Q, right=VKEY_D)
+    def azerty(cls, *, eva_hotkey: str = "F1") -> FarmingKeyMap:
+        return cls(
+            forward=VKEY_Z,
+            left=VKEY_Q,
+            right=VKEY_D,
+            eva=function_key_virtual_code(eva_hotkey),
+        )
 
     @classmethod
-    def qwerty(cls) -> FarmingKeyMap:
-        return cls(forward=VKEY_W, left=VKEY_A, right=VKEY_D)
+    def qwerty(cls, *, eva_hotkey: str = "F1") -> FarmingKeyMap:
+        return cls(
+            forward=VKEY_W,
+            left=VKEY_A,
+            right=VKEY_D,
+            eva=function_key_virtual_code(eva_hotkey),
+        )
 
     @classmethod
-    def for_layout(cls, layout: str) -> FarmingKeyMap:
+    def for_layout(
+        cls,
+        layout: str,
+        *,
+        eva_hotkey: str = "F1",
+    ) -> FarmingKeyMap:
         if layout == "azerty":
-            return cls.azerty()
+            return cls.azerty(eva_hotkey=eva_hotkey)
         if layout == "qwerty":
-            return cls.qwerty()
+            return cls.qwerty(eva_hotkey=eva_hotkey)
         raise ValueError("keyboard layout must be 'azerty' or 'qwerty'")
 
 
 class DirectFarmingControl:
-    """One persistent physical-key lease for the five policy actions."""
+    """Latch forward and apply independent steering/event policy commands."""
 
     def __init__(
         self,
@@ -176,41 +242,71 @@ class DirectFarmingControl:
                 self.release()
             raise FarmingControlCancelled("Farming control was cancelled")
 
-    def _ensure_ready(self) -> None:
+    def _ensure_open(self) -> None:
         if self._closed:
             raise FarmingControlUnavailable("Farming control is closed")
         self._raise_if_cancelled()
-        try:
-            self.focus.ensure_focused()
-        except Exception:
-            self.release()
-            raise
 
-    def execute(self, action: FarmingAction | int) -> None:
-        selected = coerce_farming_action(action)
-        self._ensure_ready()
-        if selected is FarmingAction.CAST_EVA:
-            self._cast_eva()
-            return
-        if selected is FarmingAction.RUN_FORWARD_JUMP:
-            self._set_movement(
-                FarmingAction.RUN_FORWARD,
-                (self.keymap.forward,),
-            )
-            self._tap_jump()
-            return
+    def is_target_foreground(self) -> bool:
+        return bool(self.keyboard.is_target_foreground())
+
+    def wait_until_ready(self) -> bool:
+        """Release movement and pause when FlyFF no longer owns focus."""
+
+        self._ensure_open()
+        if self.is_target_foreground():
+            return False
+        self.release()
+        return self.focus.wait_until_focused()
+
+    def execute_prepared(self, action: object) -> bool:
+        """Execute a factorized command only while FlyFF is foreground."""
+
+        legacy_steering = {
+            FarmingAction.RUN_FORWARD: 0,
+            FarmingAction.RUN_FORWARD_LEFT: 1,
+            FarmingAction.RUN_FORWARD_RIGHT: 2,
+        }.get(self._held_movement, 0)
+        command = coerce_farming_command(
+            action,
+            legacy_event_steering=legacy_steering,
+        )
+        self._ensure_open()
+        if not self.is_target_foreground():
+            self.release()
+            return False
+        self._execute_command(command)
+        return True
+
+    def execute(self, action: object) -> None:
+        legacy_steering = {
+            FarmingAction.RUN_FORWARD: 0,
+            FarmingAction.RUN_FORWARD_LEFT: 1,
+            FarmingAction.RUN_FORWARD_RIGHT: 2,
+        }.get(self._held_movement, 0)
+        command = coerce_farming_command(
+            action,
+            legacy_event_steering=legacy_steering,
+        )
+        while True:
+            self.wait_until_ready()
+            if self.execute_prepared(command):
+                return
+
+    def _execute_command(self, command: FarmingCommand) -> None:
+        movement = command.movement_action
         desired = {
             FarmingAction.RUN_FORWARD: (self.keymap.forward,),
-            FarmingAction.RUN_FORWARD_LEFT: (
-                self.keymap.forward,
-                self.keymap.left,
-            ),
-            FarmingAction.RUN_FORWARD_RIGHT: (
-                self.keymap.forward,
-                self.keymap.right,
-            ),
-        }[selected]
-        self._set_movement(selected, desired)
+            FarmingAction.RUN_FORWARD_LEFT: (self.keymap.forward, self.keymap.left),
+            FarmingAction.RUN_FORWARD_RIGHT: (self.keymap.forward, self.keymap.right),
+        }[movement]
+        # Forward is part of every desired lease and therefore stays physically
+        # latched until focus loss, pause, shutdown, cancellation, or release().
+        self._set_movement(movement, desired)
+        if command.event is FarmingEvent.CAST_EVA:
+            self._cast_eva()
+        elif command.event is FarmingEvent.JUMP:
+            self._tap_jump()
 
     def _set_movement(
         self,
@@ -280,7 +376,10 @@ class DirectFarmingControl:
         duration = float(seconds)
         if duration <= 0.0:
             raise ValueError("forward pulse duration must be positive")
-        self._ensure_ready()
+        while True:
+            self.wait_until_ready()
+            if self.is_target_foreground():
+                break
         self.release()
         pressed = False
         try:

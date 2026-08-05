@@ -41,7 +41,7 @@ cleanly before focus, input, or environment activation.
 ## Dry run, training, and agent
 
 - **Native Dry Run (No Learning)** runs the canonical five-action environment without loading or changing a policy.
-- **Start Training** loads `models/farming/native_strategy_map_risk_ppo.zip` when present, validates its observation/action contract before enabling input, and otherwise creates a compatible PPO model. Training continues until Stop or a real session boundary; there is no time or 100,000-step expiry.
+- **Start Training** loads `models/farming/native_strategy_map_context_ppo.zip` when present, validates its observation/action contract before enabling input, and otherwise creates a compatible PPO model. Training continues until Stop or a real session boundary; there is no time or 100,000-step expiry.
 - **Run Trained Agent** requires a compatible saved model and performs deterministic inference.
 
 Normal training status reports total model steps, cumulative session reward,
@@ -49,9 +49,9 @@ reward delta since the previous status, kills, kills/hour, jumps, and the latest
 action. Detailed actor/pointer evidence remains in Dry Run and Validate Training
 Data. Complete-rollout checkpoints are published approximately every 50,000
 additional total steps below
-`models/farming/native_strategy_map_risk_checkpoints`; training continues after each
+`models/farming/native_strategy_map_context_checkpoints`; training continues after each
 checkpoint. TensorBoard output goes below
-`training_logs/farming/native_strategy_map_risk`. Session reports and publication
+`training_logs/farming/native_strategy_map_context`. Session reports and publication
 manifests go below `training_logs/farming/native_sessions`; these are local
 runtime artifacts and are ignored by Git.
 

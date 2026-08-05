@@ -26,6 +26,12 @@ def test_monster_config_parses_confirmed_multislab_layout() -> None:
                 "active_species_offset": "0x1DBC",
                 "self_pointer_offset": "0x1EE0",
             },
+            "presence_sampling": {
+                "clear_confirmation_samples": 3,
+                "cold_poll_batch_size": 1024,
+                "cold_verification_batch_size": 256,
+                "dead_read_grace_seconds": 2.0,
+            },
             "discovery": {
                 "interval_seconds": 20,
                 "chunk_bytes": 1048576,
@@ -44,6 +50,10 @@ def test_monster_config_parses_confirmed_multislab_layout() -> None:
     assert config.world_vtable_field_offset == 0x2C
     assert config.world_identity_kind == "module_marker"
     assert config.active_species_offset == 0x1DBC
+    assert config.presence_clear_confirmation_samples == 3
+    assert config.presence_cold_poll_batch_size == 1024
+    assert config.presence_cold_verification_batch_size == 256
+    assert config.presence_dead_read_grace_seconds == 2.0
     assert config.self_pointer_offset == 0x1EE0
     assert config.vision_radius_native == 80.0
     assert config.discovery_chunk_bytes == 1048576

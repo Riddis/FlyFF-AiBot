@@ -30,7 +30,13 @@ from .RecoveredNativeProfile import (
     save_profile,
 )
 from .PositionProvider import PositionProviderError
-from .Win32ProcessMemory import ModuleInfo, Win32MemoryBackend, Win32ProcessMemory
+from .Win32ProcessMemory import (
+    MemorySearchCancelled,
+    MemorySearchDeadline,
+    ModuleInfo,
+    Win32MemoryBackend,
+    Win32ProcessMemory,
+)
 
 
 class NativeProcessMemory(Protocol):
@@ -150,10 +156,14 @@ class NativeProcessService:
         self._closed = False
         self._resources_closed = False
         self._active_recoveries = 0
+        self._active_profile_restores = 0
         self._generation = 0
         self._recovery_state = PointerRecoveryState()
         self.last_recovery_result: NativeRecoveryResult | None = None
         self._independent_reader: IndependentNativeReader | None = None
+        self._last_profile_restore_mode = "none"
+        self._last_profile_restore_elapsed_seconds = 0.0
+        self._last_profile_restore_error: str | None = None
 
         module_name = monster_config.module_name
         configured_player_offset = monster_config.player_pointer_hint_offset
@@ -266,6 +276,32 @@ class NativeProcessService:
         except Exception:
             memory.close()
             raise
+
+
+    @property
+    def recovery_active(self) -> bool:
+        """Whether pointer/profile recovery is currently reading process memory."""
+
+        with self._lock:
+            return bool(
+                self._active_recoveries > 0
+                or self._active_profile_restores > 0
+            )
+
+    @property
+    def last_profile_restore_mode(self) -> str:
+        with self._lock:
+            return self._last_profile_restore_mode
+
+    @property
+    def last_profile_restore_elapsed_seconds(self) -> float:
+        with self._lock:
+            return self._last_profile_restore_elapsed_seconds
+
+    @property
+    def last_profile_restore_error(self) -> str | None:
+        with self._lock:
+            return self._last_profile_restore_error
 
     @property
     def memory(self) -> NativeProcessMemory:
@@ -400,6 +436,26 @@ class NativeProcessService:
     def independent_mode(self) -> bool:
         with self._lock:
             return self._independent_reader is not None
+
+    def _enable_presence_sampling(
+        self,
+        reader: IndependentNativeReader,
+        selected_species: set[int],
+    ) -> None:
+        """Apply the verified hot/cold actor-polling contract consistently."""
+
+        config = self.monster_config
+        reader.enable_presence_optimized_sampling(
+            selected_species_ids=selected_species,
+            clear_confirmation_samples=(
+                config.presence_clear_confirmation_samples
+            ),
+            cold_poll_batch_size=config.presence_cold_poll_batch_size,
+            cold_verification_batch_size=(
+                config.presence_cold_verification_batch_size
+            ),
+            dead_read_grace_seconds=config.presence_dead_read_grace_seconds,
+        )
 
     @property
     def player_pointer_address(self) -> int:
@@ -574,6 +630,29 @@ class NativeProcessService:
         deadline: float | None = None,
         status_callback: Callable[[str], None] | None = None,
     ) -> bool:
+        """Validate a persisted profile while exposing recovery activity."""
+
+        with self._lock:
+            self._require_open()
+            self._active_profile_restores += 1
+        try:
+            return self._try_restore_persisted_profile_impl(
+                hints=hints,
+                cancellation=cancellation,
+                deadline=deadline,
+                status_callback=status_callback,
+            )
+        finally:
+            self._finish_profile_restore()
+
+    def _try_restore_persisted_profile_impl(
+        self,
+        *,
+        hints: PointerRecoveryHints | None = None,
+        cancellation: object | None = None,
+        deadline: float | None = None,
+        status_callback: Callable[[str], None] | None = None,
+    ) -> bool:
         """Validate the last known independent profile against this process.
 
         Only module-relative slots and recovered layout relationships are
@@ -596,6 +675,10 @@ class NativeProcessService:
             return False
         profile = load_profile(self.recovery_profile_path)
         if profile is None:
+            with self._lock:
+                self._last_profile_restore_mode = "missing"
+                self._last_profile_restore_elapsed_seconds = 0.0
+                self._last_profile_restore_error = None
             return False
         if status_callback is not None:
             status_callback("Checking the last known native pointer profile...")
@@ -616,6 +699,7 @@ class NativeProcessService:
                 coordinate_limit=self.monster_config.maximum_absolute_coordinate,
                 cancellation=cancellation,
                 deadline=deadline,
+                status_callback=status_callback,
             )
             reader = IndependentNativeReader(
                 self._memory,
@@ -649,8 +733,15 @@ class NativeProcessService:
                 restored_relation_value=restored.relation_value,
                 known_actor_stride=restored.profile.actor_stride,
             )
+            self._enable_presence_sampling(reader, selected_species)
             player = reader.read_player()
+        except (MemorySearchCancelled, MemorySearchDeadline):
+            raise
         except Exception as error:
+            with self._lock:
+                self._last_profile_restore_mode = "failed"
+                self._last_profile_restore_elapsed_seconds = 0.0
+                self._last_profile_restore_error = f"{type(error).__name__}: {error}"
             if status_callback is not None:
                 status_callback(
                     "Last known native profile did not validate; full recovery "
@@ -675,13 +766,44 @@ class NativeProcessService:
             self._x_offset = int(restored.profile.x_offset)
             self._y_offset = int(restored.profile.y_offset)
             self._z_offset = int(restored.profile.z_offset)
-            self._generation += 1
-        if status_callback is not None:
-            status_callback(
-                "Last known native profile validated; player/layout/relation "
-                "inference was skipped and current actors were enumerated from "
-                "the saved relation."
+            self._last_profile_restore_mode = restored.restore_mode
+            self._last_profile_restore_elapsed_seconds = float(
+                restored.elapsed_seconds
             )
+            self._last_profile_restore_error = None
+            self._generation += 1
+        try:
+            self._persist_independent_profile(reader)
+        except Exception as error:
+            if status_callback is not None:
+                status_callback(
+                    "Last known profile validated, but its same-process cache "
+                    f"could not be refreshed: {type(error).__name__}: {error}"
+                )
+        if status_callback is not None:
+            if restored.restore_mode == "same_process_cache":
+                status_callback(
+                    "Last known authoritative actor cache validated in "
+                    f"{restored.elapsed_seconds:.2f}s; no process-memory scan "
+                    "was needed."
+                )
+            else:
+                status_callback(
+                    "Last known native profile validated in "
+                    f"{restored.elapsed_seconds:.2f}s; player/layout/relation "
+                    "inference was skipped and current actors were enumerated "
+                    "once from the saved relation."
+                )
+        return True
+
+    def persist_current_independent_profile(self) -> bool:
+        """Persist the current validated actor cache for fast same-process reuse."""
+
+        with self._lock:
+            reader = self._independent_reader
+            if reader is None or self._closed:
+                return False
+        self._persist_independent_profile(reader)
         return True
 
     def _persist_independent_profile(
@@ -690,21 +812,36 @@ class NativeProcessService:
     ) -> None:
         module = self._module_info
         relation_offset = reader.authoritative_relation_offset
+        relation_value = reader.authoritative_relation_value
         if (
             module is None
             or relation_offset is None
+            or relation_value is None
             or not reader.authoritative_relation_validated
             or not reader.monster_targets
         ):
             return
         profile = profile_from_reader(
             module=module,
+            process_id=int(getattr(self._memory, "pid", 0)) or None,
             player_slots=reader.player_slots,
             player_target=reader.player_target,
             monster_target=reader.monster_targets[0],
             actor_stride=reader.actor_stride,
             authoritative_relation_offset=relation_offset,
+            authoritative_relation_value=relation_value,
+            actor_bases=reader.actor_slots,
+            authoritative_species_counts=reader.authoritative_species_counts,
             expected_full_hp_by_species=reader.expected_full_hp_by_species,
+            presence_species_offset=reader.recovered_presence_species_offset,
+            presence_species_validated=reader.presence_species_validated,
+            presence_evidence=(
+                reader.presence_candidates[0]
+                if reader.presence_candidates
+                and reader.presence_candidates[0].offset
+                == reader.recovered_presence_species_offset
+                else None
+            ),
         )
         save_profile(profile, self.recovery_profile_path)
 
@@ -787,6 +924,24 @@ class NativeProcessService:
                         except Exception:
                             pass
 
+                    preferred_relation_offset: int | None = None
+                    saved_profile = load_profile(self.recovery_profile_path)
+                    if (
+                        saved_profile is not None
+                        and saved_profile.module_name.casefold()
+                        == self._module_info.name.casefold()
+                        and int(saved_profile.module_size)
+                        == int(self._module_info.size)
+                    ):
+                        preferred_relation_offset = int(
+                            saved_profile.authoritative_relation_offset
+                        )
+                        actor_status(
+                            "Reusing the last validated authoritative relation "
+                            f"offset +0x{preferred_relation_offset:X} as the "
+                            "first current-process candidate."
+                        )
+
                     independent_reader = IndependentNativeReader(
                         self._memory,
                         self._module_info,
@@ -821,6 +976,13 @@ class NativeProcessService:
                         cancellation=cancellation,
                         deadline=deadline,
                         status_callback=actor_status,
+                        preferred_authoritative_relation_offset=(
+                            preferred_relation_offset
+                        ),
+                    )
+                    self._enable_presence_sampling(
+                        independent_reader,
+                        selected_species,
                     )
                     independent_reader.read_player()
                     actor_status(
@@ -832,9 +994,12 @@ class NativeProcessService:
                         f"active={None if independent_reader.active_species_offset is None else hex(independent_reader.active_species_offset)}, "
                         f"active_validated={independent_reader.active_species_validated}."
                     )
+                except (MemorySearchCancelled, MemorySearchDeadline):
+                    raise
                 except Exception as error:
                     raise NativeProcessServiceError(
-                        "Independent player/actor reader could not be activated"
+                        "Independent player/actor reader could not be activated: "
+                        f"{type(error).__name__}: {error}"
                     ) from error
 
             with self._lock:
@@ -885,6 +1050,9 @@ class NativeProcessService:
                         self._y_offset = recovery.y_offset
                     if recovery.z_offset is not None:
                         self._z_offset = recovery.z_offset
+                    self._last_profile_restore_mode = "full_recovery"
+                    self._last_profile_restore_elapsed_seconds = 0.0
+                    self._last_profile_restore_error = None
                     self._generation += 1
                 result = NativeRecoveryResult(
                     outcome=NativeRecoveryOutcome.from_metrics(metrics),
@@ -930,10 +1098,24 @@ class NativeProcessService:
         if close_memory:
             self._memory.close()
 
+    def _finish_profile_restore(self) -> None:
+        close_memory = False
+        with self._lock:
+            self._active_profile_restores -= 1
+            if self._active_profile_restores < 0:
+                self._active_profile_restores = 0
+                raise NativeProcessServiceError(
+                    "Native profile-restore lifecycle count became invalid"
+                )
+            close_memory = self._prepare_resource_close_locked()
+        if close_memory:
+            self._memory.close()
+
     def _prepare_resource_close_locked(self) -> bool:
         if (
             not self._closed
             or self._active_recoveries > 0
+            or self._active_profile_restores > 0
             or self._resources_closed
         ):
             return False

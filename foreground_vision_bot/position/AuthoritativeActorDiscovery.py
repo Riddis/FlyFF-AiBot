@@ -3,11 +3,12 @@ from __future__ import annotations
 import math
 import struct
 from collections import Counter
-from collections.abc import Iterable, Mapping
-from dataclasses import asdict, dataclass
+from collections.abc import Callable, Iterable
+from dataclasses import asdict, dataclass, replace
 from typing import Protocol
 
 from .NativeTraceTargets import TraceTargetDiscovery
+from .Win32ProcessMemory import MemorySearchProgress
 
 
 class AuthoritativeActorMemory(Protocol):
@@ -22,7 +23,37 @@ class AuthoritativeActorMemory(Protocol):
         chunk_size: int,
         cancellation: object | None = None,
         deadline: float | None = None,
+        progress_callback: Callable[[MemorySearchProgress], None] | None = None,
     ) -> tuple[int, ...]: ...
+
+
+def _cancellation_requested(cancellation: object | None) -> bool:
+    if cancellation is None:
+        return False
+    cancelled = getattr(cancellation, "cancelled", None)
+    if cancelled is not None:
+        return bool(cancelled() if callable(cancelled) else cancelled)
+    is_set = getattr(cancellation, "is_set", None)
+    return bool(is_set()) if callable(is_set) else False
+
+
+def _raise_if_stopped(
+    cancellation: object | None,
+    deadline: float | None,
+) -> None:
+    if _cancellation_requested(cancellation):
+        from .Win32ProcessMemory import MemorySearchCancelled
+
+        raise MemorySearchCancelled("Authoritative actor discovery was cancelled")
+    if deadline is not None:
+        from time import monotonic
+
+        if monotonic() >= float(deadline):
+            from .Win32ProcessMemory import MemorySearchDeadline
+
+            raise MemorySearchDeadline(
+                "Authoritative actor discovery exceeded its deadline"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +88,7 @@ class RelationScanEvidence:
     unreadable_rejections: int
     search_bytes_read: int
     search_regions_read: int
+    structural_actor_bases: int = 0
 
     @property
     def anchor_coverage_ratio(self) -> float:
@@ -103,6 +135,71 @@ class ActiveFieldCandidate:
         return payload
 
 
+HISTORICAL_PRESENCE_OFFSETS = (0x1DCC,)
+
+
+@dataclass(frozen=True, slots=True)
+class PresenceFieldCandidate:
+    """Evidence for an instantiated-species field inside one actor slot.
+
+    Unlike the historical active field, a presence field is expected to retain
+    the actor species through HP-zero death animation and to clear only when
+    the slot becomes structurally dormant.
+    """
+
+    offset: int
+    selected_matches: int
+    selected_samples: int
+    zero_hp_matches: int
+    zero_hp_samples: int
+    dormant_clears: int
+    dormant_samples: int
+    cross_slot_alias_matches: int
+    lifecycle_death_retained: int = 0
+    lifecycle_dormant_clears: int = 0
+    lifecycle_reappearances: int = 0
+    validated: bool = False
+
+    @property
+    def selected_match_ratio(self) -> float:
+        return self.selected_matches / self.selected_samples if self.selected_samples else 0.0
+
+    @property
+    def zero_hp_match_ratio(self) -> float:
+        return self.zero_hp_matches / self.zero_hp_samples if self.zero_hp_samples else 0.0
+
+    @property
+    def dormant_clear_ratio(self) -> float:
+        return self.dormant_clears / self.dormant_samples if self.dormant_samples else 0.0
+
+    @property
+    def provisional(self) -> bool:
+        return not self.validated
+
+    @property
+    def evidence_score(self) -> float:
+        zero_ratio = self.zero_hp_match_ratio if self.zero_hp_samples else 0.5
+        dormant_ratio = self.dormant_clear_ratio if self.dormant_samples else 0.0
+        return (
+            4.0 * self.selected_match_ratio
+            + 2.0 * zero_ratio
+            + 3.0 * dormant_ratio
+            + min(self.selected_samples, 32) / 64.0
+            - 4.0 * self.cross_slot_alias_matches
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        payload = asdict(self)
+        payload.update(
+            selected_match_ratio=self.selected_match_ratio,
+            zero_hp_match_ratio=self.zero_hp_match_ratio,
+            dormant_clear_ratio=self.dormant_clear_ratio,
+            provisional=self.provisional,
+            evidence_score=self.evidence_score,
+        )
+        return payload
+
+
 @dataclass(frozen=True, slots=True)
 class AuthoritativeActorDiscovery:
     outcome: str
@@ -116,6 +213,9 @@ class AuthoritativeActorDiscovery:
     relation_candidates: tuple[SharedRelationCandidate, ...]
     relation_scans: tuple[RelationScanEvidence, ...]
     active_candidates: tuple[ActiveFieldCandidate, ...]
+    presence_species_offset: int | None = None
+    presence_species_validated: bool = False
+    presence_candidates: tuple[PresenceFieldCandidate, ...] = ()
 
     @property
     def succeeded(self) -> bool:
@@ -140,6 +240,9 @@ class AuthoritativeActorDiscovery:
             "relation_candidates": [item.to_dict() for item in self.relation_candidates],
             "relation_scans": [item.to_dict() for item in self.relation_scans],
             "active_candidates": [item.to_dict() for item in self.active_candidates],
+            "presence_species_offset": self.presence_species_offset,
+            "presence_species_validated": self.presence_species_validated,
+            "presence_candidates": [item.to_dict() for item in self.presence_candidates],
         }
 
 
@@ -151,6 +254,9 @@ class AuthoritativeActorRefresh:
     active_species_offset: int | None
     active_species_validated: bool
     active_candidates: tuple[ActiveFieldCandidate, ...]
+    presence_species_offset: int | None = None
+    presence_species_validated: bool = False
+    presence_candidates: tuple[PresenceFieldCandidate, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -161,6 +267,9 @@ class AuthoritativeActorRefresh:
             "active_species_offset": self.active_species_offset,
             "active_species_validated": self.active_species_validated,
             "active_candidates": [item.to_dict() for item in self.active_candidates],
+            "presence_species_offset": self.presence_species_offset,
+            "presence_species_validated": self.presence_species_validated,
+            "presence_candidates": [item.to_dict() for item in self.presence_candidates],
         }
 
 
@@ -248,6 +357,8 @@ def _shared_relation_candidates(
     object_span: int,
     maximum_address: int,
     maximum_samples: int = 48,
+    cancellation: object | None = None,
+    deadline: float | None = None,
 ) -> tuple[SharedRelationCandidate, ...]:
     if discovery.player is None or not discovery.monsters:
         return ()
@@ -259,10 +370,11 @@ def _shared_relation_candidates(
         int(actor_stride) if actor_stride is not None and actor_stride > 0 else int(object_span),
     )
     scan_span -= scan_span % 4
-    monster_words = [
-        _read_words(memory, int(item.base), scan_span)
-        for item in sampled
-    ]
+    monster_words: list[dict[int, int]] = []
+    for item in sampled:
+        _raise_if_stopped(cancellation, deadline)
+        monster_words.append(_read_words(memory, int(item.base), scan_span))
+    _raise_if_stopped(cancellation, deadline)
     player_words = _read_words(memory, int(discovery.player.base), scan_span)
 
     first = discovery.monsters[0]
@@ -280,6 +392,8 @@ def _shared_relation_candidates(
     candidates: list[SharedRelationCandidate] = []
 
     for offset in range(0, scan_span, 4):
+        if offset % 0x100 == 0:
+            _raise_if_stopped(cancellation, deadline)
         if offset in excluded:
             continue
         values = [words[offset] for words in monster_words if offset in words]
@@ -382,7 +496,13 @@ def _scan_relation(
     coordinate_limit: float,
     cancellation: object | None,
     deadline: float | None,
-) -> tuple[tuple[int, ...], tuple[tuple[int, int], ...], RelationScanEvidence]:
+    progress_callback: Callable[[MemorySearchProgress], None] | None = None,
+) -> tuple[
+    tuple[int, ...],
+    tuple[tuple[int, int], ...],
+    RelationScanEvidence,
+    tuple[int, ...],
+]:
     first = discovery.monsters[0]
     self_offsets = tuple(
         dict.fromkeys(
@@ -391,14 +511,28 @@ def _scan_relation(
             for offset in monster.self_pointer_offsets
         )
     )
-    references = memory.find_u32(
-        int(candidate.value),
-        maximum_address=int(maximum_address),
-        private_only=bool(private_memory_only),
-        chunk_size=int(chunk_size),
-        cancellation=cancellation,
-        deadline=deadline,
-    )
+    search_kwargs = {
+        "maximum_address": int(maximum_address),
+        "private_only": bool(private_memory_only),
+        "chunk_size": int(chunk_size),
+        "cancellation": cancellation,
+        "deadline": deadline,
+    }
+    if progress_callback is None:
+        references = memory.find_u32(int(candidate.value), **search_kwargs)
+    else:
+        try:
+            references = memory.find_u32(
+                int(candidate.value),
+                **search_kwargs,
+                progress_callback=progress_callback,
+            )
+        except TypeError as error:
+            if "progress_callback" not in str(error):
+                raise
+            # Lightweight test doubles and older adapters can omit the optional
+            # status callback while preserving the scan's functional contract.
+            references = memory.find_u32(int(candidate.value), **search_kwargs)
     diagnostics = getattr(memory, "last_search_diagnostics", None)
     search_bytes = int(getattr(diagnostics, "bytes_read", 0))
     search_regions = int(getattr(diagnostics, "regions_read", 0))
@@ -409,6 +543,7 @@ def _scan_relation(
         if int(address) >= int(candidate.offset)
     }
     valid: set[int] = set()
+    structural: set[int] = set()
     species_counts: Counter[int] = Counter()
     self_rejections = 0
     relation_rejections = 0
@@ -417,7 +552,9 @@ def _scan_relation(
     coordinate_rejections = 0
     unreadable_rejections = 0
 
-    for base in sorted(candidate_bases):
+    for index, base in enumerate(sorted(candidate_bases)):
+        if index % 128 == 0:
+            _raise_if_stopped(cancellation, deadline)
         if base <= 0x10000 or base > int(maximum_address):
             unreadable_rejections += 1
             continue
@@ -428,6 +565,7 @@ def _scan_relation(
             if _u32(memory.read(base + candidate.offset, 4)) != candidate.value:
                 relation_rejections += 1
                 continue
+            structural.add(base)
             species, hp, x, y, z = _read_actor_core(
                 memory,
                 base,
@@ -474,8 +612,14 @@ def _scan_relation(
         unreadable_rejections=unreadable_rejections,
         search_bytes_read=search_bytes,
         search_regions_read=search_regions,
+        structural_actor_bases=len(structural),
     )
-    return tuple(sorted(valid)), tuple(sorted(species_counts.items())), evidence
+    return (
+        tuple(sorted(valid)),
+        tuple(sorted(species_counts.items())),
+        evidence,
+        tuple(sorted(structural)),
+    )
 
 
 def _active_field_candidates(
@@ -486,6 +630,8 @@ def _active_field_candidates(
     actor_stride: int | None,
     relation_offset: int,
     maximum_samples: int = 128,
+    cancellation: object | None = None,
+    deadline: float | None = None,
 ) -> tuple[ActiveFieldCandidate, ...]:
     if not actor_bases:
         return ()
@@ -506,6 +652,7 @@ def _active_field_candidates(
     sampled_bases = _even_sample(tuple(actor_bases), max(8, int(maximum_samples)))
     samples: list[tuple[int, int, dict[int, int]]] = []
     for raw_base in sampled_bases:
+        _raise_if_stopped(cancellation, deadline)
         base = int(raw_base)
         try:
             species, hp, _x, _y, _z = _read_actor_core(
@@ -527,6 +674,8 @@ def _active_field_candidates(
 
     candidates: list[ActiveFieldCandidate] = []
     for offset in range(0, span, 4):
+        if offset % 0x100 == 0:
+            _raise_if_stopped(cancellation, deadline)
         if offset in excluded:
             continue
         living_matches = living_samples = zero_matches = zero_samples = 0
@@ -568,6 +717,178 @@ def _active_field_candidates(
     return tuple(candidates[:32])
 
 
+def _presence_field_candidates(
+    memory: AuthoritativeActorMemory,
+    discovery: TraceTargetDiscovery,
+    actor_bases: tuple[int, ...],
+    structural_bases: tuple[int, ...],
+    *,
+    selected_species_ids: set[int],
+    actor_stride: int | None,
+    relation_offset: int,
+    preferred_offsets: Iterable[int] = HISTORICAL_PRESENCE_OFFSETS,
+    maximum_samples: int = 160,
+    cancellation: object | None = None,
+    deadline: float | None = None,
+) -> tuple[PresenceFieldCandidate, ...]:
+    """Rank presence fields using the recovered actor cohort and dormant slots."""
+
+    if not actor_bases or actor_stride is None or int(actor_stride) <= 0:
+        return ()
+    stride = int(actor_stride)
+    span = stride - stride % 4
+    first = discovery.monsters[0]
+    excluded = {
+        int(first.species_offset),
+        int(first.hp_offset),
+        int(first.x_offset),
+        int(first.y_offset),
+        int(first.z_offset),
+        int(relation_offset),
+        *(int(value) for value in first.self_pointer_offsets),
+    }
+    selected = {int(value) for value in selected_species_ids if int(value) > 0}
+    selected.update(int(item.species) for item in discovery.monsters)
+    sampled = _even_sample(
+        tuple(dict.fromkeys((*actor_bases, *structural_bases))),
+        max(16, int(maximum_samples)),
+    )
+    samples: list[tuple[int, int, int, dict[int, int]]] = []
+    species_by_base: dict[int, int] = {}
+    for raw_base in sampled:
+        _raise_if_stopped(cancellation, deadline)
+        base = int(raw_base)
+        try:
+            species, hp, _x, _y, _z = _read_actor_core(
+                memory,
+                base,
+                species_offset=int(first.species_offset),
+                hp_offset=int(first.hp_offset),
+                x_offset=int(first.x_offset),
+                y_offset=int(first.y_offset),
+                z_offset=int(first.z_offset),
+            )
+        except Exception:
+            continue
+        species_by_base[base] = species
+        if species not in selected and species > 0:
+            continue
+        samples.append((base, species, hp, _read_words(memory, base, span)))
+    if not samples:
+        return ()
+
+    preferred = {
+        int(offset): index
+        for index, offset in enumerate(
+            dict.fromkeys(int(value) for value in preferred_offsets if int(value) >= 0)
+        )
+    }
+    candidates: list[PresenceFieldCandidate] = []
+    for offset in range(0, span, 4):
+        if offset % 0x100 == 0:
+            _raise_if_stopped(cancellation, deadline)
+        if offset in excluded:
+            continue
+        selected_matches = selected_samples = 0
+        zero_matches = zero_samples = 0
+        dormant_clears = dormant_samples = 0
+        cross_aliases = 0
+        selected_conflicts = 0
+        for base, species, hp, words in samples:
+            if offset not in words:
+                continue
+            value = int(words[offset])
+            if species in selected and hp >= 0:
+                selected_samples += 1
+                selected_matches += int(value == species)
+                selected_conflicts += int(value in selected and value != species)
+                if hp == 0:
+                    zero_samples += 1
+                    zero_matches += int(value == species)
+                neighbour_species = {
+                    species_by_base.get(base - stride, 0),
+                    species_by_base.get(base + stride, 0),
+                }
+                if value != species and value > 0 and value in neighbour_species:
+                    cross_aliases += 1
+            elif species <= 0:
+                dormant_samples += 1
+                dormant_clears += int(value == 0)
+        if selected_samples < 3 or selected_matches * 5 < selected_samples * 4:
+            continue
+        if selected_conflicts or cross_aliases:
+            continue
+        if zero_samples and zero_matches * 5 < zero_samples * 4:
+            continue
+        candidates.append(
+            PresenceFieldCandidate(
+                offset=offset,
+                selected_matches=selected_matches,
+                selected_samples=selected_samples,
+                zero_hp_matches=zero_matches,
+                zero_hp_samples=zero_samples,
+                dormant_clears=dormant_clears,
+                dormant_samples=dormant_samples,
+                cross_slot_alias_matches=cross_aliases,
+            )
+        )
+
+    candidates.sort(
+        key=lambda item: (
+            -item.evidence_score,
+            0 if item.offset in preferred else 1,
+            preferred.get(item.offset, 1_000_000),
+            item.offset,
+        )
+    )
+    if candidates:
+        best = candidates[0]
+        statically_proven = (
+            best.dormant_samples >= 2
+            and best.dormant_clears * 5 >= best.dormant_samples * 4
+            and (best.zero_hp_samples == 0 or best.zero_hp_matches * 5 >= best.zero_hp_samples * 4)
+        )
+        runner_up = candidates[1] if len(candidates) > 1 else None
+        unique = runner_up is None or best.evidence_score > runner_up.evidence_score + 0.05
+        if statically_proven and unique:
+            candidates[0] = replace(best, validated=True)
+    return tuple(candidates[:32])
+
+
+
+def _strong_anchor_relation_proven(
+    evidence: RelationScanEvidence,
+    *,
+    exact_total: int,
+    anchor_species: set[int],
+) -> bool:
+    """Return whether one relation is strong enough to stop initial scanning.
+
+    Initial pointer recovery can only see the species that are loaded around the
+    player.  Tower starts in the Asterius section, so Dantalian may legitimately
+    be absent even when it is selected for later recording.  Requiring every
+    selected species here forces scans of unrelated high-cardinality pointer
+    values and can make attachment appear to hang.
+
+    A relation is proven by near-complete recovery of the exact validated anchor
+    cohort plus material expansion beyond that cohort.  Additional selected
+    species are discovered later through the same relation during continuous
+    authoritative refreshes.
+    """
+
+    recovered_species = {
+        int(species)
+        for species, count in evidence.selected_species_counts
+        if int(count) > 0
+    }
+    minimum_expansion = max(4, math.ceil(max(1, int(exact_total)) * 0.20))
+    return (
+        evidence.anchor_coverage_ratio >= 0.90
+        and evidence.valid_actor_bases
+        >= evidence.exact_anchor_coverage + minimum_expansion
+        and bool(anchor_species)
+        and anchor_species.issubset(recovered_species)
+    )
 def discover_authoritative_actors(
     memory: AuthoritativeActorMemory,
     discovery: TraceTargetDiscovery,
@@ -582,6 +903,9 @@ def discover_authoritative_actors(
     cancellation: object | None = None,
     deadline: float | None = None,
     maximum_relation_candidates: int = 4,
+    preferred_relation_offsets: Iterable[int] = (),
+    preferred_presence_offsets: Iterable[int] = HISTORICAL_PRESENCE_OFFSETS,
+    status_callback: Callable[[str], None] | None = None,
 ) -> AuthoritativeActorDiscovery:
     """Recover the old global actor relationship without using stale offsets.
 
@@ -599,6 +923,8 @@ def discover_authoritative_actors(
         actor_stride=actor_stride,
         object_span=object_span,
         maximum_address=maximum_address,
+        cancellation=cancellation,
+        deadline=deadline,
     )
     if not candidates:
         return AuthoritativeActorDiscovery(
@@ -618,6 +944,28 @@ def discover_authoritative_actors(
             active_candidates=(),
         )
 
+    preferred = tuple(
+        dict.fromkeys(
+            int(value)
+            for value in preferred_relation_offsets
+            if int(value) >= 0
+        )
+    )
+    if preferred:
+        preference_rank = {offset: index for index, offset in enumerate(preferred)}
+        candidates = tuple(
+            sorted(
+                candidates,
+                key=lambda item: (
+                    0 if item.offset in preference_rank else 1,
+                    preference_rank.get(item.offset, 1_000_000),
+                    -item.monster_support,
+                    -item.target_actor_references,
+                    item.offset,
+                ),
+            )
+        )
+
     scans: list[RelationScanEvidence] = []
     results: list[
         tuple[
@@ -625,13 +973,41 @@ def discover_authoritative_actors(
             tuple[int, ...],
             tuple[tuple[int, int], ...],
             RelationScanEvidence,
+            tuple[int, ...],
         ]
     ] = []
     exact_total = max(1, len(discovery.monsters))
     minimum_coverage = max(2, math.ceil(exact_total * 0.60))
 
-    for candidate in candidates[: max(1, int(maximum_relation_candidates))]:
-        bases, species_counts, evidence = _scan_relation(
+    selected_candidates = candidates[: max(1, int(maximum_relation_candidates))]
+    for candidate_index, candidate in enumerate(selected_candidates, start=1):
+        _raise_if_stopped(cancellation, deadline)
+        if status_callback is not None:
+            status_callback(
+                "Authoritative actor scan candidate "
+                f"{candidate_index}/{len(selected_candidates)} at "
+                f"+0x{candidate.offset:X}: scanning readable private memory."
+            )
+
+        def scan_progress(
+            progress: MemorySearchProgress,
+            *,
+            current_index: int = candidate_index,
+            candidate_count: int = len(selected_candidates),
+        ) -> None:
+            if status_callback is None:
+                return
+            suffix = " complete" if progress.complete else ""
+            status_callback(
+                "Authoritative actor scan "
+                f"{current_index}/{candidate_count}{suffix}: "
+                f"{progress.bytes_read / (1024 * 1024):.0f} MiB, "
+                f"regions={progress.regions_read}, "
+                f"matches={progress.matches}, "
+                f"elapsed={progress.elapsed_seconds:.1f}s."
+            )
+
+        bases, species_counts, evidence, structural_bases = _scan_relation(
             memory,
             discovery,
             candidate,
@@ -642,26 +1018,44 @@ def discover_authoritative_actors(
             coordinate_limit=coordinate_limit,
             cancellation=cancellation,
             deadline=deadline,
+            progress_callback=scan_progress,
         )
         scans.append(evidence)
+        if status_callback is not None:
+            status_callback(
+                "Authoritative actor candidate "
+                f"+0x{candidate.offset:X} validated "
+                f"{evidence.valid_actor_bases} actors, "
+                f"exact anchors={evidence.exact_anchor_coverage}/"
+                f"{evidence.exact_anchor_total}, "
+                f"species={dict(evidence.selected_species_counts)}."
+            )
         if evidence.exact_anchor_coverage < minimum_coverage:
             continue
-        results.append((candidate, bases, species_counts, evidence))
-        # Stop early only when one relation recovers almost every exact anchor,
-        # materially expands beyond those anchors, and covers every species the
-        # GUI asked us to observe. A weaker "one extra actor" condition can lock
-        # onto a partial/mirror relationship and recreate the Dantalian gaps.
-        recovered_species = {
-            int(species) for species, count in evidence.selected_species_counts
-            if int(count) > 0
-        }
-        minimum_expansion = max(4, math.ceil(exact_total * 0.20))
-        if (
-            evidence.anchor_coverage_ratio >= 0.90
-            and evidence.valid_actor_bases
-            >= evidence.exact_anchor_coverage + minimum_expansion
-            and selected.issubset(recovered_species)
+        results.append((candidate, bases, species_counts, evidence, structural_bases))
+        # Initial Tower recovery normally sees Asterius only.  Once one
+        # relation recovers the exact validated anchor cohort and materially
+        # expands beyond it, accept it immediately.  Dantalian and any other
+        # selected species are allowed to load later and are merged by the
+        # continuous authoritative refresh path.
+        anchor_species = {int(item.species) for item in discovery.monsters}
+        if _strong_anchor_relation_proven(
+            evidence,
+            exact_total=exact_total,
+            anchor_species=anchor_species,
         ):
+            if status_callback is not None and not selected.issubset(
+                {
+                    int(species)
+                    for species, count in evidence.selected_species_counts
+                    if int(count) > 0
+                }
+            ):
+                status_callback(
+                    "The authoritative relation is proven from the currently "
+                    "loaded anchor species. Additional selected species will be "
+                    "added automatically as they load during farming."
+                )
             break
 
     if not results:
@@ -682,7 +1076,13 @@ def discover_authoritative_actors(
             active_candidates=(),
         )
 
-    selected_candidate, actor_bases, species_counts, selected_scan = max(
+    (
+        selected_candidate,
+        actor_bases,
+        species_counts,
+        _selected_scan,
+        structural_bases,
+    ) = max(
         results,
         key=lambda item: (
             item[3].anchor_coverage_ratio,
@@ -698,10 +1098,25 @@ def discover_authoritative_actors(
         actor_bases,
         actor_stride=actor_stride,
         relation_offset=selected_candidate.offset,
+        cancellation=cancellation,
+        deadline=deadline,
     )
     active = active_candidates[0] if active_candidates else None
     active_offset = None if active is None else int(active.offset)
     active_validated = bool(active is not None and active.validated)
+    presence_candidates = _presence_field_candidates(
+        memory,
+        discovery,
+        actor_bases,
+        structural_bases,
+        selected_species_ids=selected,
+        actor_stride=actor_stride,
+        relation_offset=selected_candidate.offset,
+        preferred_offsets=preferred_presence_offsets,
+        cancellation=cancellation,
+        deadline=deadline,
+    )
+    presence = presence_candidates[0] if presence_candidates else None
     return AuthoritativeActorDiscovery(
         outcome="success",
         message=(
@@ -718,6 +1133,9 @@ def discover_authoritative_actors(
         relation_candidates=candidates,
         relation_scans=tuple(scans),
         active_candidates=active_candidates,
+        presence_species_offset=None if presence is None else int(presence.offset),
+        presence_species_validated=bool(presence is not None and presence.validated),
+        presence_candidates=presence_candidates,
     )
 
 
@@ -735,6 +1153,8 @@ def refresh_authoritative_actors(
     coordinate_limit: float,
     cancellation: object | None = None,
     deadline: float | None = None,
+    status_callback: Callable[[str], None] | None = None,
+    preferred_presence_offsets: Iterable[int] = HISTORICAL_PRESENCE_OFFSETS,
 ) -> AuthoritativeActorRefresh:
     selected = {int(value) for value in selected_species_ids if int(value) > 0}
     selected.update(int(item.species) for item in discovery.monsters)
@@ -747,7 +1167,24 @@ def refresh_authoritative_actors(
         target_readable=True,
         target_actor_references=0,
     )
-    actor_bases, species_counts, evidence = _scan_relation(
+    if status_callback is not None:
+        status_callback(
+            "Refreshing actors from the saved authoritative relation "
+            f"+0x{int(relation_offset):X}."
+        )
+
+    def scan_progress(progress: MemorySearchProgress) -> None:
+        if status_callback is None:
+            return
+        suffix = " complete" if progress.complete else ""
+        status_callback(
+            "Saved authoritative relation scan"
+            f"{suffix}: {progress.bytes_read / (1024 * 1024):.0f} MiB, "
+            f"regions={progress.regions_read}, matches={progress.matches}, "
+            f"elapsed={progress.elapsed_seconds:.1f}s."
+        )
+
+    actor_bases, species_counts, evidence, structural_bases = _scan_relation(
         memory,
         discovery,
         candidate,
@@ -758,6 +1195,7 @@ def refresh_authoritative_actors(
         coordinate_limit=coordinate_limit,
         cancellation=cancellation,
         deadline=deadline,
+        progress_callback=scan_progress,
     )
     active_candidates = _active_field_candidates(
         memory,
@@ -765,8 +1203,23 @@ def refresh_authoritative_actors(
         actor_bases,
         actor_stride=actor_stride,
         relation_offset=int(relation_offset),
+        cancellation=cancellation,
+        deadline=deadline,
     )
     active = active_candidates[0] if active_candidates else None
+    presence_candidates = _presence_field_candidates(
+        memory,
+        discovery,
+        actor_bases,
+        structural_bases,
+        selected_species_ids=selected,
+        actor_stride=actor_stride,
+        relation_offset=int(relation_offset),
+        preferred_offsets=preferred_presence_offsets,
+        cancellation=cancellation,
+        deadline=deadline,
+    )
+    presence = presence_candidates[0] if presence_candidates else None
     return AuthoritativeActorRefresh(
         actor_bases=actor_bases,
         species_counts=species_counts,
@@ -774,4 +1227,7 @@ def refresh_authoritative_actors(
         active_species_offset=None if active is None else int(active.offset),
         active_species_validated=bool(active is not None and active.validated),
         active_candidates=active_candidates,
+        presence_species_offset=None if presence is None else int(presence.offset),
+        presence_species_validated=bool(presence is not None and presence.validated),
+        presence_candidates=presence_candidates,
     )

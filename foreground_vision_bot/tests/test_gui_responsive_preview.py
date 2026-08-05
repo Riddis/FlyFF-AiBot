@@ -67,15 +67,15 @@ def test_late_worker_event_cannot_reenable_controls_during_shutdown() -> None:
         shutdown_finalized=False,
     )
     button_keys = (
-        "-DRY_RUN-",
+        "-VALIDATE_DATA-",
         "-START_BOT-",
         "-RUN_AGENT-",
-        "-START_MAPPER-",
         "-START_MANUAL_MAPPER-",
-        "-SET_MINIMAP_ANCHOR-",
         "-STOP_BOT-",
         "-ATTACH_WINDOW-",
         "-MAP-NAME-",
+        "-EVA-HOTKEY-",
+        "-REDETECT-UI-",
         "-ADD_MAP-",
         "-EDIT_MAP_MOBS-",
         "-EDIT_MAP_CELLS-",

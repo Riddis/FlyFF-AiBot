@@ -1,6 +1,19 @@
 """Canonical farming domain primitives and explicit live runtime."""
 
-from .actions import ACTION_COUNT, ACTION_NAMES, FarmingAction, coerce_farming_action
+from .actions import (
+    ACTION_COUNT,
+    ACTION_NAMES,
+    EVENT_NAMES,
+    POLICY_ACTION_HEAD_NAMES,
+    POLICY_ACTION_NVECS,
+    STEERING_NAMES,
+    FarmingAction,
+    FarmingCommand,
+    FarmingEvent,
+    SteeringAction,
+    coerce_farming_action,
+    coerce_farming_command,
+)
 from .map_features import DirectPathState, FarmingMapFeatures
 from .model_contract import (
     ACTIVE_METADATALESS_MODEL_CONTRACT_HASH,
@@ -53,6 +66,13 @@ __all__ = [
     "ActorObservation",
     "DirectPathState",
     "FarmingAction",
+    "EVENT_NAMES",
+    "POLICY_ACTION_HEAD_NAMES",
+    "POLICY_ACTION_NVECS",
+    "STEERING_NAMES",
+    "FarmingCommand",
+    "FarmingEvent",
+    "SteeringAction",
     "FarmingMapFeatures",
     "ModelContractError",
     "ModelContractMetadata",
@@ -73,5 +93,6 @@ __all__ = [
     "SessionOutcome",
     "classify_session_outcome",
     "coerce_farming_action",
+    "coerce_farming_command",
     "validate_model_contract",
 ]

@@ -206,3 +206,24 @@ def test_runtime_monster_markers_render_on_local_map_without_mutating_cells() ->
     assert image[marker_y, marker_x].tolist() == list(grid._monster_color(944))
     assert image[marker_y, marker_x + 1].tolist() == [90, 90, 90]
     assert np.array_equal(grid.cells, before)
+
+
+def test_player_marker_is_outlined_dot_without_heading_needle() -> None:
+    grid = OccupancyGrid(size=31)
+    for x in range(-8, 9):
+        for y in range(-8, 9):
+            grid.mark_free(x, y)
+    grid.set_continuous_pose(0.0, 0.0, 90.0)
+    grid.set_pose_reliability(
+        position_known=True,
+        heading_known=True,
+        note="test pose",
+    )
+
+    image = grid._render_full()
+    px, py = grid.world_to_cell(0, 0)
+
+    assert tuple(image[py, px]) == (0, 220, 255)
+    assert tuple(image[py, px + 3]) == (0, 0, 0)
+    # The old east-facing orange heading needle reached five cells right.
+    assert tuple(image[py, px + 5]) == (235, 235, 235)

@@ -31,7 +31,7 @@
   "completion_min_free_cells": 100,
   "completion_stable_checks": 3,
   "teleport_vertical_distance_units": 25.0,
-  "local_map_radius_cells": 25,
+  "local_map_radius_cells": 50,
   "wall_autofill_enabled": true,
   "wall_autofill_max_gap_cells": 2,
   "wall_autofill_min_support_cells": 4,

@@ -6,7 +6,7 @@ types fail before movement. Paths are resolved relative to
 
 ## `native_farming.json`
 
-The canonical schema version is 6. `version` is accepted as migration metadata.
+The canonical schema version is 7. `version` is accepted as migration metadata.
 The old aliases `unified_control_interval_seconds`,
 `teleport_pointer_grace_seconds`, and `teleport_pointer_poll_seconds` map to
 their canonical names. Removed movement-policy keys, `total_timesteps`, and
@@ -17,9 +17,9 @@ longer limit or terminate live training.
 | --- | ---: | --- |
 | `checkpoint_frequency` | `50000` | Approximate additional total-model-step interval between complete-rollout atomic checkpoints. Training continues afterward. |
 | `stats_interval_seconds` | `10.0` | Concise normal-training status cadence. |
-| `model_path` | `models/farming/native_strategy_map_risk_ppo` | Active five-action PPO artifact; `.zip` is resolved automatically. |
-| `checkpoint_dir` | `models/farming/native_strategy_map_risk_checkpoints` | Local numbered checkpoint directory. |
-| `tensorboard_dir` | `training_logs/farming/native_strategy_map_risk` | TensorBoard output directory. |
+| `model_path` | `models/farming/native_strategy_map_context_ppo` | Active five-action PPO artifact; `.zip` is resolved automatically. |
+| `checkpoint_dir` | `models/farming/native_strategy_map_context_checkpoints` | Local numbered checkpoint directory. |
+| `tensorboard_dir` | `training_logs/farming/native_strategy_map_context` | TensorBoard output directory. |
 | `session_report_dir` | `training_logs/farming/native_sessions` | JSON report and recovery-manifest directory. |
 | `validation_session_dir` | `training_logs/farming/data_validation` | Detailed validation ZIP directory. |
 | `max_targets` | `32` | Fixed actor slots in the observation. Changing this breaks model compatibility. |
@@ -135,13 +135,14 @@ the occupancy map, coordinate frame, safety/teleport data, and persistent map
 progress. Monster choices are stored by the GUI and must include captured
 native `species_id` values.
 
-The active policy contract is `Box(482, float32)` plus `Discrete(5)` with
+The active policy contract is `Box(923, float32)` plus `Discrete(5)` with
 forward, forward-left, forward-right, EVA, and forward-jump actions in the
 order documented in `ARCHITECTURE.md`. New saves embed the semantic contract
-hash. The v3 local-map encoding distinguishes safe cells, obstacle buffers,
-hand-traced black obstacles, teleport buffers, and red triggers. Models saved
-under the earlier map encoding fail preflight rather than being resumed with
-changed semantics.
+hash. The v4 observation keeps an 11x11 fine local crop and adds a 21x21 coarse
+context grid spanning +/-50 cells. Both use the same distinct safe, obstacle
+buffer, black-obstacle, teleport-buffer, and red-trigger encodings. Models saved
+under the earlier 482-value contract fail preflight rather than being resumed
+with changed semantics.
 
 The GUI exposes three independent preview controls: **Show bot vision**,
 **Show detected UI elements**, and **Show mobs markers**. Name-template CV

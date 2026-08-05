@@ -1,0 +1,46 @@
+[
+  {
+    "policy": "random",
+    "episodes": 1,
+    "steps_per_episode": 500,
+    "mean_reward": -11.649999999999931,
+    "mean_kills": 20.0,
+    "kills_per_simulated_hour": 478.7234042553198,
+    "mean_unique_cells": 43.0,
+    "mean_path_efficiency": 0.3702419717034387,
+    "mean_contacts": 451.0
+  },
+  {
+    "policy": "recorded_action_mix",
+    "episodes": 1,
+    "steps_per_episode": 500,
+    "mean_reward": -23.002000000000052,
+    "mean_kills": 4.0,
+    "kills_per_simulated_hour": 115.01597444089381,
+    "mean_unique_cells": 99.0,
+    "mean_path_efficiency": 0.6396469395591634,
+    "mean_contacts": 396.0
+  },
+  {
+    "policy": "circle_left_with_eva",
+    "episodes": 1,
+    "steps_per_episode": 500,
+    "mean_reward": 74.36300000000024,
+    "mean_kills": 89.0,
+    "kills_per_simulated_hour": 2687.9194630872307,
+    "mean_unique_cells": 256.0,
+    "mean_path_efficiency": 0.17864988973181264,
+    "mean_contacts": 208.0
+  },
+  {
+    "policy": "nearest_monster_greedy",
+    "episodes": 1,
+    "steps_per_episode": 500,
+    "mean_reward": -29.236000000000182,
+    "mean_kills": 1.0,
+    "kills_per_simulated_hour": 35.785288270377414,
+    "mean_unique_cells": 11.0,
+    "mean_path_efficiency": 0.9221344024521219,
+    "mean_contacts": 484.0
+  }
+]

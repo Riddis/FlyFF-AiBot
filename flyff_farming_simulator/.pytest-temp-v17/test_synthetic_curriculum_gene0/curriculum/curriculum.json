@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "name": "FlyFF generic open-farm curriculum",
+  "generated_seed": 123,
+  "variants": [
+    {
+      "name": "01_early_open_field_typical_fast",
+      "stage": "early",
+      "template": "open_field",
+      "density_profile": "typical",
+      "respawn_profile": "fast",
+      "map_assets": "variants/01_early_open_field_typical_fast/map_assets",
+      "world_model": "variants/01_early_open_field_typical_fast/world.json.gz",
+      "weight": 1.0,
+      "seed": 8042,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "02_intermediate_irregular_plain_uneven_typical",
+      "stage": "intermediate",
+      "template": "irregular_plain",
+      "density_profile": "uneven",
+      "respawn_profile": "typical",
+      "map_assets": "variants/02_intermediate_irregular_plain_uneven_typical/map_assets",
+      "world_model": "variants/02_intermediate_irregular_plain_uneven_typical/world.json.gz",
+      "weight": 1.0,
+      "seed": 15961,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "03_advanced_broad_lobes_shifting_variable",
+      "stage": "advanced",
+      "template": "broad_lobes",
+      "density_profile": "shifting",
+      "respawn_profile": "variable",
+      "map_assets": "variants/03_advanced_broad_lobes_shifting_variable/map_assets",
+      "world_model": "variants/03_advanced_broad_lobes_shifting_variable/world.json.gz",
+      "weight": 1.0,
+      "seed": 23880,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    }
+  ],
+  "design_rules": [
+    "Episodes start at one designated spawn point per map.",
+    "Maps are large and mostly open.",
+    "Walls are partial and openings remain broad.",
+    "Scattered obstacles are sparse.",
+    "No maze, dungeon-room chain, long corridor, or precision-navigation layout is generated.",
+    "Monster populations use loose spatial clusters and varied regional density.",
+    "Respawn timing and redistribution vary across layouts."
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "size": 226,
+  "shape": [
+    226,
+    226
+  ],
+  "free_cells": 26040,
+  "forbidden_cells": 0,
+  "template": "open_center",
+  "free_fraction": 0.5098284908763412,
+  "safe_fraction_of_free": 0.9021121351766513,
+  "spawn_cell": [
+    112,
+    158
+  ],
+  "design": "large_open_farming_area",
+  "corridor_generation": false,
+  "variant": "12_advanced_open_center_high_slow",
+  "stage": "advanced",
+  "density_profile": "high",
+  "respawn_profile": "slow",
+  "seed": 20355832
+}

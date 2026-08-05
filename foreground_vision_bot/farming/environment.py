@@ -11,7 +11,13 @@ import numpy as np
 from numpy.typing import NDArray
 from position.NativeFlyffMonsterProvider import ActorCacheOutcome
 
-from .actions import FarmingAction, coerce_farming_action
+from .actions import (
+    FarmingAction,
+    FarmingCommand,
+    FarmingEvent,
+    SteeringAction,
+    coerce_farming_command,
+)
 from .config import FarmingRuntimeConfig
 from .control import (
     DirectFarmingControl,
@@ -295,6 +301,7 @@ class UnifiedFarmingEnv:
                 player=player,
                 actors=actor_observations,
                 local_map=self.map_context.features.local_crop(player_cell),
+                context_map=self.map_context.features.context_crop(player_cell),
             )
         )
         return _FrameFeatures(
@@ -752,43 +759,91 @@ class UnifiedFarmingEnv:
             pulse_seconds=seconds,
         )
 
-    def step(self, action: FarmingAction | int) -> FarmingStep:
+    def _refresh_baseline_after_focus_pause(
+        self,
+        action: FarmingAction,
+    ) -> _FrameFeatures:
+        """Discard stale motion timing after a manual focus pause."""
+
+        world = self._read_after_with_grace()
+        now = self._clock()
+        features = self._build_features(
+            world,
+            action=action,
+            displacement_cells=0.0,
+            contact=False,
+            now=now,
+        )
+        self._last_features = features
+        return features
+
+    def step(self, action: object) -> FarmingStep:
         self._ensure_state(FarmingEnvironmentState.ACTIVE)
-        selected = coerce_farming_action(action)
+        current_steering = {
+            FarmingAction.RUN_FORWARD: SteeringAction.STRAIGHT,
+            FarmingAction.RUN_FORWARD_LEFT: SteeringAction.LEFT,
+            FarmingAction.RUN_FORWARD_RIGHT: SteeringAction.RIGHT,
+        }.get(self.control.held_movement, SteeringAction.STRAIGHT)
+        command = coerce_farming_command(action, legacy_event_steering=current_steering)
+        selected = command.legacy_action
         before = self._last_features
         assert before is not None
-        started = self._clock()
-        eva_available = self._cooldown_fraction(started) >= 1.0
-        jump_requested = selected is FarmingAction.RUN_FORWARD_JUMP
-        jump_available = bool(
-            jump_requested and self._jump_available(before, started)
-        )
-        jump_reward_available = bool(
-            jump_requested and self._jump_reward_available(started)
-        )
         executed = selected
-        jump_performed = bool(jump_requested)
         kill_result = NativeKillResult((), 0, 0, 0, False, 0.0)
         ocr: OcrDiagnostic | None = None
+        started = self._clock()
+        eva_available = False
+        jump_requested = command.jump_requested
+        jump_available = False
+        jump_reward_available = False
+        jump_performed = bool(jump_requested)
+        cast_window = None
         try:
-            cast_window = None
-            if selected is FarmingAction.CAST_EVA and eva_available:
-                cast_window = self.kill_tracker.begin_cast(before.world)
-            self.control.execute(executed)
-            if jump_reward_available:
-                self._last_jump_at = started
-            if selected is FarmingAction.CAST_EVA:
-                self._last_cast_at = started
-                if cast_window is not None:
-                    kill_result = self.kill_tracker.confirm_cast(
-                        cast_window,
-                        read_actor_hp_states=(
-                            self.world_reader.read_actor_hp_states
-                        ),
-                        cancellation=self.cancellation,
-                    )
-            else:
+            while True:
+                resumed_after_focus_pause = self.control.wait_until_ready()
+                if resumed_after_focus_pause:
+                    before = self._refresh_baseline_after_focus_pause(selected)
+
+                started = self._clock()
+                eva_available = self._cooldown_fraction(started) >= 1.0
+                jump_available = bool(
+                    jump_requested and self._jump_available(before, started)
+                )
+                jump_reward_available = bool(
+                    jump_requested and self._jump_reward_available(started)
+                )
+                cast_window = None
+                if command.eva_requested and eva_available:
+                    cast_window = self.kill_tracker.begin_cast(before.world)
+
+                # Focus can change between the passive preparation check and
+                # the physical key send. In that race, send nothing and restart
+                # the step after the normal focus pause/baseline refresh.
+                if not self.control.execute_prepared(command):
+                    continue
+
+                if jump_reward_available:
+                    self._last_jump_at = started
+                if command.eva_requested:
+                    self._last_cast_at = started
+                    if cast_window is not None:
+                        kill_result = self.kill_tracker.confirm_cast(
+                            cast_window,
+                            read_actor_hp_states=(
+                                self.world_reader.read_actor_hp_states
+                            ),
+                            cancellation=self.cancellation,
+                        )
+                    break
+
                 self._wait(self.config.control_interval_seconds)
+                if not self.control.is_target_foreground():
+                    # Discard this partial movement interval. No observation,
+                    # reward, PPO step, or contact inference is produced while
+                    # the client is unfocused.
+                    self.control.release()
+                    continue
+                break
 
             if self._read_ocr_kills is not None:
                 ocr = self.ocr_diagnostics.observe(self._read_ocr_kills())
@@ -917,7 +972,7 @@ class UnifiedFarmingEnv:
                 self._seal(before.built.vector)
                 return FarmingStep(before.built.vector, reward, outcome, info)
 
-            contact = bool(selected.is_movement and displacement <= 0.05)
+            contact = bool(displacement <= 0.05)
             after = self._build_features(
                 after_world,
                 action=selected,
@@ -949,7 +1004,7 @@ class UnifiedFarmingEnv:
                     native_kill_delta=kill_result.kill_count,
                     density_delta=density_delta,
                     elapsed_seconds=max(0.0, finished - started),
-                    eva_attempted=selected is FarmingAction.CAST_EVA,
+                    eva_attempted=command.eva_requested,
                     eva_available=eva_available,
                     contact=contact,
                     map_cell_risk=after.map_cell_risk,
@@ -1093,9 +1148,24 @@ class UnifiedFarmingEnv:
         hp_actor = tracked_actors[0] if tracked_actors else None
         actor_reader = getattr(self.world_reader, "actor_reader", None)
         actor_diagnostics = getattr(actor_reader, "last_diagnostics", None)
+        held = self.control.held_movement or FarmingAction.RUN_FORWARD
+        steering_index = {
+            FarmingAction.RUN_FORWARD: 0,
+            FarmingAction.RUN_FORWARD_LEFT: 1,
+            FarmingAction.RUN_FORWARD_RIGHT: 2,
+        }.get(held, 0)
+        event_index = (
+            1 if action is FarmingAction.CAST_EVA else (2 if jump_requested else 0)
+        )
         return {
             "action": int(action),
             "action_name": action.name,
+            "steering_index": steering_index,
+            "steering_name": ("STRAIGHT", "LEFT", "RIGHT")[steering_index],
+            "event_index": event_index,
+            "event_name": ("NONE", "CAST_EVA", "JUMP")[event_index],
+            "factorized_action": [steering_index, event_index],
+            "forward_latched": bool(self.control.held_keys),
             "native_kill_delta": int(native_kills),
             "kill_delta": int(native_kills),
             "native_hp_offset": (

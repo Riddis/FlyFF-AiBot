@@ -58,6 +58,28 @@ class RuntimeStatus:
     session_id: int | None = None
 
 
+
+
+@dataclass(frozen=True, slots=True)
+class FarmingSessionSnapshot:
+    """Low-rate live farming statistics for the GUI session panel."""
+
+    session_id: int | None
+    mode: str
+    started_at_monotonic: float
+    elapsed_seconds: float
+    total_steps: int
+    session_steps: int
+    reward: float
+    reward_delta: float
+    kills: int
+    kills_per_hour: float
+    penya_earned: int
+    penya_per_hour: float
+    perin_earned: float
+    action_reward_deltas: tuple[tuple[str, float], ...] = ()
+
+
 @dataclass(frozen=True, slots=True)
 class RuntimeAlert:
     """Reliable low-rate GUI alert emitted by a background worker."""

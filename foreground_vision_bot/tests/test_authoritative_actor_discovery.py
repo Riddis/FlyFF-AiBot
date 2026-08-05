@@ -3,6 +3,7 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 from types import SimpleNamespace
+from threading import Event, Thread
 
 import pytest
 
@@ -14,7 +15,7 @@ from position.NativeTraceTargets import (
     TraceTargetDiscovery,
     TraceTargetEvidence,
 )
-from position.Win32ProcessMemory import ModuleInfo
+from position.Win32ProcessMemory import MemorySearchCancelled, ModuleInfo
 
 
 SPECIES_OFFSET = 0x174
@@ -25,6 +26,8 @@ HP_OFFSET = 0x81C
 SELF_OFFSET = 0x3C8
 PLAYER_SELF_OFFSET = 0x1EF0
 ACTIVE_OFFSET = 0x1A20
+PRESENCE_OFFSET = 0x19A4
+HISTORICAL_PRESENCE_OFFSET = 0x1DCC
 STRIDE = 0x2008
 OBJECT_SPAN = 0x4000
 WORLD_VALUE = 0x61000000
@@ -45,6 +48,7 @@ class Memory:
             regions_read=0,
             matches=0,
         )
+        self.find_calls = 0
 
     def allocate(self, base: int, size: int) -> None:
         self.regions.append(Region(base, bytearray(size)))
@@ -83,6 +87,7 @@ class Memory:
         deadline: float | None = None,
     ) -> tuple[int, ...]:
         del private_only, chunk_size, cancellation, deadline
+        self.find_calls += 1
         needle = struct.pack("<I", value)
         matches: list[int] = []
         bytes_read = 0
@@ -149,6 +154,7 @@ def _write_actor(
     x: float,
     z: float,
     active: int | None = None,
+    presence: int | None = None,
 ) -> None:
     memory.allocate(base, OBJECT_SPAN)
     memory.write_u32(base + SELF_OFFSET, base)
@@ -158,6 +164,10 @@ def _write_actor(
     memory.write_i32(
         base + ACTIVE_OFFSET,
         species if active is None and hp > 0 else 0 if active is None else active,
+    )
+    memory.write_i32(
+        base + PRESENCE_OFFSET,
+        species if presence is None and species > 0 else 0 if presence is None else presence,
     )
     memory.write_f32(base + X_OFFSET, x)
     memory.write_f32(base + Y_OFFSET, 100.0)
@@ -214,6 +224,8 @@ def _fixture(
             x=250.0 + index,
             z=86.0 + index,
         )
+    # A single coincidental historical-offset match must not establish a field.
+    memory.write_i32(asterions[0] + HISTORICAL_PRESENCE_OFFSET, 944)
 
     dantalians = (0x31000000, 0x36000000, 0x3B000000, 0x3F000000)
     for index, base in enumerate(dantalians):
@@ -239,6 +251,19 @@ def _fixture(
             hp=275000,
             x=321.0 + index,
             z=401.0 + index,
+        )
+
+    dormant = (0x45000000, 0x47000000)
+    for base in dormant:
+        _write_actor(
+            memory,
+            base,
+            relation_offset=relation_offset,
+            relation_value=WORLD_VALUE,
+            species=0,
+            hp=0,
+            x=0.0,
+            z=0.0,
         )
 
     # The manager object containing actor references is only a ranking aid; the
@@ -274,6 +299,7 @@ def _fixture(
         "asterions": asterions,
         "dantalians": dantalians,
         "mirrors": mirrors,
+        "dormant": dormant,
         "relation_offset": relation_offset,
     }
 
@@ -305,7 +331,58 @@ def test_dynamically_recovers_global_relation_and_excludes_mirror_objects(
     assert dict(result.species_counts) == {944: 3, 948: 4}
     assert result.active_species_offset == ACTIVE_OFFSET
     assert result.active_species_validated is True
+    assert result.presence_species_offset == PRESENCE_OFFSET
+    assert result.presence_species_validated is True
+    assert result.presence_candidates[0].offset == PRESENCE_OFFSET
+    assert all(
+        item.offset != HISTORICAL_PRESENCE_OFFSET
+        for item in result.presence_candidates
+    )
     assert result.relation_scans[0].exact_anchor_coverage == 3
+
+
+def test_reader_enables_only_the_dynamically_recovered_moved_presence_field() -> None:
+    memory, module, discovery, _addresses = _fixture()
+    reader = IndependentNativeReader(
+        memory,
+        module,
+        discovery,
+        configured_player_offset=0x586318,
+        expected_full_hp_by_species={944: 400236},
+        selected_species_ids={944, 948},
+        known_actor_stride=STRIDE,
+    )
+
+    assert reader.recovered_presence_species_offset == PRESENCE_OFFSET
+    assert reader.presence_species_validated is True
+    assert reader.enable_presence_optimized_sampling(
+        selected_species_ids={944, 948}
+    ) is True
+    diagnostics = reader.presence_sampler_diagnostics()
+    assert diagnostics.enabled is True
+    assert diagnostics.offset == PRESENCE_OFFSET
+
+
+def test_provisional_presence_candidate_keeps_correctness_first_full_reads() -> None:
+    memory, module, discovery, addresses = _fixture()
+    for base in addresses["dormant"]:
+        memory.write_u32(base + addresses["relation_offset"], MIRROR_VALUE)
+    reader = IndependentNativeReader(
+        memory,
+        module,
+        discovery,
+        configured_player_offset=0x586318,
+        expected_full_hp_by_species={944: 400236},
+        selected_species_ids={944, 948},
+        known_actor_stride=STRIDE,
+    )
+
+    assert reader.recovered_presence_species_offset == PRESENCE_OFFSET
+    assert reader.presence_species_validated is False
+    assert reader.enable_presence_optimized_sampling(
+        selected_species_ids={944, 948}
+    ) is False
+    assert reader.presence_sampler_diagnostics().enabled is False
 
 
 def test_reader_uses_authoritative_global_set_for_map_and_hp_zero_kills() -> None:
@@ -384,6 +461,79 @@ def test_authoritative_refresh_finds_actor_allocated_after_recovery() -> None:
     assert dict(reader.authoritative_species_counts) == {944: 3, 948: 5}
 
 
+
+def test_ordinary_snapshots_never_repeat_process_wide_authoritative_scan() -> None:
+    memory, module, discovery, _addresses = _fixture()
+    reader = IndependentNativeReader(
+        memory,
+        module,
+        discovery,
+        configured_player_offset=0x586318,
+        expected_full_hp_by_species={944: 400236},
+        selected_species_ids={944, 948},
+        slots_each_direction=31,
+        authoritative_refresh_interval_seconds=0.0,
+    )
+    calls_after_discovery = memory.find_calls
+
+    for _ in range(5):
+        reader.snapshot(
+            allowed_species={944, 948},
+            vision_radius_native=1_000_000.0,
+        )
+        reader.read_monsters(
+            reader.read_player(),
+            allowed_species={944, 948},
+            vision_radius_native=1_000_000.0,
+        )
+
+    assert memory.find_calls == calls_after_discovery
+    forced = reader.refresh_runtime_actor_slots(force=True)
+    assert forced.cached_slots >= 2
+    assert memory.find_calls == calls_after_discovery + 1
+
+
+
+def test_authoritative_refresh_is_single_flight_across_concurrent_readers() -> None:
+    memory, module, discovery, _addresses = _fixture()
+    reader = IndependentNativeReader(
+        memory,
+        module,
+        discovery,
+        configured_player_offset=0x586318,
+        expected_full_hp_by_species={944: 400236},
+        selected_species_ids={944, 948},
+        slots_each_direction=31,
+        authoritative_refresh_interval_seconds=20.0,
+    )
+    calls_after_discovery = memory.find_calls
+    reader._last_authoritative_refresh_at = float("-inf")
+    reader._authoritative_species_counts = ((944, 1), (948, 1))
+    original_find = memory.find_u32
+    entered = Event()
+    release = Event()
+
+    def blocking_find(*args, **kwargs):
+        entered.set()
+        assert release.wait(2.0)
+        return original_find(*args, **kwargs)
+
+    memory.find_u32 = blocking_find  # type: ignore[method-assign]
+    results = []
+    first = Thread(
+        target=lambda: results.append(reader.refresh_runtime_actor_slots(force=True))
+    )
+    first.start()
+    assert entered.wait(1.0)
+    second = reader.refresh_runtime_actor_slots(force=True)
+    release.set()
+    first.join(2.0)
+
+    assert not first.is_alive()
+    assert second.probed_slots == 0
+    assert memory.find_calls == calls_after_discovery + 1
+    assert len(results) == 1
+
 def test_reader_falls_back_safely_when_no_player_shared_relation_exists() -> None:
     memory, module, discovery, addresses = _fixture()
     relation_offset = int(addresses["relation_offset"])
@@ -438,6 +588,55 @@ def test_rejects_shared_distractor_that_only_recovers_exact_anchors() -> None:
     assert distractor_scan.exact_anchor_coverage == 3
     assert distractor_scan.valid_actor_bases == 3
     assert dict(result.species_counts) == {944: 3, 948: 4}
+
+
+def test_preferred_validated_relation_stops_after_one_scan_when_species_absent() -> None:
+    memory, _module, discovery, addresses = _fixture()
+    relation_offset = int(addresses["relation_offset"])
+
+    # Simulate starting recovery before any Dantalian is loaded. The saved
+    # relation is already known-good, so absence of species 948 must not force
+    # three additional full-process scans.
+    for base in addresses["dantalians"]:
+        memory.write_i32(int(base) + SPECIES_OFFSET, 944)
+        memory.write_i32(int(base) + HP_OFFSET, 400236)
+
+    result = discover_authoritative_actors(
+        memory,
+        discovery,
+        selected_species_ids={944, 948},
+        actor_stride=STRIDE,
+        object_span=OBJECT_SPAN,
+        maximum_address=0x7FFFFFFF,
+        private_memory_only=True,
+        chunk_size=1 << 20,
+        coordinate_limit=100_000.0,
+        preferred_relation_offsets=(relation_offset,),
+    )
+
+    assert result.succeeded
+    assert result.relation_offset == relation_offset
+    assert memory.find_calls == 1
+    assert dict(result.species_counts) == {944: 7}
+
+
+def test_reader_propagates_authoritative_scan_cancellation() -> None:
+    memory, module, discovery, _addresses = _fixture()
+
+    def cancelled_find(*_args, **_kwargs):
+        raise MemorySearchCancelled("cancelled by user")
+
+    memory.find_u32 = cancelled_find  # type: ignore[method-assign]
+
+    with pytest.raises(MemorySearchCancelled):
+        IndependentNativeReader(
+            memory,
+            module,
+            discovery,
+            configured_player_offset=0x586318,
+            expected_full_hp_by_species={944: 400236},
+            selected_species_ids={944, 948},
+        )
 
 
 def test_validated_active_field_is_diagnostic_and_never_hides_living_actor() -> None:

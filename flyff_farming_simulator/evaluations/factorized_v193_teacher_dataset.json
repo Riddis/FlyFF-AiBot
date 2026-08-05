@@ -1,0 +1,41 @@
+{
+  "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\datasets\\factorized_v193_teacher.npz",
+  "samples": 12000,
+  "episodes": 49,
+  "layouts": [
+    "01_early_open_field_typical_fast",
+    "02_early_wide_neck_high_typical",
+    "03_early_open_field_low_fast",
+    "04_early_wide_neck_typical_bursty"
+  ],
+  "layout_sample_counts": {
+    "01_early_open_field_typical_fast": 3097,
+    "02_early_wide_neck_high_typical": 2883,
+    "03_early_open_field_low_fast": 2919,
+    "04_early_wide_neck_typical_bursty": 3101
+  },
+  "validation_episodes": [
+    10,
+    11,
+    15,
+    18,
+    23,
+    26,
+    28,
+    29,
+    38,
+    44
+  ],
+  "training_samples": 9651,
+  "validation_samples": 2349,
+  "steering_counts": [
+    4846,
+    4235,
+    2919
+  ],
+  "event_counts": [
+    6923,
+    904,
+    4173
+  ]
+}

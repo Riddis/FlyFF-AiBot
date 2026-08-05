@@ -48,6 +48,10 @@ from .sb3_training import (
 from .startup import load_and_validate_model, resolve_model_artifact, validate_new_model
 
 StatusCallback = Callable[[str], None]
+SessionStatsCallback = Callable[[Mapping[str, object]], None]
+
+PENYA_PER_PERIN = 100_000_000
+MAXIMUM_PENYA_STEP_DELTA = 100_000_000_000
 
 
 class FarmingBot(Protocol):
@@ -76,6 +80,8 @@ class FarmingBot(Protocol):
 
     def read_kill_count(self) -> int | None: ...
 
+    def read_penya_count(self) -> int | None: ...
+
     def get_debug_frame(self) -> np.ndarray | None: ...
 
 
@@ -91,6 +97,9 @@ class FarmingPreflight:
     actor_slots: int
     initial_actor_count: int
     initial_map_cell: tuple[int, int]
+    profile_restore_mode: str = "none"
+    profile_restore_elapsed_seconds: float = 0.0
+    profile_restore_error: str | None = None
 
 
 @dataclass(slots=True)
@@ -115,7 +124,12 @@ class SessionStats:
     casts_with_candidates: int = 0
     reward: float = 0.0
     action_counts: Counter[str] = field(default_factory=Counter)
+    action_rewards: Counter[str] = field(default_factory=Counter)
     reward_components: dict[str, float] = field(default_factory=dict)
+    penya_earned: int = 0
+    penya_latest: int | None = None
+    penya_pending_reset: int | None = None
+    penya_outcomes: Counter[str] = field(default_factory=Counter)
     jump_requests: int = 0
     jumps_performed: int = 0
     teleport_suspicions: int = 0
@@ -129,6 +143,7 @@ class SessionStats:
         self.kills += int(cast(Any, info.get("native_kill_delta", 0)))
         action_name = str(info.get("action_name", "UNKNOWN"))
         self.action_counts[action_name] += 1
+        self.action_rewards[action_name] += float(reward)
         raw_candidates = info.get("native_kill_candidates", 0)
         if isinstance(raw_candidates, (int, float)) and not isinstance(raw_candidates, bool):
             candidates = max(0, int(raw_candidates))
@@ -170,6 +185,59 @@ class SessionStats:
                         self.reward_components.get(name, 0.0) + float(value)
                     )
         self.latest_info = dict(info)
+
+    def observe_penya(self, value: int | None) -> None:
+        """Accumulate earned Penya while tolerating OCR misses and conversions.
+
+        A Penya-to-Perin conversion lowers the visible Penya counter by exact
+        100,000,000-Penya units.  That is a baseline reset, not negative
+        earnings.  Other one-frame decreases are held as pending until a second
+        low reading confirms that the counter really reset.
+        """
+
+        if value is None:
+            self.penya_outcomes["miss"] += 1
+            return
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            self.penya_outcomes["invalid"] += 1
+            return
+        previous = self.penya_latest
+        if previous is None:
+            self.penya_latest = int(value)
+            self.penya_pending_reset = None
+            self.penya_outcomes["baseline"] += 1
+            return
+
+        delta = int(value) - int(previous)
+        if delta >= 0:
+            if delta > MAXIMUM_PENYA_STEP_DELTA:
+                self.penya_outcomes["outlier"] += 1
+                return
+            self.penya_earned += delta
+            self.penya_latest = int(value)
+            self.penya_pending_reset = None
+            self.penya_outcomes["ok"] += 1
+            return
+
+        drop = -delta
+        if drop >= PENYA_PER_PERIN and drop % PENYA_PER_PERIN == 0:
+            self.penya_latest = int(value)
+            self.penya_pending_reset = None
+            self.penya_outcomes["perin_conversion"] += 1
+            return
+
+        pending = self.penya_pending_reset
+        if pending is not None and int(value) < int(previous):
+            post_reset_delta = max(0, int(value) - int(pending))
+            if post_reset_delta <= MAXIMUM_PENYA_STEP_DELTA:
+                self.penya_earned += post_reset_delta
+            self.penya_latest = int(value)
+            self.penya_pending_reset = None
+            self.penya_outcomes["confirmed_reset"] += 1
+            return
+
+        self.penya_pending_reset = int(value)
+        self.penya_outcomes["decrease_pending"] += 1
 
 
 def _status(callback: StatusCallback | None, message: str) -> None:
@@ -228,6 +296,7 @@ def build_live_farming_runtime(
     *,
     map_context_loader: Callable[..., FarmingMapContext] = FarmingMapContext.load,
     diagnostic_sink: Callable[[Mapping[str, object]], None] | None = None,
+    status_callback: StatusCallback | None = None,
 ) -> FarmingRuntime:
     """Complete every read-only preflight before constructing an input lease."""
 
@@ -293,6 +362,7 @@ def build_live_farming_runtime(
         autofocus=config.autofocus,
         grace_seconds=config.focus_grace_seconds,
         poll_seconds=config.focus_poll_seconds,
+        status_callback=status_callback,
     )
     # Pointer, actor, map, and initial-frame validation above are entirely
     # read-only. Focus is the first external side effect and is requested only
@@ -301,7 +371,10 @@ def build_live_farming_runtime(
     control = DirectFarmingControl(
         cast(Any, keyboard),
         cancellation,
-        keymap=FarmingKeyMap.for_layout(config.keyboard_layout),
+        keymap=FarmingKeyMap.for_layout(
+            config.keyboard_layout,
+            eva_hotkey=str(bot.config.get("eva_hotkey", "F1")),
+        ),
         eva_press_seconds=config.eva_press_seconds,
         jump_press_seconds=config.jump_press_seconds,
         focus_service=focus,
@@ -326,8 +399,26 @@ def build_live_farming_runtime(
         actor_slots=refresh.slot_count,
         initial_actor_count=len(frame.actors),
         initial_map_cell=cell,
+        profile_restore_mode=str(
+            getattr(service, "last_profile_restore_mode", "none")
+        ),
+        profile_restore_elapsed_seconds=float(
+            getattr(service, "last_profile_restore_elapsed_seconds", 0.0)
+        ),
+        profile_restore_error=getattr(
+            service, "last_profile_restore_error", None
+        ),
     )
     return FarmingRuntime(domain, UnifiedFarmingGymEnv(domain), preflight)
+
+
+def _set_focus_status_callback(
+    runtime: FarmingRuntime,
+    callback: StatusCallback | None,
+) -> None:
+    focus = getattr(runtime.domain.control, "focus", None)
+    if focus is not None and hasattr(focus, "status_callback"):
+        focus.status_callback = callback
 
 
 def _default_config() -> FarmingRuntimeConfig:
@@ -381,6 +472,11 @@ def _report_payload(
             "actor_cache_outcome": preflight.actor_cache_outcome,
             "actor_slots": preflight.actor_slots,
             "initial_actor_count": preflight.initial_actor_count,
+            "profile_restore_mode": preflight.profile_restore_mode,
+            "profile_restore_elapsed_seconds": (
+                preflight.profile_restore_elapsed_seconds
+            ),
+            "profile_restore_error": preflight.profile_restore_error,
         },
         "session_reason": session_reason,
         "session_classification": session_classification,
@@ -396,6 +492,13 @@ def _report_payload(
         "total_reward": stats.reward,
         "reward_components": dict(stats.reward_components),
         "action_counts": dict(stats.action_counts),
+        "action_rewards": dict(stats.action_rewards),
+        "penya": {
+            "earned": int(stats.penya_earned),
+            "latest_value": stats.penya_latest,
+            "perin_equivalent": float(stats.penya_earned / PENYA_PER_PERIN),
+            "outcomes": dict(stats.penya_outcomes),
+        },
         "jump": {
             "requests": stats.jump_requests,
             "performed": stats.jumps_performed,
@@ -416,6 +519,62 @@ def _report_payload(
     }
 
 
+_ACTION_STATUS_NAMES = {
+    FarmingAction.RUN_FORWARD.name: "FWD",
+    FarmingAction.RUN_FORWARD_LEFT.name: "LEFT",
+    FarmingAction.RUN_FORWARD_RIGHT.name: "RIGHT",
+    FarmingAction.CAST_EVA.name: "EVA",
+    FarmingAction.RUN_FORWARD_JUMP.name: "JUMP",
+}
+
+
+def _action_reward_delta_payload(
+    current: Mapping[str, float],
+    previous: Mapping[str, float],
+) -> tuple[tuple[str, float], ...]:
+    return tuple(
+        (
+            _ACTION_STATUS_NAMES[action.name],
+            float(current.get(action.name, 0.0))
+            - float(previous.get(action.name, 0.0)),
+        )
+        for action in FarmingAction
+    )
+
+
+def _format_action_reward_deltas(
+    values: tuple[tuple[str, float], ...],
+) -> str:
+    return " ".join(f"{name}={value:+.2f}" for name, value in values)
+
+
+def _session_stats_payload(
+    stats: SessionStats,
+    *,
+    total_steps: int,
+    reward_delta: float,
+    action_reward_deltas: tuple[tuple[str, float], ...],
+    mode: str = "Training",
+) -> dict[str, object]:
+    elapsed_seconds = max(0.0, monotonic() - stats.started_at)
+    hourly_divisor = max(1e-6, elapsed_seconds)
+    return {
+        "mode": mode,
+        "started_at_monotonic": float(stats.started_at),
+        "elapsed_seconds": float(elapsed_seconds),
+        "total_steps": max(0, int(total_steps)),
+        "session_steps": max(0, int(stats.steps)),
+        "reward": float(stats.reward),
+        "reward_delta": float(reward_delta),
+        "kills": max(0, int(stats.kills)),
+        "kills_per_hour": float(stats.kills * 3600.0 / hourly_divisor),
+        "penya_earned": max(0, int(stats.penya_earned)),
+        "penya_per_hour": float(stats.penya_earned * 3600.0 / hourly_divisor),
+        "perin_earned": float(stats.penya_earned / PENYA_PER_PERIN),
+        "action_reward_deltas": action_reward_deltas,
+    }
+
+
 class _TrainingCallback(BaseCallback):
     def __init__(
         self,
@@ -425,6 +584,8 @@ class _TrainingCallback(BaseCallback):
         cancellation: CancellationToken,
         stats: SessionStats,
         status_callback: StatusCallback | None,
+        session_stats_callback: SessionStatsCallback | None = None,
+        penya_reader: Callable[[], int | None] | None = None,
     ) -> None:
         super().__init__(verbose=0)
         self.runtime = runtime
@@ -432,8 +593,11 @@ class _TrainingCallback(BaseCallback):
         self.cancellation = cancellation
         self.stats = stats
         self.status_callback = status_callback
+        self.session_stats_callback = session_stats_callback
+        self.penya_reader = penya_reader
         self._last_status = monotonic()
         self._last_reported_reward = 0.0
+        self._last_reported_action_rewards: dict[str, float] = {}
 
     def _on_step(self) -> bool:
         infos = self.locals.get("infos") or []
@@ -456,24 +620,45 @@ class _TrainingCallback(BaseCallback):
                         f"thresholds={info.get('teleport_thresholds_cells', [])}",
                     )
 
+        if self.penya_reader is not None:
+            try:
+                self.stats.observe_penya(self.penya_reader())
+            except Exception:
+                self.stats.penya_outcomes["reader_error"] += 1
+
         now = monotonic()
         if now - self._last_status >= self.config.stats_interval_seconds:
             elapsed_seconds = max(1e-6, now - self.stats.started_at)
             kills_per_hour = self.stats.kills * 3600.0 / elapsed_seconds
+            penya_per_hour = self.stats.penya_earned * 3600.0 / elapsed_seconds
             reward_delta = self.stats.reward - self._last_reported_reward
+            action_reward_deltas = _action_reward_delta_payload(
+                self.stats.action_rewards,
+                self._last_reported_action_rewards,
+            )
             _status(
                 self.status_callback,
                 "TRAINING | "
                 f"steps={self.num_timesteps:,} "
                 f"reward={self.stats.reward:+.2f} "
                 f"reward_delta={reward_delta:+.2f} "
+                f"reward_delta_by_action=[{_format_action_reward_deltas(action_reward_deltas)}] "
                 f"kills={self.stats.kills} "
                 f"kills/hr={kills_per_hour:.1f} "
-                f"jumps={self.stats.jumps_performed}/{self.stats.jump_requests} "
-                f"action={self.stats.latest_info.get('action_name', '--')}",
+                f"penya/hr={penya_per_hour:,.0f}",
             )
+            if self.session_stats_callback is not None:
+                self.session_stats_callback(
+                    _session_stats_payload(
+                        self.stats,
+                        total_steps=self.num_timesteps,
+                        reward_delta=reward_delta,
+                        action_reward_deltas=action_reward_deltas,
+                    )
+                )
             self._last_status = now
             self._last_reported_reward = self.stats.reward
+            self._last_reported_action_rewards = dict(self.stats.action_rewards)
 
         # Cancellation is delivered through the domain environment so the
         # collector can discard the incomplete prefix explicitly.
@@ -551,6 +736,7 @@ def train_native_farming(
     status_callback: StatusCallback | None = None,
     cancellation: CancellationToken | None = None,
     *,
+    session_stats_callback: SessionStatsCallback | None = None,
     services: FarmingSessionServices | None = None,
 ) -> Path:
     selected = config or _default_config()
@@ -563,7 +749,16 @@ def train_native_farming(
     runtime: FarmingRuntime | None = None
     report_path, manifest_path = edges.session_path_factory(selected, "training")
     try:
-        runtime = edges.runtime_builder(bot, selected, token)
+        if edges.runtime_builder is build_live_farming_runtime:
+            runtime = build_live_farming_runtime(
+                bot,
+                selected,
+                token,
+                status_callback=status_callback,
+            )
+        else:
+            runtime = edges.runtime_builder(bot, selected, token)
+            _set_focus_status_callback(runtime, status_callback)
         model, reset_timesteps = edges.model_loader(
             model_path,
             runtime,
@@ -581,6 +776,8 @@ def train_native_farming(
             cancellation=token,
             stats=stats,
             status_callback=status_callback,
+            session_stats_callback=session_stats_callback,
+            penya_reader=getattr(bot, "read_penya_count", None),
         )
         _status(
             status_callback,
@@ -588,6 +785,15 @@ def train_native_farming(
             f"total_steps={model.num_timesteps:,} "
             f"checkpoint_every={selected.checkpoint_frequency:,}",
         )
+        if session_stats_callback is not None:
+            session_stats_callback(
+                _session_stats_payload(
+                    stats,
+                    total_steps=model.num_timesteps,
+                    reward_delta=0.0,
+                    action_reward_deltas=_action_reward_delta_payload({}, {}),
+                )
+            )
         first_learn_call = True
         boundary = None
         checkpoint_frequency = selected.checkpoint_frequency
@@ -663,6 +869,18 @@ def train_native_farming(
             f"teleport_pulse={_teleport_pulse_status(stats.latest_info)} "
             f"model={model_path}",
         )
+        if session_stats_callback is not None:
+            session_stats_callback(
+                _session_stats_payload(
+                    stats,
+                    total_steps=model.num_timesteps,
+                    reward_delta=stats.reward - callback._last_reported_reward,
+                    action_reward_deltas=_action_reward_delta_payload(
+                        stats.action_rewards,
+                        callback._last_reported_action_rewards,
+                    ),
+                )
+            )
         return model_path
     except WorkerCancelled as error:
         if runtime is not None:
@@ -716,6 +934,9 @@ def _preflight_debug_payload(preflight: FarmingPreflight | None) -> dict[str, ob
         "actor_cache_outcome": preflight.actor_cache_outcome,
         "actor_slots": preflight.actor_slots,
         "initial_actor_count": preflight.initial_actor_count,
+        "profile_restore_mode": preflight.profile_restore_mode,
+        "profile_restore_elapsed_seconds": preflight.profile_restore_elapsed_seconds,
+        "profile_restore_error": preflight.profile_restore_error,
     }
 
 
@@ -747,6 +968,7 @@ def validate_native_farming_data(
             selected,
             token,
             diagnostic_sink=recorder.record,
+            status_callback=status_callback,
         )
         _raise_if_cancelled(token)
         _status(
@@ -901,7 +1123,12 @@ def dry_run_native_farming(
 ) -> None:
     selected = config or _default_config()
     token = cancellation or CancellationToken()
-    runtime = build_live_farming_runtime(bot, selected, token)
+    runtime = build_live_farming_runtime(
+        bot,
+        selected,
+        token,
+        status_callback=status_callback,
+    )
     stats = SessionStats()
     try:
         _raise_if_cancelled(token)
@@ -949,6 +1176,8 @@ def run_native_farming_agent(
     status_callback: StatusCallback | None = None,
     deterministic: bool = True,
     cancellation: CancellationToken | None = None,
+    *,
+    session_stats_callback: SessionStatsCallback | None = None,
 ) -> None:
     selected = config or _default_config()
     token = cancellation or CancellationToken()
@@ -961,17 +1190,40 @@ def run_native_farming_agent(
         ),
     )
     model = cast(SessionAwarePPO, validated.model)
-    runtime = build_live_farming_runtime(bot, selected, token)
+    runtime = build_live_farming_runtime(
+        bot,
+        selected,
+        token,
+        status_callback=status_callback,
+    )
     stats = SessionStats()
+    last_stats_publish = stats.started_at
+    last_reported_reward = 0.0
+    last_reported_action_rewards: dict[str, float] = {}
     try:
         _raise_if_cancelled(token)
         bot.start()
         observation, _info = runtime.gym.reset()
+        if session_stats_callback is not None:
+            session_stats_callback(
+                _session_stats_payload(
+                    stats,
+                    total_steps=model.num_timesteps,
+                    reward_delta=0.0,
+                    action_reward_deltas=_action_reward_delta_payload({}, {}),
+                    mode="Agent",
+                )
+            )
         while bot.rl_enabled and not token.cancelled:
             action, _state = model.predict(observation, deterministic=deterministic)
             try:
+                factorized_action = np.asarray(action, dtype=np.int64).reshape(-1)
+                if factorized_action.shape != (2,):
+                    raise ValueError(
+                        f"Factorized farming policy returned {factorized_action.shape}, expected (2,)"
+                    )
                 observation, reward, terminated, _truncated, info = runtime.gym.step(
-                    int(np.asarray(action).item())
+                    factorized_action
                 )
             except ExternalSessionEnded as boundary:
                 info = boundary.step_result.info
@@ -980,6 +1232,34 @@ def run_native_farming_agent(
             except FarmingSessionCancelled:
                 break
             stats.observe(info, reward)
+            penya_reader = getattr(bot, "read_penya_count", None)
+            if callable(penya_reader):
+                try:
+                    stats.observe_penya(penya_reader())
+                except Exception:
+                    stats.penya_outcomes["reader_error"] += 1
+            now = monotonic()
+            if (
+                session_stats_callback is not None
+                and now - last_stats_publish >= selected.stats_interval_seconds
+            ):
+                reward_delta = stats.reward - last_reported_reward
+                action_reward_deltas = _action_reward_delta_payload(
+                    stats.action_rewards,
+                    last_reported_action_rewards,
+                )
+                session_stats_callback(
+                    _session_stats_payload(
+                        stats,
+                        total_steps=model.num_timesteps,
+                        reward_delta=reward_delta,
+                        action_reward_deltas=action_reward_deltas,
+                        mode="Agent",
+                    )
+                )
+                last_stats_publish = now
+                last_reported_reward = stats.reward
+                last_reported_action_rewards = dict(stats.action_rewards)
             if terminated:
                 break
         _status(
@@ -990,5 +1270,18 @@ def run_native_farming_agent(
             f"steps={stats.steps} native_kills={stats.kills} "
             f"ocr_delta={stats.ocr_kill_delta}",
         )
+        if session_stats_callback is not None:
+            session_stats_callback(
+                _session_stats_payload(
+                    stats,
+                    total_steps=model.num_timesteps,
+                    reward_delta=stats.reward - last_reported_reward,
+                    action_reward_deltas=_action_reward_delta_payload(
+                        stats.action_rewards,
+                        last_reported_action_rewards,
+                    ),
+                    mode="Agent",
+                )
+            )
     finally:
         runtime.close()

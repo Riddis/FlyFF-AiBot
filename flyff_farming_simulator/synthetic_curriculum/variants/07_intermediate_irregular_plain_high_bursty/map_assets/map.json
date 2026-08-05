@@ -1,0 +1,23 @@
+{
+  "size": 240,
+  "shape": [
+    240,
+    240
+  ],
+  "free_cells": 25113,
+  "forbidden_cells": 0,
+  "template": "irregular_plain",
+  "free_fraction": 0.4359895833333333,
+  "safe_fraction_of_free": 0.9177716720423685,
+  "spawn_cell": [
+    119,
+    167
+  ],
+  "design": "large_open_farming_area",
+  "corridor_generation": false,
+  "variant": "07_intermediate_irregular_plain_high_bursty",
+  "stage": "intermediate",
+  "density_profile": "high",
+  "respawn_profile": "bursty",
+  "seed": 20316237
+}
