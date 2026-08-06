@@ -50,9 +50,16 @@ def run_episode(
     seed: int,
     episode_seconds: float,
     max_actions: int,
+    recovery: Any = None,
 ) -> dict[str, Any]:
     """Roll the policy through one episode, tracking the teacher's oracle
     decision and the real geometric angle at every visited state.
+
+    ``recovery``, when given a fresh ``RecoveryController`` instance, wraps
+    the policy's own action selection with the Phase 1 bounded recovery
+    override. Omitting it (the default) reproduces the exact raw-policy
+    behavior every training/teacher-data/ordinary-scoring caller already
+    relies on -- recovery is never silently active.
     """
 
     entry, env = next(
@@ -78,7 +85,10 @@ def run_episode(
     policy_events: list[int] = []
     geodesic_euclidean_disagreements = 0
     geodesic_euclidean_total = 0
+    recovery_kills_during_intervention = 0
     info: dict[str, Any] = {}
+    previous_distance = 0.0
+    previous_contacts = 0
 
     for _ in range(int(max_actions)):
         angle = env.best_group_relative_angle()
@@ -94,6 +104,21 @@ def run_episode(
                     geodesic_euclidean_disagreements += 1
 
         steering, event, steering_probs = _policy_forward(net, np.asarray(observation, dtype=np.float32))
+
+        was_recovering = recovery is not None and recovery.state.value == "recovering"
+        if recovery is not None:
+            steering, event = recovery.step(
+                tick=len(steering_choices),
+                player_x=env.player_x,
+                player_z=env.player_z,
+                heading=env.heading,
+                displacement_this_tick=info.get("total_distance_cells", 0.0) - previous_distance if info else 0.0,
+                contact_this_tick=bool(info.get("contacts", 0) - previous_contacts) if info else False,
+                map_model=env.map,
+                policy_steering=steering,
+                policy_event=event,
+            )
+
         steering_choices.append(steering)
         steering_matches.append(steering == int(teacher_command.steering))
         event_matches.append(event == int(teacher_command.event))
@@ -105,7 +130,12 @@ def run_episode(
             left_probs.append(float(steering_probs[1]))
             right_probs.append(float(steering_probs[2]))
 
+        kills_before = int(info.get("total_kills", 0)) if info else 0
+        previous_distance = float(info.get("total_distance_cells", 0.0)) if info else 0.0
+        previous_contacts = int(info.get("contacts", 0)) if info else 0
         observation, _reward, terminated, truncated, info = env.step(np.asarray([steering, event], dtype=np.int64))
+        if was_recovering:
+            recovery_kills_during_intervention += int(info["total_kills"]) - kills_before
         unique_cells_trace.append(int(info["unique_cells"]))
         total_distance_trace.append(float(info["total_distance_cells"]))
         if terminated or truncated:
@@ -118,6 +148,19 @@ def run_episode(
         unique_cells_trace=unique_cells_trace,
         total_distance_trace=total_distance_trace,
     )
+
+    recovery_summary: dict[str, Any] | None = None
+    if recovery is not None:
+        recovery_summary = {
+            "final_state": recovery.state.value,
+            "intervention_count": len(recovery.interventions),
+            "recovered_count": sum(1 for r in recovery.interventions if r.outcome == "recovered"),
+            "gave_up_count": sum(1 for r in recovery.interventions if r.outcome == "gave_up"),
+            "intervention_durations": [
+                (r.end_tick - r.trigger_tick) for r in recovery.interventions if r.end_tick is not None
+            ],
+            "kills_during_intervention": int(recovery_kills_during_intervention),
+        }
 
     return {
         "layout": layout_name,
@@ -141,6 +184,7 @@ def run_episode(
             geodesic_euclidean_disagreements / geodesic_euclidean_total if geodesic_euclidean_total else None
         ),
         "zero_kill": bool(info.get("total_kills", 0) == 0),
+        "recovery": recovery_summary,
         **movement,
         "_eva_target_counts": eva_target_counts,
         "_teacher_events": teacher_events,
@@ -185,10 +229,32 @@ def _summarize_episodes(label: str, results: list[dict[str, Any]], teacher_media
         "productive_sustained_turn_episodes": sum(1 for r in results if r["productive_sustained_turn"]),
         "zero_kill_episodes": sum(1 for r in results if r["zero_kill"]),
         "density_binned_eva": density_bins,
+        "recovery": _summarize_recovery(results) if results and results[0].get("recovery") is not None else None,
     }
 
 
-def evaluate_heldout(model: Any, manifest: HeldoutManifest, *, seeds: list[int], episode_seconds: float, max_actions: int) -> dict[str, Any]:
+def _summarize_recovery(results: list[dict[str, Any]]) -> dict[str, Any]:
+    summaries = [r["recovery"] for r in results if r.get("recovery") is not None]
+    all_durations = [d for s in summaries for d in s["intervention_durations"]]
+    total_interventions = sum(s["intervention_count"] for s in summaries)
+    total_recovered = sum(s["recovered_count"] for s in summaries)
+    total_gave_up = sum(s["gave_up_count"] for s in summaries)
+    return {
+        "episodes_with_intervention": sum(1 for s in summaries if s["intervention_count"] > 0),
+        "total_interventions": total_interventions,
+        "recovered_count": total_recovered,
+        "gave_up_count": total_gave_up,
+        "recovery_success_rate": (total_recovered / total_interventions) if total_interventions else None,
+        "median_intervention_duration_ticks": float(np.median(all_durations)) if all_durations else None,
+        "kills_during_intervention_total": sum(s["kills_during_intervention"] for s in summaries),
+        "episodes_ending_given_up": sum(1 for s in summaries if s["final_state"] == "given_up"),
+    }
+
+
+def evaluate_heldout(
+    model: Any, manifest: HeldoutManifest, *, seeds: list[int], episode_seconds: float, max_actions: int,
+    use_recovery: bool = False,
+) -> dict[str, Any]:
     net = model.policy
     per_layout: dict[str, Any] = {}
     for layout_name in manifest.layouts:
@@ -198,14 +264,26 @@ def evaluate_heldout(model: Any, manifest: HeldoutManifest, *, seeds: list[int],
         ]
         teacher_median_kph = float(np.median([r["kills_per_simulated_hour"] for r in teacher_results]))
         policy_results = [
-            run_episode(manifest.curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions)
+            run_episode(
+                manifest.curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds,
+                max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None),
+            )
             for seed in seeds
         ]
         per_layout[layout_name] = _summarize_episodes(layout_name, policy_results, teacher_median_kph)
-    return {"role": "heldout", "stage": manifest.stage, "layouts": per_layout}
+    return {"role": "heldout", "stage": manifest.stage, "assisted": use_recovery, "layouts": per_layout}
 
 
-def evaluate_challenge(model: Any, manifest: ChallengeManifest, *, family_seeds: list[int], episode_seconds: float, max_actions: int) -> dict[str, Any]:
+def _new_recovery_controller() -> Any:
+    from .recovery_controller import RecoveryController
+
+    return RecoveryController()
+
+
+def evaluate_challenge(
+    model: Any, manifest: ChallengeManifest, *, family_seeds: list[int], episode_seconds: float, max_actions: int,
+    use_recovery: bool = False,
+) -> dict[str, Any]:
     net = model.policy
     fixed_results: dict[str, Any] = {}
     for scenario in manifest.fixed_regression_scenarios:
@@ -216,6 +294,7 @@ def evaluate_challenge(model: Any, manifest: ChallengeManifest, *, family_seeds:
         policy = run_episode(
             scenario.curriculum_path, scenario.layout, net=net, seed=scenario.seed,
             episode_seconds=scenario.episode_seconds, max_actions=scenario.max_actions,
+            recovery=(_new_recovery_controller() if use_recovery else None),
         )
         policy["teacher_ratio"] = policy["kills_per_simulated_hour"] / teacher["kills_per_simulated_hour"] if teacher["kills_per_simulated_hour"] else None
         policy["expected_failure_signature"] = scenario.expected_failure_signature
@@ -229,12 +308,18 @@ def evaluate_challenge(model: Any, manifest: ChallengeManifest, *, family_seeds:
         ]
         teacher_median_kph = float(np.median([r["kills_per_simulated_hour"] for r in teacher_results]))
         policy_results = [
-            run_episode(manifest.challenge_family_curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions)
+            run_episode(
+                manifest.challenge_family_curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds,
+                max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None),
+            )
             for seed in family_seeds
         ]
         per_layout[layout_name] = _summarize_episodes(layout_name, policy_results, teacher_median_kph)
 
-    return {"role": "challenge", "stage": manifest.stage, "fixed_regression_scenarios": fixed_results, "challenge_family": per_layout}
+    return {
+        "role": "challenge", "stage": manifest.stage, "assisted": use_recovery,
+        "fixed_regression_scenarios": fixed_results, "challenge_family": per_layout,
+    }
 
 
 def _run_teacher_episode(curriculum_path: str, layout_name: str, *, seed: int, episode_seconds: float, max_actions: int) -> dict[str, Any]:
