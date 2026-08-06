@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "stage": "early",
+  "role": "heldout",
+  "curriculum_path": "synthetic_curriculum_heldout/curriculum.json",
+  "layouts": [
+    "01_early_open_field_typical_fast",
+    "02_early_wide_neck_high_typical",
+    "03_early_open_field_low_fast",
+    "04_early_wide_neck_typical_bursty",
+    "05_early_open_field_typical_fast",
+    "06_early_wide_neck_high_typical",
+    "07_early_open_field_low_fast",
+    "08_early_wide_neck_typical_bursty"
+  ],
+  "notes": "Fresh same-template-family instances (disjoint seeds from training) plus coverage of the 4 templates never used in training, generated separately as synthetic_curriculum_unseen_templates -- combined here as the representative unseen-map pool for primary easy-stage graduation scoring. Individual instances that proved unusually hard belong in easy_challenge as fixed regression scenarios, not here."
+}
