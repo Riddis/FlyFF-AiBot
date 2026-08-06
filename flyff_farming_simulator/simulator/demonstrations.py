@@ -32,7 +32,7 @@ from .schema import (
     unique_recording_paths,
     validate_recording_contract,
 )
-from .world_model import movement_action_from_mask
+from .world_model import movement_action_from_mask, steering_action_from_mask
 
 _DIRECT_PATH_LIMIT = 96
 
@@ -192,6 +192,13 @@ def export_demonstrations(
         held_movement: FarmingAction | None = FarmingAction.RUN_FORWARD
         for frame in archive.frames():
             mask_action = movement_action_from_mask(frame.key_mask)
+            # movement_action_from_mask collapses any forward+jump combination
+            # to legacy action 4 regardless of concurrent left/right bits --
+            # correct for that legacy scalar, but it must never be used to
+            # derive held/steering state here, or a jump tap would silently
+            # erase the concurrently-held steering key. steering_action_from_mask
+            # reads only the forward/left/right bits, independent of jump.
+            mask_steering = steering_action_from_mask(frame.key_mask)
             action_is_eva = frame.action == int(FarmingAction.CAST_EVA)
             action_is_verified_movement = bool(
                 frame.action in (0, 1, 2, 4) and mask_action == frame.action
@@ -204,12 +211,12 @@ def export_demonstrations(
                 role == "direct_keyboard" and action_is_verified_movement
             )
             frame_held = held_movement
-            if mask_action is not None:
+            if mask_steering is not None:
                 frame_held = (
-                    FarmingAction.RUN_FORWARD
-                    if mask_action == int(FarmingAction.RUN_FORWARD_JUMP)
-                    else FarmingAction(mask_action)
-                )
+                    FarmingAction.RUN_FORWARD,
+                    FarmingAction.RUN_FORWARD_LEFT,
+                    FarmingAction.RUN_FORWARD_RIGHT,
+                )[mask_steering]
             if frame.phase == 1 and frame.focused and recognized:
                 observations.append(
                     _frame_observation(
@@ -252,19 +259,19 @@ def export_demonstrations(
                     last_eva = frame.elapsed_ms
                 if current_action is FarmingAction.RUN_FORWARD_JUMP:
                     last_jump = frame.elapsed_ms
-                if current_action.is_movement:
+                if current_action.is_movement and mask_steering is not None:
                     held_movement = (
-                        FarmingAction.RUN_FORWARD
-                        if current_action is FarmingAction.RUN_FORWARD_JUMP
-                        else current_action
-                    )
+                        FarmingAction.RUN_FORWARD,
+                        FarmingAction.RUN_FORWARD_LEFT,
+                        FarmingAction.RUN_FORWARD_RIGHT,
+                    )[mask_steering]
                 previous_action = current_action
-            elif mask_action is not None:
+            elif mask_steering is not None:
                 held_movement = (
-                    FarmingAction.RUN_FORWARD
-                    if mask_action == int(FarmingAction.RUN_FORWARD_JUMP)
-                    else FarmingAction(mask_action)
-                )
+                    FarmingAction.RUN_FORWARD,
+                    FarmingAction.RUN_FORWARD_LEFT,
+                    FarmingAction.RUN_FORWARD_RIGHT,
+                )[mask_steering]
             previous = frame
             if maximum_samples is not None and len(observations) >= maximum_samples:
                 break

@@ -235,6 +235,143 @@ def test_recording_fit_and_demo_export(tmp_path: Path) -> None:
     assert eva_data["source_recording_role"].tolist() == ["eva_only"]
 
 
+def test_export_demos_cli_prints_legacy_five_way_action_counts(
+    tmp_path: Path, capsys: object
+) -> None:
+    """The printed CLI summary must use the legacy_actions column, not the
+    factorized (N, 2) actions array. Comparing the whole factorized array to
+    a scalar 0/1/2 double-counts across both the steering and event columns
+    while EVA(3)/JUMP(4) never appear in either column, silently zeroing
+    them out. The exported .npz itself was never affected -- only this
+    printed diagnostic -- but that is exactly what a human validating a new
+    recording would read first."""
+
+    import json
+
+    from simulator.cli import main
+
+    map_data = MapModel.load()
+    recording = _synthetic_recording(tmp_path, map_data)
+    output = tmp_path / "cli_demos.npz"
+
+    exit_code = main(["export-demos", str(recording), "--output", str(output)])
+    assert exit_code == 0
+
+    printed = json.loads(capsys.readouterr().out)  # type: ignore[attr-defined]
+    action_counts = printed["action_counts"]
+    assert sum(action_counts.values()) == printed["samples"]
+    assert action_counts == {"0": 2, "1": 0, "2": 0, "3": 1, "4": 0}
+
+
+def test_export_demonstrations_preserves_simultaneous_steering_and_event(tmp_path: Path) -> None:
+    """A human recording's factorized conversion must not let an EVA or jump
+    tap erase the concurrently-held steering key. The recorded key_mask
+    (not the single legacy action scalar) is what proves steering, so
+    W+Q+EVA must convert to (LEFT, CAST_EVA) and W+D+Space must convert to
+    (RIGHT, JUMP) -- never collapsing to (STRAIGHT, ...) just because the
+    legacy action label for that frame is CAST_EVA or RUN_FORWARD_JUMP."""
+
+    import json
+    import zipfile
+
+    from simulator.demonstrations import export_demonstrations
+
+    map_data = MapModel.load()
+    x, z = map_data.layout_to_native(*map_data.random_safe_cell(np.random.default_rng(11)))
+    q = 0.05
+    xq, zq = round(x / q), round(z / q)
+    session = tmp_path / "session"
+    session.mkdir()
+    (session / "manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "recorder_version": "1.11.0",
+                "status": "success",
+                "recording_provenance": {
+                    "recording_role": "direct_keyboard_demonstration",
+                    "movement_control_scheme": "keyboard_wasd",
+                    "direct_movement_labels_allowed": True,
+                },
+                "sampling": {
+                    "position_quantum_native": q,
+                    "presence_species_offset": 0x1ABC,
+                    "presence_species_validated": True,
+                },
+                "files": {
+                    "frames": "frames.msgpack.gz",
+                    "events": "events.msgpack.gz",
+                    "inputs": "inputs.msgpack.gz",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    forward, left, right, jump = 1, 2, 4, 8  # _FORWARD_BIT, _LEFT_BIT, _RIGHT_BIT, _JUMP_BIT
+    frames = [
+        {"type": "header"},
+        # W held alone, plain FORWARD -- baseline sanity.
+        ["frame", 0, 0, 1, 1000, xq, 0, zq, 0, True, forward, 0, True, [], 1, 0, 0],
+        # W+Q held while EVA is cast: steering must stay LEFT, not reset to
+        # STRAIGHT just because the legacy action label is CAST_EVA.
+        ["frame", 1, 200, 1, 1000, xq, 0, zq, 0, True, forward | left, 3, False, [], 1, 0, 0],
+        # W+D+Space held while jumping: steering must stay RIGHT. The real
+        # key_mask genuinely sets the jump bit alongside forward+right here
+        # (jump is a real, physical key press, not inferred).
+        ["frame", 2, 400, 1, 1000, xq, 0, zq, 0, True, forward | right | jump, 4, False, [], 1, 0, 0],
+    ]
+    events = [{"type": "header"}]
+    inputs = [{"type": "header"}, ["input", 0, True, forward, 0]]
+    _write_stream(session / "frames.msgpack.gz", frames)
+    _write_stream(session / "events.msgpack.gz", events)
+    _write_stream(session / "inputs.msgpack.gz", inputs)
+    zip_path = tmp_path / "recording.zip"
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        for path in session.iterdir():
+            archive.write(path, path.name)
+
+    demos = export_demonstrations([zip_path], tmp_path / "demos.npz", map_model=map_data)
+    data = np.load(demos, allow_pickle=False)
+
+    assert data["actions"].tolist() == [[0, 0], [1, 1], [2, 2]]
+    assert data["legacy_actions"].tolist() == [0, 3, 4]
+    assert data["steering_label_valid"].tolist() == [True, True, True]
+    assert data["event_label_valid"].tolist() == [True, True, True]
+
+
+def test_inventory_tool_classifies_recording_retroactively(tmp_path: Path) -> None:
+    """tools/inventory_recordings.py must work purely from archived frame
+    data (position, focus, key mask), since that's what lets it classify
+    archives that predate recorder 1.11's embedded classification."""
+
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    import inventory_recordings
+
+    map_data = MapModel.load()
+    recording = _synthetic_recording(tmp_path, map_data)
+
+    result = inventory_recordings.classify_recording(recording)
+
+    assert "error" not in result
+    assert result["retroactive_movement_scheme"] in {
+        "keyboard_wasd",
+        "click_to_move",
+        "mixed",
+        "unknown",
+    }
+    assert result["eva_events"] == 1
+    assert result["eva_only_eligible"] is True
+    assert "eva_event_evidence" in result["usable_for"]
+    assert "pointer_recovery_diagnostics" in result["usable_for"]
+    # This fixture's provenance/attestation is exactly what
+    # test_export_demos_cli_prints_legacy_five_way_action_counts already
+    # exercises via the embedded manifest; ready_for_demonstrations must
+    # agree with that same schema.allows_direct_movement_labels gate.
+    assert result["ready_for_demonstrations"] is True
+
+
 def test_unproven_presence_and_missing_wasd_provenance_are_rejected(tmp_path: Path) -> None:
     import json
     import zipfile
@@ -473,3 +610,85 @@ def test_synthetic_parser_defaults() -> None:
     assert args.episode_steps == 6000
     assert np.isclose(args.learning_rate, 5.0e-5)
     assert args.checkpoint_freq == 25_000
+
+
+def _click_to_move_recording_with_eva(tmp_path: Path, map_data: MapModel, *, name: str) -> Path:
+    """A recording with real EVA presses but no attested direct-keyboard
+    provenance and a click_to_move classification -- eva-only supplementary,
+    never demonstration-eligible."""
+
+    import json
+    import zipfile
+
+    x, z = map_data.layout_to_native(*map_data.random_safe_cell(np.random.default_rng(21)))
+    q = 0.05
+    xq, zq = round(x / q), round(z / q)
+    session = tmp_path / name
+    session.mkdir()
+    (session / "manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "recorder_version": "1.9.0",
+                "status": "success",
+                "recording_provenance": {
+                    "movement_control_scheme": "click_to_move",
+                    "direct_movement_labels_allowed": False,
+                },
+                "sampling": {
+                    "position_quantum_native": q,
+                    "presence_species_offset": 0x1ABC,
+                    "presence_species_validated": False,
+                },
+                "files": {
+                    "frames": "frames.msgpack.gz",
+                    "events": "events.msgpack.gz",
+                    "inputs": "inputs.msgpack.gz",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    frames = [
+        {"type": "header"},
+        ["frame", 0, 0, 1, 1000, xq, 0, zq, 0, True, 0, 3, True, [], 1, 0, 0],
+    ]
+    events = [{"type": "header"}]
+    inputs = [{"type": "header"}, ["input", 0, True, 0, 0]]
+    _write_stream(session / "frames.msgpack.gz", frames)
+    _write_stream(session / "events.msgpack.gz", events)
+    _write_stream(session / "inputs.msgpack.gz", inputs)
+    zip_path = tmp_path / f"{name}.zip"
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        for path in session.iterdir():
+            archive.write(path, path.name)
+    return zip_path
+
+
+def test_recording_discovery_splits_by_eligibility(tmp_path: Path) -> None:
+    from simulator.recording_discovery import (
+        discover_direct_demonstration_eligible,
+        discover_eva_only_supplementary,
+        discover_world_model_eligible,
+    )
+
+    map_data = MapModel.load()
+    training_dir = tmp_path / "training"
+    training_dir.mkdir()
+    eva_only_dir = tmp_path / "eva_only"
+    eva_only_dir.mkdir()
+
+    demo_recording = _synthetic_recording(training_dir, map_data)
+    click_recording = _click_to_move_recording_with_eva(eva_only_dir, map_data, name="click")
+
+    demo_eligible = discover_direct_demonstration_eligible([training_dir, eva_only_dir])
+    assert demo_eligible == [demo_recording]
+
+    world_eligible = discover_world_model_eligible([training_dir, eva_only_dir])
+    assert world_eligible == [demo_recording]  # only this fixture sets presence_species_validated=True
+
+    eva_supplementary = discover_eva_only_supplementary(
+        [training_dir, eva_only_dir], exclude=demo_eligible
+    )
+    assert eva_supplementary == [click_recording]
+    assert set(demo_eligible).isdisjoint(eva_supplementary)

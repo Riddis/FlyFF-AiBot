@@ -76,28 +76,51 @@ def _steering_for_angle(angle: float | None) -> SteeringAction:
     return SteeringAction.LEFT if angle > 0.0 else SteeringAction.RIGHT
 
 
+# Jump is never an obstacle-recovery or "unstuck" mechanic: getting boxed in
+# is a steering/positioning problem the policy must learn to avoid on its own
+# (via contact/obstacle penalties), not something a jump resolves. Jump is
+# purely idle flair -- an occasional human-like tap while cruising with
+# nothing better to do. The rate below matches the ~0.25% jump frequency
+# measured in the real direct-WASD Riddims recording (3 of 1,196 samples), so
+# the teacher reproduces a human cadence rather than an invented one.
+FLAIR_JUMP_PROBABILITY = 0.0025
+
+
+def _event_for(env: RecordedFarmingEnv) -> FarmingEvent:
+    if env.eva_available() and env.eva_target_count() > 0:
+        return FarmingEvent.CAST_EVA
+    if env.jump_available() and env.rng.random() < FLAIR_JUMP_PROBABILITY:
+        return FarmingEvent.JUMP
+    return FarmingEvent.NONE
+
+
 def nearest_group_command(env: RecordedFarmingEnv) -> FarmingCommand:
     steering = _steering_for_angle(env.best_group_relative_angle())
-    event = (
-        FarmingEvent.CAST_EVA
-        if env.eva_available() and env.eva_target_count() > 0
-        else FarmingEvent.NONE
-    )
-    return FarmingCommand(steering, event)
+    return FarmingCommand(steering, _event_for(env))
 
 
 def nearest_reachable_command(env: RecordedFarmingEnv) -> FarmingCommand:
     steering = _steering_for_angle(env.nearest_reachable_relative_angle())
-    event = (
-        FarmingEvent.CAST_EVA
-        if env.eva_available() and env.eva_target_count() > 0
-        else FarmingEvent.NONE
-    )
-    return FarmingCommand(steering, event)
+    return FarmingCommand(steering, _event_for(env))
+
+
+def _obstacle_aware_target_angle(env: RecordedFarmingEnv) -> float | None:
+    """Prefer a geodesically reachable target over the highest-scoring
+    visible one. ``best_group_relative_angle`` can point at a group that is
+    visible but separated by an obstacle; chasing it left the player wedged
+    against the obstacle for the rest of the episode, since the local
+    left/right/straight dodge below never resolves an unreachable heading.
+    Falling back to the best visible angle only when nothing is reachable at
+    all still orients the player toward distant activity instead of idling."""
+
+    reachable = env.nearest_reachable_relative_angle()
+    if reachable is not None:
+        return reachable
+    return env.best_group_relative_angle()
 
 
 def obstacle_aware_command(env: RecordedFarmingEnv) -> FarmingCommand:
-    steering = _steering_for_angle(env.best_group_relative_angle())
+    steering = _steering_for_angle(_obstacle_aware_target_angle(env))
     movement = steering.legacy_movement
     if not env.movement_path_clear(movement):
         for alternative in (
@@ -108,14 +131,10 @@ def obstacle_aware_command(env: RecordedFarmingEnv) -> FarmingCommand:
             if env.movement_path_clear(alternative.legacy_movement):
                 steering = alternative
                 break
-        else:
-            return FarmingCommand(steering, FarmingEvent.JUMP)
-    event = (
-        FarmingEvent.CAST_EVA
-        if env.eva_available() and env.eva_target_count() > 0
-        else FarmingEvent.NONE
-    )
-    return FarmingCommand(steering, event)
+        # If no alternative is clear either, keep the originally desired
+        # steering rather than substituting a jump. EVA below still fires
+        # regardless of movement, since it never required a clear path.
+    return FarmingCommand(steering, _event_for(env))
 
 
 def scripted_command(name: str, env: RecordedFarmingEnv) -> FarmingCommand:

@@ -107,11 +107,26 @@ def _evaluate_env(
     total_elapsed = max(1e-9, sum(elapsed_values))
     total_commands = max(1, sum(command_counts.values()))
     component_names = sorted({name for item in component_totals for name in item})
+    # Per-episode rates, not the pooled sum-over-total-time rate: pooling lets
+    # one strong episode mask a weak one (or vice versa) inside a single
+    # number. A single seed/episode run degenerates to exactly the pooled
+    # value (median of one value), so this is a no-op for every existing
+    # episodes=1 caller -- it only changes semantics once episodes>1, which
+    # is exactly where the old pooled figure was misleading gate decisions.
+    episode_kill_rates = [
+        k * 3600.0 / max(1e-9, e) for k, e in zip(kills, elapsed_values, strict=True)
+    ]
     return {
         "episodes": int(episodes),
         "mean_reward": float(np.mean(rewards)),
         "mean_kills": float(np.mean(kills)),
-        "kills_per_simulated_hour": float(sum(kills) * 3600.0 / total_elapsed),
+        "kills_per_simulated_hour": float(np.median(episode_kill_rates)),
+        "pooled_kills_per_simulated_hour": float(sum(kills) * 3600.0 / total_elapsed),
+        "kills_per_simulated_hour_min": float(np.min(episode_kill_rates)),
+        "kills_per_simulated_hour_max": float(np.max(episode_kill_rates)),
+        "kills_per_simulated_hour_p25": float(np.percentile(episode_kill_rates, 25)),
+        "kills_per_simulated_hour_p75": float(np.percentile(episode_kill_rates, 75)),
+        "episode_kills_per_simulated_hour": episode_kill_rates,
         "mean_simulated_seconds": float(np.mean(elapsed_values)),
         "mean_valid_eva_casts": float(np.mean(valid_casts)),
         "mean_invalid_eva_attempts": float(np.mean(invalid_casts)),

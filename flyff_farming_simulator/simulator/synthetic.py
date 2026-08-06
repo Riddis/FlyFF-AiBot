@@ -9,6 +9,9 @@ from typing import Iterable
 
 import numpy as np
 
+from farming.actions import FarmingAction
+
+from . import movement_kinematics
 from .environment import RecordedFarmingEnv
 from .map_model import MapModel
 from .world_model import MovementModel, RecordedWorldModel
@@ -214,6 +217,177 @@ def _place_obstacles(
         if np.count_nonzero(connected) >= np.count_nonzero(candidate) * 0.985:
             result = connected
     return _largest_component(result)
+
+
+# Escapability validation ----------------------------------------------------
+#
+# A "stuck" state is one where the bot's real latched-forward controls
+# (STRAIGHT/LEFT/RIGHT, with the same sliding collision response
+# ``RecordedFarmingEnv`` uses live) cannot make meaningful progress. Left
+# unchecked, obstacle placement can create concave pockets or dead ends the
+# bot wanders into and never leaves -- corrupting BC/teacher datasets with
+# degenerate repeated-label episodes and letting a PPO rollout waste an
+# entire episode wedged against a wall. Each stage gets a progressively
+# larger tick budget to escape within, but every stage requires a proof of
+# escapability; none accepts a truly unescapable state.
+_STAGE_ESCAPE_TICKS: dict[str, int] = {"early": 8, "intermediate": 18, "advanced": 35}
+_ESCAPE_MAX_VISITED_STATES = 4_000
+_ESCAPE_SAMPLE_POSITIONS = 120
+_ESCAPE_HEADINGS_PER_POSITION = 4
+
+
+def _turn_step_radians(movement: tuple[MovementModel, ...]) -> float:
+    """The per-tick heading change from one LEFT/RIGHT tap, matching the
+    exact convention ``RecordedFarmingEnv.movement_path_clear`` uses."""
+
+    left = float(movement[int(FarmingAction.RUN_FORWARD_LEFT)].turn_mean_radians)
+    step = abs(left)
+    return step if step > 0.01 else 0.10
+
+
+def _regains_movement_within(
+    map_model: MapModel,
+    movement: tuple[MovementModel, ...],
+    x: float,
+    z: float,
+    heading: float,
+    *,
+    max_ticks: int,
+) -> bool:
+    """Whether the bot's real controls can regain a genuinely clear
+    direction -- a full ordinary movement step with no contact at all --
+    within ``max_ticks`` control ticks, branching over STRAIGHT/LEFT/RIGHT.
+
+    Success requires an uncontacted step, not merely any displacement: a
+    sliding move that is still blocked can shuffle the player sideways, or
+    even deeper into a dead end, while never actually freeing them, and
+    counting that as "escaped" would pass layouts that still trap the bot.
+    Continued search between ticks uses the sliding response so the frontier
+    reflects where the bot's controls would actually carry it while still
+    blocked, matching ``RecordedFarmingEnv``'s live collision handling.
+    """
+
+    turn_step = _turn_step_radians(movement)
+    forward_distance_cells = max(
+        0.5, float(movement[int(FarmingAction.RUN_FORWARD)].distance_mean_cells)
+    )
+    native_distance = forward_distance_cells * map_model.native_units_per_cell
+    unit = max(1.0e-6, map_model.native_units_per_cell)
+
+    def discretize(px: float, pz: float, heading_value: float) -> tuple[int, int, int]:
+        return (
+            int(round(px / unit * 2.0)),
+            int(round(pz / unit * 2.0)),
+            int(round(heading_value / turn_step)),
+        )
+
+    frontier: list[tuple[float, float, float]] = [(x, z, heading)]
+    visited = {discretize(x, z, heading)}
+    for _tick in range(int(max_ticks)):
+        next_frontier: list[tuple[float, float, float]] = []
+        for px, pz, ph in frontier:
+            for turn in (0.0, turn_step, -turn_step):
+                new_heading = math.atan2(math.sin(ph + turn), math.cos(ph + turn))
+                dx = math.cos(new_heading) * native_distance
+                dz = math.sin(new_heading) * native_distance
+                _direct_x, _direct_z, direct_contact = movement_kinematics.sweep(
+                    map_model, px, pz, dx, dz
+                )
+                if not direct_contact:
+                    return True
+                nx, nz, _ = movement_kinematics.advance_with_slide(map_model, px, pz, dx, dz)
+                key = discretize(nx, nz, new_heading)
+                if key in visited:
+                    continue
+                visited.add(key)
+                if len(visited) > _ESCAPE_MAX_VISITED_STATES:
+                    return False
+                next_frontier.append((nx, nz, new_heading))
+        if not next_frontier:
+            return False
+        frontier = next_frontier
+    return False
+
+
+def _boundary_safe_positions(map_model: MapModel) -> np.ndarray:
+    """Safe cells adjacent to any non-safe neighbor (obstacle, its buffer,
+    or the map edge) -- exactly where a concave pocket or dead end could
+    exist. Interior open cells can never be enclosed and would waste
+    validation time, so they are excluded from sampling entirely.
+    """
+
+    safe = np.asarray(map_model.features.safe_traversable, dtype=bool)
+    not_safe = ~safe
+    padded = np.pad(not_safe, 1, mode="constant", constant_values=True)
+    boundary = np.zeros_like(safe)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            if dx == 0 and dy == 0:
+                continue
+            boundary |= padded[1 + dy : 1 + dy + safe.shape[0], 1 + dx : 1 + dx + safe.shape[1]]
+    boundary &= safe
+    return np.argwhere(boundary)
+
+
+def _layout_escapability_reasons(
+    map_model: MapModel,
+    movement: tuple[MovementModel, ...],
+    rng: np.random.Generator,
+    *,
+    stage: str,
+    spawn_native: tuple[float, float],
+) -> list[str]:
+    """Sample obstacle-adjacent positions and headings and require every one
+    to regain meaningful movement within the stage's tick budget. The spawn
+    point is always additionally required to pass the strictest (early-stage)
+    budget, so a player never starts wedged against an obstacle corner
+    regardless of how lenient the surrounding stage is.
+    """
+
+    max_ticks = _STAGE_ESCAPE_TICKS[stage]
+    reasons: list[str] = []
+
+    # RecordedFarmingEnv.reset() assigns a uniform-random heading at spawn
+    # (``self.heading = rng.uniform(-pi, pi)``), so the spawn position must
+    # be escapable from every sampled heading, not merely some of them.
+    spawn_ticks = _STAGE_ESCAPE_TICKS["early"]
+    failing_headings = [
+        heading
+        for heading in np.linspace(-math.pi, math.pi, 8, endpoint=False)
+        if not _regains_movement_within(
+            map_model, movement, spawn_native[0], spawn_native[1], heading, max_ticks=spawn_ticks
+        )
+    ]
+    if failing_headings:
+        reasons.append(
+            f"spawn point is not escapable from {len(failing_headings)}/8 sampled headings "
+            "within the turning envelope"
+        )
+
+    boundary_cells = _boundary_safe_positions(map_model)
+    if len(boundary_cells) == 0:
+        return reasons
+    sample_count = min(int(_ESCAPE_SAMPLE_POSITIONS), len(boundary_cells))
+    chosen = boundary_cells[rng.choice(len(boundary_cells), size=sample_count, replace=False)]
+    failures = 0
+    first_failure: tuple[int, int] | None = None
+    for cell_y, cell_x in chosen:
+        native_x, native_z = map_model.layout_to_native(float(cell_x), float(cell_y))
+        headings = rng.uniform(-math.pi, math.pi, size=_ESCAPE_HEADINGS_PER_POSITION)
+        for heading in headings:
+            if not _regains_movement_within(
+                map_model, movement, native_x, native_z, float(heading), max_ticks=max_ticks
+            ):
+                failures += 1
+                if first_failure is None:
+                    first_failure = (int(cell_x), int(cell_y))
+                break
+    if failures:
+        reasons.append(
+            f"{failures}/{sample_count} sampled obstacle-adjacent positions cannot regain movement "
+            f"within {max_ticks} ticks (first failure near layout cell {first_failure})"
+        )
+    return reasons
 
 
 def _generate_layout(
@@ -471,6 +645,50 @@ def _variant_plan(count: int) -> list[tuple[str, str, str, str, int]]:
     return plan
 
 
+_MAX_LAYOUT_ATTEMPTS = 40
+
+
+def _generate_validated_layout(
+    template: str,
+    base_seed: int,
+    *,
+    obstacle_level: int,
+    stage: str,
+    movement: tuple[MovementModel, ...],
+) -> tuple[MapModel, tuple[int, int], dict[str, object], np.random.Generator]:
+    """Regenerate a layout until it passes the stage's escapability gate,
+    rather than silently shipping one that can trap the bot. Each attempt is
+    a full, independently-seeded regeneration (template shape, size, and
+    obstacle placement together) so a failing attempt never leaves partial
+    state behind for the next one.
+    """
+
+    last_reasons: list[str] = []
+    for attempt in range(_MAX_LAYOUT_ATTEMPTS):
+        attempt_rng = np.random.default_rng(base_seed + attempt * 104_729)
+        size = int(attempt_rng.integers(188, 241))
+        map_model, spawn_cell, metadata = _generate_layout(
+            template, attempt_rng, size=size, obstacle_level=obstacle_level
+        )
+        spawn_native = map_model.layout_to_native(*spawn_cell)
+        reasons = _layout_escapability_reasons(
+            map_model, movement, attempt_rng, stage=stage, spawn_native=spawn_native
+        )
+        if not reasons:
+            metadata = {
+                **metadata,
+                "escapability_validated": True,
+                "escapability_stage_budget_ticks": _STAGE_ESCAPE_TICKS[stage],
+                "escapability_attempts": attempt + 1,
+            }
+            return map_model, spawn_cell, metadata, attempt_rng
+        last_reasons = reasons
+    raise ValueError(
+        f"Could not generate an escapable {stage!r} layout for template {template!r} "
+        f"after {_MAX_LAYOUT_ATTEMPTS} attempts: {'; '.join(last_reasons)}"
+    )
+
+
 def generate_synthetic_curriculum(
     output_directory: str | Path,
     *,
@@ -481,21 +699,54 @@ def generate_synthetic_curriculum(
 ) -> Path:
     if count < 3:
         raise ValueError("Synthetic curriculum requires at least three variants")
+    return generate_curriculum_from_plan(
+        output_directory,
+        _variant_plan(count),
+        seed=seed,
+        reference_model=reference_model,
+        overwrite=overwrite,
+    )
+
+
+def generate_curriculum_from_plan(
+    output_directory: str | Path,
+    plan: list[tuple[str, str, str, str, int]],
+    *,
+    seed: int,
+    reference_model: RecordedWorldModel | None = None,
+    overwrite: bool = False,
+    curriculum_name: str = "FlyFF generic open-farm curriculum",
+) -> Path:
+    """Generate a curriculum from an explicit (stage, template, density,
+    respawn, obstacle_level) plan, bypassing _variant_plan's automatic
+    cycling.
+
+    _variant_plan's stage cycle (period 3) and template cycle (period 6)
+    share a common factor, so every stage it produces is structurally
+    limited to exactly 2 of the 6 templates no matter how many variants are
+    requested -- fine for a training curriculum that has already been
+    trained on and must stay reproducible, but not adequate for a held-out
+    set meant to probe generalization across the full template space. Pass
+    an explicit plan here instead of going through generate_synthetic_curriculum
+    when that coverage matters.
+    """
+
+    if not plan:
+        raise ValueError("Synthetic curriculum requires at least one planned variant")
     root = Path(output_directory)
     if root.exists() and overwrite:
         shutil.rmtree(root)
     root.mkdir(parents=True, exist_ok=True)
     variants: list[SyntheticVariantSpec] = []
-    plan = _variant_plan(count)
+    reference_movement = _movement_from_reference(reference_model)
     for index, (stage, template, density, respawn, obstacle_level) in enumerate(plan, start=1):
         variant_seed = int(seed + index * 7919)
-        rng = np.random.default_rng(variant_seed)
-        size = int(rng.integers(188, 241))
-        map_model, spawn_cell, map_metadata = _generate_layout(
+        map_model, spawn_cell, map_metadata, rng = _generate_validated_layout(
             template,
-            rng,
-            size=size,
+            variant_seed,
             obstacle_level=obstacle_level,
+            stage=stage,
+            movement=reference_movement,
         )
         name = f"{index:02d}_{stage}_{template}_{density}_{respawn}"
         variant_root = root / "variants" / name
@@ -534,7 +785,7 @@ def generate_synthetic_curriculum(
             spawn_positions_by_section=reservoirs,
             transition_probabilities=transition,
             respawn_delay_seconds=_respawn_samples(respawn, rng),
-            movement=_movement_from_reference(reference_model),
+            movement=reference_movement,
             monster_speed_cells_per_second=float(rng.uniform(0.0, 0.18)),
             frame_interval_seconds=(reference_model.frame_interval_seconds if reference_model else 0.20),
             native_units_per_cell=map_model.native_units_per_cell,
@@ -567,7 +818,7 @@ def generate_synthetic_curriculum(
         )
     curriculum = SyntheticCurriculum(
         schema_version=CURRICULUM_SCHEMA_VERSION,
-        name="FlyFF generic open-farm curriculum",
+        name=curriculum_name,
         generated_seed=int(seed),
         variants=tuple(variants),
         design_rules=(
@@ -578,6 +829,10 @@ def generate_synthetic_curriculum(
             "No maze, dungeon-room chain, long corridor, or precision-navigation layout is generated.",
             "Monster populations use loose spatial clusters and varied regional density.",
             "Respawn timing and redistribution vary across layouts.",
+            "Every layout is validated so the bot's real latched-forward controls can "
+            "regain meaningful movement from any sampled obstacle-adjacent position and "
+            "heading within a stage-appropriate tick budget; unescapable pockets are "
+            "rejected and regenerated, never shipped.",
         ),
     )
     return curriculum.save(root / "curriculum.json")

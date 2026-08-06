@@ -241,6 +241,7 @@ class RecorderController:
         quantum = float(self.config.position_quantum_native)
         recording_provenance = {
             "classification_method": "automatic_keys_plus_displacement_v1",
+            "recording_role": "unknown",
             "movement_control_scheme": "unknown",
             "direct_movement_labels_allowed": False,
         }
@@ -645,6 +646,7 @@ class RecorderController:
                             evidence=proven,
                             source="session_longitudinal_profiler",
                         ):
+                            active_profiler.mark_promoted(int(proven["offset"]))
                             log(
                                 "Dynamically validated instantiated/presence field "
                                 f"+0x{int(proven['offset']):X}; hot/cold polling is now active."
@@ -815,7 +817,16 @@ class RecorderController:
                         active_profile_report,
                     )
                     recommended = active_profile_report.get("recommended_offset")
-                    if recommended is None:
+                    promoted = active_profile_report.get("promoted_offsets") or []
+                    if promoted:
+                        log(
+                            "Instantiated/presence field "
+                            f"{', '.join(promoted)} was dynamically validated and promoted "
+                            "this session; hot/cold polling ran on it for the remainder of "
+                            "the recording regardless of how later cumulative diagnostic "
+                            "evidence scored."
+                        )
+                    elif recommended is None:
                         log(
                             "No instantiated/loaded field was proven in this session; "
                             "diagnostic candidates were saved."
@@ -841,6 +852,18 @@ class RecorderController:
             movement_report = movement_classifier.report()
             recording_provenance = {
                 **recording_provenance,
+                # Must match simulator.schema.DIRECT_KEYBOARD_RECORDING_ROLE
+                # exactly; the two projects ship independently, so this is a
+                # literal, not a shared import. Without this field the
+                # simulator's embedded-provenance gate can never accept any
+                # recorder-emitted archive, no matter how confidently it was
+                # classified, since it also requires recording_role to equal
+                # that constant.
+                "recording_role": (
+                    "direct_keyboard_demonstration"
+                    if movement_report.direct_movement_labels_allowed
+                    else "world_model_observation"
+                ),
                 "movement_control_scheme": movement_report.scheme,
                 "direct_movement_labels_allowed": (
                     movement_report.direct_movement_labels_allowed

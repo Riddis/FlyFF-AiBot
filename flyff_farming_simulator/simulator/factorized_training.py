@@ -55,20 +55,46 @@ def _head_predictions(policy: Any, observations: np.ndarray, batch_size: int) ->
     return np.concatenate(result, axis=0)
 
 
-def factorized_stage_gate(expected: np.ndarray, predicted: np.ndarray) -> dict[str, Any]:
+def factorized_stage_gate(
+    expected: np.ndarray,
+    predicted: np.ndarray,
+    *,
+    steering_valid_mask: np.ndarray | None = None,
+) -> dict[str, Any]:
+    """Score both factorized heads, optionally excluding untrustworthy steering rows.
+
+    Some human recordings (click-to-move / mixed control) can supply a real
+    event label without any trustworthy steering label -- their steering
+    column is a meaningless default, never inferred from mouse movement.
+    ``steering_valid_mask`` (aligned with ``expected``/``predicted`` rows)
+    keeps those rows out of the steering head's scoring and out of
+    exact-command accuracy, while the event head still scores every row.
+    Omitting the mask reproduces the original unmasked behaviour exactly.
+    """
+
     truth = np.asarray(expected, dtype=np.int64)
     guesses = np.asarray(predicted, dtype=np.int64)
     if truth.ndim != 2 or truth.shape[1] != 2 or guesses.shape != truth.shape:
         raise ValueError("Factorized stage-gate actions must have shape (N, 2)")
+    if steering_valid_mask is None:
+        steering_mask = np.ones(len(truth), dtype=np.bool_)
+    else:
+        steering_mask = np.asarray(steering_valid_mask, dtype=np.bool_)
+        if steering_mask.shape != (len(truth),):
+            raise ValueError("steering_valid_mask must align with the label rows")
+    event_mask = np.ones(len(truth), dtype=np.bool_)
     reasons: list[str] = []
     heads: dict[str, Any] = {}
     specs = (
-        ("steering", 3, (0, 1, 2), 0.15),
-        ("event", 3, (0, 1), 0.20),
+        ("steering", 3, (0, 1, 2), 0.15, steering_mask),
+        ("event", 3, (0, 1), 0.20, event_mask),
     )
-    for index, (name, count, required, minimum_recall) in enumerate(specs):
+    for index, (name, count, required, minimum_recall, head_mask) in enumerate(specs):
+        head_truth = truth[head_mask, index]
+        head_guesses = guesses[head_mask, index]
         confusion = np.zeros((count, count), dtype=np.int64)
-        np.add.at(confusion, (truth[:, index], guesses[:, index]), 1)
+        if head_truth.size:
+            np.add.at(confusion, (head_truth, head_guesses), 1)
         predicted_counts = confusion.sum(axis=0)
         per_class = []
         for value in range(count):
@@ -93,7 +119,7 @@ def factorized_stage_gate(expected: np.ndarray, predicted: np.ndarray) -> dict[s
                     reasons.append(
                         f"{name}={value} recall {recall:.3f} is below {minimum_recall:.3f}"
                     )
-        maximum_fraction = float(predicted_counts.max() / max(1, len(truth)))
+        maximum_fraction = float(predicted_counts.max() / max(1, int(head_truth.size)))
         if name == "steering" and maximum_fraction > 0.90:
             reasons.append(
                 f"one steering choice occupies {maximum_fraction:.3f} of predictions"
@@ -101,16 +127,23 @@ def factorized_stage_gate(expected: np.ndarray, predicted: np.ndarray) -> dict[s
         if name == "event" and int(predicted_counts[int(FarmingEvent.CAST_EVA)]) == 0:
             reasons.append("validation predicts no EVA events")
         heads[name] = {
-            "accuracy": float(np.mean(truth[:, index] == guesses[:, index])),
+            "accuracy": float(np.mean(head_truth == head_guesses)) if head_truth.size else 0.0,
             "maximum_prediction_fraction": maximum_fraction,
             "predicted_counts": predicted_counts.tolist(),
             "confusion_matrix_true_rows": confusion.tolist(),
             "per_class": per_class,
+            "samples": int(head_truth.size),
         }
+    exact_truth = truth[steering_mask]
+    exact_guesses = guesses[steering_mask]
     return {
         "passed": not reasons,
         "samples": int(len(truth)),
-        "exact_command_accuracy": float(np.mean(np.all(truth == guesses, axis=1))),
+        "exact_command_accuracy": (
+            float(np.mean(np.all(exact_truth == exact_guesses, axis=1)))
+            if exact_truth.size
+            else 0.0
+        ),
         "heads": heads,
         "reasons": reasons,
     }
@@ -292,10 +325,19 @@ def _train_balanced_factorized_heads(
     event_updates = 0
     policy.train()
     for _ in range(int(epochs)):
-        steering_order = _balanced_resample_indices(
-            labels[:, 0], steering_indices, steering_values, rng
-        )
-        if event_target_fractions is None:
+        # An empty values tuple means this call has nothing to teach that
+        # head this round (e.g. a human-demonstration source contributing
+        # only event supervision, no steering-valid samples this session) --
+        # skip it rather than asking the resampler to balance zero classes.
+        if not steering_values:
+            steering_order = np.zeros(0, dtype=np.int64)
+        else:
+            steering_order = _balanced_resample_indices(
+                labels[:, 0], steering_indices, steering_values, rng
+            )
+        if not event_values:
+            event_order = np.zeros(0, dtype=np.int64)
+        elif event_target_fractions is None:
             event_order = _balanced_resample_indices(
                 labels[:, 1], event_indices, event_values, rng
             )

@@ -380,6 +380,137 @@ def test_active_field_profiler_recovers_instantiated_duplicate_without_using_zer
     assert report["historical_offsets"]["0x217C"] is None
 
 
+def test_active_field_profiler_report_keeps_promoted_offset_after_evidence_drifts() -> None:
+    """A field promoted mid-session must stay reported as validated even if
+    later cumulative diagnostic evidence alone would no longer pass the
+    strict gate. The native reader used the promoted offset for the rest of
+    the session regardless of how the profiler's own running ratios moved
+    afterward, so the exported report, and the final summary log built from
+    it, must not contradict that by claiming nothing was ever proven."""
+
+    import struct
+
+    from recorder.active_field_profiler import ActiveFieldProfiler
+
+    class Memory:
+        def __init__(self) -> None:
+            self.blocks: dict[int, bytearray] = {}
+
+        def read(self, address: int, size: int) -> bytes:
+            for base, block in self.blocks.items():
+                if base <= address and address + size <= base + len(block):
+                    start = address - base
+                    return bytes(block[start : start + size])
+            raise OSError("unmapped")
+
+    memory = Memory()
+    stride = 0x2008
+    active_offset = 0x1DBC
+    bases = [0x300000 + index * 0x4000 for index in range(20)]
+    states = []
+    for index, base in enumerate(bases):
+        species = 944 if index < 10 else 948
+        block = bytearray(stride)
+        struct.pack_into("<i", block, 0x174, species)
+        struct.pack_into("<i", block, active_offset, species)
+        memory.blocks[base] = block
+        states.append(
+            IndependentActorSlotRead(
+                base=base,
+                species=species,
+                hp=400236,
+                x=10.0,
+                y=0.0,
+                z=20.0,
+                active_species=species,
+                active_matches_species=True,
+                target_species=species == 944,
+                state="living",
+                distance_native=4.0,
+            )
+        )
+
+    profiler = ActiveFieldProfiler(
+        memory,
+        actor_stride=stride,
+        object_span=0x4000,
+        excluded_offsets={0x174, 0x81C, 0x160, 0x164, 0x168},
+    )
+    for sample in range(2):
+        profiler.sample_live_states(
+            states, elapsed_ms=sample * 500, maximum_samples=20, maximum_distance_native=80.0
+        )
+
+    far_states = []
+    for index, base in enumerate(bases):
+        species = 944 if index < 10 else 948
+        struct.pack_into("<i", memory.blocks[base], active_offset, 0)
+        far_states.append(
+            IndependentActorSlotRead(
+                base=base,
+                species=species,
+                hp=400236,
+                x=10.0,
+                y=0.0,
+                z=20.0,
+                active_species=0,
+                active_matches_species=False,
+                target_species=species == 944,
+                state="living",
+                distance_native=200.0,
+            )
+        )
+    profiler.sample_live_states(
+        far_states, elapsed_ms=5000, maximum_samples=20, maximum_distance_native=80.0
+    )
+    profiler.sample_dormant_states(
+        far_states,
+        elapsed_ms=5000,
+        minimum_distance_native=160.0,
+        stable_milliseconds=3000,
+        after_near_milliseconds=2000,
+        maximum_samples=20,
+    )
+
+    before = profiler.report()
+    assert before["recommended_offset"] == "0x1DBC"
+
+    # Promotion happens here, mid-session, exactly as session.py does it.
+    profiler.mark_promoted(0x1DBC)
+
+    # More of the session elapses: the field stops clearing on later dormant
+    # reads (e.g. noisier evidence far into a long recording), which alone
+    # would flip `_OffsetEvidence.validated` back to False.
+    for index, base in enumerate(bases):
+        struct.pack_into("<i", memory.blocks[base], active_offset, far_states[index].species)
+    for offset in range(0, 40):
+        elapsed = 20_000 + offset * 3000
+        for index, base in enumerate(bases):
+            history = profiler._state_history[base]
+            history.last_changed_ms = elapsed - 5000
+            history.last_near_ms = elapsed - 4000
+            history.last_dormant_sample_ms = -10_000_000
+        profiler.sample_dormant_states(
+            far_states,
+            elapsed_ms=elapsed,
+            minimum_distance_native=160.0,
+            stable_milliseconds=3000,
+            after_near_milliseconds=2000,
+            maximum_samples=20,
+        )
+
+    live_evidence = profiler._evidence[0x1DBC]
+    assert live_evidence.dormant_ratio > 0.10  # drifted past the strict gate
+    assert live_evidence.validated is False  # confirms the drift really happened
+
+    after = profiler.report()
+    assert after["recommended_offset"] == "0x1DBC"
+    assert "0x1DBC" in after["validated_offsets"]
+    assert "0x1DBC" in after["promoted_offsets"]
+    candidate = next(item for item in after["candidates"] if item["offset_hex"] == "0x1DBC")
+    assert candidate["promoted_this_session"] is True
+
+
 def test_recorder_profiles_and_uses_instantiated_field_as_verified_hint() -> None:
     source = (Path(__file__).resolve().parents[1] / "recorder" / "session.py").read_text(
         encoding="utf-8"
@@ -405,6 +536,23 @@ def test_recorder_profiles_and_uses_instantiated_field_as_verified_hint() -> Non
     assert "presence_cold_verification_batch_size" in capture_source
     assert "_scan_monsters_presence_optimized" in reader_source
     assert "rotating presence and full-verification batches" in reader_source
+
+
+def test_recording_provenance_emits_recording_role_the_simulator_gate_requires() -> None:
+    """simulator.schema.allows_direct_movement_labels only trusts an embedded
+    manifest when recording_provenance.recording_role equals
+    "direct_keyboard_demonstration" -- the two projects ship independently so
+    this string is duplicated, not shared. A prior version of session.py
+    never wrote recording_role at all, so no recorder-emitted archive could
+    ever be recognized as demonstration-ready through the embedded path,
+    regardless of how confidently its movement was classified."""
+
+    source = (Path(__file__).resolve().parents[1] / "recorder" / "session.py").read_text(
+        encoding="utf-8"
+    )
+    assert '"recording_role"' in source
+    assert '"direct_keyboard_demonstration"' in source
+    assert "active_profiler.mark_promoted(" in source
 
 
 def test_presence_sampler_keeps_death_animation_and_cools_after_confirmed_clear() -> None:

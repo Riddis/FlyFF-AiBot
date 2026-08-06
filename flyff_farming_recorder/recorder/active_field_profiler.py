@@ -186,6 +186,22 @@ class ActiveFieldProfiler:
         self.transition_captures = 0
         self._historical_offsets = (0x1DBC, 0x217C)
         self._seen_transition_events: set[tuple[str, int, int, int]] = set()
+        self._promoted_offsets: set[int] = set()
+
+    def mark_promoted(self, offset: int) -> None:
+        """Record that the native reader accepted this offset this session.
+
+        ``_OffsetEvidence.validated`` is a live recomputation over cumulative
+        counters and can legitimately drift back below the strict gate later
+        in a long session even after a real promotion happened and governed
+        presence sampling for the rest of it (dormant/inactive evidence keeps
+        accumulating regardless of promotion). Without this, ``report()``
+        could describe a session as having proven nothing even though the
+        reader spent most of it running on a dynamically validated field,
+        which is exactly the contradiction a downstream consumer must not see.
+        """
+
+        self._promoted_offsets.add(int(offset))
 
     @staticmethod
     def _words(data: bytes) -> tuple[int, ...]:
@@ -513,6 +529,7 @@ class ActiveFieldProfiler:
         ranked = sorted(
             self._evidence.values(),
             key=lambda item: (
+                item.offset in self._promoted_offsets,
                 item.validated,
                 item.score(),
                 item.live_matches,
@@ -524,7 +541,13 @@ class ActiveFieldProfiler:
             reverse=True,
         )
         top = ranked[: max(1, int(top_n))]
-        validated = [item for item in top if item.validated]
+        # A promoted offset stays authoritative for this export even if its
+        # cumulative live-evidence ratio has since drifted below the strict
+        # gate; the reader used it successfully and that fact must not be
+        # silently dropped from the diagnostic snapshot.
+        validated = [
+            item for item in top if item.validated or item.offset in self._promoted_offsets
+        ]
         historical: dict[str, object] = {}
         for offset in self._historical_offsets:
             item = self._evidence.get(offset)
@@ -544,8 +567,12 @@ class ActiveFieldProfiler:
             "recommended_offset": (
                 None if not validated else f"0x{validated[0].offset:X}"
             ),
+            "promoted_offsets": [f"0x{offset:X}" for offset in sorted(self._promoted_offsets)],
             "historical_offsets": historical,
-            "candidates": [item.to_dict() for item in top],
+            "candidates": [
+                {**item.to_dict(), "promoted_this_session": item.offset in self._promoted_offsets}
+                for item in top
+            ],
             "notes": [
                 "The historical pre-maintenance field was int32 actor+0x1DBC.",
                 "actor+0x217C is excluded by the actor-stride boundary because it is the next slot's species field.",

@@ -46,6 +46,7 @@ def _prediction_diagnostics(
     labels: np.ndarray,
     *,
     batch_size: int,
+    steering_valid_mask: np.ndarray | None = None,
 ) -> dict[str, Any]:
     import torch
 
@@ -67,9 +68,29 @@ def _prediction_diagnostics(
     predictions = np.column_stack(
         (steering_probs.argmax(axis=1), event_probs.argmax(axis=1))
     ).astype(np.int64)
-    gate = factorized_stage_gate(labels, predictions)
+    gate = factorized_stage_gate(labels, predictions, steering_valid_mask=steering_valid_mask)
+    mask = (
+        np.ones(len(labels), dtype=np.bool_)
+        if steering_valid_mask is None
+        else np.asarray(steering_valid_mask, dtype=np.bool_)
+    )
 
     def head_report(probabilities: np.ndarray, truth: np.ndarray) -> dict[str, Any]:
+        if probabilities.shape[0] == 0:
+            # e.g. an eva_only-role session's own validation slice, once
+            # masked to steering-valid rows, can legitimately be empty --
+            # this session simply has nothing to say about steering.
+            return {
+                "mean_probabilities": [0.0, 0.0, 0.0],
+                "deterministic_priors": [0.0, 0.0, 0.0],
+                "true_priors": [0.0, 0.0, 0.0],
+                "mean_margin": 0.0,
+                "p10_margin": 0.0,
+                "p50_margin": 0.0,
+                "p90_margin": 0.0,
+                "prior_l1": 0.0,
+                "samples": 0,
+            }
         sorted_probs = np.sort(probabilities, axis=1)
         margins = sorted_probs[:, -1] - sorted_probs[:, -2]
         true_priors = np.bincount(truth, minlength=3).astype(np.float64)
@@ -85,11 +106,12 @@ def _prediction_diagnostics(
             "p50_margin": float(np.quantile(margins, 0.50)),
             "p90_margin": float(np.quantile(margins, 0.90)),
             "prior_l1": float(np.abs(predicted_priors - true_priors).sum()),
+            "samples": int(probabilities.shape[0]),
         }
 
     return {
         "gate": gate,
-        "steering": head_report(steering_probs, labels[:, 0]),
+        "steering": head_report(steering_probs[mask], labels[mask, 0]),
         "event": head_report(event_probs, labels[:, 1]),
     }
 
@@ -129,9 +151,26 @@ def _apply_prior_bias_correction(
     import torch
 
     action_net = getattr(policy, "action_net", None)
-    bias = getattr(action_net, "bias", None)
-    if bias is None or int(bias.numel()) != 6:
-        return {"applied": False, "reason": "policy.action_net.bias is not a six-logit vector"}
+    # A plain factorized head is one Linear(hidden, 6) with a single fused
+    # bias; SplitSteeringEventHead (simulator.split_branch_policy) instead
+    # holds two independent Linear(*, 3) sub-heads with separate biases,
+    # since the steering branch never sees the same latent as the event
+    # branch. Both cases apply the identical correction, split across
+    # whichever bias tensor(s) actually exist.
+    steering_bias = getattr(action_net, "bias", None)
+    event_bias = None
+    if steering_bias is None or int(steering_bias.numel()) != 6:
+        steering_out = getattr(action_net, "steering_out", None)
+        event_out = getattr(action_net, "event_out", None)
+        steering_bias = getattr(steering_out, "bias", None)
+        event_bias = getattr(event_out, "bias", None)
+        if (
+            steering_bias is None
+            or event_bias is None
+            or int(steering_bias.numel()) != 3
+            or int(event_bias.numel()) != 3
+        ):
+            return {"applied": False, "reason": "policy.action_net has no recognizable six-logit bias layout"}
 
     steering_source = np.full(3, 1.0 / 3.0, dtype=np.float64)
     event_source = np.asarray(event_target, dtype=np.float64).copy()
@@ -147,9 +186,17 @@ def _apply_prior_bias_correction(
 
     steering_delta = delta(np.asarray(steering_target, dtype=np.float64), steering_source)
     event_delta = delta(np.asarray(event_target, dtype=np.float64), event_source)
-    combined = np.concatenate((steering_delta, event_delta)).astype(np.float32)
     with torch.no_grad():
-        bias.add_(torch.as_tensor(combined, device=bias.device, dtype=bias.dtype))
+        if event_bias is None:
+            combined = np.concatenate((steering_delta, event_delta)).astype(np.float32)
+            steering_bias.add_(torch.as_tensor(combined, device=steering_bias.device, dtype=steering_bias.dtype))
+        else:
+            steering_bias.add_(
+                torch.as_tensor(steering_delta.astype(np.float32), device=steering_bias.device, dtype=steering_bias.dtype)
+            )
+            event_bias.add_(
+                torch.as_tensor(event_delta.astype(np.float32), device=event_bias.device, dtype=event_bias.dtype)
+            )
     return {
         "applied": True,
         "steering_target": steering_target.tolist(),
@@ -173,13 +220,27 @@ def _train_natural_prior_epoch(
     event_weights: np.ndarray,
     event_loss_scale: float,
     rng: np.random.Generator,
+    steering_valid_mask: np.ndarray | None = None,
 ) -> dict[str, float | int]:
+    """Natural-prior calibration pass.
+
+    ``steering_valid_mask`` (aligned with ``observations``/``labels``, not
+    ``train_indices``) excludes rows with no trustworthy steering label --
+    e.g. click-to-move human sessions -- from the steering loss term for
+    whichever batches contain them, while those same rows still contribute
+    their (always-trustworthy) event label to the event loss term. Omitting
+    the mask reproduces the original unmasked behaviour exactly.
+    """
+
     import torch
     import torch.nn.functional as F
 
     order = rng.permutation(np.asarray(train_indices, dtype=np.int64))
     steering_weight_tensor = torch.as_tensor(steering_weights, device=policy.device)
     event_weight_tensor = torch.as_tensor(event_weights, device=policy.device)
+    full_mask = (
+        None if steering_valid_mask is None else np.asarray(steering_valid_mask, dtype=np.bool_)
+    )
     losses: list[float] = []
     policy.train()
     for start in range(0, len(order), int(batch_size)):
@@ -189,16 +250,27 @@ def _train_natural_prior_epoch(
         categories = policy.get_distribution(obs).distribution
         if not isinstance(categories, (list, tuple)) or len(categories) != 2:
             raise ValueError("PPO policy is not MultiDiscrete([3, 3])")
-        steering_loss = F.cross_entropy(
-            categories[0].logits,
-            targets[:, 0],
-            weight=steering_weight_tensor,
-        )
         event_loss = F.cross_entropy(
             categories[1].logits,
             targets[:, 1],
             weight=event_weight_tensor,
         )
+        if full_mask is None:
+            steering_loss = F.cross_entropy(
+                categories[0].logits,
+                targets[:, 0],
+                weight=steering_weight_tensor,
+            )
+        else:
+            batch_valid = torch.as_tensor(full_mask[indices], device=policy.device)
+            if bool(torch.any(batch_valid)):
+                steering_loss = F.cross_entropy(
+                    categories[0].logits[batch_valid],
+                    targets[batch_valid, 0],
+                    weight=steering_weight_tensor,
+                )
+            else:
+                steering_loss = torch.zeros((), device=policy.device)
         loss = steering_loss + float(event_loss_scale) * event_loss
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
@@ -263,6 +335,86 @@ def _layout_stratified_episode_split(
         np.flatnonzero(validation_mask),
         sorted(validation_episodes),
     )
+
+
+def _natural_human_event_target(
+    human_labels: np.ndarray,
+    human_event_train_indices: np.ndarray,
+    human_continuous_session_mask: np.ndarray,
+    scripted_event_target: np.ndarray,
+) -> np.ndarray:
+    """Estimate the "natural" human event prior from continuous, unfiltered
+    direct-keyboard play only.
+
+    eva_only-role sessions only ever export the frames where the player
+    actually cast (demonstrations.py's ``recognized`` rule), so every one of
+    their samples has event=CAST_EVA. That is a real positive recognition
+    example, but folding it into a natural-frequency estimate makes EVA look
+    far more common in ordinary play than it is. Falls back to the scripted
+    dataset's own event prior when no continuous session data is available.
+    """
+
+    natural_indices = human_event_train_indices[
+        human_continuous_session_mask[human_event_train_indices]
+    ]
+    if not len(natural_indices):
+        return scripted_event_target
+    return _class_priors(human_labels[:, 1], natural_indices, 3)
+
+
+def _human_session_stratified_split(
+    session_index: np.ndarray,
+    steering_valid: np.ndarray,
+    event_valid: np.ndarray,
+    labels: np.ndarray,
+    *,
+    validation_fraction: float,
+    seed: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Hold out whole human sessions, but guarantee validation still
+    contains every steering/event class that exists anywhere in the
+    label-valid data.
+
+    A naive random session holdout can land entirely on e.g. eva_only-role
+    sessions, whose samples are all event=CAST_EVA with no steering-valid or
+    event=NONE examples at all -- that would fail the stage gate regardless
+    of how well the policy actually performs, exactly the same failure mode
+    ``_layout_stratified_episode_split`` already guards against for the
+    scripted dataset.
+    """
+
+    sessions = np.unique(session_index)
+    rng = np.random.default_rng(seed)
+    shuffled = rng.permutation(sessions)
+    validation_count = max(1, int(round(len(shuffled) * validation_fraction)))
+    validation_sessions: set[int] = {int(s) for s in shuffled[:validation_count]}
+
+    required: list[tuple[np.ndarray, int, int]] = []
+    for value in (0, 1, 2):
+        if np.any(labels[steering_valid, 0] == value):
+            required.append((steering_valid, value, 0))
+    for value in (int(FarmingEvent.NONE), int(FarmingEvent.CAST_EVA)):
+        if np.any(labels[event_valid & (labels[:, 1] == value), 1] == value):
+            required.append((event_valid, value, 1))
+
+    for valid_mask, value, head in required:
+        current = np.isin(session_index, tuple(validation_sessions)) & valid_mask
+        if np.any(labels[current, head] == value):
+            continue
+        candidates = [
+            int(session)
+            for session in sessions
+            if int(session) not in validation_sessions
+            and np.any(labels[(session_index == session) & valid_mask, head] == value)
+        ]
+        if candidates:
+            validation_sessions.add(candidates[0])
+        # No session anywhere has this class (e.g. no recorded jump at all):
+        # nothing to add. The gate itself treats a genuinely absent class as
+        # "no examples", never a failure, so this is a safe no-op.
+
+    validation_mask = np.isin(session_index, tuple(validation_sessions))
+    return np.flatnonzero(~validation_mask), np.flatnonzero(validation_mask)
 
 
 def collect_teacher_dataset_v193(
@@ -529,6 +681,451 @@ def train_teacher_clone_v193(
         "validation": final_validation,
         "per_layout_validation": per_layout_validation,
         "reasons": final_validation["gate"]["reasons"],
+    }
+
+
+# Hybrid scripted-teacher + human-demonstration training -------------------
+#
+# The scripted synthetic teacher (scripted_policies.py, rolling through
+# synthetic maps) remains the source of broad layout diversity,
+# group-selection behavior, obstacle avoidance, and curriculum coverage --
+# human recordings were never used to derive it and do not replace it here.
+# Human demonstrations instead supervise realistic steering/event
+# combinations and regularize the policy toward real control behavior. An
+# explicit round budget (not raw sample-count concatenation) keeps either
+# source from overwhelming the other, and validation is reported separately
+# per source (plus combined, per synthetic layout, and per human session) so
+# a regression in one source's behavior can never hide inside an aggregate
+# number.
+
+
+def collect_human_demonstration_dataset_v193(
+    recording_paths: list[Path],
+    eva_only_recording_paths: list[Path],
+    *,
+    output: str | Path,
+    map_model: Any = None,
+) -> dict[str, Any] | None:
+    """Step B: export every eligible human recording into one dataset.
+
+    ``recording_paths`` must already be filtered to archives where
+    movement_classification == keyboard_wasd and provenance is explicit
+    (see ``recording_discovery.discover_direct_demonstration_eligible``);
+    they supervise both steering and event. ``eva_only_recording_paths``
+    (see ``discover_eva_only_supplementary``) supervise the event head only
+    -- their movement is click-to-move, mixed, or otherwise unattested and
+    must never supervise steering; ``export_demonstrations`` already enforces
+    this per-sample via ``steering_label_valid``.
+
+    Returns ``None``, not an empty dataset, when there is nothing to export,
+    so callers can cleanly fall back to the scripted-only path.
+    """
+
+    if not recording_paths and not eva_only_recording_paths:
+        return None
+    from .demonstrations import export_demonstrations
+
+    path = export_demonstrations(
+        recording_paths,
+        output,
+        eva_only_recording_paths=eva_only_recording_paths,
+        map_model=map_model,
+    )
+    with np.load(path, allow_pickle=False) as data:
+        actions = np.asarray(data["actions"], dtype=np.int64)
+        sessions = np.asarray(data["session_index"], dtype=np.int64)
+        steering_valid = np.asarray(data["steering_label_valid"], dtype=np.bool_)
+        event_valid = np.asarray(data["event_label_valid"], dtype=np.bool_)
+    return {
+        "path": str(Path(path).resolve()),
+        "samples": int(len(actions)),
+        "sessions": int(len(np.unique(sessions))),
+        "steering_capable_sessions": int(len(np.unique(sessions[steering_valid]))) if np.any(steering_valid) else 0,
+        "steering_counts": np.bincount(actions[steering_valid, 0], minlength=3).tolist(),
+        "event_counts": np.bincount(actions[event_valid, 1], minlength=3).tolist(),
+        "direct_demonstration_recordings": [str(p) for p in recording_paths],
+        "eva_only_recordings": [str(p) for p in eva_only_recording_paths],
+    }
+
+
+def _interleave_source_schedule(scripted_rounds: int, human_rounds: int) -> list[str]:
+    """Evenly interleave two labeled round counts, e.g. 8 scripted + 4 human
+    becomes [s, s, h, s, s, h, s, s, h, s, s, h] rather than running one
+    source to completion before the other -- a genuinely mixed curriculum,
+    not extra epochs tacked on at the end for whichever source goes last.
+    """
+
+    total = int(scripted_rounds) + int(human_rounds)
+    if total <= 0:
+        return []
+    schedule: list[str] = []
+    scripted_done = human_done = 0
+    for _ in range(total):
+        scripted_progress = (
+            scripted_done / scripted_rounds if scripted_rounds else float("inf")
+        )
+        human_progress = human_done / human_rounds if human_rounds else float("inf")
+        if scripted_progress <= human_progress and scripted_done < scripted_rounds:
+            schedule.append("scripted")
+            scripted_done += 1
+        else:
+            schedule.append("human")
+            human_done += 1
+    return schedule
+
+
+def train_hybrid_factorized_teacher_v193(
+    model: Any,
+    scripted_dataset_path: str | Path,
+    human_dataset_path: str | Path | None,
+    *,
+    recognition_epochs: int = 12,
+    recognition_learning_rate: float = 3.0e-4,
+    calibration_epochs: int = 8,
+    calibration_learning_rate: float = 3.0e-5,
+    batch_size: int = 256,
+    human_fraction: float = 0.35,
+    minimum_human_sessions: int = 2,
+    seed: int = 0,
+) -> dict[str, Any]:
+    """Steps C-E: hybrid scripted-teacher + human-demonstration training.
+
+    Falls back to the pure scripted-only ``train_teacher_clone_v193`` path
+    when there is no usable human dataset (fewer than
+    ``minimum_human_sessions`` independent sessions with steering-valid
+    samples), so this stays safe to call against an empty
+    recordings/training/ directory -- e.g. in CI or a fresh checkout.
+    """
+
+    import torch
+
+    with np.load(Path(scripted_dataset_path), allow_pickle=False) as data:
+        scripted_observations = np.asarray(data["observations"], dtype=np.float32)
+        scripted_labels = np.asarray(data["actions"], dtype=np.int64)
+        scripted_train_indices = np.asarray(data["train_indices"], dtype=np.int64)
+        scripted_validation_indices = np.asarray(data["validation_indices"], dtype=np.int64)
+        scripted_layout_names = np.asarray(data["layout_names"], dtype=str).tolist()
+        scripted_layout_index = np.asarray(data["layout_index"], dtype=np.int64)
+
+    human_observations = human_labels = human_sessions = None
+    human_steering_valid = human_event_valid = None
+    human_continuous_session_mask = None
+    human_train_indices = human_validation_indices = np.zeros(0, dtype=np.int64)
+    human_ready = False
+    if human_dataset_path is not None:
+        with np.load(Path(human_dataset_path), allow_pickle=False) as data:
+            human_observations = np.asarray(data["observations"], dtype=np.float32)
+            human_labels = np.asarray(data["actions"], dtype=np.int64)
+            human_sessions = np.asarray(data["session_index"], dtype=np.int64)
+            human_steering_valid = np.asarray(data["steering_label_valid"], dtype=np.bool_)
+            human_event_valid = np.asarray(data["event_label_valid"], dtype=np.bool_)
+            # eva_only-role sessions only ever export their EVA-cast frames
+            # (see demonstrations.py), so their per-sample event label is
+            # always CAST_EVA -- a real positive recognition example, but not
+            # a natural sample of how often EVA should fire during ordinary
+            # play. Restrict the "natural" event prior below to sessions
+            # that recorded continuous, unfiltered direct-keyboard play.
+            session_roles = np.asarray(
+                data.get(
+                    "source_recording_role",
+                    np.full(int(human_sessions.max()) + 1 if len(human_sessions) else 0, "direct_keyboard"),
+                ),
+                dtype=str,
+            )
+        continuous_session_ids = np.flatnonzero(session_roles == "direct_keyboard")
+        human_continuous_session_mask = np.isin(human_sessions, continuous_session_ids)
+        steering_capable_sessions = np.unique(human_sessions[human_steering_valid])
+        if len(steering_capable_sessions) >= int(minimum_human_sessions):
+            human_ready = True
+            human_train_indices, human_validation_indices = _human_session_stratified_split(
+                human_sessions,
+                human_steering_valid,
+                human_event_valid,
+                human_labels,
+                validation_fraction=0.2,
+                seed=seed,
+            )
+
+    policy = model.policy
+    rng = np.random.default_rng(seed)
+
+    if not human_ready:
+        fallback = train_teacher_clone_v193(
+            model,
+            scripted_dataset_path,
+            recognition_epochs=recognition_epochs,
+            recognition_learning_rate=recognition_learning_rate,
+            calibration_epochs=calibration_epochs,
+            calibration_learning_rate=calibration_learning_rate,
+            batch_size=batch_size,
+            seed=seed,
+        )
+        reason = (
+            "no human dataset supplied"
+            if human_dataset_path is None
+            else (
+                f"only {len(np.unique(human_sessions[human_steering_valid])) if human_sessions is not None else 0} "
+                f"human session(s) with steering-valid samples; need at least {minimum_human_sessions}"
+            )
+        )
+        return {**fallback, "human_dataset_used": False, "human_fallback_reason": reason}
+
+    # --- Step C: recognition phase, source-aware round-robin over one optimizer ---
+    scripted_steering_values = _training_values(
+        scripted_labels[:, 0], scripted_train_indices, required=(0, 1, 2)
+    )
+    scripted_event_values = _training_values(
+        scripted_labels[:, 1],
+        scripted_train_indices,
+        required=(int(FarmingEvent.NONE), int(FarmingEvent.CAST_EVA)),
+        optional=(int(FarmingEvent.JUMP),),
+        minimum_optional_support=16,
+    )
+    scripted_event_fractions = _event_sampling_fractions(scripted_event_values)
+
+    human_steering_train_indices = human_train_indices[human_steering_valid[human_train_indices]]
+    human_event_train_indices = human_train_indices[human_event_valid[human_train_indices]]
+    human_steering_values = _training_values(
+        human_labels[:, 0], human_steering_train_indices,
+        required=(), optional=(0, 1, 2), minimum_optional_support=8,
+    )
+    human_event_values = _training_values(
+        human_labels[:, 1], human_event_train_indices,
+        required=(int(FarmingEvent.NONE), int(FarmingEvent.CAST_EVA)),
+        optional=(int(FarmingEvent.JUMP),),
+        minimum_optional_support=8,
+    )
+    # Equal-count balancing (event_target_fractions=None) would promote a
+    # handful of real human jump presses to a full third of every human
+    # event batch, repeating each one dozens of times. Use the same capped
+    # fractional scheme as the scripted side instead.
+    human_event_fractions = (
+        _event_sampling_fractions(human_event_values) if human_event_values else None
+    )
+
+    recognition_optimizer = torch.optim.Adam(policy.parameters(), lr=float(recognition_learning_rate))
+    human_rounds = max(1, int(round(recognition_epochs * human_fraction)))
+    scripted_rounds = max(1, int(recognition_epochs) - human_rounds)
+    schedule = _interleave_source_schedule(scripted_rounds, human_rounds)
+
+    recognition_rounds: list[dict[str, Any]] = []
+    for source in schedule:
+        if source == "scripted":
+            report = _train_balanced_factorized_heads(
+                policy, recognition_optimizer, scripted_observations, scripted_labels,
+                steering_indices=scripted_train_indices, event_indices=scripted_train_indices,
+                steering_values=scripted_steering_values, event_values=scripted_event_values,
+                epochs=1, batch_size=batch_size, event_loss_scale=1.5, rng=rng,
+                event_target_fractions=scripted_event_fractions,
+            )
+        else:
+            report = _train_balanced_factorized_heads(
+                policy, recognition_optimizer, human_observations, human_labels,
+                steering_indices=human_steering_train_indices, event_indices=human_event_train_indices,
+                steering_values=human_steering_values, event_values=human_event_values,
+                epochs=1, batch_size=batch_size, event_loss_scale=1.5, rng=rng,
+                event_target_fractions=human_event_fractions,
+            )
+        recognition_rounds.append({"source": source, **report})
+
+    recognition_validation = {
+        "scripted": _prediction_diagnostics(
+            policy, scripted_observations[scripted_validation_indices],
+            scripted_labels[scripted_validation_indices], batch_size=batch_size,
+        ),
+        "human": _prediction_diagnostics(
+            policy, human_observations[human_validation_indices],
+            human_labels[human_validation_indices], batch_size=batch_size,
+            steering_valid_mask=human_steering_valid[human_validation_indices],
+        ),
+    }
+    # Step E: only continue once the policy performs acceptably on BOTH sources.
+    if not (
+        recognition_validation["scripted"]["gate"]["passed"]
+        and recognition_validation["human"]["gate"]["passed"]
+    ):
+        return {
+            "passed": False,
+            "phase": "recognition",
+            "human_dataset_used": True,
+            "recognition_rounds": recognition_rounds,
+            "recognition_validation": recognition_validation,
+            "reasons": (
+                recognition_validation["scripted"]["gate"]["reasons"]
+                + recognition_validation["human"]["gate"]["reasons"]
+            ),
+        }
+
+    # --- bias correction: target a human_fraction-weighted blend of both
+    # sources' natural priors, so calibration does not immediately fight the
+    # mix ratio recognition training was just given. ---
+    scripted_steering_target = _class_priors(scripted_labels[:, 0], scripted_train_indices, 3)
+    scripted_event_target = _class_priors(scripted_labels[:, 1], scripted_train_indices, 3)
+    human_steering_target = (
+        _class_priors(human_labels[:, 0], human_steering_train_indices, 3)
+        if len(human_steering_train_indices)
+        else scripted_steering_target
+    )
+    human_event_target = _natural_human_event_target(
+        human_labels, human_event_train_indices, human_continuous_session_mask, scripted_event_target,
+    )
+    blended_steering_target = (
+        (1.0 - human_fraction) * scripted_steering_target + human_fraction * human_steering_target
+    )
+    blended_event_target = (
+        (1.0 - human_fraction) * scripted_event_target + human_fraction * human_event_target
+    )
+    blended_steering_target = blended_steering_target / blended_steering_target.sum()
+    blended_event_target = blended_event_target / blended_event_target.sum()
+
+    bias_correction = _apply_prior_bias_correction(
+        policy,
+        steering_target=blended_steering_target,
+        event_target=blended_event_target,
+        event_sampling_fractions=scripted_event_fractions,
+    )
+
+    # --- Step C continued: calibration phase, mixed-source natural-prior CE ---
+    scripted_steering_weights = _sqrt_inverse_class_weights(scripted_labels[:, 0], scripted_train_indices, 3)
+    scripted_event_weights = _sqrt_inverse_class_weights(scripted_labels[:, 1], scripted_train_indices, 3)
+    human_steering_weights = (
+        _sqrt_inverse_class_weights(human_labels[:, 0], human_steering_train_indices, 3)
+        if len(human_steering_train_indices)
+        else scripted_steering_weights
+    )
+    human_event_weights = (
+        _sqrt_inverse_class_weights(human_labels[:, 1], human_event_train_indices, 3)
+        if len(human_event_train_indices)
+        else scripted_event_weights
+    )
+    calibration_optimizer = torch.optim.Adam(policy.parameters(), lr=float(calibration_learning_rate))
+    calibration_human_rounds = max(1, int(round(calibration_epochs * human_fraction)))
+    calibration_scripted_rounds = max(1, int(calibration_epochs) - calibration_human_rounds)
+    calibration_schedule = _interleave_source_schedule(calibration_scripted_rounds, calibration_human_rounds)
+
+    calibration_rounds: list[dict[str, Any]] = []
+    best_state: dict[str, Any] | None = None
+    best_score = float("-inf")
+    for epoch, source in enumerate(calibration_schedule, start=1):
+        if source == "scripted":
+            training = _train_natural_prior_epoch(
+                policy, calibration_optimizer, scripted_observations, scripted_labels, scripted_train_indices,
+                batch_size=batch_size, steering_weights=scripted_steering_weights,
+                event_weights=scripted_event_weights, event_loss_scale=1.15, rng=rng,
+            )
+        else:
+            training = _train_natural_prior_epoch(
+                policy, calibration_optimizer, human_observations, human_labels, human_train_indices,
+                batch_size=batch_size, steering_weights=human_steering_weights,
+                event_weights=human_event_weights, event_loss_scale=1.15, rng=rng,
+                steering_valid_mask=human_steering_valid,
+            )
+        validation = {
+            "scripted": _prediction_diagnostics(
+                policy, scripted_observations[scripted_validation_indices],
+                scripted_labels[scripted_validation_indices], batch_size=batch_size,
+            ),
+            "human": _prediction_diagnostics(
+                policy, human_observations[human_validation_indices],
+                human_labels[human_validation_indices], batch_size=batch_size,
+                steering_valid_mask=human_steering_valid[human_validation_indices],
+            ),
+        }
+        both_passed = validation["scripted"]["gate"]["passed"] and validation["human"]["gate"]["passed"]
+        score = _calibration_score(validation["scripted"]) + _calibration_score(validation["human"])
+        calibration_rounds.append(
+            {"epoch": epoch, "source": source, "score": score, "training": training, "validation": validation}
+        )
+        if both_passed and score > best_score:
+            best_score = score
+            best_state = copy.deepcopy(policy.state_dict())
+
+    if best_state is None:
+        last = calibration_rounds[-1]["validation"] if calibration_rounds else recognition_validation
+        return {
+            "passed": False,
+            "phase": "calibration",
+            "human_dataset_used": True,
+            "recognition_rounds": recognition_rounds,
+            "recognition_validation": recognition_validation,
+            "bias_correction": bias_correction,
+            "calibration_rounds": calibration_rounds,
+            "reasons": last["scripted"]["gate"]["reasons"] + last["human"]["gate"]["reasons"],
+        }
+
+    policy.load_state_dict(best_state)
+    final_scripted = _prediction_diagnostics(
+        policy, scripted_observations[scripted_validation_indices],
+        scripted_labels[scripted_validation_indices], batch_size=batch_size,
+    )
+    final_human = _prediction_diagnostics(
+        policy, human_observations[human_validation_indices],
+        human_labels[human_validation_indices], batch_size=batch_size,
+        steering_valid_mask=human_steering_valid[human_validation_indices],
+    )
+    final_combined = _prediction_diagnostics(
+        policy,
+        np.concatenate(
+            (scripted_observations[scripted_validation_indices], human_observations[human_validation_indices])
+        ),
+        np.concatenate(
+            (scripted_labels[scripted_validation_indices], human_labels[human_validation_indices])
+        ),
+        steering_valid_mask=np.concatenate(
+            (
+                np.ones(len(scripted_validation_indices), dtype=np.bool_),
+                human_steering_valid[human_validation_indices],
+            )
+        ),
+        batch_size=batch_size,
+    )
+
+    # Step D: separate reporting per synthetic layout and per human session,
+    # so a single bad layout or a single unusual friend's session can never
+    # hide inside an aggregate validation number.
+    per_layout_validation: dict[str, Any] = {}
+    for layout_id, layout_name in enumerate(scripted_layout_names):
+        mask = scripted_layout_index[scripted_validation_indices] == layout_id
+        if not np.any(mask):
+            per_layout_validation[str(layout_name)] = {"passed": False, "reason": "no validation samples"}
+            continue
+        selected = scripted_validation_indices[mask]
+        per_layout_validation[str(layout_name)] = _prediction_diagnostics(
+            policy, scripted_observations[selected], scripted_labels[selected], batch_size=batch_size
+        )
+    per_session_validation: dict[str, Any] = {}
+    for session in np.unique(human_sessions[human_validation_indices]):
+        selected = human_validation_indices[human_sessions[human_validation_indices] == session]
+        per_session_validation[str(int(session))] = _prediction_diagnostics(
+            policy, human_observations[selected], human_labels[selected], batch_size=batch_size,
+            steering_valid_mask=human_steering_valid[selected],
+        )
+
+    passed = bool(final_scripted["gate"]["passed"] and final_human["gate"]["passed"])
+    return {
+        "passed": passed,
+        "phase": "complete",
+        "human_dataset_used": True,
+        "human_fraction_target": float(human_fraction),
+        "scripted_dataset": str(Path(scripted_dataset_path).resolve()),
+        "human_dataset": str(Path(human_dataset_path).resolve()),
+        "recognition_epochs": int(recognition_epochs),
+        "calibration_epochs": int(calibration_epochs),
+        "recognition_rounds": recognition_rounds,
+        "recognition_validation": recognition_validation,
+        "bias_correction": bias_correction,
+        "blended_steering_target": blended_steering_target.tolist(),
+        "blended_event_target": blended_event_target.tolist(),
+        "calibration_rounds": calibration_rounds,
+        "selected_calibration_score": float(best_score),
+        "validation": {
+            "scripted": final_scripted,
+            "human": final_human,
+            "combined": final_combined,
+        },
+        "per_layout_validation": per_layout_validation,
+        "per_session_validation": per_session_validation,
+        "reasons": final_scripted["gate"]["reasons"] + final_human["gate"]["reasons"],
     }
 
 

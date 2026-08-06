@@ -1179,7 +1179,7 @@ def main(argv: list[str] | None = None) -> int:
                     "samples": int(data["actions"].shape[0]),
                     "observation_shape": list(data["observations"].shape),
                     "action_counts": {
-                        str(action): int(np.count_nonzero(data["actions"] == action))
+                        str(action): int(np.count_nonzero(data["legacy_actions"] == action))
                         for action in range(5)
                     },
                 },

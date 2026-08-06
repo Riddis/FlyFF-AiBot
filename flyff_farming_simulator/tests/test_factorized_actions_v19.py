@@ -102,6 +102,84 @@ def test_environment_applies_steering_during_eva_and_jump() -> None:
         env.close()
 
 
+def test_obstacle_aware_teacher_prefers_eva_over_jump_when_boxed_in() -> None:
+    """EVA does not require movement, so it must win even when every steering
+    direction is blocked. A prior regression returned JUMP unconditionally in
+    the fully-blocked branch and never reached the EVA check, which silently
+    discarded the majority of EVA-eligible teacher labels near obstacles."""
+
+    fake_env = SimpleNamespace(
+        best_group_relative_angle=lambda: 0.0,
+        nearest_reachable_relative_angle=lambda: None,
+        movement_path_clear=lambda action: False,
+        eva_available=lambda: True,
+        eva_target_count=lambda: 2,
+    )
+
+    command = obstacle_aware_command(fake_env)
+
+    assert command.event is FarmingEvent.CAST_EVA
+
+
+def test_obstacle_aware_teacher_never_jumps_to_escape_a_blocked_cell() -> None:
+    """Jump is idle flair, never an obstacle-recovery mechanic. Being boxed in
+    on every steering direction must not by itself trigger a jump label."""
+
+    fake_env = SimpleNamespace(
+        best_group_relative_angle=lambda: 0.0,
+        nearest_reachable_relative_angle=lambda: None,
+        movement_path_clear=lambda action: False,
+        eva_available=lambda: False,
+        eva_target_count=lambda: 0,
+        jump_available=lambda: True,
+        rng=SimpleNamespace(random=lambda: 0.999),
+    )
+
+    command = obstacle_aware_command(fake_env)
+
+    assert command.event is FarmingEvent.NONE
+
+
+def test_obstacle_aware_teacher_flair_jump_is_independent_of_obstacles() -> None:
+    """A rare flair jump can still occur while cruising normally (not
+    blocked, no EVA target), driven only by the low idle-jump roll."""
+
+    fake_env = SimpleNamespace(
+        best_group_relative_angle=lambda: 0.0,
+        nearest_reachable_relative_angle=lambda: None,
+        movement_path_clear=lambda action: True,
+        eva_available=lambda: False,
+        eva_target_count=lambda: 0,
+        jump_available=lambda: True,
+        rng=SimpleNamespace(random=lambda: 0.0),
+    )
+
+    command = obstacle_aware_command(fake_env)
+
+    assert command.event is FarmingEvent.JUMP
+
+
+def test_obstacle_aware_teacher_steers_toward_reachable_target_not_unreachable_best() -> None:
+    """A visible 'best' group across an obstacle cannot actually be walked to.
+    Chasing it left the player wedged against the obstacle for the rest of an
+    episode in practice. When a genuinely reachable target exists, it must be
+    preferred over an unreachable higher-scoring one."""
+
+    fake_env = SimpleNamespace(
+        best_group_relative_angle=lambda: 0.0,  # unreachable target: dead ahead
+        nearest_reachable_relative_angle=lambda: -0.5,  # reachable target: to the right
+        movement_path_clear=lambda action: True,
+        eva_available=lambda: False,
+        eva_target_count=lambda: 0,
+        jump_available=lambda: True,
+        rng=SimpleNamespace(random=lambda: 0.999),
+    )
+
+    command = obstacle_aware_command(fake_env)
+
+    assert command.steering is SteeringAction.RIGHT
+
+
 def test_obstacle_aware_teacher_returns_factorized_command() -> None:
     _entry, env = next(
         iter(

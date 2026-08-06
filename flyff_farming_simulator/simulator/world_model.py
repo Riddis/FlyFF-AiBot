@@ -124,6 +124,29 @@ def movement_action_from_mask(mask: int) -> int | None:
     return None
 
 
+def steering_action_from_mask(mask: int) -> int | None:
+    """Steering alone (0=STRAIGHT, 1=LEFT, 2=RIGHT), independent of the jump
+    bit. ``movement_action_from_mask`` collapses any forward+jump combination
+    to the single legacy action 4 regardless of concurrent left/right bits,
+    which is correct for the legacy 5-way scalar contract but would silently
+    erase steering for a factorized (steering, event) conversion -- a jump
+    tap must never replace the concurrently-held steering key. Left and
+    right held together are ambiguous and intentionally return STRAIGHT,
+    matching movement_action_from_mask's own tie-breaking.
+    """
+
+    value = int(mask)
+    if not (value & _FORWARD_BIT):
+        return None
+    left = bool(value & _LEFT_BIT)
+    right = bool(value & _RIGHT_BIT)
+    if left and not right:
+        return 1
+    if right and not left:
+        return 2
+    return 0
+
+
 def _robust_delay_samples(values: list[float]) -> list[float]:
     valid = np.asarray(
         [value for value in values if math.isfinite(value) and 0.1 <= value <= 120.0],

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -13,8 +14,10 @@ from simulator.training import action_stage_gate, atomic_save_policy
 from simulator.world_model import MovementModel, RecordedWorldModel
 
 
-def _open_world(*, population: int = 20) -> tuple[MapModel, RecordedWorldModel]:
-    map_model = MapModel.from_arrays(np.ones((41, 41), dtype=bool))
+def _open_world(
+    *, population: int = 20, map_model: MapModel | None = None
+) -> tuple[MapModel, RecordedWorldModel]:
+    map_model = map_model or MapModel.from_arrays(np.ones((41, 41), dtype=bool))
     positions = tuple(map_model.layout_to_native(8 + index % 5, 8 + index // 5) for index in range(10))
     sections = tuple(positions for _ in range(3))
     movement = (
@@ -192,3 +195,57 @@ def test_scripted_teacher_casts_eva_when_targets_are_in_range() -> None:
     env.actors[0].z = env.player_z
     assert env.eva_available()
     assert obstacle_aware_action(env) == int(FarmingAction.CAST_EVA)
+
+
+def test_advance_with_slide_makes_more_progress_than_a_direct_stop() -> None:
+    """A player approaching an obstacle at an angle must be able to slide
+    along it and keep moving tangentially, matching how the live client's
+    collision response works -- not freeze completely the instant any part
+    of the straight-line path is blocked. A prior version had no sliding
+    component at all, which made some obstacle corners permanently
+    unescapable in simulation even though a real player could glide past
+    them."""
+
+    traversable = np.ones((41, 41), dtype=bool)
+    traversable[:, 25] = False  # a full wall blocking increasing native X
+    wall_map, world = _open_world(map_model=MapModel.from_arrays(traversable, obstacle_radius_cells=0))
+    env = RecordedFarmingEnv(world, map_model=wall_map, seed=1, episode_steps=20)
+    env.reset(seed=1)
+    start_x, start_z = wall_map.layout_to_native(20, 20)
+    heading = math.pi / 4.0  # into the wall (+x) and tangentially along it (+z)
+    distance_native = 8.0 * wall_map.native_units_per_cell
+    dx = math.cos(heading) * distance_native
+    dz = math.sin(heading) * distance_native
+
+    direct_x, direct_z, direct_contact = env._sweep(start_x, start_z, dx, dz)
+    slide_x, slide_z, slide_contact = env._advance_with_slide(start_x, start_z, dx, dz)
+
+    assert direct_contact is True
+    assert slide_contact is True
+    direct_distance = math.hypot(direct_x - start_x, direct_z - start_z)
+    slide_distance = math.hypot(slide_x - start_x, slide_z - start_z)
+    assert slide_distance > direct_distance + 1.0e-6
+
+
+def test_move_player_still_reports_contact_while_sliding() -> None:
+    """Sliding corrects the resulting displacement, but a real navigation
+    imperfection still occurred, so the contact penalty must still apply."""
+
+    traversable = np.ones((41, 41), dtype=bool)
+    traversable[:, 23] = False  # close enough to be within _move_player's 5-cell distance cap
+    wall_map = MapModel.from_arrays(traversable, obstacle_radius_cells=0)
+    _map_model, world = _open_world(map_model=wall_map)
+    fast_movement = tuple(
+        MovementModel(model.samples, 8.0, 0.0, model.turn_mean_radians, 0.0)
+        for model in world.movement
+    )
+    world = replace(world, movement=fast_movement)
+    env = RecordedFarmingEnv(world, map_model=wall_map, seed=1, episode_steps=20)
+    env.reset(seed=1)
+    env.player_x, env.player_z = wall_map.layout_to_native(20, 20)
+    env.heading = math.pi / 4.0
+
+    displacement, contact = env._move_player(FarmingAction.RUN_FORWARD)
+
+    assert contact is True
+    assert displacement > 0.0

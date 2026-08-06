@@ -24,6 +24,7 @@ from farming.observation import (
 )
 from farming.session import SessionOutcome
 
+from . import movement_kinematics
 from .map_model import MapModel
 from .reward_model import (
     SimulatorRewardCalculator,
@@ -434,6 +435,32 @@ class RecordedFarmingEnv(_BaseEnv):
             changed = True
         return changed
 
+    def _sweep(self, x: float, z: float, dx: float, dz: float) -> tuple[float, float, bool]:
+        return movement_kinematics.sweep(self.map, x, z, dx, dz)
+
+    def _advance_with_slide(self, x: float, z: float, dx: float, dz: float) -> tuple[float, float, bool]:
+        """Advance toward (x+dx, z+dz), sliding along one axis when the
+        direct segment is blocked partway.
+
+        The live client lets a player continue moving tangentially along a
+        wall instead of stopping dead the instant any part of the intended
+        segment is obstructed -- holding forward into an angled wall still
+        produces a visible slide, and holding forward with a turn key
+        continues rotating even while translation is blocked. The previous
+        single straight-line sweep had no tangential component at all, so a
+        player approaching an obstacle at anything but a perfectly
+        perpendicular angle would freeze completely rather than slide free,
+        which does not match the live controller and made some obstacle
+        corners unescapable in simulation even though they are not in play.
+        Contact is still reported whenever the direct segment was blocked,
+        since a real navigation imperfection occurred; only the resulting
+        displacement is corrected to include the tangential slide. This
+        delegates to ``movement_kinematics`` so the synthetic map-generation
+        validator can prove escapability with the exact same physics.
+        """
+
+        return movement_kinematics.advance_with_slide(self.map, x, z, dx, dz)
+
     def _move_player(
         self,
         action: FarmingAction,
@@ -459,22 +486,11 @@ class RecordedFarmingEnv(_BaseEnv):
             turn = 0.0 if action is not FarmingAction.RUN_FORWARD_JUMP else turn * 0.15
         self.heading = math.atan2(math.sin(self.heading + turn), math.cos(self.heading + turn))
         native_distance = distance * self.map.native_units_per_cell
-        target_x = self.player_x + math.cos(self.heading) * native_distance
-        target_z = self.player_z + math.sin(self.heading) * native_distance
-        accepted_x, accepted_z = self.player_x, self.player_z
-        contact = False
-        samples = max(2, int(math.ceil(distance * 4.0)))
-        for index in range(1, samples + 1):
-            fraction = index / samples
-            x = self.player_x + (target_x - self.player_x) * fraction
-            z = self.player_z + (target_z - self.player_z) * fraction
-            risk = self.map.features.cell_risk(self.map.native_to_layout_cell(x, z))
-            if risk in {MapCellRisk.OBSTACLE, MapCellRisk.OUTSIDE_OR_UNKNOWN}:
-                contact = True
-                break
-            accepted_x, accepted_z = x, z
-            if risk is MapCellRisk.TELEPORT_TRIGGER:
-                break
+        dx = math.cos(self.heading) * native_distance
+        dz = math.sin(self.heading) * native_distance
+        accepted_x, accepted_z, contact = self._advance_with_slide(
+            self.player_x, self.player_z, dx, dz
+        )
         actual = math.hypot(accepted_x - self.player_x, accepted_z - self.player_z)
         actual /= self.map.native_units_per_cell
         self.player_x, self.player_z = accepted_x, accepted_z
@@ -581,6 +597,9 @@ class RecordedFarmingEnv(_BaseEnv):
 
     def eva_target_count(self) -> int:
         return self._eva_count()
+
+    def jump_available(self) -> bool:
+        return self.elapsed - self.last_jump_at >= self.jump_cooldown_seconds
 
     def _visible_candidates(self) -> list[tuple[float, SimActor, float, float]]:
         candidates: list[tuple[float, SimActor, float, float]] = []
