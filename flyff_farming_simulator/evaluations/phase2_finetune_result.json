@@ -1,0 +1,393 @@
+{
+  "dataset": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\phase2_dagger_dataset.npz",
+  "train_samples": 165,
+  "validation_samples": 75,
+  "validation_episodes": [
+    0,
+    2,
+    5,
+    11,
+    12,
+    20,
+    23,
+    25,
+    26
+  ],
+  "history": [
+    {
+      "epoch": 1,
+      "mean_loss": 0.6429572552442551
+    },
+    {
+      "epoch": 2,
+      "mean_loss": 0.5308098644018173
+    },
+    {
+      "epoch": 3,
+      "mean_loss": 0.5399763484795889
+    },
+    {
+      "epoch": 4,
+      "mean_loss": 0.5120275020599365
+    },
+    {
+      "epoch": 5,
+      "mean_loss": 0.4918847729762395
+    },
+    {
+      "epoch": 6,
+      "mean_loss": 0.5391099999348322
+    },
+    {
+      "epoch": 7,
+      "mean_loss": 0.491320272286733
+    },
+    {
+      "epoch": 8,
+      "mean_loss": 0.4671727766593297
+    },
+    {
+      "epoch": 9,
+      "mean_loss": 0.45582828919092816
+    },
+    {
+      "epoch": 10,
+      "mean_loss": 0.46043966710567474
+    },
+    {
+      "epoch": 11,
+      "mean_loss": 0.4691157688697179
+    },
+    {
+      "epoch": 12,
+      "mean_loss": 0.4343050569295883
+    },
+    {
+      "epoch": 13,
+      "mean_loss": 0.4303965171178182
+    },
+    {
+      "epoch": 14,
+      "mean_loss": 0.42568835616111755
+    },
+    {
+      "epoch": 15,
+      "mean_loss": 0.49600352843602497
+    }
+  ],
+  "before": {
+    "gate": {
+      "passed": true,
+      "samples": 75,
+      "exact_command_accuracy": 0.7066666666666667,
+      "heads": {
+        "steering": {
+          "accuracy": 0.84,
+          "maximum_prediction_fraction": 0.56,
+          "predicted_counts": [
+            8,
+            25,
+            42
+          ],
+          "confusion_matrix_true_rows": [
+            [
+              1,
+              0,
+              0
+            ],
+            [
+              3,
+              24,
+              4
+            ],
+            [
+              4,
+              1,
+              38
+            ]
+          ],
+          "per_class": [
+            {
+              "value": 0,
+              "support": 1,
+              "predicted": 8,
+              "precision": 0.125,
+              "recall": 1.0
+            },
+            {
+              "value": 1,
+              "support": 31,
+              "predicted": 25,
+              "precision": 0.96,
+              "recall": 0.7741935483870968
+            },
+            {
+              "value": 2,
+              "support": 43,
+              "predicted": 42,
+              "precision": 0.9047619047619048,
+              "recall": 0.8837209302325582
+            }
+          ],
+          "samples": 75
+        },
+        "event": {
+          "accuracy": 0.8,
+          "maximum_prediction_fraction": 0.88,
+          "predicted_counts": [
+            66,
+            9,
+            0
+          ],
+          "confusion_matrix_true_rows": [
+            [
+              54,
+              3,
+              0
+            ],
+            [
+              12,
+              6,
+              0
+            ],
+            [
+              0,
+              0,
+              0
+            ]
+          ],
+          "per_class": [
+            {
+              "value": 0,
+              "support": 57,
+              "predicted": 66,
+              "precision": 0.8181818181818182,
+              "recall": 0.9473684210526315
+            },
+            {
+              "value": 1,
+              "support": 18,
+              "predicted": 9,
+              "precision": 0.6666666666666666,
+              "recall": 0.3333333333333333
+            },
+            {
+              "value": 2,
+              "support": 0,
+              "predicted": 0,
+              "precision": 0.0,
+              "recall": 0.0
+            }
+          ],
+          "samples": 75
+        }
+      },
+      "reasons": []
+    },
+    "steering": {
+      "mean_probabilities": [
+        0.20328882336616516,
+        0.326580673456192,
+        0.4701303243637085
+      ],
+      "deterministic_priors": [
+        0.10666666666666667,
+        0.3333333333333333,
+        0.56
+      ],
+      "true_priors": [
+        0.013333333333333334,
+        0.41333333333333333,
+        0.5733333333333334
+      ],
+      "mean_margin": 0.45271632075309753,
+      "p10_margin": 0.15558567643165588,
+      "p50_margin": 0.5317489504814148,
+      "p90_margin": 0.6269409656524658,
+      "prior_l1": 0.18666666666666665,
+      "samples": 75
+    },
+    "event": {
+      "mean_probabilities": [
+        0.8385441303253174,
+        0.15930013358592987,
+        0.0021555726416409016
+      ],
+      "deterministic_priors": [
+        0.88,
+        0.12,
+        0.0
+      ],
+      "true_priors": [
+        0.76,
+        0.24,
+        0.0
+      ],
+      "mean_margin": 0.7743355631828308,
+      "p10_margin": 0.15426531434059143,
+      "p50_margin": 0.9364254474639893,
+      "p90_margin": 0.9982912540435791,
+      "prior_l1": 0.24,
+      "samples": 75
+    }
+  },
+  "after": {
+    "gate": {
+      "passed": false,
+      "samples": 75,
+      "exact_command_accuracy": 0.7466666666666667,
+      "heads": {
+        "steering": {
+          "accuracy": 0.8933333333333333,
+          "maximum_prediction_fraction": 0.64,
+          "predicted_counts": [
+            1,
+            26,
+            48
+          ],
+          "confusion_matrix_true_rows": [
+            [
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              25,
+              5
+            ],
+            [
+              0,
+              1,
+              42
+            ]
+          ],
+          "per_class": [
+            {
+              "value": 0,
+              "support": 1,
+              "predicted": 1,
+              "precision": 0.0,
+              "recall": 0.0
+            },
+            {
+              "value": 1,
+              "support": 31,
+              "predicted": 26,
+              "precision": 0.9615384615384616,
+              "recall": 0.8064516129032258
+            },
+            {
+              "value": 2,
+              "support": 43,
+              "predicted": 48,
+              "precision": 0.875,
+              "recall": 0.9767441860465116
+            }
+          ],
+          "samples": 75
+        },
+        "event": {
+          "accuracy": 0.8,
+          "maximum_prediction_fraction": 0.88,
+          "predicted_counts": [
+            66,
+            9,
+            0
+          ],
+          "confusion_matrix_true_rows": [
+            [
+              54,
+              3,
+              0
+            ],
+            [
+              12,
+              6,
+              0
+            ],
+            [
+              0,
+              0,
+              0
+            ]
+          ],
+          "per_class": [
+            {
+              "value": 0,
+              "support": 57,
+              "predicted": 66,
+              "precision": 0.8181818181818182,
+              "recall": 0.9473684210526315
+            },
+            {
+              "value": 1,
+              "support": 18,
+              "predicted": 9,
+              "precision": 0.6666666666666666,
+              "recall": 0.3333333333333333
+            },
+            {
+              "value": 2,
+              "support": 0,
+              "predicted": 0,
+              "precision": 0.0,
+              "recall": 0.0
+            }
+          ],
+          "samples": 75
+        }
+      },
+      "reasons": [
+        "steering=0 recall 0.000 is below 0.150"
+      ]
+    },
+    "steering": {
+      "mean_probabilities": [
+        0.12569056451320648,
+        0.3271888792514801,
+        0.5471206307411194
+      ],
+      "deterministic_priors": [
+        0.013333333333333334,
+        0.3466666666666667,
+        0.64
+      ],
+      "true_priors": [
+        0.013333333333333334,
+        0.41333333333333333,
+        0.5733333333333334
+      ],
+      "mean_margin": 0.5973588228225708,
+      "p10_margin": 0.2926628589630127,
+      "p50_margin": 0.6583502292633057,
+      "p90_margin": 0.7798745632171631,
+      "prior_l1": 0.1333333333333333,
+      "samples": 75
+    },
+    "event": {
+      "mean_probabilities": [
+        0.8385441303253174,
+        0.15930013358592987,
+        0.0021555726416409016
+      ],
+      "deterministic_priors": [
+        0.88,
+        0.12,
+        0.0
+      ],
+      "true_priors": [
+        0.76,
+        0.24,
+        0.0
+      ],
+      "mean_margin": 0.7743355631828308,
+      "p10_margin": 0.15426531434059143,
+      "p50_margin": 0.9364254474639893,
+      "p90_margin": 0.9982912540435791,
+      "prior_l1": 0.24,
+      "samples": 75
+    }
+  },
+  "event_head_unaffected": true
+}

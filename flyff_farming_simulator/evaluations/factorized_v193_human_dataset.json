@@ -1,0 +1,28 @@
+{
+  "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\datasets\\split_branch_human.npz",
+  "samples": 3272,
+  "sessions": 8,
+  "steering_capable_sessions": 2,
+  "steering_counts": [
+    1954,
+    385,
+    345
+  ],
+  "event_counts": [
+    2442,
+    814,
+    16
+  ],
+  "direct_demonstration_recordings": [
+    "recordings\\training\\SEND_TO_RIDDIMS_Riddims_20260803T212218.573109Z.zip",
+    "recordings\\training\\SEND_TO_RIDDIMS_Riddims_20260805T172406.597517Z.zip"
+  ],
+  "eva_only_recordings": [
+    "recordings\\eva_only\\SEND_TO_RIDDIMS_WetFartChan_20260804T013220.661349Z.zip",
+    "recordings\\eva_only\\SEND_TO_RIDDIMS_WetFartChan_20260804T015033.737143Z.zip",
+    "recordings\\eva_only\\SEND_TO_RIDDIMS_WetFartChan_20260804T020125.838396Z.zip",
+    "recordings\\eva_only\\SEND_TO_RIDDIMS_poot_20260804T163533.542137Z.zip",
+    "recordings\\eva_only\\SEND_TO_RIDDIMS_poot_20260804T163750.567290Z.zip",
+    "recordings\\eva_only\\SEND_TO_RIDDIMS_poot_20260804T164942.048891Z.zip"
+  ]
+}

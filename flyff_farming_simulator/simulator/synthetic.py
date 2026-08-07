@@ -230,7 +230,59 @@ def _place_obstacles(
 # entire episode wedged against a wall. Each stage gets a progressively
 # larger tick budget to escape within, but every stage requires a proof of
 # escapability; none accepts a truly unescapable state.
-_STAGE_ESCAPE_TICKS: dict[str, int] = {"early": 8, "intermediate": 18, "advanced": 35}
+#
+# Recalibrated after obstacle_radius_cells -> 0 (map_model.py): boundary
+# positions are now sampled flush against the real wall/corner instead of
+# ~2 cells back (the old OBSTACLE_BUFFER margin), so turning away from a
+# tight corner genuinely costs more ticks even though nothing is actually
+# unescapable.
+#
+# These are NOT chosen merely to make every generated layout pass -- that
+# would let the gate quietly stop filtering out layouts that are too hard
+# for a given stage. Two things were checked instead (2026-08-07 diagnostics):
+#   1. What one tick actually IS: at the default movement reference, 1 tick
+#      = 0.2s of simulated time, a LEFT/RIGHT tap turns ~5.73 degrees, and a
+#      STRAIGHT tap covers ~2.2 cells. Traced the actual winning action
+#      sequence for several worst-case boundary positions (found by
+#      exhaustively searching up to a 40-tick ceiling, independent of any
+#      candidate budget): the ACTUAL minimum ticks needed was 21-23, i.e.
+#      what does not fit in the old 8-tick budget -- not "8 ticks looks like
+#      this". Those 21-23 ticks are one sustained, monotonic turn in a
+#      single direction (zero direction reversals, 1-2 short forward taps
+#      mixed in) totaling ~110-120 degrees over ~4.2-4.6s: a single
+#      corrective turn at a bad approach angle to an ordinary corner, not a
+#      multi-step wedge/pocket recovery maneuver. That 21-23 tick reality is
+#      what early=24 was sized against, with a small margin.
+#   2. Whether a SMALLER budget, combined with the existing
+#      regenerate-on-failure loop (_generate_validated_layout, up to
+#      _MAX_LAYOUT_ATTEMPTS attempts), already succeeds -- i.e. whether the
+#      gate can keep doing its real job (reject/regenerate away from harder
+#      layouts) at a smaller number instead of being raised until it accepts
+#      everything. 12 and 16 ticks FAIL for every early template even after
+#      exhausting all 40 attempts (every random early layout contains some
+#      boundary position needing more); 20-24 ticks succeed for every
+#      template within 1-2 attempts. Same check for intermediate/advanced
+#      (their own, deliberately harder, obstacle_level settings): both
+#      already succeed on the first attempt from a modest budget.
+#
+# early=24 (4.8s, ~one 110-120 degree corrective turn) keeps the gate doing
+# real filtering (occasional regeneration, not automatic acceptance) at
+# close to the smallest value that works at all. intermediate=32 (6.4s,
+# enough for just over a full 180 degree reversal) and advanced=40 (8.0s, a
+# full reversal plus continued correction) step up deliberately, matching
+# those stages' own harder obstacle_level geometry, not padding chosen to
+# avoid regeneration.
+#
+# IMPORTANT semantic note: this gate is a MAP-SANITY constraint, not a
+# curriculum/graduation skill target. It only proves the movement system
+# COULD recover from a sampled wall-adjacent position within a stage's
+# budget if it ever ended up there -- it exists to reject pathologically
+# unforgiving geometry (concave pockets, dead ends) from ever being
+# generated, nothing more. It does not mean early/Beginner is meant to
+# teach or tolerate 24-tick wedge recovery as normal behavior. A graduated
+# Beginner policy should simply not be getting into these states at all;
+# see milestone_evaluator's contact-rate criteria for that separate bar.
+_STAGE_ESCAPE_TICKS: dict[str, int] = {"early": 24, "intermediate": 32, "advanced": 40}
 _ESCAPE_MAX_VISITED_STATES = 4_000
 _ESCAPE_SAMPLE_POSITIONS = 120
 _ESCAPE_HEADINGS_PER_POSITION = 4

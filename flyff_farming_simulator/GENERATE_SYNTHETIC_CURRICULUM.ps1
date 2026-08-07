@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [int]$Layouts = 12,
     [int]$Seed = 20260804
@@ -22,7 +22,7 @@ if ($LASTEXITCODE -ne 0) { throw "Simulator tests failed." }
     --output synthetic_curriculum `
     --count $Layouts `
     --seed $Seed `
-    --reference-model models\real_farming_baseline_world.json.gz `
+    --reference-model models\recorded_world.json.gz `
     --overwrite
 if ($LASTEXITCODE -ne 0) { throw "Synthetic curriculum generation failed." }
 
@@ -30,3 +30,4 @@ if ($LASTEXITCODE -ne 0) { throw "Synthetic curriculum generation failed." }
 if ($LASTEXITCODE -ne 0) { throw "Generated curriculum could not be loaded." }
 
 Write-Host "Generated: synthetic_curriculum\curriculum.json"
+

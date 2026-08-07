@@ -1,0 +1,43 @@
+{
+  "total_samples": 320,
+  "category_counts": {
+    "persistent_wedge": 56,
+    "collision_onset": 57,
+    "safe_proximity": 85,
+    "ordinary": 122
+  },
+  "layout_names": [
+    "01_early_open_field_typical_fast",
+    "02_early_wide_neck_high_typical",
+    "03_early_open_field_low_fast",
+    "04_early_wide_neck_typical_bursty"
+  ],
+  "seeds": [
+    300,
+    301,
+    302,
+    303,
+    304,
+    305,
+    306,
+    307,
+    308,
+    309,
+    310,
+    311,
+    312,
+    313,
+    314,
+    315,
+    316,
+    317,
+    318,
+    319,
+    320,
+    321,
+    322,
+    323,
+    324
+  ],
+  "curriculum_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\synthetic_curriculum_phase2_dagger_siblings\\curriculum.json"
+}

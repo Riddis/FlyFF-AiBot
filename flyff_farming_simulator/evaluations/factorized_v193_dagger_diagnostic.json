@@ -1,0 +1,143 @@
+{
+  "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\generic_farming_pilot_teacher.zip",
+  "teacher_policy": "obstacle_aware",
+  "stage": "early",
+  "episodes_per_layout": 1,
+  "dataset": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\datasets\\factorized_v193_dagger_round.npz",
+  "dataset_samples": 2247,
+  "layouts": [
+    {
+      "layout": "01_early_open_field_typical_fast",
+      "layout_id": 0,
+      "episodes": 1,
+      "visited_states": 546,
+      "steering_agreement_with_teacher": 0.29120879120879123,
+      "event_agreement_with_teacher": 0.8461538461538461,
+      "steering_confusion_matrix_teacher_rows_policy_cols": [
+        [
+          0,
+          44,
+          0
+        ],
+        [
+          0,
+          159,
+          0
+        ],
+        [
+          0,
+          343,
+          0
+        ]
+      ],
+      "maximum_consecutive_steering_run": 546,
+      "missed_eva_opportunity_ticks": 39,
+      "teacher_eva_opportunity_ticks": 99,
+      "policy_eva_recall_on_teacher_eva_states": 0.18181818181818182,
+      "mean_policy_eva_probability_when_teacher_says_eva": 0.3548925649186577,
+      "mean_policy_eva_probability_when_teacher_says_none": 0.016277977805422426
+    },
+    {
+      "layout": "02_early_wide_neck_high_typical",
+      "layout_id": 1,
+      "episodes": 1,
+      "visited_states": 549,
+      "steering_agreement_with_teacher": 0.2167577413479053,
+      "event_agreement_with_teacher": 0.7304189435336976,
+      "steering_confusion_matrix_teacher_rows_policy_cols": [
+        [
+          2,
+          31,
+          0
+        ],
+        [
+          9,
+          117,
+          0
+        ],
+        [
+          14,
+          376,
+          0
+        ]
+      ],
+      "maximum_consecutive_steering_run": 524,
+      "missed_eva_opportunity_ticks": 72,
+      "teacher_eva_opportunity_ticks": 161,
+      "policy_eva_recall_on_teacher_eva_states": 0.10559006211180125,
+      "mean_policy_eva_probability_when_teacher_says_eva": 0.3020782100950709,
+      "mean_policy_eva_probability_when_teacher_says_none": 0.014669848586072945
+    },
+    {
+      "layout": "03_early_open_field_low_fast",
+      "layout_id": 2,
+      "episodes": 1,
+      "visited_states": 576,
+      "steering_agreement_with_teacher": 0.3125,
+      "event_agreement_with_teacher": 0.9704861111111112,
+      "steering_confusion_matrix_teacher_rows_policy_cols": [
+        [
+          0,
+          0,
+          38
+        ],
+        [
+          7,
+          0,
+          348
+        ],
+        [
+          3,
+          0,
+          180
+        ]
+      ],
+      "maximum_consecutive_steering_run": 566,
+      "missed_eva_opportunity_ticks": 6,
+      "teacher_eva_opportunity_ticks": 22,
+      "policy_eva_recall_on_teacher_eva_states": 0.36363636363636365,
+      "mean_policy_eva_probability_when_teacher_says_eva": 0.45786132324825635,
+      "mean_policy_eva_probability_when_teacher_says_none": 0.006270247123461805
+    },
+    {
+      "layout": "04_early_wide_neck_typical_bursty",
+      "layout_id": 3,
+      "episodes": 1,
+      "visited_states": 576,
+      "steering_agreement_with_teacher": 0.3923611111111111,
+      "event_agreement_with_teacher": 0.9409722222222222,
+      "steering_confusion_matrix_teacher_rows_policy_cols": [
+        [
+          4,
+          0,
+          24
+        ],
+        [
+          34,
+          0,
+          279
+        ],
+        [
+          13,
+          0,
+          222
+        ]
+      ],
+      "maximum_consecutive_steering_run": 525,
+      "missed_eva_opportunity_ticks": 26,
+      "teacher_eva_opportunity_ticks": 42,
+      "policy_eva_recall_on_teacher_eva_states": 0.19047619047619047,
+      "mean_policy_eva_probability_when_teacher_says_eva": 0.37489470555668786,
+      "mean_policy_eva_probability_when_teacher_says_none": 0.012466407608531908
+    }
+  ],
+  "aggregate": {
+    "visited_states": 2247,
+    "mean_steering_agreement_with_teacher": 0.3032069109169519,
+    "mean_event_agreement_with_teacher": 0.8720077807552193,
+    "missed_eva_opportunity_ticks": 143,
+    "teacher_eva_opportunity_ticks": 324,
+    "policy_eva_recall_on_teacher_eva_states": 0.1574074074074074,
+    "conflicting_duplicate_observations": 0
+  }
+}

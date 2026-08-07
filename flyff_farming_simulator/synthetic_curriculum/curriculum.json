@@ -155,6 +155,7 @@
     "Scattered obstacles are sparse.",
     "No maze, dungeon-room chain, long corridor, or precision-navigation layout is generated.",
     "Monster populations use loose spatial clusters and varied regional density.",
-    "Respawn timing and redistribution vary across layouts."
+    "Respawn timing and redistribution vary across layouts.",
+    "Every layout is validated so the bot's real latched-forward controls can regain meaningful movement from any sampled obstacle-adjacent position and heading within a stage-appropriate tick budget; unescapable pockets are rejected and regenerated, never shipped."
   ]
 }

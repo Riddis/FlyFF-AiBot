@@ -1,14 +1,14 @@
 {
   "size": 1001,
   "pose": {
-    "x": 0,
-    "y": 117,
+    "x": 29,
+    "y": 109,
     "heading_index": 0
   },
   "continuous_pose": {
-    "x": 0.035991668701171875,
-    "y": 116.73690795898438,
-    "heading_deg": 52.50349511361307
+    "x": 28.745765686035156,
+    "y": 108.6170768737793,
+    "heading_deg": 111.0093103825492
   },
   "metadata": {
     "version": 5,
@@ -275,12 +275,12 @@
     "heading_uncertainty_deg": 2.8804924576637974,
     "pose_known": true,
     "pose_note": "Manual-drive position is native-coordinate authoritative; heading is refined from each meaningful user-controlled movement segment.",
-    "pose_state_updated_at": "2026-07-29T23:08:36.092382+00:00",
+    "pose_state_updated_at": "2026-08-07T05:54:52.955013+00:00",
     "termination_reason": "Manual mapping stopped by user.",
     "map_name": "Tower AoE",
-    "run_count": 58,
+    "run_count": 66,
     "heading_recovery_successes": 0,
     "manual_spawn_resets": 0,
-    "updated_at": "2026-08-01T21:56:14.622389+00:00"
+    "updated_at": "2026-08-07T06:16:58.346658+00:00"
   }
 }

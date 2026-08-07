@@ -1,0 +1,50 @@
+[
+  {
+    "layout": "02_early_wide_neck_high_typical",
+    "player_x": 12.141933622050594,
+    "player_z": 82.76285987677578,
+    "heading": -2.634559559615234,
+    "forward": {
+      "sampled_score": 0.0,
+      "sampled_clear": false,
+      "exact_clear": false,
+      "agree": true
+    },
+    "left": {
+      "sampled_score": 0.049999999999999996,
+      "sampled_clear": false,
+      "exact_clear": false,
+      "agree": true
+    },
+    "right": {
+      "sampled_score": 0.0,
+      "sampled_clear": false,
+      "exact_clear": false,
+      "agree": true
+    }
+  },
+  {
+    "layout": "02_early_wide_neck_high_typical",
+    "player_x": -26.41211525367217,
+    "player_z": -94.15254807886967,
+    "heading": 0.4383944778535964,
+    "forward": {
+      "sampled_score": 0.0,
+      "sampled_clear": false,
+      "exact_clear": false,
+      "agree": true
+    },
+    "left": {
+      "sampled_score": 0.049999999999999996,
+      "sampled_clear": false,
+      "exact_clear": false,
+      "agree": true
+    },
+    "right": {
+      "sampled_score": 0.0,
+      "sampled_clear": false,
+      "exact_clear": false,
+      "agree": true
+    }
+  }
+]

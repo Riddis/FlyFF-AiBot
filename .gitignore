@@ -3,11 +3,15 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .pytest_tmp/
+.pytest-temp/
 .ruff_cache/
 .mypy_cache/
 .coverage
 coverage.xml
 htmlcov/
+
+# Local build/review scratch state
+.build_temp/
 
 # Local Python environments
 .venv/
@@ -31,10 +35,11 @@ desktop.ini
 *.pstats
 debug/
 training_logs/
-mapper/mapping_runs/
+**/mapper/mapping_runs/
 
 # Generated support/debug packages and other archives
 *.zip
+*.zip.orig
 *.bundle
 *.patch
 
@@ -42,9 +47,9 @@ mapper/mapping_runs/
 models/
 
 # Generated map and adaptive runtime state
-mapper/maps/
-mapper/adaptive_motion.json
-mapper/adaptive_motion.invalid_*.json
+**/mapper/maps/
+**/mapper/adaptive_motion.json
+**/mapper/adaptive_motion.invalid_*.json
 
 # Build and packaging output
 build/

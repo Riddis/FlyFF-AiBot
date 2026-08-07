@@ -34,7 +34,14 @@ class MapModel:
         origin_native_x: float = 0.0,
         origin_native_z: float = 0.0,
         native_units_per_cell: float = 1.6,
-        obstacle_radius_cells: int = 2,
+        # 0 = no artificial ordinary-wall margin; traced/generated obstacle
+        # cells already represent the real collision boundary, so any extra
+        # dilation here would make the usable space more conservative than
+        # reality. Nonzero remains available for deliberate margin experiments,
+        # not as an inherited default. teleport_radius_cells is unrelated --
+        # it guards a genuinely hazardous instant-fail mechanic, not ordinary
+        # collision, and keeps its own default.
+        obstacle_radius_cells: int = 0,
         teleport_radius_cells: int = 2,
     ) -> "MapModel":
         walkable = np.ascontiguousarray(np.asarray(traversable, dtype=bool))
@@ -96,7 +103,10 @@ class MapModel:
         masks = inflate_map_masks(
             traversable,
             forbidden,
-            obstacle_radius_cells=2,
+            # See from_arrays' obstacle_radius_cells comment: the traced real
+            # map boundary already is the collision edge (manually verified
+            # by driving up to it), so no additional software margin here.
+            obstacle_radius_cells=0,
             teleport_radius_cells=2,
         )
         features = FarmingMapFeatures(

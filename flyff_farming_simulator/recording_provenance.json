@@ -5,7 +5,14 @@
       "recording_role": "direct_keyboard_demonstration",
       "movement_control_scheme": "keyboard_wasd",
       "direct_movement_labels_allowed": true,
-      "evidence": "User attested on 2026-08-04 that this older Riddims session used direct WASD control."
+      "evidence": "User attested on 2026-08-04 that this older Riddims session used direct WASD control.",
+      "note": "Superseded by 27934E5167C8F4A03E7B376F2106C714B7E7D187ED96A080E49CE7E1FF7BFCCB, the same recording with its presence-field metadata patched in; kept here only as a historical record of the original file's content hash."
+    },
+    "27934E5167C8F4A03E7B376F2106C714B7E7D187ED96A080E49CE7E1FF7BFCCB": {
+      "recording_role": "direct_keyboard_demonstration",
+      "movement_control_scheme": "keyboard_wasd",
+      "direct_movement_labels_allowed": true,
+      "evidence": "User attested on 2026-08-04 that this older Riddims session used direct WASD control. Hash changed on 2026-08-06 after patching sampling.presence_species_offset/presence_species_validated into the manifest (see native.presence_attestation in the archive itself for the presence-field attestation)."
     }
   }
 }

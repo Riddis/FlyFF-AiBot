@@ -1,0 +1,482 @@
+{
+  "baseline_+0": {
+    "01_early_open_field_typical_fast_seed0": {
+      "was_originally": "necessary",
+      "divergence_tick": 429,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 14,
+      "raw_final_kills": 256,
+      "assisted_final_kills": 380
+    },
+    "01_early_open_field_typical_fast_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 348,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": 114,
+      "assisted_recovery_tick_offset": 41,
+      "raw_final_kills": 253,
+      "assisted_final_kills": 399
+    },
+    "02_early_wide_neck_high_typical_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 31,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 12,
+      "raw_final_kills": 74,
+      "assisted_final_kills": 539
+    },
+    "03_early_open_field_low_fast_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 346,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 190,
+      "assisted_final_kills": 335
+    },
+    "03_early_open_field_low_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 312,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 109,
+      "assisted_final_kills": 301
+    },
+    "05_early_open_field_typical_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 613,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 281,
+      "assisted_final_kills": 286
+    },
+    "06_early_wide_neck_high_typical_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 188,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 99,
+      "assisted_final_kills": 338
+    },
+    "07_early_open_field_low_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 334,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 156,
+      "assisted_final_kills": 222
+    },
+    "08_early_wide_neck_typical_bursty_seed0": {
+      "was_originally": "necessary",
+      "divergence_tick": 105,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 11,
+      "raw_final_kills": 41,
+      "assisted_final_kills": 268
+    },
+    "08_early_wide_neck_typical_bursty_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 312,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 11,
+      "raw_final_kills": 96,
+      "assisted_final_kills": 292
+    },
+    "02_early_wide_neck_high_typical_seed0": {
+      "was_originally": "harmful",
+      "divergence_tick": 313,
+      "classification_now": "harmful_intervention",
+      "raw_recovery_tick_offset": 10,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 577,
+      "assisted_final_kills": 372
+    },
+    "02_early_wide_neck_high_typical_seed1": {
+      "was_originally": "harmful",
+      "divergence_tick": 384,
+      "classification_now": "harmful_intervention",
+      "raw_recovery_tick_offset": 10,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 640,
+      "assisted_final_kills": 616
+    },
+    "fixed_irregular_low_bursty_unseen_seed1": {
+      "final_unique_cells": 544,
+      "final_kills": 182,
+      "ever_entered_recovery": true
+    },
+    "fixed_irregular_low_bursty_factorial_sibling1_seed0": {
+      "final_unique_cells": 606,
+      "final_kills": 87,
+      "ever_entered_recovery": false
+    }
+  },
+  "+5": {
+    "01_early_open_field_typical_fast_seed0": {
+      "was_originally": "necessary",
+      "divergence_tick": 435,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 13,
+      "raw_final_kills": 256,
+      "assisted_final_kills": 292
+    },
+    "01_early_open_field_typical_fast_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 354,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": 108,
+      "assisted_recovery_tick_offset": 42,
+      "raw_final_kills": 253,
+      "assisted_final_kills": 340
+    },
+    "02_early_wide_neck_high_typical_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 62,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 13,
+      "raw_final_kills": 74,
+      "assisted_final_kills": 336
+    },
+    "03_early_open_field_low_fast_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 351,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 12,
+      "raw_final_kills": 190,
+      "assisted_final_kills": 299
+    },
+    "03_early_open_field_low_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 317,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 109,
+      "assisted_final_kills": 305
+    },
+    "05_early_open_field_typical_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 619,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 13,
+      "raw_final_kills": 281,
+      "assisted_final_kills": 291
+    },
+    "06_early_wide_neck_high_typical_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 193,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 11,
+      "raw_final_kills": 99,
+      "assisted_final_kills": 210
+    },
+    "07_early_open_field_low_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 340,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 156,
+      "assisted_final_kills": 200
+    },
+    "08_early_wide_neck_typical_bursty_seed0": {
+      "was_originally": "necessary",
+      "divergence_tick": 110,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 12,
+      "raw_final_kills": 41,
+      "assisted_final_kills": 316
+    },
+    "08_early_wide_neck_typical_bursty_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 317,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 12,
+      "raw_final_kills": 96,
+      "assisted_final_kills": 316
+    },
+    "02_early_wide_neck_high_typical_seed0": {
+      "was_originally": "harmful",
+      "divergence_tick": 361,
+      "classification_now": "harmful_intervention",
+      "raw_recovery_tick_offset": 11,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 577,
+      "assisted_final_kills": 348
+    },
+    "02_early_wide_neck_high_typical_seed1": {
+      "was_originally": "harmful",
+      "divergence_tick": 384,
+      "classification_now": "harmful_intervention",
+      "raw_recovery_tick_offset": 10,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 640,
+      "assisted_final_kills": 677
+    },
+    "fixed_irregular_low_bursty_unseen_seed1": {
+      "final_unique_cells": 548,
+      "final_kills": 183,
+      "ever_entered_recovery": true
+    },
+    "fixed_irregular_low_bursty_factorial_sibling1_seed0": {
+      "final_unique_cells": 606,
+      "final_kills": 87,
+      "ever_entered_recovery": false
+    }
+  },
+  "+10": {
+    "01_early_open_field_typical_fast_seed0": {
+      "was_originally": "necessary",
+      "divergence_tick": 441,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 13,
+      "raw_final_kills": 256,
+      "assisted_final_kills": 360
+    },
+    "01_early_open_field_typical_fast_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 360,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": 102,
+      "assisted_recovery_tick_offset": 37,
+      "raw_final_kills": 253,
+      "assisted_final_kills": 440
+    },
+    "02_early_wide_neck_high_typical_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 324,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 12,
+      "raw_final_kills": 74,
+      "assisted_final_kills": 285
+    },
+    "03_early_open_field_low_fast_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 364,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 12,
+      "raw_final_kills": 190,
+      "assisted_final_kills": 323
+    },
+    "03_early_open_field_low_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 325,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 109,
+      "assisted_final_kills": 254
+    },
+    "05_early_open_field_typical_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": null,
+      "classification_now": "no_intervention",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": null,
+      "raw_final_kills": 281,
+      "assisted_final_kills": 281
+    },
+    "06_early_wide_neck_high_typical_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 199,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 99,
+      "assisted_final_kills": 361
+    },
+    "07_early_open_field_low_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 345,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 156,
+      "assisted_final_kills": 198
+    },
+    "08_early_wide_neck_typical_bursty_seed0": {
+      "was_originally": "necessary",
+      "divergence_tick": 114,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 12,
+      "raw_final_kills": 41,
+      "assisted_final_kills": 204
+    },
+    "08_early_wide_neck_typical_bursty_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 322,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 12,
+      "raw_final_kills": 96,
+      "assisted_final_kills": 247
+    },
+    "02_early_wide_neck_high_typical_seed0": {
+      "was_originally": "harmful",
+      "divergence_tick": 364,
+      "classification_now": "harmful_intervention",
+      "raw_recovery_tick_offset": 10,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 577,
+      "assisted_final_kills": 338
+    },
+    "02_early_wide_neck_high_typical_seed1": {
+      "was_originally": "harmful",
+      "divergence_tick": null,
+      "classification_now": "no_intervention",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": null,
+      "raw_final_kills": 640,
+      "assisted_final_kills": 640
+    },
+    "fixed_irregular_low_bursty_unseen_seed1": {
+      "final_unique_cells": 541,
+      "final_kills": 182,
+      "ever_entered_recovery": true
+    },
+    "fixed_irregular_low_bursty_factorial_sibling1_seed0": {
+      "final_unique_cells": 606,
+      "final_kills": 87,
+      "ever_entered_recovery": false
+    }
+  },
+  "+20": {
+    "01_early_open_field_typical_fast_seed0": {
+      "was_originally": "necessary",
+      "divergence_tick": 452,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 13,
+      "raw_final_kills": 256,
+      "assisted_final_kills": 315
+    },
+    "01_early_open_field_typical_fast_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 374,
+      "classification_now": "preventative_recovery",
+      "raw_recovery_tick_offset": 88,
+      "assisted_recovery_tick_offset": 40,
+      "raw_final_kills": 253,
+      "assisted_final_kills": 324
+    },
+    "02_early_wide_neck_high_typical_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 503,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": 153,
+      "assisted_recovery_tick_offset": 12,
+      "raw_final_kills": 74,
+      "assisted_final_kills": 137
+    },
+    "03_early_open_field_low_fast_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 364,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 12,
+      "raw_final_kills": 190,
+      "assisted_final_kills": 245
+    },
+    "03_early_open_field_low_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 335,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 109,
+      "assisted_final_kills": 235
+    },
+    "05_early_open_field_typical_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": null,
+      "classification_now": "no_intervention",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": null,
+      "raw_final_kills": 281,
+      "assisted_final_kills": 281
+    },
+    "06_early_wide_neck_high_typical_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 208,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 99,
+      "assisted_final_kills": 335
+    },
+    "07_early_open_field_low_fast_seed2": {
+      "was_originally": "necessary",
+      "divergence_tick": 357,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 10,
+      "raw_final_kills": 156,
+      "assisted_final_kills": 215
+    },
+    "08_early_wide_neck_typical_bursty_seed0": {
+      "was_originally": "necessary",
+      "divergence_tick": 125,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 12,
+      "raw_final_kills": 41,
+      "assisted_final_kills": 387
+    },
+    "08_early_wide_neck_typical_bursty_seed1": {
+      "was_originally": "necessary",
+      "divergence_tick": 334,
+      "classification_now": "necessary_recovery",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": 11,
+      "raw_final_kills": 96,
+      "assisted_final_kills": 240
+    },
+    "02_early_wide_neck_high_typical_seed0": {
+      "was_originally": "harmful",
+      "divergence_tick": null,
+      "classification_now": "no_intervention",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": null,
+      "raw_final_kills": 577,
+      "assisted_final_kills": 577
+    },
+    "02_early_wide_neck_high_typical_seed1": {
+      "was_originally": "harmful",
+      "divergence_tick": null,
+      "classification_now": "no_intervention",
+      "raw_recovery_tick_offset": null,
+      "assisted_recovery_tick_offset": null,
+      "raw_final_kills": 640,
+      "assisted_final_kills": 640
+    },
+    "fixed_irregular_low_bursty_unseen_seed1": {
+      "final_unique_cells": 532,
+      "final_kills": 180,
+      "ever_entered_recovery": true
+    },
+    "fixed_irregular_low_bursty_factorial_sibling1_seed0": {
+      "final_unique_cells": 606,
+      "final_kills": 87,
+      "ever_entered_recovery": false
+    }
+  }
+}

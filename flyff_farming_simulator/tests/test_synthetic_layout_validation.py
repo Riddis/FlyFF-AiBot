@@ -44,17 +44,26 @@ def test_open_field_position_is_immediately_escapable() -> None:
     assert _regains_movement_within(open_map, _MOVEMENT, x, z, 0.0, max_ticks=1)
 
 
-def test_dead_end_facing_the_closed_wall_is_not_escapable_within_early_budget() -> None:
+def test_dead_end_facing_the_closed_wall_is_not_escapable_within_a_tight_budget() -> None:
     """Reproduces the mechanism behind a real stuck teacher episode: facing
-    directly into a dead end's closed wall from right up against it should
-    exceed the strict early-stage tick budget."""
+    directly into a dead end's closed wall from right up against it takes
+    real turning ticks to correct, not an instant recovery.
+
+    Pinned to a literal tick count (measured: fails through 12 ticks,
+    succeeds by 16) rather than _STAGE_ESCAPE_TICKS["early"]. That constant
+    was recalibrated after obstacle_radius_cells -> 0 to cover the worst
+    case actually found in generated boundary-safe positions (24 ticks,
+    concave multi-wall corners), which turns out to need MORE ticks than a
+    clean single-wall corridor reversal like this one (16 ticks) -- so this
+    fixture is no longer a proxy for the early-stage difficulty ceiling,
+    just a fixed regression pin on the search itself."""
 
     cul_de_sac = _cul_de_sac(width=3)
     x, z = cul_de_sac.layout_to_native(20, 5)
     heading_into_wall = math.pi / 2.0
 
     assert not _regains_movement_within(
-        cul_de_sac, _MOVEMENT, x, z, heading_into_wall, max_ticks=_STAGE_ESCAPE_TICKS["early"]
+        cul_de_sac, _MOVEMENT, x, z, heading_into_wall, max_ticks=12
     )
 
 
@@ -98,11 +107,21 @@ def test_boundary_safe_positions_excludes_interior_cells() -> None:
 
 
 def test_layout_escapability_reasons_flags_an_unescapable_spawn() -> None:
-    cul_de_sac = _cul_de_sac(width=1)
-    spawn_native = cul_de_sac.layout_to_native(20, 5)
+    """A fully sealed single-cell pocket -- not merely a narrow corridor --
+    so the assertion holds by construction (zero room to move in any
+    direction) rather than depending on a specific tick budget. A width=1
+    open-ended corridor no longer works for this: under the recalibrated
+    early-stage budget (see _STAGE_ESCAPE_TICKS' comment) it turns out to be
+    escapable from every sampled heading well within budget."""
+
+    size = 41
+    traversable = np.zeros((size, size), dtype=bool)
+    traversable[20, 20] = True
+    sealed_box = MapModel.from_arrays(traversable, obstacle_radius_cells=0)
+    spawn_native = sealed_box.layout_to_native(20, 20)
 
     reasons = _layout_escapability_reasons(
-        cul_de_sac,
+        sealed_box,
         _MOVEMENT,
         np.random.default_rng(0),
         stage="early",
