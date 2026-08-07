@@ -33,6 +33,36 @@ from .scripted_policies import scripted_command
 from .synthetic import iter_variant_environments
 
 
+def _is_durable_recovery(
+    end_tick: int | None,
+    *,
+    unique_cells_trace: list[int],
+    contacts_trace: list[int],
+    total_distance_trace: list[float],
+    window: int = 50,
+    min_unique_cell_growth: int = 10,
+    max_contact_growth: int = 5,
+) -> bool:
+    """A recovery is durable only if progress actually held up afterward --
+    not merely that the controller's own short exit-check saw one good
+    window. Requires meaningful unique-cell growth and displacement over a
+    longer post-recovery window, without contacts continuing to pile up
+    (which would indicate the player re-wedged shortly after "recovering").
+    """
+
+    if end_tick is None:
+        return False
+    start = end_tick
+    end = min(len(unique_cells_trace) - 1, start + window)
+    if end <= start:
+        # Recovery happened right at episode end -- nothing left to confirm.
+        return False
+    unique_growth = unique_cells_trace[end] - unique_cells_trace[start]
+    distance_growth = total_distance_trace[end] - total_distance_trace[start]
+    contact_growth = contacts_trace[end] - contacts_trace[start]
+    return unique_growth >= min_unique_cell_growth and distance_growth > 0 and contact_growth <= max_contact_growth
+
+
 def _policy_forward(net: Any, observation: np.ndarray) -> tuple[int, int, np.ndarray]:
     with torch.no_grad():
         obs_tensor = torch.as_tensor(observation[None, :], device=net.device)
@@ -75,6 +105,7 @@ def run_episode(
     steering_choices: list[int] = []
     unique_cells_trace: list[int] = []
     total_distance_trace: list[float] = []
+    contacts_trace: list[int] = []
     steering_matches: list[bool] = []
     event_matches: list[bool] = []
     angles: list[float] = []
@@ -138,6 +169,7 @@ def run_episode(
             recovery_kills_during_intervention += int(info["total_kills"]) - kills_before
         unique_cells_trace.append(int(info["unique_cells"]))
         total_distance_trace.append(float(info["total_distance_cells"]))
+        contacts_trace.append(int(info["contacts"]))
         if terminated or truncated:
             break
 
@@ -151,10 +183,20 @@ def run_episode(
 
     recovery_summary: dict[str, Any] | None = None
     if recovery is not None:
+        durable_count = sum(
+            1
+            for r in recovery.interventions
+            if r.outcome == "recovered"
+            and _is_durable_recovery(
+                r.end_tick, unique_cells_trace=unique_cells_trace, contacts_trace=contacts_trace,
+                total_distance_trace=total_distance_trace,
+            )
+        )
         recovery_summary = {
             "final_state": recovery.state.value,
             "intervention_count": len(recovery.interventions),
             "recovered_count": sum(1 for r in recovery.interventions if r.outcome == "recovered"),
+            "durably_recovered_count": durable_count,
             "gave_up_count": sum(1 for r in recovery.interventions if r.outcome == "gave_up"),
             "intervention_durations": [
                 (r.end_tick - r.trigger_tick) for r in recovery.interventions if r.end_tick is not None
@@ -238,13 +280,16 @@ def _summarize_recovery(results: list[dict[str, Any]]) -> dict[str, Any]:
     all_durations = [d for s in summaries for d in s["intervention_durations"]]
     total_interventions = sum(s["intervention_count"] for s in summaries)
     total_recovered = sum(s["recovered_count"] for s in summaries)
+    total_durable = sum(s.get("durably_recovered_count", 0) for s in summaries)
     total_gave_up = sum(s["gave_up_count"] for s in summaries)
     return {
         "episodes_with_intervention": sum(1 for s in summaries if s["intervention_count"] > 0),
         "total_interventions": total_interventions,
         "recovered_count": total_recovered,
+        "durably_recovered_count": total_durable,
         "gave_up_count": total_gave_up,
-        "recovery_success_rate": (total_recovered / total_interventions) if total_interventions else None,
+        "immediate_recovery_success_rate": (total_recovered / total_interventions) if total_interventions else None,
+        "durable_recovery_success_rate": (total_durable / total_interventions) if total_interventions else None,
         "median_intervention_duration_ticks": float(np.median(all_durations)) if all_durations else None,
         "kills_during_intervention_total": sum(s["kills_during_intervention"] for s in summaries),
         "episodes_ending_given_up": sum(1 for s in summaries if s["final_state"] == "given_up"),

@@ -54,8 +54,15 @@ def trace_episode(
     seed: int,
     episode_seconds: float,
     max_actions: int,
+    recovery: Any = None,
 ) -> list[dict[str, Any]]:
-    """Full per-tick trace of one episode with the current policy."""
+    """Full per-tick trace of one episode with the current policy.
+
+    ``recovery``, when given a fresh ``RecoveryController``, wraps action
+    selection exactly as ``milestone_evaluator.run_episode`` does -- pass the
+    same seed with and without a controller to get a raw/assisted pair that
+    is identical up to the first intervention, for fork-replay comparison.
+    """
 
     net = model.policy
     entry, env = next(
@@ -71,6 +78,9 @@ def trace_episode(
     trace: list[dict[str, Any]] = []
     previous_best_actor_id: int | None = None
     visited: set[tuple[int, int]] = set()
+    previous_distance = 0.0
+    previous_contacts = 0
+    info: dict[str, Any] = {}
 
     for tick in range(int(max_actions)):
         angle = env.best_group_relative_angle()
@@ -93,9 +103,23 @@ def trace_episode(
             "right": bool(env.movement_path_clear(FarmingAction.RUN_FORWARD_RIGHT)),
         }
 
+        recovery_intervening = False
+        recovery_state = "n/a"
+        if recovery is not None:
+            recovery_state = recovery.state.value
+            recovery_intervening = recovery_state == "recovering"
+            steering, event = recovery.step(
+                tick=tick, player_x=env.player_x, player_z=env.player_z, heading=env.heading,
+                displacement_this_tick=info.get("total_distance_cells", 0.0) - previous_distance if info else 0.0,
+                contact_this_tick=bool(info.get("contacts", 0) - previous_contacts) if info else False,
+                map_model=env.map, policy_steering=steering, policy_event=event,
+            )
+
         if player_cell is not None:
             visited.add(player_cell)
 
+        previous_distance = float(info.get("total_distance_cells", 0.0)) if info else 0.0
+        previous_contacts = int(info.get("contacts", 0)) if info else 0
         observation, reward, terminated, truncated, info = env.step(np.asarray([steering, event], dtype=np.int64))
 
         trace.append(
@@ -127,6 +151,8 @@ def trace_episode(
                 "policy_event": int(event),
                 "teacher_event": int(teacher_command.event),
                 "total_kills": int(info.get("total_kills", 0)),
+                "recovery_state": recovery_state,
+                "recovery_intervening": recovery_intervening,
             }
         )
         if terminated or truncated:

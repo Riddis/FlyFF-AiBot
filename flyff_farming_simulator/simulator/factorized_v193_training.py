@@ -208,6 +208,64 @@ def _apply_prior_bias_correction(
     }
 
 
+def expand_steering_input_from_checkpoint(old_policy: Any, new_policy: Any) -> None:
+    """Transplant a SplitSteeringEventPolicy's weights into a freshly
+    constructed SplitSteeringNavigationPolicy (simulator.split_branch_policy)
+    so the expanded policy is provably identical to the source checkpoint at
+    initialization -- Phase 2's zero-init weight surgery.
+
+    Only steering_net's first Linear layer changes shape (old steering input
+    dim -> STEERING_NAVIGATION_FEATURE_SIZE): the old input's columns are
+    copied verbatim, the new columns are zero-initialized, bias is copied
+    unchanged. Every other layer (remaining steering hidden layers,
+    steering_out, all of event_net/vf_net/event_out, value_net) is a pure
+    identity copy -- their shapes never change between the two policies.
+
+    Verify with realistic NONZERO new-feature values, not zeros -- an
+    all-zero probe would pass even if the new columns were accidentally left
+    at their random initialization, since random_weight * 0 == 0 regardless
+    of the weight.
+    """
+
+    import torch
+
+    old_mlp = old_policy.mlp_extractor
+    new_mlp = new_policy.mlp_extractor
+
+    def _copy_linear(old_layer: Any, new_layer: Any) -> None:
+        with torch.no_grad():
+            new_layer.weight.copy_(old_layer.weight)
+            new_layer.bias.copy_(old_layer.bias)
+
+    def _copy_sequential(old_seq: Any, new_seq: Any) -> None:
+        for old_layer, new_layer in zip(old_seq, new_seq):
+            if isinstance(old_layer, torch.nn.Linear):
+                _copy_linear(old_layer, new_layer)
+
+    old_first = old_mlp.steering_net[0]
+    new_first = new_mlp.steering_net[0]
+    if not isinstance(old_first, torch.nn.Linear) or not isinstance(new_first, torch.nn.Linear):
+        raise TypeError("expand_steering_input_from_checkpoint expects steering_net to start with nn.Linear")
+    old_in = old_first.in_features
+    if new_first.in_features <= old_in:
+        raise ValueError(
+            f"new_policy's steering input dim ({new_first.in_features}) must exceed "
+            f"old_policy's ({old_in}) -- this is an expansion, not a same-shape copy"
+        )
+    with torch.no_grad():
+        new_first.weight.zero_()
+        new_first.weight[:, :old_in].copy_(old_first.weight)
+        new_first.bias.copy_(old_first.bias)
+
+    _copy_sequential(old_mlp.steering_net[1:], new_mlp.steering_net[1:])
+    _copy_sequential(old_mlp.event_net, new_mlp.event_net)
+    _copy_sequential(old_mlp.vf_net, new_mlp.vf_net)
+
+    _copy_linear(old_policy.action_net.steering_out, new_policy.action_net.steering_out)
+    _copy_linear(old_policy.action_net.event_out, new_policy.action_net.event_out)
+    _copy_linear(old_policy.value_net, new_policy.value_net)
+
+
 def _train_natural_prior_epoch(
     policy: Any,
     optimizer: Any,
@@ -1223,4 +1281,112 @@ def rehearse_factorized_policy_v193(
         "calibration": calibration,
         "validation": after,
         "reasons": after["gate"]["reasons"],
+    }
+
+
+def fine_tune_steering_branch_v193(
+    model: Any,
+    dataset_path: str | Path,
+    *,
+    epochs: int = 8,
+    learning_rate: float = 3.0e-4,
+    batch_size: int = 128,
+    validation_fraction: float = 0.2,
+    seed: int = 0,
+) -> dict[str, Any]:
+    """Phase 2 scoped fine-tune: trains ONLY steering_net/steering_out on
+    the stratified navigation dataset (simulator.navigation_dataset),
+    freezing event_net/vf_net/event_out/value_net so event/value behavior
+    is provably unaffected -- see the `event_head_unaffected` field below.
+
+    `model.policy` must be a `SplitSteeringNavigationPolicy`
+    (simulator.split_branch_policy). `dataset_path` must be an .npz saved by
+    simulator.navigation_dataset.mine_navigation_dataset's caller, holding
+    925-value (raw+sidecar) observations, `actions` (steering, event) pairs,
+    `layout_index`, and `episode_index`.
+    """
+
+    import torch
+    import torch.nn.functional as F
+
+    from .navigation_history import POLICY_INPUT_SIZE
+    from .split_branch_policy import STEERING_NAVIGATION_FEATURE_SIZE
+
+    with np.load(Path(dataset_path), allow_pickle=False) as data:
+        observations = np.asarray(data["observations"], dtype=np.float32)
+        actions = np.asarray(data["actions"], dtype=np.int64)
+        layout_index = np.asarray(data["layout_index"], dtype=np.int64)
+        episode_index = np.asarray(data["episode_index"], dtype=np.int64)
+
+    if observations.shape[1] != POLICY_INPUT_SIZE:
+        raise ValueError(
+            f"dataset observations must be {POLICY_INPUT_SIZE}-valued (raw+sidecar), got {observations.shape[1]}"
+        )
+
+    train_idx, val_idx, val_episodes = _layout_stratified_episode_split(
+        episode_index, layout_index, actions, validation_fraction=validation_fraction, seed=seed,
+    )
+
+    policy = model.policy
+    steering_first_layer = getattr(getattr(policy, "mlp_extractor", None), "steering_net", [None])[0]
+    actual_steering_input = getattr(steering_first_layer, "in_features", None)
+    if actual_steering_input != STEERING_NAVIGATION_FEATURE_SIZE:
+        raise ValueError(
+            f"policy.mlp_extractor.steering_net expects {actual_steering_input} steering inputs, "
+            f"but this fine-tune is scoped to the {STEERING_NAVIGATION_FEATURE_SIZE}-feature Phase 2 "
+            "variant -- is model.policy a SplitSteeringNavigationPolicy (not SplitSteeringEventPolicy)?"
+        )
+
+    trainable_params = []
+    for name, param in policy.named_parameters():
+        is_steering = "mlp_extractor.steering_net" in name or "action_net.steering_out" in name
+        param.requires_grad = is_steering
+        if is_steering:
+            trainable_params.append(param)
+    assert trainable_params, "unreachable: steering_input check above already validated the architecture"
+
+    policy.eval()
+    before = _prediction_diagnostics(policy, observations[val_idx], actions[val_idx], batch_size=batch_size)
+
+    optimizer = torch.optim.Adam(trainable_params, lr=float(learning_rate))
+    policy.train()
+    rng = np.random.default_rng(seed)
+    history: list[dict[str, Any]] = []
+    for epoch in range(1, int(epochs) + 1):
+        order = rng.permutation(train_idx)
+        epoch_loss = 0.0
+        n_batches = 0
+        for start in range(0, len(order), int(batch_size)):
+            batch_idx = order[start : start + int(batch_size)]
+            obs = torch.as_tensor(observations[batch_idx], device=policy.device)
+            steering_labels = torch.as_tensor(actions[batch_idx, 0], device=policy.device, dtype=torch.long)
+            distribution = policy.get_distribution(obs).distribution
+            loss = F.cross_entropy(distribution[0].logits, steering_labels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            epoch_loss += float(loss.item())
+            n_batches += 1
+        history.append({"epoch": epoch, "mean_loss": epoch_loss / max(1, n_batches)})
+
+    policy.eval()
+    after = _prediction_diagnostics(policy, observations[val_idx], actions[val_idx], batch_size=batch_size)
+
+    for _name, param in policy.named_parameters():
+        param.requires_grad = True  # restore, standard SB3 policies expect all-trainable
+
+    event_unaffected = (
+        before["event"]["samples"] == after["event"]["samples"]
+        and np.allclose(before["event"]["mean_probabilities"], after["event"]["mean_probabilities"], atol=1e-6)
+    )
+
+    return {
+        "dataset": str(Path(dataset_path).resolve()),
+        "train_samples": int(len(train_idx)),
+        "validation_samples": int(len(val_idx)),
+        "validation_episodes": val_episodes,
+        "history": history,
+        "before": before,
+        "after": after,
+        "event_head_unaffected": bool(event_unaffected),
     }

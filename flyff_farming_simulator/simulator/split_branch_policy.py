@@ -37,6 +37,11 @@ from .geometry_features import (
     MAXIMUM_PACK_DENSITY,
     VISION_RADIUS_CELLS,
 )
+from .local_navigation_features import (
+    CLEARANCE_FEATURE_SIZE,
+    derive_physical_clearance_features_torch,
+)
+from .navigation_history import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE, SIDECAR_SIZE
 
 
 def derive_geometry_features_torch(observations: torch.Tensor) -> torch.Tensor:
@@ -139,10 +144,11 @@ class SplitBranchExtractor(nn.Module):
         event_net_arch: list[int],
         vf_net_arch: list[int],
         activation_fn: type[nn.Module],
+        steering_input_dim: int = GEOMETRY_FEATURE_SIZE,
     ) -> None:
         super().__init__()
         self.raw_obs_dim = raw_obs_dim
-        self.steering_net, self.latent_dim_steering = _mlp(GEOMETRY_FEATURE_SIZE, steering_net_arch, activation_fn)
+        self.steering_net, self.latent_dim_steering = _mlp(steering_input_dim, steering_net_arch, activation_fn)
         self.event_net, self.latent_dim_event = _mlp(raw_obs_dim, event_net_arch, activation_fn)
         self.vf_net, self.latent_dim_vf = _mlp(raw_obs_dim, vf_net_arch, activation_fn)
         self.latent_dim_pi = self.latent_dim_steering + self.latent_dim_event
@@ -250,3 +256,74 @@ class SplitSteeringEventPolicy(ActorCriticPolicy):
             vf_net_arch=self._vf_net_arch,
         )
         return data
+
+
+# Phase 2: 6 target-geometry + 3 physical-clearance + recent_progress + recent_contact.
+STEERING_NAVIGATION_FEATURE_SIZE = GEOMETRY_FEATURE_SIZE + CLEARANCE_FEATURE_SIZE + SIDECAR_SIZE
+
+
+class NavigationAugmentedFeaturesExtractor(BaseFeaturesExtractor):
+    """Phase 2 features extractor. Input is the 925-value
+    NavigationHistoryWrapper-augmented observation (923 raw + 2 temporal
+    sidecar values -- a policy-input contract distinct from the 923-value
+    recorder/live game-observation contract, see
+    simulator.navigation_history.STEERING_POLICY_INPUT_SCHEMA_ID).
+
+    Produces `[raw_923 | derived_9 | sidecar_2]` (934 values):
+    event_net/vf_net consume only `features[:, :923]` -- byte-for-byte
+    identical to the un-augmented policy's input, never touched by this
+    extractor's derived features. steering_net consumes
+    `features[:, 923:934]` (11 values).
+    """
+
+    def __init__(self, observation_space: spaces.Box) -> None:
+        raw_dim = int(np.prod(observation_space.shape))
+        if raw_dim != POLICY_INPUT_SIZE:
+            raise ValueError(
+                f"NavigationAugmentedFeaturesExtractor requires a {POLICY_INPUT_SIZE}-value "
+                f"observation (923 raw + {SIDECAR_SIZE} navigation-history sidecar), got {raw_dim}. "
+                "Wrap the environment with simulator.navigation_history.NavigationHistoryWrapper."
+            )
+        super().__init__(
+            observation_space,
+            features_dim=RAW_OBSERVATION_SIZE + STEERING_NAVIGATION_FEATURE_SIZE,
+        )
+
+    def forward(self, observations: torch.Tensor) -> torch.Tensor:
+        flat = observations.reshape(observations.shape[0], -1).float()
+        raw = flat[:, :RAW_OBSERVATION_SIZE]
+        sidecar = flat[:, RAW_OBSERVATION_SIZE : RAW_OBSERVATION_SIZE + SIDECAR_SIZE]
+        geometry = derive_geometry_features_torch(raw)
+        clearance = derive_physical_clearance_features_torch(raw)
+        return torch.cat([raw, geometry, clearance, sidecar], dim=1)
+
+
+class SplitSteeringNavigationPolicy(SplitSteeringEventPolicy):
+    """Phase 2 policy variant: steering_net consumes 11 features instead of
+    6 (see STEERING_NAVIGATION_FEATURE_SIZE). event_net/vf_net are
+    unaffected -- see the zero-init weight-surgery helper in
+    factorized_v193_training.py, which makes a freshly-expanded policy
+    provably identical to its source 15k checkpoint at initialization.
+
+    Requires observations wrapped by
+    simulator.navigation_history.NavigationHistoryWrapper (925 values).
+    `raw_obs_dim` is fixed at RAW_OBSERVATION_SIZE (923), never derived from
+    the wrapped observation's shape -- deriving it dynamically (as the
+    original SplitSteeringEventPolicy does, harmlessly, since its raw and
+    geometry sizes happen to make that arithmetic work out) would silently
+    leak the 2 sidecar values into event_net/vf_net's input here.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("features_extractor_class", NavigationAugmentedFeaturesExtractor)
+        super().__init__(*args, **kwargs)
+
+    def _build_mlp_extractor(self) -> None:
+        self.mlp_extractor = SplitBranchExtractor(
+            RAW_OBSERVATION_SIZE,
+            steering_net_arch=self._steering_net_arch,
+            event_net_arch=self._event_net_arch,
+            vf_net_arch=self._vf_net_arch,
+            activation_fn=self.activation_fn,
+            steering_input_dim=STEERING_NAVIGATION_FEATURE_SIZE,
+        )

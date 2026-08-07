@@ -13,12 +13,18 @@ layouts are deliberately excluded.
 Start here:
 
 ```powershell
-.\SMOKE_TEST_SYNTHETIC_CURRICULUM.ps1
-.\TRAIN_GENERIC_BASE.ps1
+.\GENERATE_SYNTHETIC_CURRICULUM.ps1
+.\SMOKE_TEST_FACTORIZED.ps1
+.\PILOT_GENERIC_BASE.ps1
 .\EVALUATE_GENERIC_BASE.ps1
 ```
 
-See `SYNTHETIC_CURRICULUM_README.md` for the full workflow.
+These scripts intentionally have no version suffix and are not cloned per
+release; each one's header comment explains where to update it in place
+(currently `simulator.factorized_v193_cli`) when the pipeline module bumps.
+See `SYNTHETIC_CURRICULUM_README.md` for the full workflow, and
+`recordings/INDEX.md` for what each recorded archive can currently be used
+for.
 
 
 It consumes `SEND_TO_RIDDIMS_*.zip` recorder archives, fits a stochastic farming
@@ -192,51 +198,26 @@ demonstration dataset.
   population redistribution. Every simulator-trained checkpoint still requires live
   validation.
 
-## Stable behavior-cloning + PPO run
+## Retired: behavior-cloning + PPO against the recorded Tower baseline
 
-`TRAIN_CURRENT_BASELINE.ps1` now uses conservative PPO settings for the small
-baseline dataset:
-
-- learning rate `0.00005`
-- four PPO epochs per rollout
-- clip range `0.10`
-- target KL `0.015`
-- periodic checkpoints every 10,000 simulator steps
-
-The script saves the frozen imitation checkpoint before PPO as:
+`TRAIN_CURRENT_BASELINE.ps1` / `RESUME_CURRENT_BASELINE.ps1` /
+`COMPARE_CURRENT_BASELINE.ps1` trained against the real recorded Tower world
+model using the pre-factorized 5-action contract (`run_simulator.py train`).
+That action contract, the collision physics, and the synthetic map generator
+have all since changed (see `VERSION_1.9_FACTORIZED_ACTIONS.md` and the
+factorized pilot scripts above), so these scripts were retired rather than
+kept pointing at stale assumptions. Their checkpoints remain on disk as
+historical artifacts and are not deleted:
 
 ```text
 models/native_strategy_recorded_baseline_ppo_bc.zip
-```
-
-The current PPO state is always saved as:
-
-```text
 models/native_strategy_recorded_baseline_ppo.zip
 ```
 
-Pressing Ctrl+C is safe; the current PPO state is saved before the command
-returns.
-
-Run a clean 100,000-step diagnostic:
-
-```powershell
-.\TRAIN_CURRENT_BASELINE.ps1
-```
-
-Compare random actions, the frozen behavior clone, and the current PPO over 20
-identical-seed episodes:
-
-```powershell
-.\COMPARE_CURRENT_BASELINE.ps1
-```
-
-Continue the current PPO checkpoint without repeating behavior cloning:
-
-```powershell
-.\RESUME_CURRENT_BASELINE.ps1 -Timesteps 100000
-```
-
-The comparison report includes reward, kills, EVA casts, action distribution,
-travel distance, net displacement, path efficiency, repeated-cell rate,
-section transitions, and contacts.
+The actual current path to a real-map fine-tune (project step 3: "fine-tune
+on a recording-calibrated simulator for that map") is to copy a checkpoint
+produced by `PILOT_GENERIC_BASE.ps1`, sort and classify new recordings with
+`VALIDATE_NEW_RECORDINGS.ps1`, refit a world model from every
+world-model-eligible recording via `REFIT_WORLD_MODEL.ps1`, and
+evaluate/fine-tune the factorized policy against it -- not this retired
+scalar-action pipeline.
