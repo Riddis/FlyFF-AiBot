@@ -77,12 +77,34 @@ def resume_ppo_chunk_phase2(
     episode_seconds: float = 150.0,
     max_actions: int = 1000,
     device: str = "cpu",
+    n_steps: int = 256,
+    batch_size: int = 128,
+    n_epochs: int = 4,
+    learning_rate: float = 5e-5,
+    clip_range: float = 0.10,
+    target_kl: float = 0.015,
+    gamma: float = 0.995,
+    gae_lambda: float = 0.95,
+    ent_coef: float = 0.015,
 ) -> dict[str, Any]:
     """Load an already-built Phase 2 checkpoint unchanged, run exactly one
     bounded PPO chunk on a NavigationHistoryWrapper-wrapped training vec-env,
     save the result. Never loops on its own -- call again for another chunk.
     Does not run any post-training rehearsal/BC pass; that is a separate,
     deliberate decision left to the caller, not silently folded in here.
+
+    The conservative hyperparameter defaults above match this project's own
+    established settings for fine-tuning an already-good policy
+    (factorized_v193_cli.run_pilot's PPO(...) construction) -- passed
+    explicitly as overrides to PPO.load() rather than trusted from
+    whatever is embedded in the checkpoint. A checkpoint built via a fresh
+    PPO(...) construction that only specified n_steps (e.g. to enable a
+    scoped BC fine-tune, never intending real training) silently carries
+    SB3's much more aggressive defaults otherwise -- confirmed the hard way:
+    an earlier run without these overrides collapsed teacher-relative kill
+    rate to ~0.07-0.17x within 10k steps even though stagnation looked
+    roughly stable, almost certainly EVA-calibration damage from too-large
+    updates, not a navigation problem.
     """
 
     from stable_baselines3 import PPO
@@ -91,7 +113,11 @@ def resume_ppo_chunk_phase2(
         curriculum, stage=stage, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions,
     )
     try:
-        policy = PPO.load(str(checkpoint), env=env, device=device)
+        policy = PPO.load(
+            str(checkpoint), env=env, device=device,
+            n_steps=n_steps, batch_size=batch_size, n_epochs=n_epochs, learning_rate=learning_rate,
+            clip_range=clip_range, target_kl=target_kl, gamma=gamma, gae_lambda=gae_lambda, ent_coef=ent_coef,
+        )
         before_obs_shape = tuple(policy.observation_space.shape)
         wrapped_obs_shape = tuple(env.observation_space.shape)
         if before_obs_shape != wrapped_obs_shape:
