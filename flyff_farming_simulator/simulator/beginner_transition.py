@@ -44,7 +44,6 @@ def _run_925_episode_raw(curriculum_path: str, layout_name: str, *, net: Any, se
 
     from .movement_classification import classify_episode_movement
     from .navigation_history import NavigationHistoryWrapper
-    from .scripted_policies import scripted_command
     from .synthetic import iter_variant_environments
 
     entry, base_env = next(iter(iter_variant_environments(
@@ -57,13 +56,11 @@ def _run_925_episode_raw(curriculum_path: str, layout_name: str, *, net: Any, se
     steering_choices, unique_cells_trace, total_distance_trace = [], [], []
     info: dict[str, Any] = {}
     for _ in range(int(max_actions)):
-        teacher_command = scripted_command("obstacle_aware", base_env)
         steering, event, _probs = _raw_policy_forward(net, np.asarray(observation, dtype=np.float32))
         steering_choices.append(steering)
         observation, _r, terminated, truncated, info = env.step(np.asarray([steering, event], dtype=np.int64))
         unique_cells_trace.append(int(info["unique_cells"]))
         total_distance_trace.append(float(info["total_distance_cells"]))
-        del teacher_command
         if terminated or truncated:
             break
     env.close()
@@ -185,12 +182,24 @@ def rehearse_beginner_on_basic_data(
 ) -> dict[str, Any]:
     """Periodic BC rehearsal on Basic-stage data (human bootstrap +
     recovery-assisted DAgger, concatenated) to guard against Beginner's PPO
-    phase forgetting Basic-stage steering/event competence. Reuses
+    phase forgetting Basic-stage event/EVA competence. Reuses
     basic_training.bootstrap_policy_from_human_recordings' training loop
     (session-stratified split, masked steering loss) unchanged -- it does
     not care whether "session" boundaries came from real recordings or
     simulator episodes, only that adjacent indices within one session are
-    temporally correlated and should not straddle train/val."""
+    temporally correlated and should not straddle train/val.
+
+    Deliberately event-only (bootstrap_policy_from_human_recordings'
+    default train_heads): the combined dataset mixes human data (steering
+    not well-correlated with the current representation, see that
+    function's module docstring) with DAgger data (steering IS
+    well-correlated) in one pool, with no per-sample source tag this
+    function threads through -- excluding steering from rehearsal entirely
+    is the conservative choice until that's examined properly. The user has
+    flagged comparing pre/post-rehearsal navigation metrics before the
+    first real Beginner continuation specifically because of this; not
+    resolved here, intentionally deferred.
+    """
 
     from stable_baselines3 import PPO
 

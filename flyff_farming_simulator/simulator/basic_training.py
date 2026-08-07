@@ -1,5 +1,22 @@
 """Basic-stage entrypoint: fresh-initialization current-architecture policy,
-human-recording BC bootstrap, and the canonical checkpoint naming scheme.
+two-source bootstrap, and the canonical checkpoint naming scheme.
+
+STEERING is bootstrapped from the scripted simulator teacher, not human
+recordings. EVENT/EVA is bootstrapped from human recordings. This mirrors a
+finding already established earlier in this project: when the steering
+branch was restricted to the compact target-geometry representation, human
+steering-label accuracy fell to ~31.6% while scripted-teacher steering,
+target-angle correlations, and actual simulated farming behavior all stayed
+healthy. Re-confirmed directly on the real canonical human dataset here (all
+6 original geometry features correlate <=0.05 with the recorded human
+steering key across 2684 valid samples) -- the compact steering
+representation was deliberately narrowed to kill an earlier shortcut-
+learning bug, and it does not encode enough of a human's situational
+awareness to explain their exact recorded key presses on a frame-by-frame
+basis, even though it explains scripted-teacher and simulated-policy
+steering well. This is an accepted property of the representation, not a
+recording or simulator bug -- human steering BC is not used to initialize
+the fresh steering branch.
 
 Basic never runs PPO (see simulator/basic_environment.py's module docstring
 for the full recovery/PPO design rationale). Everything here is supervised
@@ -18,7 +35,11 @@ import numpy as np
 
 from farming.actions import FarmingEvent, SteeringAction
 
-from .factorized_v193_training import _prediction_diagnostics
+from .factorized_v193_training import (
+    _layout_stratified_episode_split,
+    _prediction_diagnostics,
+    _sqrt_inverse_class_weights,
+)
 from .navigation_history import (
     CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT,
     CALIBRATED_HISTORY_WINDOW,
@@ -200,6 +221,14 @@ def build_human_bootstrap_dataset(
         session_index = np.asarray(data["session_index"], dtype=np.int64)
         elapsed_ms = np.asarray(data["elapsed_ms"], dtype=np.int64)
         displacement_cells = np.asarray(data["displacement_cells"], dtype=np.float32)
+        # Per-SESSION (not per-sample) role, e.g. "direct_keyboard" vs
+        # "eva_only" -- propagated through so bootstrap_policy_from_human_
+        # recordings can compute the event class prior from continuous
+        # direct-keyboard sessions only, not skewed by eva_only's curated
+        # near-100%-CAST_EVA clips (see that function's docstring).
+        source_recording_role = (
+            np.asarray(data["source_recording_role"], dtype=str) if "source_recording_role" in data else None
+        )
 
     if observations.shape[1] != RAW_OBSERVATION_SIZE:
         raise ValueError(
@@ -223,8 +252,7 @@ def build_human_bootstrap_dataset(
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(
-        output,
+    save_kwargs = dict(
         observations=policy_input.astype(np.float32),
         actions=actions,
         steering_label_valid=steering_label_valid,
@@ -232,6 +260,9 @@ def build_human_bootstrap_dataset(
         session_index=session_index,
         recent_contact_is_neutral_placeholder=np.asarray([True]),
     )
+    if source_recording_role is not None:
+        save_kwargs["source_recording_role"] = source_recording_role
+    np.savez_compressed(output, **save_kwargs)
     return output
 
 
@@ -282,11 +313,240 @@ def build_fresh_basic_policy(
     )
 
 
+def collect_simulator_teacher_dataset(
+    curriculum_path: str,
+    layout_names: list[str],
+    *,
+    samples: int,
+    episode_seconds: float,
+    max_actions: int,
+    seed: int = 0,
+    teacher_policy: str = "obstacle_aware",
+    history_window: int = CALIBRATED_HISTORY_WINDOW,
+    expected_clear_path_displacement: float = CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT,
+    output_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Roll the scripted simulator teacher through `layout_names`,
+    collecting (925-value observation, teacher action) pairs -- the source
+    of steering supervision for the fresh Basic policy (see module
+    docstring for why, not human recordings). 925-value-aware sibling of
+    factorized_v193_training.collect_teacher_dataset_v193 (which is fixed
+    at 923 values, no NavigationHistoryWrapper).
+
+    Rolling the TEACHER's own actions (not the untrained fresh policy's)
+    gives a clean, well-distributed demonstration set for the very first
+    bootstrap -- an untrained policy's own rollout would mostly wander
+    degenerate/uninformative states. Basic's later DAgger rounds are what
+    expand coverage to policy-visited states.
+    """
+
+    from .navigation_history import NavigationHistoryWrapper
+    from .scripted_policies import scripted_command
+    from .synthetic import iter_variant_environments
+
+    environments = list(iter_variant_environments(
+        curriculum_path, stage="early", seed=seed, episode_steps=max_actions, episode_seconds=episode_seconds,
+    ))
+    if layout_names:
+        environments = [(entry, env) for entry, env in environments if entry.name in layout_names]
+    if not environments:
+        raise ValueError("No synthetic variants matched the requested teacher-collection layouts")
+
+    observations: list[np.ndarray] = []
+    actions: list[tuple[int, int]] = []
+    episode_ids: list[int] = []
+    layout_ids: list[int] = []
+    episode_id = 0
+    progress = ProgressPrinter(int(samples), label="teacher_dataset_collection", min_interval_seconds=15.0)
+    try:
+        while len(observations) < int(samples):
+            for layout_id, (_entry, base_env) in enumerate(environments):
+                env = NavigationHistoryWrapper(
+                    base_env, window=history_window, expected_clear_path_displacement=expected_clear_path_displacement,
+                )
+                observation, _ = env.reset(seed=seed + episode_id * 1009 + layout_id * 37)
+                for _ in range(int(max_actions)):
+                    command = scripted_command(teacher_policy, base_env)
+                    observations.append(np.asarray(observation, dtype=np.float32).copy())
+                    actions.append(command.as_array())
+                    episode_ids.append(episode_id)
+                    layout_ids.append(layout_id)
+                    observation, _, terminated, truncated, _ = env.step(np.asarray(command.as_array(), dtype=np.int64))
+                    progress.update(min(len(observations), int(samples)))
+                    if len(observations) >= int(samples) or terminated or truncated:
+                        break
+                episode_id += 1
+                if len(observations) >= int(samples):
+                    break
+    finally:
+        for _, env in environments:
+            env.close()
+    progress.finish()
+
+    obs = np.asarray(observations[: int(samples)], dtype=np.float32)
+    labels = np.asarray(actions[: int(samples)], dtype=np.int64)
+    episode_index = np.asarray(episode_ids[: int(samples)], dtype=np.int64)
+    layout_index = np.asarray(layout_ids[: int(samples)], dtype=np.int64)
+    if obs.shape != (int(samples), POLICY_INPUT_SIZE) or labels.shape != (int(samples), 2):
+        raise ValueError(f"Unexpected teacher arrays: observations={obs.shape}, actions={labels.shape}")
+
+    train_indices, validation_indices, validation_episodes = _layout_stratified_episode_split(
+        episode_index, layout_index, labels, validation_fraction=0.20, seed=seed,
+    )
+    layout_names_used = np.asarray([entry.name for entry, _env in environments], dtype=str)
+
+    result = {
+        "observations": obs, "actions": labels, "episode_index": episode_index, "layout_index": layout_index,
+        "layout_names": layout_names_used, "train_indices": train_indices, "validation_indices": validation_indices,
+        "validation_episodes": validation_episodes,
+        "steering_counts": np.bincount(labels[:, 0], minlength=3).tolist(),
+        "event_counts": np.bincount(labels[:, 1], minlength=3).tolist(),
+    }
+    if output_path is not None:
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(
+            path, observations=obs, actions=labels, episode_index=episode_index, layout_index=layout_index,
+            layout_names=layout_names_used, train_indices=train_indices, validation_indices=validation_indices,
+        )
+        result["path"] = str(path.resolve())
+    return result
+
+
+def bootstrap_steering_from_teacher(
+    model: Any,
+    teacher_dataset: dict[str, Any] | str | Path,
+    *,
+    epochs: int = 20,
+    learning_rate: float = 3.0e-4,
+    batch_size: int = 128,
+    seed: int = 0,
+    progress_every_seconds: float = 15.0,
+) -> dict[str, Any]:
+    """Steering-only BC from the scripted-teacher dataset (freezes
+    event_net/event_out/value_net, same freeze pattern as
+    factorized_v193_training.fine_tune_steering_branch_v193 -- here applied
+    to a fresh, not already-competent, steering branch). Class-balanced loss
+    (this codebase's established fix for exactly the majority-class-collapse
+    failure mode -- see factorized_v193_training._sqrt_inverse_class_weights).
+
+    `teacher_dataset` may be the dict collect_simulator_teacher_dataset
+    returns directly, or a path to what it saved.
+    """
+
+    import torch
+    import torch.nn.functional as F
+
+    if isinstance(teacher_dataset, (str, Path)):
+        with np.load(Path(teacher_dataset), allow_pickle=False) as data:
+            observations = np.asarray(data["observations"], dtype=np.float32)
+            labels = np.asarray(data["actions"], dtype=np.int64)
+            train_idx = np.asarray(data["train_indices"], dtype=np.int64)
+            val_idx = np.asarray(data["validation_indices"], dtype=np.int64)
+    else:
+        observations = teacher_dataset["observations"]
+        labels = teacher_dataset["actions"]
+        train_idx = teacher_dataset["train_indices"]
+        val_idx = teacher_dataset["validation_indices"]
+
+    if observations.shape[1] != POLICY_INPUT_SIZE:
+        raise ValueError(f"teacher dataset observations must be {POLICY_INPUT_SIZE}-valued, got {observations.shape[1]}")
+
+    policy = model.policy
+    steering_first_layer = getattr(getattr(policy, "mlp_extractor", None), "steering_net", [None])[0]
+    if getattr(steering_first_layer, "in_features", None) != STEERING_NAVIGATION_FEATURE_SIZE:
+        raise ValueError("policy.mlp_extractor.steering_net does not match STEERING_NAVIGATION_FEATURE_SIZE; is model.policy a SplitSteeringNavigationPolicy?")
+
+    steering_weights = torch.as_tensor(
+        _sqrt_inverse_class_weights(labels[:, 0], train_idx, 3), dtype=torch.float32, device=policy.device,
+    )
+
+    trainable_names = ("mlp_extractor.steering_net", "action_net.steering_out")
+    trainable_params = []
+    for name, param in policy.named_parameters():
+        is_trainable = any(key in name for key in trainable_names)
+        param.requires_grad = is_trainable
+        if is_trainable:
+            trainable_params.append(param)
+    assert trainable_params, "unreachable: steering_input check above already validated the architecture"
+
+    policy.eval()
+    before = _prediction_diagnostics(policy, observations[val_idx], labels[val_idx], batch_size=batch_size)
+
+    optimizer = torch.optim.Adam(trainable_params, lr=float(learning_rate))
+    policy.train()
+    rng = np.random.default_rng(seed)
+    history: list[dict[str, Any]] = []
+    total_batches = int(epochs) * max(1, (len(train_idx) + batch_size - 1) // batch_size)
+    progress = ProgressPrinter(total_batches, label="teacher_steering_bootstrap", min_interval_seconds=progress_every_seconds)
+    batches_done = 0
+    for epoch in range(1, int(epochs) + 1):
+        order = rng.permutation(train_idx)
+        epoch_loss = 0.0
+        n_batches = 0
+        for start in range(0, len(order), int(batch_size)):
+            batch_idx = order[start : start + int(batch_size)]
+            obs = torch.as_tensor(observations[batch_idx], device=policy.device)
+            steering_labels = torch.as_tensor(labels[batch_idx, 0], device=policy.device, dtype=torch.long)
+            distribution = policy.get_distribution(obs).distribution
+            loss = F.cross_entropy(distribution[0].logits, steering_labels, weight=steering_weights)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            epoch_loss += float(loss.item())
+            n_batches += 1
+            batches_done += 1
+            progress.update(batches_done, extra=f"epoch={epoch}/{epochs}")
+        history.append({"epoch": epoch, "mean_steering_loss": epoch_loss / max(1, n_batches)})
+    progress.finish()
+
+    policy.eval()
+    after = _prediction_diagnostics(policy, observations[val_idx], labels[val_idx], batch_size=batch_size)
+    for _name, param in policy.named_parameters():
+        param.requires_grad = True
+
+    # Explicit target-angle correlation sign check (part of the required
+    # pre-launch smoke test): recompute the 6 geometry features on the
+    # validation observations and confirm sin(relative_angle) correlates
+    # POSITIVELY with LEFT and NEGATIVELY with RIGHT -- the same check that
+    # was healthy historically (+0.72..0.76 / -0.73..-0.76) and is exactly
+    # what the human-data audit found broken for human labels.
+    from .split_branch_policy import derive_geometry_features_torch
+
+    with torch.no_grad():
+        geom = derive_geometry_features_torch(torch.as_tensor(observations[val_idx, :923], dtype=torch.float32)).numpy()
+    val_steering = labels[val_idx, 0]
+    sin_angle = geom[:, 0]
+    left_mask = val_steering == int(SteeringAction.LEFT)
+    right_mask = val_steering == int(SteeringAction.RIGHT)
+    angle_correlation = {
+        "corr_sin_angle_vs_is_left": float(np.corrcoef(sin_angle, left_mask.astype(float))[0, 1]) if left_mask.any() else None,
+        "corr_sin_angle_vs_is_right": float(np.corrcoef(sin_angle, right_mask.astype(float))[0, 1]) if right_mask.any() else None,
+    }
+
+    return {
+        "train_samples": int(len(train_idx)), "validation_samples": int(len(val_idx)),
+        "history": history, "before": before, "after": after, "angle_correlation": angle_correlation,
+    }
+
+
 def _session_stratified_split(
     session_index: np.ndarray, *, validation_fraction: float, seed: int,
+    event_labels: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Hold out entire recording sessions for validation -- never split
-    temporally-adjacent frames from the same session across train/val."""
+    temporally-adjacent frames from the same session across train/val.
+
+    If `event_labels` is given, guarantees every event class present
+    anywhere in the data also appears in validation -- without this, a
+    single homogeneous session (e.g. an eva_only recording, which is
+    ALWAYS 100% CAST_EVA by construction) can become the entire validation
+    set by chance, making "validation accuracy" report a near-meaningless
+    number (0 support for two of three classes) rather than a real
+    generalization check. Mirrors factorized_v193_training.
+    _layout_stratified_episode_split's own established required-class-
+    coverage mechanism, adapted for sessions instead of episodes.
+    """
 
     sessions = np.unique(session_index)
     rng = np.random.default_rng(seed)
@@ -299,6 +559,30 @@ def _session_stratified_split(
         return idx[cut:], idx[:cut]
     target_count = max(1, int(round(len(sessions) * validation_fraction)))
     validation_sessions = set(rng.choice(sessions, size=min(target_count, len(sessions) - 1), replace=False).tolist())
+
+    if event_labels is not None:
+        for value in np.unique(event_labels).tolist():
+            current_mask = np.isin(session_index, list(validation_sessions))
+            if np.any(event_labels[current_mask] == value):
+                continue
+            if len(validation_sessions) + 1 >= len(sessions):
+                # Adding another session would consume every session into
+                # validation, leaving nothing to train on. Leave this class
+                # uncovered in validation instead -- a real data-scarcity
+                # fact to surface via the reported diagnostics, not
+                # something this split can manufacture by starving train.
+                continue
+            candidates = [
+                int(s) for s in sessions
+                if int(s) not in validation_sessions and np.any(event_labels[session_index == s] == value)
+            ]
+            if candidates:
+                validation_sessions.add(candidates[0])
+            # If no session anywhere contains this class, there is nothing
+            # to add -- train will also lack it, which is a real data-
+            # scarcity fact to surface via the reported diagnostics, not
+            # something this split can manufacture.
+
     val_mask = np.isin(session_index, list(validation_sessions))
     return np.flatnonzero(~val_mask), np.flatnonzero(val_mask)
 
@@ -307,6 +591,7 @@ def bootstrap_policy_from_human_recordings(
     model: Any,
     dataset_path: str | Path,
     *,
+    train_heads: tuple[str, ...] = ("event",),
     epochs: int = 6,
     learning_rate: float = 3.0e-4,
     batch_size: int = 128,
@@ -314,28 +599,46 @@ def bootstrap_policy_from_human_recordings(
     seed: int = 0,
     progress_every_seconds: float = 10.0,
 ) -> dict[str, Any]:
-    """Full-policy BC on human recordings: trains steering_net+steering_out
-    AND event_net+event_out (unlike fine_tune_steering_branch_v193, which is
-    deliberately steering-only for an already-competent policy -- a fresh
-    Basic policy has no competent event head to protect yet). value_net is
+    """BC on human recordings, restricted to `train_heads` (default
+    event-only: see module docstring for why human data does not bootstrap
+    steering). Pass train_heads=("steering","event") or ("steering",) to
+    override -- e.g. for a later, evidence-justified low-weight diagnostic
+    fine-tune, never as the initial steering bootstrap. value_net is always
     left untouched: BC on human recordings has no meaningful value target,
     the value function is learned properly once Beginner's PPO phase
     provides real reward signal.
 
-    Steering loss is masked per-sample by steering_label_valid (click-to-move/
-    EVA-only recordings can only supervise the event head); event loss is not
-    masked (event_label_valid is always True in this dataset's contract --
-    see demonstrations.export_demonstrations).
+    Steering loss (when trained) is masked per-sample by steering_label_valid
+    (click-to-move/EVA-only recordings can only supervise the event head);
+    event loss is not masked (event_label_valid is always True in this
+    dataset's contract -- see demonstrations.export_demonstrations).
+
+    Event class weights use the NATURAL prior from continuous direct-keyboard
+    sessions only (factorized_v193_training._natural_human_event_target),
+    not the raw pooled distribution across all sessions -- eva_only
+    recordings are curated near-100%-CAST_EVA clips (a real positive
+    recognition example) and would otherwise make EVA look far more common
+    in ordinary play than it is, distorting the learned prior. This mirrors
+    the project's established hybrid-teacher/human pipeline
+    (train_hybrid_factorized_teacher_v193), reused here rather than
+    reinvented, adapted for the split steering/event architecture.
     """
 
     import torch
     import torch.nn.functional as F
+
+    valid_heads = {"steering", "event"}
+    if not set(train_heads) <= valid_heads or not train_heads:
+        raise ValueError(f"train_heads must be a non-empty subset of {valid_heads}, got {train_heads}")
 
     with np.load(Path(dataset_path), allow_pickle=False) as data:
         observations = np.asarray(data["observations"], dtype=np.float32)
         actions = np.asarray(data["actions"], dtype=np.int64)
         steering_label_valid = np.asarray(data["steering_label_valid"], dtype=np.bool_)
         session_index = np.asarray(data["session_index"], dtype=np.int64)
+        session_roles = (
+            np.asarray(data["source_recording_role"], dtype=str) if "source_recording_role" in data else None
+        )
 
     if observations.shape[1] != POLICY_INPUT_SIZE:
         raise ValueError(f"dataset observations must be {POLICY_INPUT_SIZE}-valued, got {observations.shape[1]}")
@@ -349,11 +652,48 @@ def bootstrap_policy_from_human_recordings(
             f"is model.policy a SplitSteeringNavigationPolicy?"
         )
 
-    train_idx, val_idx = _session_stratified_split(session_index, validation_fraction=validation_fraction, seed=seed)
+    train_idx, val_idx = _session_stratified_split(
+        session_index, validation_fraction=validation_fraction, seed=seed, event_labels=actions[:, 1],
+    )
     if len(val_idx) == 0 or len(train_idx) == 0:
         raise ValueError("session-stratified split produced an empty train or validation slice")
 
-    trainable_names = ("mlp_extractor.steering_net", "action_net.steering_out", "mlp_extractor.event_net", "action_net.event_out")
+    # Class-balanced loss weighting -- without this, plain unweighted
+    # cross-entropy on this dataset's real class imbalance (event: ~75%
+    # NONE / 25% CAST_EVA / 0.5% JUMP; steering: ~73% STRAIGHT) collapses
+    # the argmax to the majority class for every single sample (confirmed
+    # empirically on the real canonical human-recording dataset: 3272/3272
+    # predictions were STRAIGHT/NONE after 20 unweighted epochs, despite
+    # the mean predicted probabilities roughly tracking the true class
+    # priors -- the model had learned the marginal rate, not per-observation
+    # discrimination). Reuses this codebase's own established fix for
+    # exactly this failure mode (factorized_v193_training._sqrt_inverse_
+    # class_weights, already used for the non-split architecture's BC
+    # training) rather than inventing a new one.
+    if session_roles is not None:
+        continuous_session_ids = np.flatnonzero(session_roles == "direct_keyboard")
+        continuous_mask = np.isin(session_index, continuous_session_ids)
+    else:
+        continuous_mask = np.ones(len(session_index), dtype=np.bool_)
+    natural_event_indices = train_idx[continuous_mask[train_idx]]
+    # Fall back to the full (pooled) train set only if there are truly no
+    # continuous-session samples to estimate a natural prior from.
+    event_weight_indices = natural_event_indices if len(natural_event_indices) > 0 else train_idx
+    event_class_weights = torch.as_tensor(
+        _sqrt_inverse_class_weights(actions[:, 1], event_weight_indices, 3), dtype=torch.float32,
+    )
+    steering_train_valid_idx = train_idx[steering_label_valid[train_idx]]
+    steering_class_weights = (
+        torch.as_tensor(_sqrt_inverse_class_weights(actions[:, 0], steering_train_valid_idx, 3), dtype=torch.float32)
+        if len(steering_train_valid_idx) > 0
+        else torch.ones(3, dtype=torch.float32)
+    )
+
+    head_param_prefixes = {
+        "steering": ("mlp_extractor.steering_net", "action_net.steering_out"),
+        "event": ("mlp_extractor.event_net", "action_net.event_out"),
+    }
+    trainable_names = tuple(prefix for head in train_heads for prefix in head_param_prefixes[head])
     trainable_params = []
     for name, param in policy.named_parameters():
         is_trainable = any(key in name for key in trainable_names)
@@ -388,14 +728,23 @@ def bootstrap_policy_from_human_recordings(
             steering_valid = torch.as_tensor(steering_label_valid[batch_idx], device=policy.device, dtype=torch.bool)
 
             distribution = policy.get_distribution(obs).distribution
-            event_loss = F.cross_entropy(distribution[1].logits, event_labels)
+            event_loss = F.cross_entropy(
+                distribution[1].logits, event_labels, weight=event_class_weights.to(policy.device),
+            )
             if bool(steering_valid.any()):
                 steering_loss = F.cross_entropy(
                     distribution[0].logits[steering_valid], steering_labels[steering_valid],
+                    weight=steering_class_weights.to(policy.device),
                 )
             else:
                 steering_loss = torch.zeros((), device=policy.device)
-            loss = steering_loss + event_loss
+            # Only trained heads' losses enter the backward pass -- a frozen
+            # head's loss is still computed and reported below (useful
+            # signal: is it drifting even though nothing should update it?)
+            # but never contributes gradient.
+            loss = sum(
+                (steering_loss if head == "steering" else event_loss) for head in train_heads
+            )
 
             optimizer.zero_grad()
             loss.backward()
