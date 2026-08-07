@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import glob
 import json
+import re
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -71,7 +73,6 @@ def check_no_nan(model, where: str) -> None:
 
 def main() -> None:
     from simulator.basic_environment import collect_basic_dagger_dataset, save_basic_dagger_dataset
-    from simulator.basic_milestone_evaluator import evaluate_basic_milestone
     from simulator.basic_training import (
         bootstrap_policy_from_human_recordings,
         bootstrap_steering_from_teacher,
@@ -81,7 +82,6 @@ def main() -> None:
         collect_simulator_teacher_dataset,
         save_checkpoint_with_provenance,
     )
-    from simulator.beginner_transition import zero_shot_raw_diagnostic
     from simulator.demonstrations import export_demonstrations
     from simulator.map_model import MapModel
     from simulator.navigation_dataset import MiningConfig
@@ -110,108 +110,157 @@ def main() -> None:
     build_human_bootstrap_dataset(demo_path, bootstrap_dataset_path)
     log(f"Bootstrap dataset (925-dim, neutral recent_contact): {bootstrap_dataset_path}")
 
-    # ---------------------------------------------------------------
-    log("=== Stage 2: fresh current-architecture initialization ===")
-    # ---------------------------------------------------------------
-    entry, probe_env = next(iter(iter_variant_environments(
-        TRAINING_CURRICULUM, stage="early", seed=SEED, episode_steps=10, episode_seconds=5.0,
-    )))
-    wrapped_probe_env = NavigationHistoryWrapper(probe_env)
-    model = build_fresh_basic_policy(wrapped_probe_env, seed=SEED, device="cpu")
-    wrapped_probe_env.close()
-    log(f"Fresh policy built. observation_space={model.observation_space}. starting_checkpoint=NONE (verified fresh).")
+    eval_processes: list[subprocess.Popen] = []
+    eval_worker_script = ROOT / "_basic_round_eval_worker.py"
 
-    # ---------------------------------------------------------------
-    log("=== Stage 3a: steering bootstrap from the scripted simulator teacher ===")
-    # ---------------------------------------------------------------
-    # Human recordings do NOT bootstrap steering -- see basic_training.py's
-    # module docstring. Known project precedent: when steering was
-    # restricted to the compact target-geometry representation, human
-    # steering-label accuracy fell to ~31.6% while scripted-teacher
-    # steering/target-angle correlations/simulated farming stayed healthy.
-    # Re-confirmed directly on the real canonical human dataset before this
-    # run: all 6 geometry features correlate <=0.05 with recorded human
-    # steering across 2684 valid samples, loss stuck flat across 60 epochs
-    # regardless of class-balanced weighting -- a real, already-known
-    # property of the representation, not a bug to chase further here.
-    teacher_dataset_path = EVAL_DIR / "canonical_basic_teacher_dataset.npz"
-    teacher_dataset = collect_simulator_teacher_dataset(
-        DAGGER_CURRICULUM, DAGGER_LAYOUTS, samples=6000, episode_seconds=DAGGER_EPISODE_SECONDS,
-        max_actions=DAGGER_MAX_ACTIONS, seed=SEED, output_path=teacher_dataset_path,
-    )
-    log(f"Teacher dataset: {teacher_dataset['observations'].shape[0]} samples, "
-        f"steering_counts={teacher_dataset['steering_counts']}, event_counts={teacher_dataset['event_counts']}")
-
-    steering_result = bootstrap_steering_from_teacher(
-        model, teacher_dataset, epochs=20, learning_rate=3e-4, batch_size=128, seed=SEED, progress_every_seconds=20.0,
-    )
-    check_no_nan(model, "after teacher steering bootstrap")
-    log(f"Teacher steering BC done. train={steering_result['train_samples']} val={steering_result['validation_samples']}")
-    log(f"  final epoch loss: {steering_result['history'][-1]}")
-    log(f"  steering accuracy before/after: "
-        f"{steering_result['before']['gate']['heads']['steering']['accuracy']:.3f} -> "
-        f"{steering_result['after']['gate']['heads']['steering']['accuracy']:.3f}")
-    log(f"  angle correlation (expect positive vs LEFT, negative vs RIGHT): {steering_result['angle_correlation']}")
-    corr = steering_result["angle_correlation"]
-    if not (corr["corr_sin_angle_vs_is_left"] and corr["corr_sin_angle_vs_is_left"] > 0
-            and corr["corr_sin_angle_vs_is_right"] and corr["corr_sin_angle_vs_is_right"] < 0):
-        raise RuntimeError(
-            f"Teacher steering bootstrap did not produce sign-correct target-angle correlations: {corr} "
-            "-- stopping. This is the same scripted-teacher path that worked historically; a failure here "
-            "is a real regression, not the known human-steering mismatch, and needs its own diagnosis."
+    def dispatch_round_eval(checkpoint_path: Path, round_idx: int) -> None:
+        log(f"Dispatching round {round_idx} evaluation asynchronously (milestone evaluator + raw diagnostic) "
+            f"in parallel with the next round's DAgger collection -- watch for '!!! ALARM round {round_idx}' "
+            "in this worker's own log output; the main loop no longer blocks on or auto-stops from these checks.")
+        proc = subprocess.Popen(
+            [sys.executable, str(eval_worker_script), str(checkpoint_path), str(round_idx)],
+            cwd=str(ROOT),
         )
+        eval_processes.append(proc)
 
     # ---------------------------------------------------------------
-    log("=== Stage 3b: event/EVA bootstrap from human recordings ===")
+    # Resume support: if earlier milestone checkpoints already exist (e.g.
+    # this script was restarted mid-run to pick up the async-eval change),
+    # skip straight to the next un-collected round instead of redoing the
+    # fresh init + bootstrap (which is deterministic under SEED=0 and would
+    # just reproduce identical results at real wall-clock cost).
     # ---------------------------------------------------------------
-    event_result = bootstrap_policy_from_human_recordings(
-        model, bootstrap_dataset_path, train_heads=("event",), epochs=20, learning_rate=3e-4, batch_size=128,
-        validation_fraction=0.15, seed=SEED, progress_every_seconds=20.0,
-    )
-    check_no_nan(model, "after human event bootstrap")
-    log(f"Human event BC done. train={event_result['train_samples']} val={event_result['validation_samples']}")
-    log(f"  final epoch losses: {event_result['history'][-1]}")
-    log(f"  event accuracy before/after: "
-        f"{event_result['before']['gate']['heads']['event']['accuracy']:.3f} -> "
-        f"{event_result['after']['gate']['heads']['event']['accuracy']:.3f}")
-    log(f"  steering accuracy unchanged (frozen) before/after: "
-        f"{event_result['before']['gate']['heads']['steering']['accuracy']:.3f} -> "
-        f"{event_result['after']['gate']['heads']['steering']['accuracy']:.3f}")
-    event_conf = event_result["after"]["gate"]["heads"]["event"].get("per_class")
-    if event_conf:
-        log(f"  event per-class (val): {event_conf}")
+    existing_milestones: dict[int, Path] = {}
+    for p in MODELS_DIR.glob("canonical_basic_milestone_*.zip"):
+        m = re.match(r"canonical_basic_milestone_(\d+)\.zip", p.name)
+        if m:
+            existing_milestones[int(m.group(1))] = p
+    completed_round = max(existing_milestones) if existing_milestones else 0
 
-    if event_result["after"]["gate"]["heads"]["event"]["accuracy"] < 0.3:
-        raise RuntimeError(
-            f"Event head accuracy is only {event_result['after']['gate']['heads']['event']['accuracy']:.3f} "
-            "after human bootstrap -- stopping rather than proceeding with a possibly-broken event head."
+    if completed_round > 0:
+        # ---------------------------------------------------------------
+        log(f"=== Resuming: found completed round {completed_round} checkpoint, skipping fresh init/bootstrap ===")
+        # ---------------------------------------------------------------
+        previous_checkpoint = existing_milestones[completed_round]
+        from stable_baselines3 import PPO
+        model = PPO.load(str(previous_checkpoint), device="cpu")
+        log(f"Loaded {previous_checkpoint} as the resume starting point.")
+        resume_report_path = EVAL_DIR / f"canonical_basic_milestone_{completed_round:03d}_report.json"
+        if not resume_report_path.exists():
+            log(f"Round {completed_round} has no eval report yet (was mid-flight when interrupted) -- "
+                "dispatching its evaluation now before resuming collection.")
+            dispatch_round_eval(previous_checkpoint, completed_round)
+        first_round = completed_round + 1
+    else:
+        # ---------------------------------------------------------------
+        log("=== Stage 2: fresh current-architecture initialization ===")
+        # ---------------------------------------------------------------
+        entry, probe_env = next(iter(iter_variant_environments(
+            TRAINING_CURRICULUM, stage="early", seed=SEED, episode_steps=10, episode_seconds=5.0,
+        )))
+        wrapped_probe_env = NavigationHistoryWrapper(probe_env)
+        model = build_fresh_basic_policy(wrapped_probe_env, seed=SEED, device="cpu")
+        wrapped_probe_env.close()
+        log(f"Fresh policy built. observation_space={model.observation_space}. starting_checkpoint=NONE (verified fresh).")
+
+        # ---------------------------------------------------------------
+        log("=== Stage 3a: steering bootstrap from the scripted simulator teacher ===")
+        # ---------------------------------------------------------------
+        # Human recordings do NOT bootstrap steering -- see basic_training.py's
+        # module docstring. Known project precedent: when steering was
+        # restricted to the compact target-geometry representation, human
+        # steering-label accuracy fell to ~31.6% while scripted-teacher
+        # steering/target-angle correlations/simulated farming stayed healthy.
+        # Re-confirmed directly on the real canonical human dataset before this
+        # run: all 6 geometry features correlate <=0.05 with recorded human
+        # steering across 2684 valid samples, loss stuck flat across 60 epochs
+        # regardless of class-balanced weighting -- a real, already-known
+        # property of the representation, not a bug to chase further here.
+        teacher_dataset_path = EVAL_DIR / "canonical_basic_teacher_dataset.npz"
+        teacher_dataset = collect_simulator_teacher_dataset(
+            DAGGER_CURRICULUM, DAGGER_LAYOUTS, samples=6000, episode_seconds=DAGGER_EPISODE_SECONDS,
+            max_actions=DAGGER_MAX_ACTIONS, seed=SEED, output_path=teacher_dataset_path,
         )
+        log(f"Teacher dataset: {teacher_dataset['observations'].shape[0]} samples, "
+            f"steering_counts={teacher_dataset['steering_counts']}, event_counts={teacher_dataset['event_counts']}")
 
-    bootstrap_checkpoint = MODELS_DIR / f"{canonical_checkpoint_name('basic', 'bootstrap')}.zip"
-    save_checkpoint_with_provenance(
-        model, bootstrap_checkpoint, stage="basic", milestone="bootstrap", seeds=SEED,
-        config={
-            "steering_source": "scripted_teacher", "steering_epochs": 20, "steering_samples": teacher_dataset["observations"].shape[0],
-            "event_source": "human_recordings", "event_epochs": 20,
-        },
-        curriculum_path=DAGGER_CURRICULUM, recording_paths=training_recordings + eva_only_recordings,
-        starting_checkpoint=None,
-        extra={
-            "steering_result_summary": {
-                "train_samples": steering_result["train_samples"], "angle_correlation": steering_result["angle_correlation"],
+        steering_result = bootstrap_steering_from_teacher(
+            model, teacher_dataset, epochs=20, learning_rate=3e-4, batch_size=128, seed=SEED, progress_every_seconds=20.0,
+        )
+        check_no_nan(model, "after teacher steering bootstrap")
+        log(f"Teacher steering BC done. train={steering_result['train_samples']} val={steering_result['validation_samples']}")
+        log(f"  final epoch loss: {steering_result['history'][-1]}")
+        log(f"  steering accuracy before/after: "
+            f"{steering_result['before']['gate']['heads']['steering']['accuracy']:.3f} -> "
+            f"{steering_result['after']['gate']['heads']['steering']['accuracy']:.3f}")
+        log(f"  angle correlation (expect positive vs LEFT, negative vs RIGHT): {steering_result['angle_correlation']}")
+        corr = steering_result["angle_correlation"]
+        if not (corr["corr_sin_angle_vs_is_left"] and corr["corr_sin_angle_vs_is_left"] > 0
+                and corr["corr_sin_angle_vs_is_right"] and corr["corr_sin_angle_vs_is_right"] < 0):
+            raise RuntimeError(
+                f"Teacher steering bootstrap did not produce sign-correct target-angle correlations: {corr} "
+                "-- stopping. This is the same scripted-teacher path that worked historically; a failure here "
+                "is a real regression, not the known human-steering mismatch, and needs its own diagnosis."
+            )
+
+        # ---------------------------------------------------------------
+        log("=== Stage 3b: event/EVA bootstrap from human recordings ===")
+        # ---------------------------------------------------------------
+        event_result = bootstrap_policy_from_human_recordings(
+            model, bootstrap_dataset_path, train_heads=("event",), epochs=20, learning_rate=3e-4, batch_size=128,
+            validation_fraction=0.15, seed=SEED, progress_every_seconds=20.0,
+        )
+        check_no_nan(model, "after human event bootstrap")
+        log(f"Human event BC done. train={event_result['train_samples']} val={event_result['validation_samples']}")
+        log(f"  final epoch losses: {event_result['history'][-1]}")
+        log(f"  event accuracy before/after: "
+            f"{event_result['before']['gate']['heads']['event']['accuracy']:.3f} -> "
+            f"{event_result['after']['gate']['heads']['event']['accuracy']:.3f}")
+        log(f"  steering accuracy unchanged (frozen) before/after: "
+            f"{event_result['before']['gate']['heads']['steering']['accuracy']:.3f} -> "
+            f"{event_result['after']['gate']['heads']['steering']['accuracy']:.3f}")
+        event_conf = event_result["after"]["gate"]["heads"]["event"].get("per_class")
+        if event_conf:
+            log(f"  event per-class (val): {event_conf}")
+
+        if event_result["after"]["gate"]["heads"]["event"]["accuracy"] < 0.3:
+            raise RuntimeError(
+                f"Event head accuracy is only {event_result['after']['gate']['heads']['event']['accuracy']:.3f} "
+                "after human bootstrap -- stopping rather than proceeding with a possibly-broken event head."
+            )
+
+        bootstrap_checkpoint = MODELS_DIR / f"{canonical_checkpoint_name('basic', 'bootstrap')}.zip"
+        save_checkpoint_with_provenance(
+            model, bootstrap_checkpoint, stage="basic", milestone="bootstrap", seeds=SEED,
+            config={
+                "steering_source": "scripted_teacher", "steering_epochs": 20, "steering_samples": teacher_dataset["observations"].shape[0],
+                "event_source": "human_recordings", "event_epochs": 20,
             },
-            "event_result_summary": {"train_samples": event_result["train_samples"]},
-        },
-    )
-    log(f"Saved: {bootstrap_checkpoint} (+ provenance)")
+            curriculum_path=DAGGER_CURRICULUM, recording_paths=training_recordings + eva_only_recordings,
+            starting_checkpoint=None,
+            extra={
+                "steering_result_summary": {
+                    "train_samples": steering_result["train_samples"], "angle_correlation": steering_result["angle_correlation"],
+                },
+                "event_result_summary": {"train_samples": event_result["train_samples"]},
+            },
+        )
+        log(f"Saved: {bootstrap_checkpoint} (+ provenance)")
+        previous_checkpoint = bootstrap_checkpoint
+        first_round = 1
 
     all_round_reports = []
+    summary_path = EVAL_DIR / "canonical_basic_run_summary.json"
+    if summary_path.exists():
+        try:
+            all_round_reports = json.loads(summary_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            all_round_reports = []
 
     # ---------------------------------------------------------------
-    log(f"=== Stage 4: {N_ROUNDS} Basic milestone rounds (recovery-assisted DAgger, no PPO) ===")
+    log(f"=== Stage 4: rounds {first_round}-{N_ROUNDS} Basic milestone rounds (recovery-assisted DAgger, no PPO) ===")
     # ---------------------------------------------------------------
-    previous_checkpoint = bootstrap_checkpoint
-    for round_idx in range(1, N_ROUNDS + 1):
+    for round_idx in range(first_round, N_ROUNDS + 1):
         log(f"--- Round {round_idx}/{N_ROUNDS} ---")
         round_seeds = [round_idx * 100 + i for i in range(3)]
 
@@ -260,66 +309,49 @@ def main() -> None:
         log(f"Saved: {milestone_checkpoint} (+ provenance)")
         previous_checkpoint = milestone_checkpoint
 
-        log("Running Basic milestone evaluator (assisted-mode metrics)...")
-        milestone_report = evaluate_basic_milestone(
-            model, MILESTONE_EVAL_CURRICULUM, MILESTONE_EVAL_LAYOUTS, seeds=MILESTONE_EVAL_SEEDS,
-            episode_seconds=MILESTONE_EVAL_EPISODE_SECONDS, max_actions=MILESTONE_EVAL_MAX_ACTIONS,
-            progress_every_seconds=20.0,
-        )
-        report_path = EVAL_DIR / f"canonical_basic_milestone_{round_idx:03d}_report.json"
-        report_path.write_text(json.dumps(milestone_report, indent=2, default=str), encoding="utf-8")
-
-        log(f"  intervention_count: {milestone_report['intervention_count']}")
-        log(f"  intervention_ticks_fraction: {milestone_report['intervention_ticks_fraction']}")
-        log(f"  contacts_per_step: {milestone_report['contacts_per_step']}")
-        log(f"  mean_displacement_per_tick: {milestone_report['mean_displacement_per_tick']}")
-        log(f"  teacher_disagreement_rate: {milestone_report['teacher_disagreement_rate']}")
-        log(f"  gave_up_episode_fraction: {milestone_report['gave_up_episode_fraction']}")
-        log(f"  dominant_layout_intervention_share: {milestone_report['dominant_layout_intervention_share']}")
-
-        log("Running raw (recovery-off) diagnostic (informational only)...")
-        diagnostic = zero_shot_raw_diagnostic(
-            milestone_checkpoint, heldout_manifest_path=RAW_DIAGNOSTIC_HELDOUT_MANIFEST,
-            seeds=RAW_DIAGNOSTIC_SEEDS, episode_seconds=DAGGER_EPISODE_SECONDS, max_actions=DAGGER_MAX_ACTIONS,
-        )
-        diagnostic_path = EVAL_DIR / f"canonical_basic_milestone_{round_idx:03d}_raw_diagnostic.json"
-        diagnostic_path.write_text(json.dumps(diagnostic, indent=2, default=str), encoding="utf-8")
-        for layout, stats in diagnostic["per_layout"].items():
-            log(f"  raw[{layout}]: stagnation={stats['physical_stagnation_episodes']}/{stats['n_episodes']} "
-                f"contacts/100={stats['mean_contacts_per_100_distance']:.2f}")
-
-        # --- stop conditions: things that clearly break, not noisy fluctuation ---
+        # --- cheap, synchronous stop condition: DAgger-BC head collapse is
+        # known immediately (no extra compute) and is worth stopping for
+        # before even dispatching an evaluation of a possibly-broken model.
         alarms = []
-        if milestone_report["intervention_ticks_fraction"] and milestone_report["intervention_ticks_fraction"]["median"] >= RECOVERY_ALARM_INTERVENTION_TICKS_FRACTION:
-            alarms.append(f"recovery firing on {milestone_report['intervention_ticks_fraction']['median']:.1%} of ticks (near-constant)")
-        if milestone_report["dominant_layout_intervention_share"] >= RECOVERY_ALARM_DOMINANT_LAYOUT_SHARE:
-            alarms.append(f"one layout accounts for {milestone_report['dominant_layout_intervention_share']:.1%} of interventions")
-        if milestone_report["gave_up_episode_fraction"] >= 0.5:
-            alarms.append(f"{milestone_report['gave_up_episode_fraction']:.1%} of episodes ended in recovery giving up")
         if dagger_bc_result["after"]["gate"]["heads"]["event"]["accuracy"] < 0.3:
             alarms.append(f"event-head accuracy collapsed to {dagger_bc_result['after']['gate']['heads']['event']['accuracy']:.3f}")
         if dagger_bc_result["after"]["gate"]["heads"]["steering"]["accuracy"] < 0.3:
             alarms.append(f"steering-head accuracy collapsed to {dagger_bc_result['after']['gate']['heads']['steering']['accuracy']:.3f} on DAgger validation")
 
         all_round_reports.append({
-            "round": round_idx, "checkpoint": str(milestone_checkpoint), "milestone_report": milestone_report,
-            "raw_diagnostic": diagnostic, "dagger_bc_result_summary": {
+            "round": round_idx, "checkpoint": str(milestone_checkpoint),
+            "dagger_bc_result_summary": {
                 "steering_accuracy_after": dagger_bc_result["after"]["gate"]["heads"]["steering"]["accuracy"],
                 "event_accuracy_after": dagger_bc_result["after"]["gate"]["heads"]["event"]["accuracy"],
             },
             "alarms": alarms,
+            "eval_report_path": str(EVAL_DIR / f"canonical_basic_milestone_{round_idx:03d}_report.json"),
+            "eval_diagnostic_path": str(EVAL_DIR / f"canonical_basic_milestone_{round_idx:03d}_raw_diagnostic.json"),
         })
+        summary_path.write_text(json.dumps(all_round_reports, indent=2, default=str), encoding="utf-8")
 
         if alarms:
             log(f"!!! STOP CONDITIONS TRIGGERED at round {round_idx}: {alarms}")
             log("Stopping the run for diagnosis rather than continuing through a clear break.")
             break
-        log(f"Round {round_idx} clean, no stop conditions triggered. Continuing.")
+
+        # The full milestone evaluator + raw diagnostic (the slow part, ~10+
+        # minutes) runs out-of-process against this saved checkpoint while
+        # the main loop moves straight on to the next round's DAgger
+        # collection. This trades the previous automatic full-eval-based
+        # stop conditions (near-constant recovery firing, one layout
+        # dominating, high give-up fraction) for wall-clock speed -- those
+        # are now printed as "!!! ALARM" lines by the worker for manual
+        # review/abort rather than blocking round progression.
+        dispatch_round_eval(milestone_checkpoint, round_idx)
+        log(f"Round {round_idx} core training clean, evaluation dispatched asynchronously. Continuing to next round.")
 
     # ---------------------------------------------------------------
-    log("=== Stage 5: final summary ===")
+    log("=== Stage 5: waiting on outstanding async evaluations, final summary ===")
     # ---------------------------------------------------------------
-    summary_path = EVAL_DIR / "canonical_basic_run_summary.json"
+    for proc in eval_processes:
+        proc.wait()
+    log(f"All {len(eval_processes)} dispatched evaluation worker(s) finished.")
     summary_path.write_text(json.dumps(all_round_reports, indent=2, default=str), encoding="utf-8")
     log(f"Full run summary written to {summary_path}")
     log(f"Final checkpoint: {previous_checkpoint}")
