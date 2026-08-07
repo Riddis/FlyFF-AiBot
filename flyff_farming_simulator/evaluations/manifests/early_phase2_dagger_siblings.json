@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "stage": "early",
+  "role": "heldout",
+  "curriculum_path": "synthetic_curriculum_phase2_dagger_siblings/curriculum.json",
+  "layouts": [
+    "01_early_open_field_typical_fast",
+    "02_early_wide_neck_high_typical",
+    "03_early_open_field_low_fast",
+    "04_early_wide_neck_typical_bursty"
+  ],
+  "notes": "Phase 2 DAgger/fine-tune MINING pool ONLY -- fresh siblings of the training templates (seed base 20261600), never the literal training-curriculum maps themselves. NEVER used for evaluation/graduation scoring (that role belongs to early_heldout/early_heldout_unseen_templates/early_challenge, which stay untouched). Created after discovering the first Phase 2 DAgger mining pass mistakenly used synthetic_curriculum/curriculum.json directly -- the exact maps the 15k checkpoint was PPO-trained on -- which the held-out re-evaluation showed did not generalize."
+}

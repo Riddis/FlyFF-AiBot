@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "stage": "early",
+  "role": "heldout",
+  "curriculum_path": "synthetic_curriculum_phase2_dagger_siblings_v2/curriculum.json",
+  "layouts": [
+    "01_early_open_field_typical_fast",
+    "02_early_open_field_low_fast",
+    "03_early_open_field_high_typical",
+    "04_early_wide_neck_high_typical",
+    "05_early_wide_neck_typical_bursty",
+    "06_early_irregular_plain_typical_fast",
+    "07_early_split_field_typical_fast"
+  ],
+  "notes": "Phase 2 DAgger/fine-tune MINING pool v2 -- broader template coverage than the first siblings pool (adds open_field_low/high density variants, irregular_plain, split_field) specifically to address the diagnosed gap: v1 siblings only covered 4 templates and the resulting fine-tune regressed on open_field-low-density wedge cases it never saw examples of. Seed base 20261700, disjoint from training/heldout/unseen/challenge/calibration/dagger_siblings_v1. NEVER used for evaluation/graduation scoring."
+}
