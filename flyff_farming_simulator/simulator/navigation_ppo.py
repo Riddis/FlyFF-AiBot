@@ -86,12 +86,15 @@ def resume_ppo_chunk_phase2(
     gamma: float = 0.995,
     gae_lambda: float = 0.95,
     ent_coef: float = 0.015,
+    callback: Any = None,
 ) -> dict[str, Any]:
     """Load an already-built Phase 2 checkpoint unchanged, run exactly one
     bounded PPO chunk on a NavigationHistoryWrapper-wrapped training vec-env,
     save the result. Never loops on its own -- call again for another chunk.
     Does not run any post-training rehearsal/BC pass; that is a separate,
     deliberate decision left to the caller, not silently folded in here.
+    `callback`, if given, is passed straight through to policy.learn() (e.g.
+    simulator.progress_reporting.SB3ProgressCallback for a long chunk).
 
     The conservative hyperparameter defaults above match this project's own
     established settings for fine-tuning an already-good policy
@@ -126,7 +129,10 @@ def resume_ppo_chunk_phase2(
                 f"wrapped training env's {wrapped_obs_shape} -- refusing to train with a mismatch"
             )
 
-        policy.learn(total_timesteps=int(timesteps), reset_num_timesteps=False, progress_bar=False)
+        policy.learn(
+            total_timesteps=int(timesteps), reset_num_timesteps=False, progress_bar=False,
+            callback=callback,
+        )
 
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)

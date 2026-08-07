@@ -59,6 +59,32 @@ CALIBRATED_HISTORY_WINDOW = 15
 CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT = 1.79
 
 
+def sidecar_values_from_history(
+    history: "deque[NavigationStepEvidence] | list[NavigationStepEvidence]",
+    *,
+    expected_clear_path_displacement: float = CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT,
+) -> np.ndarray:
+    """Pure function computing [recent_progress, recent_contact] from a
+    window of NavigationStepEvidence. The single source of truth for this
+    computation -- NavigationHistoryWrapper._sidecar_values (live rollout
+    collection) and any offline reconstruction (e.g. from recordings) must
+    both call this rather than reimplementing the windowing/EVA-exclusion
+    logic separately, so they can never silently drift apart."""
+
+    eligible = [e for e in history if not e.eva_attempted]
+    if not eligible:
+        return np.zeros((SIDECAR_SIZE,), dtype=np.float32)
+    recent_progress = float(
+        np.clip(
+            np.mean([e.displacement_cells for e in eligible]) / expected_clear_path_displacement,
+            0.0,
+            1.0,
+        )
+    )
+    recent_contact = float(np.mean([1.0 if e.contact else 0.0 for e in eligible]))
+    return np.asarray([recent_progress, recent_contact], dtype=np.float32)
+
+
 @dataclass(frozen=True, slots=True)
 class NavigationStepEvidence:
     """One tick's raw navigation evidence, environment-agnostic.
@@ -116,18 +142,9 @@ class NavigationHistoryWrapper(gym.Wrapper if gym is not None else object):
             )
 
     def _sidecar_values(self) -> np.ndarray:
-        eligible = [e for e in self._history if not e.eva_attempted]
-        if not eligible:
-            return np.zeros((SIDECAR_SIZE,), dtype=np.float32)
-        recent_progress = float(
-            np.clip(
-                np.mean([e.displacement_cells for e in eligible]) / self.expected_clear_path_displacement,
-                0.0,
-                1.0,
-            )
+        return sidecar_values_from_history(
+            self._history, expected_clear_path_displacement=self.expected_clear_path_displacement,
         )
-        recent_contact = float(np.mean([1.0 if e.contact else 0.0 for e in eligible]))
-        return np.asarray([recent_progress, recent_contact], dtype=np.float32)
 
     def _augment(self, observation: np.ndarray) -> np.ndarray:
         raw = np.asarray(observation, dtype=np.float32).reshape(-1)

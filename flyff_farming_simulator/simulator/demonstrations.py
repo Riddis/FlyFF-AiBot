@@ -47,7 +47,7 @@ def _frame_observation(
     last_jump_ms: int,
     previous_action: FarmingAction,
     held_movement: FarmingAction | None,
-) -> np.ndarray:
+) -> tuple[np.ndarray, float]:
     player_cell = map_model.native_to_layout_cell(frame.player_x, frame.player_z)
     player_layout = map_model.native_to_layout_cells(frame.player_x, frame.player_z)
     candidates: list[tuple[float, object, float, float]] = []
@@ -98,7 +98,7 @@ def _frame_observation(
     normalized_x, normalized_z = map_model.features.normalized_position(player_cell)
     eva_fraction = float(np.clip((frame.elapsed_ms - last_eva_ms) / 2000.0, 0.0, 1.0))
     jump_fraction = float(np.clip((frame.elapsed_ms - last_jump_ms) / 2000.0, 0.0, 1.0))
-    return builder.build(
+    vector = builder.build(
         ObservationFrame(
             player=PlayerObservation(
                 normalized_x=normalized_x,
@@ -117,6 +117,15 @@ def _frame_observation(
             context_map=map_model.features.context_crop(player_cell),
         )
     ).vector
+    # Raw (unclipped, unencoded) displacement -- kept separate from the
+    # observation vector's own bipolar-encoded, maximum_displacement_cells
+    # -clipped copy of the same quantity, so callers building the
+    # navigation-sidecar history (NavigationStepEvidence.displacement_cells)
+    # get an exact value rather than round-tripping a lossy encoding.
+    # `contact` above is always False: real recordings carry no collision
+    # ground truth (see export_demonstrations' docstring) -- never invert
+    # this encoded field to approximate contact either.
+    return vector, displacement
 
 
 def export_demonstrations(
@@ -128,6 +137,21 @@ def export_demonstrations(
     eva_only_recording_paths: Iterable[str | Path] = (),
     allow_legacy_direct_provenance: bool = False,
 ) -> Path:
+    """Build a 923-value-observation BC dataset from recording archives.
+
+    Saved arrays include `session_index`/`elapsed_ms` (already in per-session
+    sequential order) and `displacement_cells` (exact, unencoded per-tick
+    real displacement, derived from consecutive frame positions) -- together
+    sufficient to reconstruct NavigationHistoryWrapper-style
+    NavigationStepEvidence sequences for the recent_progress sidecar
+    feature. There is no equivalent for `contact`: real recordings carry no
+    collision ground truth (no "was this movement blocked" signal exists in
+    the recording format), so every sample's `contact` is fixed False here,
+    and recent_contact cannot be faithfully reconstructed from this dataset
+    -- feed a documented-neutral placeholder for it during human-recording
+    bootstrap, do not infer it from displacement shortfall (that would be
+    invented data, not a measured one).
+    """
     map_data = map_model or MapModel.load()
     builder = ObservationBuilder(ObservationScales())
     observations: list[np.ndarray] = []
@@ -137,6 +161,7 @@ def export_demonstrations(
     event_label_valid: list[bool] = []
     sessions: list[int] = []
     elapsed_ms: list[int] = []
+    displacement_cells: list[float] = []
     direct_paths = unique_recording_paths(recording_paths)
     eva_only_paths = unique_recording_paths(eva_only_recording_paths)
     source_paths = unique_recording_paths((*direct_paths, *eva_only_paths))
@@ -218,18 +243,18 @@ def export_demonstrations(
                     FarmingAction.RUN_FORWARD_RIGHT,
                 )[mask_steering]
             if frame.phase == 1 and frame.focused and recognized:
-                observations.append(
-                    _frame_observation(
-                        frame,
-                        previous,
-                        map_model=map_data,
-                        builder=builder,
-                        last_eva_ms=last_eva,
-                        last_jump_ms=last_jump,
-                        previous_action=previous_action,
-                        held_movement=frame_held,
-                    )
+                observation_vector, raw_displacement = _frame_observation(
+                    frame,
+                    previous,
+                    map_model=map_data,
+                    builder=builder,
+                    last_eva_ms=last_eva,
+                    last_jump_ms=last_jump,
+                    previous_action=previous_action,
+                    held_movement=frame_held,
                 )
+                observations.append(observation_vector)
+                displacement_cells.append(raw_displacement)
                 steering = {
                     FarmingAction.RUN_FORWARD: SteeringAction.STRAIGHT,
                     FarmingAction.RUN_FORWARD_LEFT: SteeringAction.LEFT,
@@ -292,6 +317,7 @@ def export_demonstrations(
         action_nvec=np.asarray(POLICY_ACTION_NVECS, dtype=np.int64),
         session_index=np.asarray(sessions, dtype=np.int32),
         elapsed_ms=np.asarray(elapsed_ms, dtype=np.int64),
+        displacement_cells=np.asarray(displacement_cells, dtype=np.float32),
         observation_schema_id=np.asarray([builder.schema_id]),
         observation_schema_hash=np.asarray([builder.schema_hash]),
         source_recording_sha256=np.asarray(source_hashes),
