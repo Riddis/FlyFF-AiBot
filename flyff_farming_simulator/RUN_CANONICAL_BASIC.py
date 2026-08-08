@@ -74,6 +74,7 @@ def check_no_nan(model, where: str) -> None:
 def main() -> None:
     from simulator.basic_environment import collect_basic_dagger_dataset, save_basic_dagger_dataset
     from simulator.basic_training import (
+        bootstrap_event_head,
         bootstrap_policy_from_human_recordings,
         bootstrap_steering_from_teacher,
         build_fresh_basic_policy,
@@ -136,6 +137,18 @@ def main() -> None:
         if m:
             existing_milestones[int(m.group(1))] = p
     completed_round = max(existing_milestones) if existing_milestones else 0
+
+    # Accumulated event-head training pool: the human bootstrap dataset plus
+    # every Basic-stage mined DAgger round dataset collected so far (see
+    # basic_training.bootstrap_event_head's docstring -- per-round event
+    # updates train against this whole accumulated pool, not just the
+    # newest ~100-sample round, which is what silently starved the event
+    # head's discrimination in the first canonical run).
+    event_dataset_paths: list[Path] = [bootstrap_dataset_path]
+    for prior_round in range(1, completed_round + 1):
+        prior_dagger_path = EVAL_DIR / f"canonical_basic_dagger_round{prior_round:03d}.npz"
+        if prior_dagger_path.exists():
+            event_dataset_paths.append(prior_dagger_path)
 
     if completed_round > 0:
         # ---------------------------------------------------------------
@@ -206,27 +219,38 @@ def main() -> None:
         # ---------------------------------------------------------------
         log("=== Stage 3b: event/EVA bootstrap from human recordings ===")
         # ---------------------------------------------------------------
-        event_result = bootstrap_policy_from_human_recordings(
-            model, bootstrap_dataset_path, train_heads=("event",), epochs=20, learning_rate=3e-4, batch_size=128,
-            validation_fraction=0.15, seed=SEED, progress_every_seconds=20.0,
+        # Single-phase class-weighted BC, validated every epoch, early-
+        # stopped on a class-balanced held-out score, event-head-ONLY
+        # collapse gate (never conflated with the untouched, randomly-
+        # initialized steering head's own recall). See basic_training.
+        # bootstrap_event_head's docstring for the full design history: an
+        # earlier two-phase class-balanced-resampling + natural-prior-
+        # calibration version was proven, via a controlled ablation on this
+        # exact dataset (same fixed holdout, matched optimizer-step
+        # budget), to perform no better than this simpler default.
+        event_result = bootstrap_event_head(
+            model, bootstrap_dataset_path, seed=SEED, progress_every_seconds=20.0,
         )
         check_no_nan(model, "after human event bootstrap")
-        log(f"Human event BC done. train={event_result['train_samples']} val={event_result['validation_samples']}")
-        log(f"  final epoch losses: {event_result['history'][-1]}")
-        log(f"  event accuracy before/after: "
-            f"{event_result['before']['gate']['heads']['event']['accuracy']:.3f} -> "
-            f"{event_result['after']['gate']['heads']['event']['accuracy']:.3f}")
-        log(f"  steering accuracy unchanged (frozen) before/after: "
-            f"{event_result['before']['gate']['heads']['steering']['accuracy']:.3f} -> "
-            f"{event_result['after']['gate']['heads']['steering']['accuracy']:.3f}")
-        event_conf = event_result["after"]["gate"]["heads"]["event"].get("per_class")
-        if event_conf:
-            log(f"  event per-class (val): {event_conf}")
+        log(f"Human event BC done. train={event_result['train_samples']} val={event_result['validation_samples']} "
+            f"epochs_run={event_result['epochs_run']} stopped_early={event_result['stopped_early']} "
+            f"optimizer_steps={event_result['total_optimizer_steps']} examples_seen={event_result['total_examples_seen']}")
+        before_event_gate = event_result["before"]["gate"]["heads"]["event"]
+        after_event_gate = event_result["after"]["gate"]["heads"]["event"]
+        log(f"  event accuracy before/after: {before_event_gate['accuracy']:.3f} -> {after_event_gate['accuracy']:.3f}  "
+            f"macro_f1={event_result['macro_f1']:.3f}")
+        for entry in after_event_gate["per_class"]:
+            log(f"  event class {entry['value']}: support={entry['support']} recall={entry['recall']:.3f} precision={entry['precision']:.3f}")
+        prob_by_class = event_result["probability_by_true_class"]
+        log(f"  P(EVA|true EVA)={prob_by_class['CAST_EVA']['mean_predicted_probability'][1]:.3f}  "
+            f"P(EVA|true NONE)={prob_by_class['NONE']['mean_predicted_probability'][1]:.3f}")
+        if event_result["underdetermined_classes"]:
+            log(f"  underdetermined classes (insufficient validation support, not scored by the gate): {event_result['underdetermined_classes']}")
 
-        if event_result["after"]["gate"]["heads"]["event"]["accuracy"] < 0.3:
+        if not event_result["gate_passed"]:
             raise RuntimeError(
-                f"Event head accuracy is only {event_result['after']['gate']['heads']['event']['accuracy']:.3f} "
-                "after human bootstrap -- stopping rather than proceeding with a possibly-broken event head."
+                f"Event bootstrap failed its event-only collapse gate: {event_result['reasons']} "
+                "-- stopping rather than proceeding with a possibly-broken event head."
             )
 
         bootstrap_checkpoint = MODELS_DIR / f"{canonical_checkpoint_name('basic', 'bootstrap')}.zip"
@@ -234,7 +258,8 @@ def main() -> None:
             model, bootstrap_checkpoint, stage="basic", milestone="bootstrap", seeds=SEED,
             config={
                 "steering_source": "scripted_teacher", "steering_epochs": 20, "steering_samples": teacher_dataset["observations"].shape[0],
-                "event_source": "human_recordings", "event_epochs": 20,
+                "event_source": "human_recordings", "event_epochs_run": event_result["epochs_run"],
+                "event_optimizer_steps": event_result["total_optimizer_steps"],
             },
             curriculum_path=DAGGER_CURRICULUM, recording_paths=training_recordings + eva_only_recordings,
             starting_checkpoint=None,
@@ -242,7 +267,10 @@ def main() -> None:
                 "steering_result_summary": {
                     "train_samples": steering_result["train_samples"], "angle_correlation": steering_result["angle_correlation"],
                 },
-                "event_result_summary": {"train_samples": event_result["train_samples"]},
+                "event_result_summary": {
+                    "train_samples": event_result["train_samples"], "gate_passed": event_result["gate_passed"],
+                    "macro_f1": event_result["macro_f1"], "underdetermined_classes": event_result["underdetermined_classes"],
+                },
             },
         )
         log(f"Saved: {bootstrap_checkpoint} (+ provenance)")
@@ -284,24 +312,45 @@ def main() -> None:
             f"mean_ticks_fraction={float(np.mean(intervention_ticks_fractions)):.3f} "
             f"gave_up_episodes={sum(gave_up)}/{len(gave_up)}")
 
-        log("Supervised update on newly mined DAgger data (steering+event: DAgger labels are simulator-teacher-labeled, well-correlated with the geometry representation, unlike human recordings)...")
-        dagger_bc_result = bootstrap_policy_from_human_recordings(
-            model, dagger_path, train_heads=("steering", "event"), epochs=4, learning_rate=1e-4, batch_size=64,
+        log("Steering-only supervised update on newly mined DAgger data (DAgger labels are simulator-teacher-labeled, well-correlated with the geometry representation, unlike human recordings)...")
+        steering_round_result = bootstrap_policy_from_human_recordings(
+            model, dagger_path, train_heads=("steering",), epochs=4, learning_rate=1e-4, batch_size=64,
             validation_fraction=0.2, seed=SEED + round_idx, progress_every_seconds=20.0,
         )
-        check_no_nan(model, f"after round {round_idx} DAgger update")
+        check_no_nan(model, f"after round {round_idx} steering DAgger update")
 
-        log("Rehearsing human event data only (guard against forgetting EVA/event basics; steering intentionally excluded, see module docstring)...")
-        rehearsal_result = bootstrap_policy_from_human_recordings(
-            model, bootstrap_dataset_path, train_heads=("event",), epochs=2, learning_rate=5e-5, batch_size=128,
-            validation_fraction=0.15, seed=SEED + round_idx, progress_every_seconds=20.0,
+        # Event update trains on the FULL accumulated pool (human bootstrap
+        # + every DAgger round mined so far, this one included), not just
+        # this round's ~100 newest samples -- the first canonical run's
+        # event head never learned real EVA discrimination partly because
+        # tiny, isolated per-round updates kept fighting a NONE-heavy
+        # rehearsal pass every round instead of building on a growing,
+        # increasingly-informative pool. Early-stopped on a class-balanced
+        # held-out score, not a fixed epoch count (see bootstrap_event_
+        # head's docstring).
+        event_dataset_paths.append(dagger_path)
+        log(f"Event update on accumulated pool ({len(event_dataset_paths)} source file(s): "
+            f"human bootstrap + {len(event_dataset_paths) - 1} DAgger round dataset(s))...")
+        event_round_result = bootstrap_event_head(
+            model, event_dataset_paths, seed=SEED + round_idx, progress_every_seconds=20.0,
         )
-        check_no_nan(model, f"after round {round_idx} human rehearsal")
+        check_no_nan(model, f"after round {round_idx} event update")
+        after_event_gate = event_round_result["after"]["gate"]["heads"]["event"]
+        log(f"  event epochs_run={event_round_result['epochs_run']} stopped_early={event_round_result['stopped_early']} "
+            f"optimizer_steps={event_round_result['total_optimizer_steps']}")
+        log(f"  event accuracy={after_event_gate['accuracy']:.3f} macro_f1={event_round_result['macro_f1']:.3f} "
+            f"gate_passed={event_round_result['gate_passed']}")
+        for entry in after_event_gate["per_class"]:
+            log(f"  event class {entry['value']}: support={entry['support']} recall={entry['recall']:.3f} precision={entry['precision']:.3f}")
 
         milestone_checkpoint = MODELS_DIR / f"{canonical_checkpoint_name('basic', f'milestone_{round_idx:03d}')}.zip"
         save_checkpoint_with_provenance(
             model, milestone_checkpoint, stage="basic", milestone=f"milestone_{round_idx:03d}", seeds=round_seeds,
-            config={"round": round_idx, "dagger_epochs": 4, "rehearsal_epochs": 2, "mining_config": mining_config.__dict__},
+            config={
+                "round": round_idx, "steering_dagger_epochs": 4, "mining_config": mining_config.__dict__,
+                "event_pool_sources": len(event_dataset_paths), "event_epochs_run": event_round_result["epochs_run"],
+                "event_optimizer_steps": event_round_result["total_optimizer_steps"],
+            },
             curriculum_path=DAGGER_CURRICULUM, dagger_config={"layouts": DAGGER_LAYOUTS, "seeds": round_seeds},
             recovery_config={"enabled": True, "role": "training_wheel_dagger_collection_only"},
             starting_checkpoint=str(Path(previous_checkpoint).resolve()),
@@ -309,20 +358,28 @@ def main() -> None:
         log(f"Saved: {milestone_checkpoint} (+ provenance)")
         previous_checkpoint = milestone_checkpoint
 
-        # --- cheap, synchronous stop condition: DAgger-BC head collapse is
-        # known immediately (no extra compute) and is worth stopping for
-        # before even dispatching an evaluation of a possibly-broken model.
+        # --- cheap, synchronous stop conditions: both are known immediately
+        # (no extra compute) and are worth stopping for before even
+        # dispatching an evaluation of a possibly-broken model. Event uses
+        # its own head-scoped, support-aware collapse gate; steering keeps
+        # the simple accuracy floor (it has shown no sign of this failure
+        # mode, and the round's steering update never touches event, so
+        # there is no cross-head contamination risk to guard against here). ---
         alarms = []
-        if dagger_bc_result["after"]["gate"]["heads"]["event"]["accuracy"] < 0.3:
-            alarms.append(f"event-head accuracy collapsed to {dagger_bc_result['after']['gate']['heads']['event']['accuracy']:.3f}")
-        if dagger_bc_result["after"]["gate"]["heads"]["steering"]["accuracy"] < 0.3:
-            alarms.append(f"steering-head accuracy collapsed to {dagger_bc_result['after']['gate']['heads']['steering']['accuracy']:.3f} on DAgger validation")
+        if not event_round_result["gate_passed"]:
+            alarms.append(f"event update failed its collapse gate: {event_round_result['reasons']}")
+        if steering_round_result["after"]["gate"]["heads"]["steering"]["accuracy"] < 0.3:
+            alarms.append(f"steering-head accuracy collapsed to {steering_round_result['after']['gate']['heads']['steering']['accuracy']:.3f} on DAgger validation")
 
         all_round_reports.append({
             "round": round_idx, "checkpoint": str(milestone_checkpoint),
-            "dagger_bc_result_summary": {
-                "steering_accuracy_after": dagger_bc_result["after"]["gate"]["heads"]["steering"]["accuracy"],
-                "event_accuracy_after": dagger_bc_result["after"]["gate"]["heads"]["event"]["accuracy"],
+            "steering_result_summary": {
+                "accuracy_after": steering_round_result["after"]["gate"]["heads"]["steering"]["accuracy"],
+            },
+            "event_result_summary": {
+                "accuracy_after": after_event_gate["accuracy"], "macro_f1": event_round_result["macro_f1"],
+                "gate_passed": event_round_result["gate_passed"], "epochs_run": event_round_result["epochs_run"],
+                "pool_sources": len(event_dataset_paths),
             },
             "alarms": alarms,
             "eval_report_path": str(EVAL_DIR / f"canonical_basic_milestone_{round_idx:03d}_report.json"),

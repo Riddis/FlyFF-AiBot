@@ -35,10 +35,21 @@ import numpy as np
 
 from farming.actions import FarmingEvent, SteeringAction
 
+from .factorized_training import (
+    _event_sampling_fractions,
+    _train_balanced_factorized_heads,
+    _training_values,
+    factorized_stage_gate,
+)
 from .factorized_v193_training import (
+    _apply_prior_bias_correction,
+    _class_priors,
+    _human_session_stratified_split,
     _layout_stratified_episode_split,
+    _natural_human_event_target,
     _prediction_diagnostics,
     _sqrt_inverse_class_weights,
+    _train_natural_prior_epoch,
 )
 from .navigation_history import (
     CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT,
@@ -585,6 +596,423 @@ def _session_stratified_split(
 
     val_mask = np.isin(session_index, list(validation_sessions))
     return np.flatnonzero(~val_mask), np.flatnonzero(val_mask)
+
+
+def _load_event_training_pool(dataset_paths: list[str | Path]) -> dict[str, np.ndarray]:
+    """Concatenate the human bootstrap dataset with zero or more mined
+    Basic-stage DAgger round datasets into one pool for event-head
+    training. Session ids are offset per source so sessions never collide
+    across files. A file with no `source_recording_role` field (every
+    DAgger round dataset -- see basic_environment.save_basic_dagger_
+    dataset) defaults its sessions to role "simulator_mined": these are
+    real, correctly teacher/policy-labeled examples, but DAgger mining
+    concentrates on interesting/difficult states (basic_environment.py's
+    4-category classification), so they are exactly as unrepresentative of
+    ordinary-play EVENT FREQUENCY as eva_only human sessions already are --
+    they must never feed the natural-prior estimate (only human
+    direct_keyboard sessions do that), even though they are excellent,
+    balanced discrimination examples for the recognition phase."""
+
+    observations: list[np.ndarray] = []
+    actions: list[np.ndarray] = []
+    steering_valid: list[np.ndarray] = []
+    session_index: list[np.ndarray] = []
+    roles: list[np.ndarray] = []
+    offset = 0
+    for path in dataset_paths:
+        with np.load(Path(path), allow_pickle=False) as data:
+            obs = np.asarray(data["observations"], dtype=np.float32)
+            act = np.asarray(data["actions"], dtype=np.int64)
+            sv = np.asarray(data["steering_label_valid"], dtype=np.bool_)
+            sessions = np.asarray(data["session_index"], dtype=np.int64)
+            n_sessions = int(sessions.max()) + 1 if len(sessions) else 0
+            file_roles = (
+                np.asarray(data["source_recording_role"], dtype="<U20")
+                if "source_recording_role" in data
+                else np.full(n_sessions, "simulator_mined", dtype="<U20")
+            )
+        observations.append(obs)
+        actions.append(act)
+        steering_valid.append(sv)
+        session_index.append(sessions + offset)
+        roles.append(file_roles)
+        offset += n_sessions
+    return {
+        "observations": np.concatenate(observations, axis=0),
+        "actions": np.concatenate(actions, axis=0),
+        "steering_label_valid": np.concatenate(steering_valid, axis=0),
+        "session_index": np.concatenate(session_index, axis=0),
+        "source_recording_role": np.concatenate(roles, axis=0),
+    }
+
+
+def _event_score(diagnostics: dict[str, Any]) -> float:
+    """Higher is better: the WEAKER of NONE/CAST_EVA recall -- a collapse
+    in either direction must be penalized, not hidden by averaging against
+    a healthy value on the other class. This is the sole model-selection
+    criterion for best-checkpoint restoration and early stopping. No
+    prior-drift penalty here: training balance and deployment-calibrated
+    probability are different concerns (see bootstrap_event_head's
+    docstring) and mixing them into one selection score is what let an
+    earlier version of this pipeline pick a calibration-phase checkpoint
+    that had quietly collapsed back to always-NONE."""
+    per_class = diagnostics["gate"]["heads"]["event"]["per_class"]
+    recalls = {entry["value"]: entry["recall"] for entry in per_class if entry["support"] > 0}
+    required = [recalls[v] for v in (int(FarmingEvent.NONE), int(FarmingEvent.CAST_EVA)) if v in recalls]
+    return float(min(required)) if required else float("-inf")
+
+
+def _event_gate_report(diagnostics: dict[str, Any], *, minimum_support: int, minimum_recall: float = 0.20) -> dict[str, Any]:
+    """Event-head-ONLY pass/fail -- deliberately independent of
+    factorized_stage_gate's combined steering+event `passed`/`reasons`.
+    That combined gate is exactly the "old combined-training-regime
+    plumbing" this project's own review caught: it would fail a perfectly
+    good event bootstrap because an intentionally untouched, randomly-
+    initialized steering head has near-zero recall by construction. A
+    class only has its recall floor enforced once validation support
+    reaches `minimum_support` -- below that (JUMP has had as few as 3 real
+    human examples in this project's own data), the class is reported as
+    underdetermined, never allowed to silently pass OR fail the gate on
+    essentially no evidence."""
+    per_class = diagnostics["gate"]["heads"]["event"]["per_class"]
+    reasons: list[str] = []
+    underdetermined: list[int] = []
+    for entry in per_class:
+        value, support, recall = entry["value"], entry["support"], entry["recall"]
+        if support == 0:
+            continue
+        if support < minimum_support:
+            underdetermined.append(value)
+            continue
+        if recall < minimum_recall:
+            reasons.append(f"event class {value} recall {recall:.3f} is below {minimum_recall:.3f} (support={support})")
+    return {"passed": not reasons, "reasons": reasons, "underdetermined_classes": underdetermined}
+
+
+def _macro_f1(diagnostics: dict[str, Any]) -> float:
+    """Unweighted mean F1 across event classes with real validation support
+    -- reported alongside accuracy/recall/precision so aggregate accuracy
+    is never the only number available (see bootstrap_event_head's
+    docstring for why aggregate accuracy alone previously hid a collapse)."""
+    per_class = diagnostics["gate"]["heads"]["event"]["per_class"]
+    scores = []
+    for entry in per_class:
+        if entry["support"] == 0:
+            continue
+        p, r = entry["precision"], entry["recall"]
+        scores.append(2 * p * r / (p + r) if (p + r) > 0 else 0.0)
+    return float(np.mean(scores)) if scores else 0.0
+
+
+def _event_probability_by_true_class(
+    policy: Any, observations: np.ndarray, true_event_labels: np.ndarray, *, batch_size: int,
+) -> dict[str, Any]:
+    """Mean predicted P(event=c) conditioned on the TRUE label -- e.g.
+    result["CAST_EVA"]["mean_predicted_probability"][1] is P(EVA | true
+    EVA), result["NONE"]["mean_predicted_probability"][1] is P(EVA | true
+    NONE). A healthy head needs the former well above the latter; a head
+    that only learned the marginal rate has both close to the same value
+    (matching this project's real observed failure: ~0.45 for both)."""
+    import torch
+
+    policy.eval()
+    probs_batches = []
+    with torch.no_grad():
+        for start in range(0, len(observations), int(batch_size)):
+            obs = torch.as_tensor(observations[start : start + int(batch_size)], device=policy.device)
+            probs_batches.append(policy.get_distribution(obs).distribution[1].probs.cpu().numpy())
+    probs = np.concatenate(probs_batches, axis=0) if probs_batches else np.zeros((0, 3))
+    result: dict[str, Any] = {}
+    for value, name in ((int(FarmingEvent.NONE), "NONE"), (int(FarmingEvent.CAST_EVA), "CAST_EVA"), (int(FarmingEvent.JUMP), "JUMP")):
+        mask = true_event_labels == value
+        if not np.any(mask):
+            result[name] = {"support": 0, "mean_predicted_probability": [None, None, None]}
+        else:
+            result[name] = {"support": int(mask.sum()), "mean_predicted_probability": probs[mask].mean(axis=0).tolist()}
+    return result
+
+
+def bootstrap_event_head(
+    model: Any,
+    dataset_paths: list[str | Path] | str | Path,
+    *,
+    max_epochs: int = 60,
+    learning_rate: float = 2.0e-3,
+    batch_size: int = 128,
+    validation_fraction: float = 0.2,
+    seed: int = 0,
+    patience: int = 10,
+    minimum_class_support_for_gate: int = 20,
+    use_balanced_resampling: bool = False,
+    calibration_epochs: int = 0,
+    calibration_learning_rate: float = 1.0e-4,
+    progress_every_seconds: float = 10.0,
+) -> dict[str, Any]:
+    """Event-head-only BC from fresh (or continuing) weights: class-weighted
+    cross-entropy (factorized_v193_training._sqrt_inverse_class_weights,
+    computed from the natural direct_keyboard-only prior), validated every
+    epoch, with best-checkpoint restoration and early stopping on a
+    class-balanced held-out score (see _event_score) -- not a fixed epoch
+    count.
+
+    Design history, so this isn't silently re-broken the same way twice:
+    the first version of this function used a two-phase class-balanced-
+    resampling "recognition" + natural-prior "calibration" pipeline (ported
+    from factorized_v193_training.train_hybrid_factorized_teacher_v193),
+    reasoning that plain loss-reweighting could not escape a "learned only
+    the marginal rate" collapse (CAST_EVA recall stuck at 0.0 across 4
+    rounds of the first canonical Basic run despite mean predicted P(EVA)
+    tracking the true rate). A controlled ablation disproved that
+    reasoning: plain class-weighted single-phase BC, given the SAME
+    optimizer-step budget as the two-phase version, reached comparable
+    CAST_EVA recall from the same fresh initialization. The actual root
+    cause was training INTENSITY -- 12 epochs @ 3e-4 (copied unmodified
+    from train_hybrid_factorized_teacher_v193's own defaults) was tuned for
+    a regime with a much larger interleaved scripted+human pool; a
+    human-only bootstrap of ~1750 train samples from a genuinely fresh,
+    near-input-independent initialization (measured directly: event logit
+    std ~0.005 across a real batch before any training) needs substantially
+    more optimizer steps to escape that starting point, resampled or not.
+    This function defaults to the simpler single-phase path
+    (use_balanced_resampling=False) accordingly.
+
+    Optimizer steps and examples seen are reported explicitly (`history`
+    entries carry `cumulative_steps`/`cumulative_examples`, and the
+    top-level result carries the totals) precisely because "12 epochs" or
+    "60 epochs" means something different on every different pool size --
+    epoch count alone is not a portable measure of how much training
+    actually happened, which is what caused the original mistake.
+
+    Pass/fail is event-head-ONLY (see _event_gate_report) -- never
+    conflated with the untouched, randomly-initialized steering head's own
+    recall, which the shared factorized_stage_gate's combined `passed`
+    would otherwise fail this bootstrap on for a reason that has nothing
+    to do with the event head. Also support-aware: a class only has its
+    recall floor enforced once validation support reaches
+    `minimum_class_support_for_gate`; below that (typically JUMP,
+    chronically ~3 real human examples) the class is reported as
+    underdetermined, never allowed to silently pass or fail the gate on
+    essentially no evidence.
+
+    `use_balanced_resampling=True` opts into the original class-balanced
+    per-epoch resampling instead of plain weighted cross-entropy. Kept
+    available, not deleted -- a future, more severely imbalanced dataset
+    might genuinely need it even though today's event bootstrap does not;
+    the ablation that motivated the simpler default did not test every
+    possible class-imbalance regime, only the one this project currently
+    has.
+
+    `calibration_epochs > 0` opts into an OPTIONAL post-hoc natural-prior
+    calibration pass (low learning rate, no resampling) intended to pull
+    output probabilities toward the natural direct_keyboard rate without
+    losing discrimination. It is kept only if it does not regress the
+    event score achieved by the main training phase -- an earlier
+    calibration configuration was observed turning a discriminating model
+    back into an always-NONE predictor; calibration must never be allowed
+    to trade discrimination for a better-matched marginal frequency.
+
+    `dataset_paths` may be a single path (e.g. just the human bootstrap
+    dataset) or a list of paths (e.g. human bootstrap + all Basic-stage
+    mined DAgger round datasets accumulated so far) -- see
+    _load_event_training_pool for how sources are combined and how
+    DAgger-mined sessions are kept out of the natural-prior estimate.
+    """
+
+    import copy
+
+    import torch
+
+    if isinstance(dataset_paths, (str, Path)):
+        dataset_paths = [dataset_paths]
+    pool = _load_event_training_pool(list(dataset_paths))
+    observations, actions = pool["observations"], pool["actions"]
+    steering_label_valid = pool["steering_label_valid"]
+    session_index = pool["session_index"]
+    session_roles = pool["source_recording_role"]
+
+    if observations.shape[1] != POLICY_INPUT_SIZE:
+        raise ValueError(f"dataset observations must be {POLICY_INPUT_SIZE}-valued, got {observations.shape[1]}")
+
+    policy = model.policy
+    event_out = getattr(getattr(policy, "action_net", None), "event_out", None)
+    if event_out is None or int(getattr(event_out, "out_features", -1)) != 3:
+        raise ValueError(
+            "policy.action_net.event_out is missing or the wrong shape; is model.policy a SplitSteeringNavigationPolicy?"
+        )
+
+    event_valid = np.ones(len(session_index), dtype=np.bool_)
+    train_idx, val_idx = _human_session_stratified_split(
+        session_index, steering_label_valid, event_valid, actions,
+        validation_fraction=validation_fraction, seed=seed,
+    )
+    if len(val_idx) == 0 or len(train_idx) == 0:
+        raise ValueError("event training pool split produced an empty train or validation slice")
+
+    continuous_session_ids = np.flatnonzero(session_roles == "direct_keyboard")
+    continuous_mask = np.isin(session_index, continuous_session_ids)
+
+    natural_indices = train_idx[continuous_mask[train_idx]]
+    fallback_target = _class_priors(actions[:, 1], train_idx, 3)
+    natural_event_target = _class_priors(actions[:, 1], natural_indices, 3) if len(natural_indices) else fallback_target
+    natural_event_weight_indices = natural_indices if len(natural_indices) else train_idx
+    natural_event_weights = _sqrt_inverse_class_weights(actions[:, 1], natural_event_weight_indices, 3)
+
+    event_values = _training_values(
+        actions[:, 1], train_idx, required=(int(FarmingEvent.NONE), int(FarmingEvent.CAST_EVA)),
+        optional=(int(FarmingEvent.JUMP),), minimum_optional_support=8,
+    )
+    event_fractions = _event_sampling_fractions(event_values)
+
+    trainable_names = ("mlp_extractor.event_net", "action_net.event_out")
+    for name, param in policy.named_parameters():
+        param.requires_grad = any(key in name for key in trainable_names)
+    trainable_params = [p for p in policy.parameters() if p.requires_grad]
+    assert trainable_params, "unreachable: event_out shape check above already validated the architecture"
+
+    rng = np.random.default_rng(seed)
+    policy.eval()
+    before = _prediction_diagnostics(
+        policy, observations[val_idx], actions[val_idx], batch_size=batch_size,
+        steering_valid_mask=steering_label_valid[val_idx],
+    )
+
+    def _validate() -> dict[str, Any]:
+        return _prediction_diagnostics(
+            policy, observations[val_idx], actions[val_idx], batch_size=batch_size,
+            steering_valid_mask=steering_label_valid[val_idx],
+        )
+
+    steering_forced_invalid = np.zeros(len(observations), dtype=np.bool_)
+    dummy_steering_weights = np.ones(3, dtype=np.float32)
+
+    # --- main phase: weighted CE by default, or class-balanced resampling
+    # if explicitly requested -- validated and best-checkpoint-tracked
+    # every epoch, stopped early once `patience` epochs pass with no
+    # improvement in _event_score, not run to a fixed count. ---
+    optimizer = torch.optim.Adam(trainable_params, lr=float(learning_rate))
+    history: list[dict[str, Any]] = []
+    best_state: dict[str, Any] | None = None
+    best_score = float("-inf")
+    epochs_since_improvement = 0
+    cumulative_steps = 0
+    progress = ProgressPrinter(int(max_epochs), label="event_head_bootstrap", min_interval_seconds=progress_every_seconds)
+    epochs_run = 0
+    for epoch in range(1, int(max_epochs) + 1):
+        epochs_run = epoch
+        if use_balanced_resampling:
+            training = _train_balanced_factorized_heads(
+                policy, optimizer, observations, actions,
+                steering_indices=train_idx, event_indices=train_idx,
+                steering_values=(), event_values=event_values,
+                epochs=1, batch_size=batch_size, event_loss_scale=1.0, rng=rng,
+                event_target_fractions=event_fractions,
+            )
+            cumulative_steps += int(training["event_updates"])
+        else:
+            training = _train_natural_prior_epoch(
+                policy, optimizer, observations, actions, train_idx,
+                batch_size=batch_size, steering_weights=dummy_steering_weights,
+                event_weights=natural_event_weights, event_loss_scale=1.0, rng=rng,
+                steering_valid_mask=steering_forced_invalid,
+            )
+            cumulative_steps += int(training["updates"])
+        validation = _validate()
+        score = _event_score(validation)
+        history.append({
+            "epoch": epoch, "training": training, "score": score,
+            "cumulative_steps": cumulative_steps, "cumulative_examples": cumulative_steps * int(batch_size),
+            "event_gate": validation["gate"]["heads"]["event"],
+        })
+        if score > best_score:
+            best_score = score
+            best_state = copy.deepcopy(policy.state_dict())
+            epochs_since_improvement = 0
+        else:
+            epochs_since_improvement += 1
+        progress.update(epoch, extra=f"score={score:.3f} best={best_score:.3f} no_improve={epochs_since_improvement}/{patience}")
+        if epochs_since_improvement >= int(patience):
+            break
+    progress.finish()
+    if best_state is not None:
+        policy.load_state_dict(best_state)
+    main_phase_validation = _validate()
+    main_phase_score = best_score
+
+    # --- optional calibration phase: natural-prior-weighted, no
+    # resampling, small learning rate -- kept only if it does not regress
+    # below what the main phase already achieved (see docstring). ---
+    calibration_history: list[dict[str, Any]] = []
+    bias_correction: dict[str, Any] | None = None
+    if int(calibration_epochs) > 0:
+        bias_correction = _apply_prior_bias_correction(
+            policy, steering_target=np.full(3, 1.0 / 3.0), event_target=natural_event_target,
+            event_sampling_fractions=event_fractions,
+        )
+        calibration_optimizer = torch.optim.Adam(trainable_params, lr=float(calibration_learning_rate))
+        calibration_best_state = copy.deepcopy(policy.state_dict())
+        calibration_best_score = _event_score(_validate())
+        for epoch in range(1, int(calibration_epochs) + 1):
+            training = _train_natural_prior_epoch(
+                policy, calibration_optimizer, observations, actions, train_idx,
+                batch_size=batch_size, steering_weights=dummy_steering_weights,
+                event_weights=natural_event_weights, event_loss_scale=1.0, rng=rng,
+                steering_valid_mask=steering_forced_invalid,
+            )
+            cumulative_steps += int(training["updates"])
+            validation = _validate()
+            score = _event_score(validation)
+            calibration_history.append({
+                "epoch": epoch, "training": training, "score": score,
+                "cumulative_steps": cumulative_steps, "cumulative_examples": cumulative_steps * int(batch_size),
+                "event_gate": validation["gate"]["heads"]["event"],
+            })
+            if score >= calibration_best_score:
+                calibration_best_score = score
+                calibration_best_state = copy.deepcopy(policy.state_dict())
+        if calibration_best_score >= main_phase_score:
+            policy.load_state_dict(calibration_best_state)
+        else:
+            policy.load_state_dict(best_state)
+
+    policy.eval()
+    after = _validate()
+    probability_by_true_class = _event_probability_by_true_class(
+        policy, observations[val_idx], actions[val_idx, 1], batch_size=batch_size,
+    )
+    gate_report = _event_gate_report(after, minimum_support=minimum_class_support_for_gate)
+
+    dataset_composition = {
+        "total_samples": int(len(observations)),
+        "total_sessions": int(len(np.unique(session_index))),
+        "direct_keyboard_sessions": int(len(continuous_session_ids)),
+        "train_samples": int(len(train_idx)),
+        "validation_samples": int(len(val_idx)),
+        "validation_event_counts": np.bincount(actions[val_idx, 1], minlength=3).tolist(),
+        "train_event_counts": np.bincount(actions[train_idx, 1], minlength=3).tolist(),
+        "natural_event_target": natural_event_target.tolist(),
+    }
+
+    return {
+        "before": before,
+        "history": history,
+        "epochs_run": epochs_run,
+        "stopped_early": epochs_run < int(max_epochs),
+        "total_optimizer_steps": cumulative_steps,
+        "total_examples_seen": cumulative_steps * int(batch_size),
+        "main_phase_validation": main_phase_validation,
+        "calibration_history": calibration_history,
+        "calibration_applied": bool(calibration_history) and bias_correction is not None,
+        "bias_correction": bias_correction,
+        "after": after,
+        "macro_f1": _macro_f1(after),
+        "probability_by_true_class": probability_by_true_class,
+        "dataset_composition": dataset_composition,
+        "gate_passed": gate_report["passed"],
+        "reasons": gate_report["reasons"],
+        "underdetermined_classes": gate_report["underdetermined_classes"],
+        "train_samples": int(len(train_idx)),
+        "validation_samples": int(len(val_idx)),
+    }
 
 
 def bootstrap_policy_from_human_recordings(

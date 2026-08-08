@@ -48,17 +48,15 @@ def main() -> None:
         RECOVERY_ALARM_DOMINANT_LAYOUT_SHARE,
         RECOVERY_ALARM_INTERVENTION_TICKS_FRACTION,
     )
-    from simulator.basic_milestone_evaluator import evaluate_basic_milestone
-    from simulator.beginner_transition import zero_shot_raw_diagnostic
+    from simulator.basic_milestone_evaluator import evaluate_basic_milestone_parallel
+    from simulator.beginner_transition import zero_shot_raw_diagnostic_parallel
 
-    log(f"Loading checkpoint {checkpoint_path} for round {round_idx} evaluation...")
-    model = PPO.load(checkpoint_path, device="cpu")
+    log(f"Evaluating checkpoint {checkpoint_path} for round {round_idx}...")
 
     log("Running Basic milestone evaluator (assisted-mode metrics)...")
-    milestone_report = evaluate_basic_milestone(
-        model, MILESTONE_EVAL_CURRICULUM, MILESTONE_EVAL_LAYOUTS, seeds=MILESTONE_EVAL_SEEDS,
-        episode_seconds=MILESTONE_EVAL_EPISODE_SECONDS, max_actions=MILESTONE_EVAL_MAX_ACTIONS,
-        progress_every_seconds=20.0,
+    milestone_report = evaluate_basic_milestone_parallel(
+        checkpoint_path, MILESTONE_EVAL_CURRICULUM, MILESTONE_EVAL_LAYOUTS, seeds=MILESTONE_EVAL_SEEDS,
+        episode_seconds=MILESTONE_EVAL_EPISODE_SECONDS, max_actions=MILESTONE_EVAL_MAX_ACTIONS, n_workers=4,
     )
     report_path = EVAL_DIR / f"canonical_basic_milestone_{round_idx:03d}_report.json"
     report_path.write_text(json.dumps(milestone_report, indent=2, default=str), encoding="utf-8")
@@ -67,14 +65,15 @@ def main() -> None:
     log(f"  intervention_ticks_fraction: {milestone_report['intervention_ticks_fraction']}")
     log(f"  contacts_per_step: {milestone_report['contacts_per_step']}")
     log(f"  mean_displacement_per_tick: {milestone_report['mean_displacement_per_tick']}")
-    log(f"  teacher_disagreement_rate: {milestone_report['teacher_disagreement_rate']}")
+    log(f"  steering_disagreement_rate: {milestone_report['steering_disagreement_rate']}")
+    log(f"  event_disagreement_rate: {milestone_report['event_disagreement_rate']}")
     log(f"  gave_up_episode_fraction: {milestone_report['gave_up_episode_fraction']}")
     log(f"  dominant_layout_intervention_share: {milestone_report['dominant_layout_intervention_share']}")
 
     log("Running raw (recovery-off) diagnostic (informational only)...")
-    diagnostic = zero_shot_raw_diagnostic(
+    diagnostic = zero_shot_raw_diagnostic_parallel(
         checkpoint_path, heldout_manifest_path=RAW_DIAGNOSTIC_HELDOUT_MANIFEST,
-        seeds=RAW_DIAGNOSTIC_SEEDS, episode_seconds=DAGGER_EPISODE_SECONDS, max_actions=DAGGER_MAX_ACTIONS,
+        seeds=RAW_DIAGNOSTIC_SEEDS, episode_seconds=DAGGER_EPISODE_SECONDS, max_actions=DAGGER_MAX_ACTIONS, n_workers=4,
     )
     diagnostic_path = EVAL_DIR / f"canonical_basic_milestone_{round_idx:03d}_raw_diagnostic.json"
     diagnostic_path.write_text(json.dumps(diagnostic, indent=2, default=str), encoding="utf-8")

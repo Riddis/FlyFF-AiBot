@@ -199,6 +199,27 @@ def _roll_basic_episode(
     return records, summary
 
 
+_DAGGER_PARALLEL_WORKER_MODEL: Any = None
+
+
+def _init_dagger_roll_worker(checkpoint_path: str) -> None:
+    global _DAGGER_PARALLEL_WORKER_MODEL
+    from stable_baselines3 import PPO
+    _DAGGER_PARALLEL_WORKER_MODEL = PPO.load(checkpoint_path, device="cpu")
+
+
+def _dagger_roll_worker_task(
+    curriculum_path: str, layout_name: str, seed: int, episode_seconds: float, max_actions: int,
+    history_window: int, expected_clear_path_displacement: float,
+) -> tuple[str, int, list, dict[str, Any]]:
+    records, summary = _roll_basic_episode(
+        curriculum_path, layout_name, seed=seed, model=_DAGGER_PARALLEL_WORKER_MODEL,
+        episode_seconds=episode_seconds, max_actions=max_actions,
+        history_window=history_window, expected_clear_path_displacement=expected_clear_path_displacement,
+    )
+    return layout_name, seed, records, summary
+
+
 def collect_basic_dagger_dataset(
     curriculum_path: str,
     layout_names: list[str],
@@ -209,6 +230,8 @@ def collect_basic_dagger_dataset(
     max_actions: int,
     config: MiningConfig = MiningConfig(),
     progress_every_seconds: float = 15.0,
+    checkpoint_path: str | None = None,
+    n_workers: int = 1,
 ) -> dict[str, Any]:
     """Recovery-assisted counterpart to
     simulator.navigation_dataset.mine_navigation_dataset: same 4-category
@@ -219,7 +242,34 @@ def collect_basic_dagger_dataset(
     supervised example -- see this module's docstring for why recovery never
     enters a PPO buffer. `layout_names`/`curriculum_path` must be
     TRAINING-side, matching mine_navigation_dataset's own requirement.
-    """
+
+    If `checkpoint_path` is given and `n_workers` > 1, every (layout, seed)
+    episode is rolled up front across `n_workers` OS processes (each
+    loading its own copy of the checkpoint) instead of one sequential loop,
+    and the mining/capping logic below then runs unchanged over the
+    results. This deliberately rolls some episodes that the sequential
+    per-layout event cap (`max_events_per_layout_seed`) would otherwise
+    have skipped -- wasted compute traded for wall-clock time, per the
+    project's "prefer wasting compute over wallclock time" preference --
+    but produces byte-for-byte the same mined dataset as the sequential
+    path, since the capping/sampling decisions themselves are untouched and
+    still applied in the same layout/seed order over `model`'s (or the
+    loaded checkpoint's, which must match `model`) policy outputs."""
+
+    precomputed_episodes: dict[tuple[str, int], tuple[list, dict[str, Any]]] = {}
+    if checkpoint_path is not None and n_workers > 1:
+        from concurrent.futures import ProcessPoolExecutor
+
+        tasks = [
+            (curriculum_path, layout_name, seed, episode_seconds, max_actions,
+             config.history_window, config.expected_clear_path_displacement)
+            for layout_name in layout_names for seed in seeds
+        ]
+        with ProcessPoolExecutor(
+            max_workers=n_workers, initializer=_init_dagger_roll_worker, initargs=(checkpoint_path,),
+        ) as pool:
+            for layout_name, seed, records, summary in pool.map(_dagger_roll_worker_task, *zip(*tasks)):
+                precomputed_episodes[(layout_name, seed)] = (records, summary)
 
     observations: list[np.ndarray] = []
     actions: list[tuple[int, int]] = []
@@ -242,12 +292,15 @@ def collect_basic_dagger_dataset(
             if layout_event_count >= config.max_events_per_layout_seed:
                 progress.update(episodes_done, extra=f"layout={layout_name} (event cap reached, skipped)")
                 continue
-            records, summary = _roll_basic_episode(
-                curriculum_path, layout_name, seed=seed, model=model,
-                episode_seconds=episode_seconds, max_actions=max_actions,
-                history_window=config.history_window,
-                expected_clear_path_displacement=config.expected_clear_path_displacement,
-            )
+            if (layout_name, seed) in precomputed_episodes:
+                records, summary = precomputed_episodes[(layout_name, seed)]
+            else:
+                records, summary = _roll_basic_episode(
+                    curriculum_path, layout_name, seed=seed, model=model,
+                    episode_seconds=episode_seconds, max_actions=max_actions,
+                    history_window=config.history_window,
+                    expected_clear_path_displacement=config.expected_clear_path_displacement,
+                )
             episode_summaries.append({**summary, "layout_index": layout_id, "episode_index": episode_counter})
             progress.update(
                 episodes_done,

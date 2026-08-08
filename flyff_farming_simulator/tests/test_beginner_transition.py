@@ -92,6 +92,28 @@ def test_graduate_basic_to_beginner_runs_and_updates_parameters(tmp_path: Path) 
     assert manifest["recovery_config"]["enabled"] is False
 
 
+def test_zero_shot_raw_diagnostic_parallel_matches_sequential(tmp_path: Path) -> None:
+    from simulator.beginner_transition import zero_shot_raw_diagnostic, zero_shot_raw_diagnostic_parallel
+    from simulator.curriculum_manifests import HeldoutManifest, save_manifest
+
+    curriculum_path = _tiny_curriculum(tmp_path)
+    checkpoint = _basic_checkpoint(tmp_path, curriculum_path)
+    manifest_path = save_manifest(
+        HeldoutManifest(stage="early", curriculum_path=str(curriculum_path),
+                         layouts=("01_early_open_field_typical_fast",)),
+        tmp_path / "heldout.json",
+    )
+
+    sequential = zero_shot_raw_diagnostic(
+        checkpoint, heldout_manifest_path=str(manifest_path), seeds=[0, 1], episode_seconds=8.0, max_actions=40,
+    )
+    parallel = zero_shot_raw_diagnostic_parallel(
+        checkpoint, heldout_manifest_path=str(manifest_path), seeds=[0, 1], episode_seconds=8.0, max_actions=40,
+        n_workers=2,
+    )
+    assert sequential["per_layout"] == parallel["per_layout"]
+
+
 def test_rehearse_beginner_on_basic_data_combines_human_and_dagger_data(tmp_path: Path) -> None:
     curriculum_path = _tiny_curriculum(tmp_path)
     checkpoint = _basic_checkpoint(tmp_path, curriculum_path)

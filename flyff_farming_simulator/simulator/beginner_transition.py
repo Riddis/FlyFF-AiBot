@@ -78,6 +78,24 @@ def _run_925_episode_raw(curriculum_path: str, layout_name: str, *, net: Any, se
     }
 
 
+def _aggregate_raw_diagnostic(checkpoint: str | Path, per_layout_results: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    per_layout: dict[str, Any] = {}
+    for layout_name, results in per_layout_results.items():
+        per_layout[layout_name] = {
+            "n_episodes": len(results),
+            "physical_stagnation_episodes": sum(1 for r in results if r["physical_stagnation"]),
+            "mean_contacts_per_100_distance": float(
+                sum(r["contacts_per_100_distance"] for r in results) / max(1, len(results))
+            ),
+        }
+    return {
+        "role": "beginner_starting_point_diagnostic",
+        "checkpoint": str(Path(checkpoint).resolve()),
+        "per_layout": per_layout,
+        "notes": "Diagnostic only -- not a Basic graduation requirement, not a Beginner graduation result.",
+    }
+
+
 def zero_shot_raw_diagnostic(
     checkpoint: str | Path,
     *,
@@ -89,7 +107,9 @@ def zero_shot_raw_diagnostic(
     """Raw-policy (recovery disabled), Beginner-style evaluation of a
     just-graduated Basic checkpoint, against the existing immutable
     held-out pool. Purely informational: how much of Beginner's job is
-    already done vs. still to learn. Never a pass/fail gate on Basic."""
+    already done vs. still to learn. Never a pass/fail gate on Basic.
+    Sequential/in-process -- see `zero_shot_raw_diagnostic_parallel` for a
+    multi-process equivalent."""
 
     from stable_baselines3 import PPO
 
@@ -99,29 +119,64 @@ def zero_shot_raw_diagnostic(
     net = model.policy
     manifest = load_heldout_manifest(heldout_manifest_path)
 
-    per_layout: dict[str, Any] = {}
+    per_layout_results: dict[str, list[dict[str, Any]]] = {}
     for layout_name in manifest.layouts:
-        results = [
+        per_layout_results[layout_name] = [
             _run_925_episode_raw(
                 manifest.curriculum_path, layout_name, net=net, seed=seed,
                 episode_seconds=episode_seconds, max_actions=max_actions,
             )
             for seed in seeds
         ]
-        per_layout[layout_name] = {
-            "n_episodes": len(results),
-            "physical_stagnation_episodes": sum(1 for r in results if r["physical_stagnation"]),
-            "mean_contacts_per_100_distance": float(
-                sum(r["contacts_per_100_distance"] for r in results) / max(1, len(results))
-            ),
-        }
+    return _aggregate_raw_diagnostic(checkpoint, per_layout_results)
 
-    return {
-        "role": "beginner_starting_point_diagnostic",
-        "checkpoint": str(Path(checkpoint).resolve()),
-        "per_layout": per_layout,
-        "notes": "Diagnostic only -- not a Basic graduation requirement, not a Beginner graduation result.",
-    }
+
+_PARALLEL_WORKER_NET: Any = None
+
+
+def _init_raw_diagnostic_worker(checkpoint_path: str) -> None:
+    global _PARALLEL_WORKER_NET
+    from stable_baselines3 import PPO
+    _PARALLEL_WORKER_NET = PPO.load(checkpoint_path, device="cpu").policy
+
+
+def _raw_diagnostic_worker_task(curriculum_path: str, layout_name: str, seed: int, episode_seconds: float, max_actions: int) -> dict[str, Any]:
+    return _run_925_episode_raw(
+        curriculum_path, layout_name, net=_PARALLEL_WORKER_NET, seed=seed,
+        episode_seconds=episode_seconds, max_actions=max_actions,
+    )
+
+
+def zero_shot_raw_diagnostic_parallel(
+    checkpoint: str | Path,
+    *,
+    heldout_manifest_path: str,
+    seeds: list[int],
+    episode_seconds: float = 150.0,
+    max_actions: int = 1000,
+    n_workers: int = 4,
+) -> dict[str, Any]:
+    """Same report as `zero_shot_raw_diagnostic`, computed by farming
+    episodes out across `n_workers` OS processes instead of one sequential
+    loop -- see `evaluate_basic_milestone_parallel`'s docstring for the
+    same compute-for-wallclock tradeoff rationale."""
+
+    from concurrent.futures import ProcessPoolExecutor
+
+    from .curriculum_manifests import load_heldout_manifest
+
+    manifest = load_heldout_manifest(heldout_manifest_path)
+    tasks = [(manifest.curriculum_path, layout_name, seed, episode_seconds, max_actions)
+              for layout_name in manifest.layouts for seed in seeds]
+    with ProcessPoolExecutor(
+        max_workers=max(1, n_workers), initializer=_init_raw_diagnostic_worker, initargs=(str(checkpoint),),
+    ) as pool:
+        flat_results = list(pool.map(_raw_diagnostic_worker_task, *zip(*tasks)))
+
+    per_layout_results: dict[str, list[dict[str, Any]]] = {name: [] for name in manifest.layouts}
+    for task, result in zip(tasks, flat_results):
+        per_layout_results[task[1]].append(result)
+    return _aggregate_raw_diagnostic(checkpoint, per_layout_results)
 
 
 def graduate_basic_to_beginner(

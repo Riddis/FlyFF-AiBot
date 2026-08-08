@@ -7,6 +7,7 @@ import pytest
 import torch
 
 from simulator.basic_training import (
+    bootstrap_event_head,
     bootstrap_policy_from_human_recordings,
     bootstrap_steering_from_teacher,
     build_fresh_basic_policy,
@@ -334,3 +335,150 @@ def test_bootstrap_steering_from_teacher_accepts_path_or_dict(tmp_path: Path) ->
     )
     result = bootstrap_steering_from_teacher(model, teacher_path, epochs=1, batch_size=8, seed=0)
     assert result["train_samples"] >= 1
+
+
+def _synthetic_event_pool_dataset(
+    path: Path, *, n_direct_sessions: int = 4, n_eva_only_sessions: int = 2,
+    samples_per_session: int = 50, seed: int = 0,
+) -> Path:
+    """A hand-built (not recording-derived) multi-session event dataset with
+    a real, learnable discriminative signal (a fixed feature index shifted
+    by true event class) -- fast enough for a bounded unit test while still
+    exercising _human_session_stratified_split's multi-session/multi-role
+    machinery and giving the recognition phase something genuine to learn,
+    not just a shape/crash check."""
+    rng = np.random.default_rng(seed)
+    observations: list[np.ndarray] = []
+    actions: list[np.ndarray] = []
+    steering_valid: list[np.ndarray] = []
+    session_index: list[np.ndarray] = []
+    roles: list[str] = []
+    session_id = 0
+    for session_number in range(n_direct_sessions):
+        n = samples_per_session
+        event_labels = rng.choice([0, 1], size=n, p=[0.7, 0.3])
+        if session_number == 0:
+            # A tiny, real (support > 0 but far below any sane gate
+            # threshold) JUMP presence -- mirrors this project's actual
+            # human data (as few as 3 real JUMP examples) and exercises the
+            # gate's "underdetermined, not scored" path, not just "class
+            # entirely absent".
+            event_labels[:3] = 2
+        steering_labels = rng.integers(0, 3, size=n)
+        obs = rng.normal(0.0, 1.0, size=(n, 925)).astype(np.float32)
+        obs[:, 900] += event_labels.astype(np.float32) * 4.0
+        observations.append(obs)
+        actions.append(np.column_stack([steering_labels, event_labels]).astype(np.int64))
+        steering_valid.append(np.ones(n, dtype=np.bool_))
+        session_index.append(np.full(n, session_id, dtype=np.int64))
+        roles.append("direct_keyboard")
+        session_id += 1
+    for _ in range(n_eva_only_sessions):
+        n = max(4, samples_per_session // 2)
+        obs = rng.normal(0.0, 1.0, size=(n, 925)).astype(np.float32)
+        obs[:, 900] += 4.0
+        observations.append(obs)
+        actions.append(np.column_stack([np.zeros(n, dtype=np.int64), np.ones(n, dtype=np.int64)]))
+        steering_valid.append(np.zeros(n, dtype=np.bool_))
+        session_index.append(np.full(n, session_id, dtype=np.int64))
+        roles.append("eva_only")
+        session_id += 1
+    np.savez_compressed(
+        path,
+        observations=np.concatenate(observations, axis=0),
+        actions=np.concatenate(actions, axis=0),
+        steering_label_valid=np.concatenate(steering_valid, axis=0),
+        session_index=np.concatenate(session_index, axis=0),
+        source_recording_role=np.asarray(roles, dtype="<U20"),
+    )
+    return path
+
+
+def test_bootstrap_event_head_learns_real_discrimination_and_leaves_steering_untouched(tmp_path: Path) -> None:
+    dataset_path = _synthetic_event_pool_dataset(tmp_path / "event_pool.npz", seed=1)
+    curriculum_path = _tiny_curriculum(tmp_path)
+    entry, base_env = next(iter(iter_variant_environments(
+        str(curriculum_path), stage="early", seed=0, episode_steps=5, episode_seconds=3.0,
+    )))
+    env = NavigationHistoryWrapper(base_env)
+    model = build_fresh_basic_policy(env, seed=0, device="cpu")
+    env.close()
+
+    before_steering = model.policy.mlp_extractor.steering_net[0].weight.detach().clone()
+    before_value = model.policy.value_net.weight.detach().clone()
+
+    result = bootstrap_event_head(
+        model, dataset_path, max_epochs=50, learning_rate=1e-3, patience=50,
+        batch_size=32, validation_fraction=0.25, seed=1,
+    )
+
+    after_steering = model.policy.mlp_extractor.steering_net[0].weight.detach()
+    after_value = model.policy.value_net.weight.detach()
+    assert torch.allclose(before_steering, after_steering), "steering_net must not change during event-head bootstrap"
+    assert torch.allclose(before_value, after_value), "value_net must not change during event-head bootstrap"
+
+    for name, param in model.policy.named_parameters():
+        assert not torch.isnan(param).any(), f"NaN in {name}"
+
+    per_class = {c["value"]: c for c in result["after"]["gate"]["heads"]["event"]["per_class"]}
+    assert per_class[1]["support"] > 0, "test construction bug: validation must contain real CAST_EVA examples"
+    assert per_class[1]["recall"] > 0.0, (
+        "a class with a real, learnable signal must not end up with zero recall -- this is exactly the "
+        "collapse the early-stopped, best-checkpoint-tracked bootstrap exists to prevent"
+    )
+
+    p_eva_given_eva = result["probability_by_true_class"]["CAST_EVA"]["mean_predicted_probability"][1]
+    p_eva_given_none = result["probability_by_true_class"]["NONE"]["mean_predicted_probability"][1]
+    assert p_eva_given_eva > p_eva_given_none, (
+        "a head that only learned the marginal rate has these nearly equal -- real discrimination requires "
+        "P(EVA|true EVA) to clearly exceed P(EVA|true NONE)"
+    )
+    assert result["dataset_composition"]["direct_keyboard_sessions"] == 4
+    assert result["dataset_composition"]["total_sessions"] == 6
+    assert result["total_optimizer_steps"] > 0
+    assert result["gate_passed"], result["reasons"]
+    assert 2 in result["underdetermined_classes"], "JUMP has no examples in this fixture and must be reported underdetermined, not scored"
+
+
+def test_bootstrap_event_head_rejects_wrong_observation_width(tmp_path: Path) -> None:
+    dataset_path = _synthetic_event_pool_dataset(tmp_path / "event_pool.npz")
+    data = dict(np.load(dataset_path, allow_pickle=False))
+    data["observations"] = data["observations"][:, :10]
+    np.savez_compressed(tmp_path / "bad.npz", **data)
+    curriculum_path = _tiny_curriculum(tmp_path)
+    entry, base_env = next(iter(iter_variant_environments(
+        str(curriculum_path), stage="early", seed=0, episode_steps=5, episode_seconds=3.0,
+    )))
+    env = NavigationHistoryWrapper(base_env)
+    model = build_fresh_basic_policy(env, seed=0, device="cpu")
+    env.close()
+    with pytest.raises(ValueError):
+        bootstrap_event_head(model, tmp_path / "bad.npz", max_epochs=1)
+
+
+def test_load_event_training_pool_offsets_sessions_and_defaults_dagger_role(tmp_path: Path) -> None:
+    """A dataset with no source_recording_role field (every DAgger round
+    dataset) must default its sessions to "simulator_mined", not silently
+    inherit "direct_keyboard" -- that would corrupt the natural-prior
+    estimate with mining-concentrated (non-natural-frequency) data."""
+    from simulator.basic_training import _load_event_training_pool
+
+    human_path = _synthetic_event_pool_dataset(tmp_path / "human.npz", n_direct_sessions=2, n_eva_only_sessions=1, samples_per_session=10)
+    dagger_observations = np.random.default_rng(0).normal(0, 1, size=(15, 925)).astype(np.float32)
+    dagger_actions = np.column_stack([
+        np.zeros(15, dtype=np.int64), np.array([0] * 10 + [1] * 5, dtype=np.int64),
+    ])
+    np.savez_compressed(
+        tmp_path / "dagger_round001.npz",
+        observations=dagger_observations, actions=dagger_actions,
+        steering_label_valid=np.ones(15, dtype=np.bool_),
+        session_index=np.array([0] * 8 + [1] * 7, dtype=np.int64),
+    )
+
+    pool = _load_event_training_pool([human_path, tmp_path / "dagger_round001.npz"])
+    # human file: 2 direct sessions x 10 samples + 1 eva_only session x 5 samples = 25.
+    assert pool["observations"].shape[0] == 25 + 15
+    # human file has 3 sessions (0,1,2); dagger file's 2 sessions must be offset to (3,4).
+    assert set(pool["session_index"][25:].tolist()) == {3, 4}
+    assert list(pool["source_recording_role"][3:5]) == ["simulator_mined", "simulator_mined"]
+    assert list(pool["source_recording_role"][:3]) == ["direct_keyboard", "direct_keyboard", "eva_only"]
