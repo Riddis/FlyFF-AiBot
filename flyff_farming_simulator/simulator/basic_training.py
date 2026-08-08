@@ -618,7 +618,9 @@ def _load_event_training_pool(dataset_paths: list[str | Path]) -> dict[str, np.n
     steering_valid: list[np.ndarray] = []
     session_index: list[np.ndarray] = []
     roles: list[np.ndarray] = []
+    row_boundaries: list[tuple[str, int, int]] = []
     offset = 0
+    row_offset = 0
     for path in dataset_paths:
         with np.load(Path(path), allow_pickle=False) as data:
             obs = np.asarray(data["observations"], dtype=np.float32)
@@ -636,14 +638,67 @@ def _load_event_training_pool(dataset_paths: list[str | Path]) -> dict[str, np.n
         steering_valid.append(sv)
         session_index.append(sessions + offset)
         roles.append(file_roles)
+        row_boundaries.append((str(path), row_offset, row_offset + len(obs)))
         offset += n_sessions
+        row_offset += len(obs)
     return {
         "observations": np.concatenate(observations, axis=0),
         "actions": np.concatenate(actions, axis=0),
         "steering_label_valid": np.concatenate(steering_valid, axis=0),
         "session_index": np.concatenate(session_index, axis=0),
         "source_recording_role": np.concatenate(roles, axis=0),
+        "row_boundaries": row_boundaries,
     }
+
+
+def _stable_file_seed(path: str | Path) -> int:
+    """A seed derived only from a file's path -- deterministic across
+    processes and over time, never influenced by which round or caller is
+    asking, or by how many other files exist in a pool alongside it."""
+    import hashlib
+    digest = hashlib.sha256(str(path).encode("utf-8")).hexdigest()
+    return int(digest[:8], 16) % (2**31 - 1)
+
+
+def _persistent_event_split(
+    dataset_paths: list[str | Path], pool: dict[str, np.ndarray], *, validation_fraction: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Train/validation row indices into `pool`'s concatenated arrays,
+    computed independently PER SOURCE FILE from a seed derived only from
+    that file's own path -- never from the current round, the current
+    total pool size, or any other file. This is what makes the split
+    persistent across Basic rounds: once a file (the human bootstrap
+    dataset, or one round's mined DAgger dataset) is written to disk, its
+    own sessions'/episodes' train-vs-validation assignment is permanently
+    fixed the first time this function sees it, and stays fixed no matter
+    how many later rounds' files get appended to the pool afterward.
+
+    Calling factorized_v193_training._human_session_stratified_split on
+    the WHOLE growing pool every round (the original approach) does not
+    have this property: `rng.permutation(sessions)` there permutes
+    whatever the CURRENT total session array happens to be, so a session
+    held out in round N can silently become training data in round N+1
+    purely because the pool grew -- confirmed directly: two calls with a
+    fixed accumulation pattern (8 human sessions + 21 more sessions/round)
+    put session 1 and 3 in validation at 29 total sessions but back in
+    train at 50 total sessions. That defeats the point of a held-out
+    early-stopping signal. Per-file splitting removes the dependency on
+    total pool size entirely."""
+
+    event_valid_all = np.ones(len(pool["session_index"]), dtype=np.bool_)
+    train_parts: list[np.ndarray] = []
+    val_parts: list[np.ndarray] = []
+    for path, row_start, row_end in pool["row_boundaries"]:
+        local_slice = slice(row_start, row_end)
+        local_train, local_val = _human_session_stratified_split(
+            pool["session_index"][local_slice], pool["steering_label_valid"][local_slice],
+            event_valid_all[local_slice], pool["actions"][local_slice],
+            validation_fraction=validation_fraction, seed=_stable_file_seed(path),
+        )
+        train_parts.append(local_train + row_start)
+        val_parts.append(local_val + row_start)
+    return np.concatenate(train_parts) if train_parts else np.zeros(0, dtype=np.int64), \
+        np.concatenate(val_parts) if val_parts else np.zeros(0, dtype=np.int64)
 
 
 def _event_score(diagnostics: dict[str, Any]) -> float:
@@ -689,15 +744,21 @@ def _event_gate_report(diagnostics: dict[str, Any], *, minimum_support: int, min
     return {"passed": not reasons, "reasons": reasons, "underdetermined_classes": underdetermined}
 
 
-def _macro_f1(diagnostics: dict[str, Any]) -> float:
-    """Unweighted mean F1 across event classes with real validation support
-    -- reported alongside accuracy/recall/precision so aggregate accuracy
-    is never the only number available (see bootstrap_event_head's
-    docstring for why aggregate accuracy alone previously hid a collapse)."""
+def _macro_f1(diagnostics: dict[str, Any], *, minimum_support: int) -> float:
+    """Unweighted mean F1 across event classes with ADEQUATE validation
+    support (>= minimum_support, the same threshold _event_gate_report
+    uses) -- reported alongside accuracy/recall/precision so aggregate
+    accuracy is never the only number available (see bootstrap_event_
+    head's docstring for why aggregate accuracy alone previously hid a
+    collapse). Excluding underdetermined classes here, not just entirely-
+    absent ones, matters: a class with support > 0 but essentially no
+    evidence (e.g. JUMP with 3 real examples) predictably scores F1=0 and
+    would otherwise silently drag a metric labeled "NONE/EVA macro-F1"
+    down via a class it explicitly isn't about."""
     per_class = diagnostics["gate"]["heads"]["event"]["per_class"]
     scores = []
     for entry in per_class:
-        if entry["support"] == 0:
+        if entry["support"] < minimum_support:
             continue
         p, r = entry["precision"], entry["recall"]
         scores.append(2 * p * r / (p + r) if (p + r) > 0 else 0.0)
@@ -840,11 +901,14 @@ def bootstrap_event_head(
             "policy.action_net.event_out is missing or the wrong shape; is model.policy a SplitSteeringNavigationPolicy?"
         )
 
-    event_valid = np.ones(len(session_index), dtype=np.bool_)
-    train_idx, val_idx = _human_session_stratified_split(
-        session_index, steering_label_valid, event_valid, actions,
-        validation_fraction=validation_fraction, seed=seed,
-    )
+    # Persistent, per-source-file split -- NOT re-derived from the whole
+    # current pool (see _persistent_event_split's docstring for the
+    # concrete cross-round leakage this replaced: a session held out in
+    # one round's split could silently become training data in a later
+    # round purely because the accumulated pool grew). `seed` is used only
+    # for this call's own training randomness (batch order, which epoch
+    # counts as "best") -- never for deciding which rows are held out.
+    train_idx, val_idx = _persistent_event_split(list(dataset_paths), pool, validation_fraction=validation_fraction)
     if len(val_idx) == 0 or len(train_idx) == 0:
         raise ValueError("event training pool split produced an empty train or validation slice")
 
@@ -1004,7 +1068,7 @@ def bootstrap_event_head(
         "calibration_applied": bool(calibration_history) and bias_correction is not None,
         "bias_correction": bias_correction,
         "after": after,
-        "macro_f1": _macro_f1(after),
+        "macro_f1": _macro_f1(after, minimum_support=minimum_class_support_for_gate),
         "probability_by_true_class": probability_by_true_class,
         "dataset_composition": dataset_composition,
         "gate_passed": gate_report["passed"],
