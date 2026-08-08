@@ -81,6 +81,7 @@ def run_episode(
     episode_seconds: float,
     max_actions: int,
     recovery: Any = None,
+    stage: str = "early",
 ) -> dict[str, Any]:
     """Roll the policy through one episode, tracking the teacher's oracle
     decision and the real geometric angle at every visited state.
@@ -90,12 +91,20 @@ def run_episode(
     override. Omitting it (the default) reproduces the exact raw-policy
     behavior every training/teacher-data/ordinary-scoring caller already
     relies on -- recovery is never silently active.
+
+    ``stage`` must match the curriculum's own internal stage (e.g.
+    "intermediate" for an Intermediate-stage manifest) -- defaulting this
+    to "early" unconditionally (as this function originally did) silently
+    breaks against any non-early curriculum with "Curriculum contains no
+    variants for stage 'early'", confirmed the hard way against the first
+    real Intermediate evaluation attempt. Callers with a HeldoutManifest/
+    ChallengeManifest should pass manifest.stage, never assume "early".
     """
 
     entry, env = next(
         iter(
             iter_variant_environments(
-                curriculum_path, stage="early", seed=seed, episode_steps=max_actions,
+                curriculum_path, stage=stage, seed=seed, episode_steps=max_actions,
                 episode_seconds=episode_seconds, variant_name=layout_name,
             )
         )
@@ -304,14 +313,14 @@ def evaluate_heldout(
     per_layout: dict[str, Any] = {}
     for layout_name in manifest.layouts:
         teacher_results = [
-            _run_teacher_episode(manifest.curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions)
+            _run_teacher_episode(manifest.curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage)
             for seed in seeds
         ]
         teacher_median_kph = float(np.median([r["kills_per_simulated_hour"] for r in teacher_results]))
         policy_results = [
             run_episode(
                 manifest.curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds,
-                max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None),
+                max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=manifest.stage,
             )
             for seed in seeds
         ]
@@ -334,12 +343,12 @@ def evaluate_challenge(
     for scenario in manifest.fixed_regression_scenarios:
         teacher = _run_teacher_episode(
             scenario.curriculum_path, scenario.layout, seed=scenario.seed,
-            episode_seconds=scenario.episode_seconds, max_actions=scenario.max_actions,
+            episode_seconds=scenario.episode_seconds, max_actions=scenario.max_actions, stage=manifest.stage,
         )
         policy = run_episode(
             scenario.curriculum_path, scenario.layout, net=net, seed=scenario.seed,
             episode_seconds=scenario.episode_seconds, max_actions=scenario.max_actions,
-            recovery=(_new_recovery_controller() if use_recovery else None),
+            recovery=(_new_recovery_controller() if use_recovery else None), stage=manifest.stage,
         )
         policy["teacher_ratio"] = policy["kills_per_simulated_hour"] / teacher["kills_per_simulated_hour"] if teacher["kills_per_simulated_hour"] else None
         policy["expected_failure_signature"] = scenario.expected_failure_signature
@@ -348,14 +357,14 @@ def evaluate_challenge(
     per_layout: dict[str, Any] = {}
     for layout_name in manifest.challenge_family_layouts:
         teacher_results = [
-            _run_teacher_episode(manifest.challenge_family_curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions)
+            _run_teacher_episode(manifest.challenge_family_curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage)
             for seed in family_seeds
         ]
         teacher_median_kph = float(np.median([r["kills_per_simulated_hour"] for r in teacher_results]))
         policy_results = [
             run_episode(
                 manifest.challenge_family_curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds,
-                max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None),
+                max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=manifest.stage,
             )
             for seed in family_seeds
         ]
@@ -378,11 +387,12 @@ def _init_full_eval_worker(checkpoint_path: str) -> None:
 
 def _heldout_episode_task(
     curriculum_path: str, layout_name: str, seed: int, episode_seconds: float, max_actions: int, use_recovery: bool,
+    stage: str = "early",
 ) -> tuple[str, dict[str, Any], dict[str, Any]]:
-    teacher = _run_teacher_episode(curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions)
+    teacher = _run_teacher_episode(curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=stage)
     policy = run_episode(
         curriculum_path, layout_name, net=_PARALLEL_EVAL_NET, seed=seed, episode_seconds=episode_seconds,
-        max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None),
+        max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=stage,
     )
     return layout_name, teacher, policy
 
@@ -403,7 +413,7 @@ def evaluate_heldout_parallel(
     from concurrent.futures import ProcessPoolExecutor
 
     tasks = [
-        (manifest.curriculum_path, layout_name, seed, episode_seconds, max_actions, use_recovery)
+        (manifest.curriculum_path, layout_name, seed, episode_seconds, max_actions, use_recovery, manifest.stage)
         for layout_name in manifest.layouts for seed in seeds
     ]
     with ProcessPoolExecutor(
@@ -427,12 +437,12 @@ def evaluate_heldout_parallel(
 
 def _challenge_fixed_task(
     curriculum_path: str, layout: str, seed: int, episode_seconds: float, max_actions: int,
-    expected_failure_signature: str, use_recovery: bool,
+    expected_failure_signature: str, use_recovery: bool, stage: str = "early",
 ) -> dict[str, Any]:
-    teacher = _run_teacher_episode(curriculum_path, layout, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions)
+    teacher = _run_teacher_episode(curriculum_path, layout, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=stage)
     policy = run_episode(
         curriculum_path, layout, net=_PARALLEL_EVAL_NET, seed=seed, episode_seconds=episode_seconds,
-        max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None),
+        max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=stage,
     )
     policy["teacher_ratio"] = (
         policy["kills_per_simulated_hour"] / teacher["kills_per_simulated_hour"] if teacher["kills_per_simulated_hour"] else None
@@ -451,11 +461,11 @@ def evaluate_challenge_parallel(
     from concurrent.futures import ProcessPoolExecutor
 
     fixed_tasks = [
-        (s.curriculum_path, s.layout, s.seed, s.episode_seconds, s.max_actions, s.expected_failure_signature, use_recovery)
+        (s.curriculum_path, s.layout, s.seed, s.episode_seconds, s.max_actions, s.expected_failure_signature, use_recovery, manifest.stage)
         for s in manifest.fixed_regression_scenarios
     ]
     family_tasks = [
-        (manifest.challenge_family_curriculum_path, layout_name, seed, episode_seconds, max_actions, use_recovery)
+        (manifest.challenge_family_curriculum_path, layout_name, seed, episode_seconds, max_actions, use_recovery, manifest.stage)
         for layout_name in manifest.challenge_family_layouts for seed in family_seeds
     ]
 
@@ -486,11 +496,11 @@ def evaluate_challenge_parallel(
     }
 
 
-def _run_teacher_episode(curriculum_path: str, layout_name: str, *, seed: int, episode_seconds: float, max_actions: int) -> dict[str, Any]:
+def _run_teacher_episode(curriculum_path: str, layout_name: str, *, seed: int, episode_seconds: float, max_actions: int, stage: str = "early") -> dict[str, Any]:
     entry, env = next(
         iter(
             iter_variant_environments(
-                curriculum_path, stage="early", seed=seed, episode_steps=max_actions,
+                curriculum_path, stage=stage, seed=seed, episode_steps=max_actions,
                 episode_seconds=episode_seconds, variant_name=layout_name,
             )
         )
