@@ -150,3 +150,59 @@ def test_rehearse_beginner_on_basic_data_combines_human_and_dagger_data(tmp_path
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["milestone"] == "rehearsal"
     assert manifest["starting_checkpoint"] == str(checkpoint.resolve())
+
+
+def test_evaluate_heldout_925_matches_parallel(tmp_path: Path) -> None:
+    """evaluate_heldout (milestone_evaluator's original) drives the raw
+    923-value env unwrapped -- the wrong input width for a
+    SplitSteeringNavigationPolicy checkpoint (confirmed: milestone_
+    evaluator.py never imports NavigationHistoryWrapper and its own tests
+    only exercise it against the older 923-input SplitSteeringEventPolicy).
+    evaluate_heldout_925 is the fix; this locks in that its sequential and
+    parallel forms agree exactly, the same equivalence bar every other
+    parallel/sequential pair in this codebase is held to."""
+    from simulator.beginner_transition import evaluate_heldout_925, evaluate_heldout_925_parallel
+    from simulator.curriculum_manifests import HeldoutManifest
+
+    curriculum_path = _tiny_curriculum(tmp_path)
+    checkpoint = _basic_checkpoint(tmp_path, curriculum_path)
+    model = PPO.load(str(checkpoint), device="cpu")
+    manifest = HeldoutManifest(stage="early", curriculum_path=str(curriculum_path), layouts=("01_early_open_field_typical_fast",))
+
+    sequential = evaluate_heldout_925(model, manifest, seeds=[0, 1], episode_seconds=8.0, max_actions=40)
+    parallel = evaluate_heldout_925_parallel(checkpoint, manifest, seeds=[0, 1], episode_seconds=8.0, max_actions=40, n_workers=2)
+
+    assert sequential["role"] == "heldout"
+    layout = "01_early_open_field_typical_fast"
+    assert sequential["layouts"][layout]["n_episodes"] == 2
+    assert sequential["layouts"][layout] == parallel["layouts"][layout]
+
+
+def test_evaluate_challenge_925_matches_parallel(tmp_path: Path) -> None:
+    from simulator.beginner_transition import evaluate_challenge_925, evaluate_challenge_925_parallel
+    from simulator.curriculum_manifests import ChallengeManifest, FixedRegressionScenario
+
+    curriculum_path = _tiny_curriculum(tmp_path)
+    checkpoint = _basic_checkpoint(tmp_path, curriculum_path)
+    model = PPO.load(str(checkpoint), device="cpu")
+    manifest = ChallengeManifest(
+        stage="early",
+        fixed_regression_scenarios=(
+            FixedRegressionScenario(
+                id="probe_case", curriculum_path=str(curriculum_path), layout="01_early_open_field_typical_fast",
+                seed=0, episode_seconds=8.0, max_actions=40, expected_failure_signature="none yet -- test probe",
+                discovered="2026-08-08",
+            ),
+        ),
+        challenge_family_curriculum_path=str(curriculum_path),
+        challenge_family_layouts=("01_early_open_field_typical_fast",),
+    )
+
+    sequential = evaluate_challenge_925(model, manifest, family_seeds=[0, 1], episode_seconds=8.0, max_actions=40)
+    parallel = evaluate_challenge_925_parallel(checkpoint, manifest, family_seeds=[0, 1], episode_seconds=8.0, max_actions=40, n_workers=2)
+
+    assert sequential["role"] == "challenge"
+    assert "probe_case" in sequential["fixed_regression_scenarios"]
+    assert sequential["fixed_regression_scenarios"]["probe_case"] == parallel["fixed_regression_scenarios"]["probe_case"]
+    layout = "01_early_open_field_typical_fast"
+    assert sequential["challenge_family"][layout] == parallel["challenge_family"][layout]

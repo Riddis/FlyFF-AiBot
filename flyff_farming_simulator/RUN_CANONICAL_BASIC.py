@@ -279,7 +279,15 @@ def main() -> None:
 
     all_round_reports = []
     summary_path = EVAL_DIR / "canonical_basic_run_summary.json"
-    if summary_path.exists():
+    # Only resume a summary file if this is actually a resume of THIS
+    # lineage (completed_round > 0) -- otherwise a genuinely fresh start
+    # (e.g. after quarantining a broken lineage, as happened once already)
+    # would silently prepend stale entries from a run whose checkpoints no
+    # longer exist. Confirmed this bug for real: the previous quarantine
+    # left canonical_basic_run_summary.json on disk, and a fresh restart
+    # loaded its round-4-collapse entry back in ahead of the new clean
+    # rounds.
+    if completed_round > 0 and summary_path.exists():
         try:
             all_round_reports = json.loads(summary_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):

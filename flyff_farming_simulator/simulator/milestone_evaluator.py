@@ -367,6 +367,125 @@ def evaluate_challenge(
     }
 
 
+_PARALLEL_EVAL_NET: Any = None
+
+
+def _init_full_eval_worker(checkpoint_path: str) -> None:
+    global _PARALLEL_EVAL_NET
+    from stable_baselines3 import PPO
+    _PARALLEL_EVAL_NET = PPO.load(checkpoint_path, device="cpu").policy
+
+
+def _heldout_episode_task(
+    curriculum_path: str, layout_name: str, seed: int, episode_seconds: float, max_actions: int, use_recovery: bool,
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    teacher = _run_teacher_episode(curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions)
+    policy = run_episode(
+        curriculum_path, layout_name, net=_PARALLEL_EVAL_NET, seed=seed, episode_seconds=episode_seconds,
+        max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None),
+    )
+    return layout_name, teacher, policy
+
+
+def evaluate_heldout_parallel(
+    checkpoint_path: str | Path, manifest: HeldoutManifest, *, seeds: list[int], episode_seconds: float,
+    max_actions: int, use_recovery: bool = False, n_workers: int = 4,
+) -> dict[str, Any]:
+    """Same report as `evaluate_heldout`, computed by farming (teacher,
+    policy) episode pairs out across `n_workers` OS processes instead of
+    one sequential loop -- at this project's real evaluation scale
+    (episode_seconds=150, max_actions=1000), a full heldout+challenge pass
+    sequential would take hours; see evaluate_basic_milestone_parallel's
+    docstring for the same compute-for-wallclock tradeoff rationale.
+    Requires a checkpoint on disk (not an in-memory model), since each
+    worker process loads its own copy."""
+
+    from concurrent.futures import ProcessPoolExecutor
+
+    tasks = [
+        (manifest.curriculum_path, layout_name, seed, episode_seconds, max_actions, use_recovery)
+        for layout_name in manifest.layouts for seed in seeds
+    ]
+    with ProcessPoolExecutor(
+        max_workers=max(1, n_workers), initializer=_init_full_eval_worker, initargs=(str(checkpoint_path),),
+    ) as pool:
+        flat = list(pool.map(_heldout_episode_task, *zip(*tasks))) if tasks else []
+
+    teachers_by_layout: dict[str, list[dict[str, Any]]] = {name: [] for name in manifest.layouts}
+    policies_by_layout: dict[str, list[dict[str, Any]]] = {name: [] for name in manifest.layouts}
+    for layout_name, teacher, policy in flat:
+        teachers_by_layout[layout_name].append(teacher)
+        policies_by_layout[layout_name].append(policy)
+
+    per_layout = {}
+    for layout_name in manifest.layouts:
+        teacher_results = teachers_by_layout[layout_name]
+        teacher_median_kph = float(np.median([r["kills_per_simulated_hour"] for r in teacher_results])) if teacher_results else None
+        per_layout[layout_name] = _summarize_episodes(layout_name, policies_by_layout[layout_name], teacher_median_kph)
+    return {"role": "heldout", "stage": manifest.stage, "assisted": use_recovery, "layouts": per_layout}
+
+
+def _challenge_fixed_task(
+    curriculum_path: str, layout: str, seed: int, episode_seconds: float, max_actions: int,
+    expected_failure_signature: str, use_recovery: bool,
+) -> dict[str, Any]:
+    teacher = _run_teacher_episode(curriculum_path, layout, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions)
+    policy = run_episode(
+        curriculum_path, layout, net=_PARALLEL_EVAL_NET, seed=seed, episode_seconds=episode_seconds,
+        max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None),
+    )
+    policy["teacher_ratio"] = (
+        policy["kills_per_simulated_hour"] / teacher["kills_per_simulated_hour"] if teacher["kills_per_simulated_hour"] else None
+    )
+    policy["expected_failure_signature"] = expected_failure_signature
+    return {k: v for k, v in policy.items() if not k.startswith("_")}
+
+
+def evaluate_challenge_parallel(
+    checkpoint_path: str | Path, manifest: ChallengeManifest, *, family_seeds: list[int], episode_seconds: float,
+    max_actions: int, use_recovery: bool = False, n_workers: int = 4,
+) -> dict[str, Any]:
+    """Same report as `evaluate_challenge`, parallelized the same way as
+    `evaluate_heldout_parallel` -- see that function's docstring."""
+
+    from concurrent.futures import ProcessPoolExecutor
+
+    fixed_tasks = [
+        (s.curriculum_path, s.layout, s.seed, s.episode_seconds, s.max_actions, s.expected_failure_signature, use_recovery)
+        for s in manifest.fixed_regression_scenarios
+    ]
+    family_tasks = [
+        (manifest.challenge_family_curriculum_path, layout_name, seed, episode_seconds, max_actions, use_recovery)
+        for layout_name in manifest.challenge_family_layouts for seed in family_seeds
+    ]
+
+    fixed_results: dict[str, Any] = {}
+    per_layout: dict[str, Any] = {}
+    with ProcessPoolExecutor(
+        max_workers=max(1, n_workers), initializer=_init_full_eval_worker, initargs=(str(checkpoint_path),),
+    ) as pool:
+        if fixed_tasks:
+            fixed_flat = list(pool.map(_challenge_fixed_task, *zip(*fixed_tasks)))
+            for scenario, result in zip(manifest.fixed_regression_scenarios, fixed_flat):
+                fixed_results[scenario.id] = result
+        if family_tasks:
+            family_flat = list(pool.map(_heldout_episode_task, *zip(*family_tasks)))
+            teachers_by_layout: dict[str, list[dict[str, Any]]] = {name: [] for name in manifest.challenge_family_layouts}
+            policies_by_layout: dict[str, list[dict[str, Any]]] = {name: [] for name in manifest.challenge_family_layouts}
+            for layout_name, teacher, policy in family_flat:
+                teachers_by_layout[layout_name].append(teacher)
+                policies_by_layout[layout_name].append(policy)
+            for layout_name in manifest.challenge_family_layouts:
+                teacher_results = teachers_by_layout[layout_name]
+                teacher_median_kph = float(np.median([r["kills_per_simulated_hour"] for r in teacher_results])) if teacher_results else None
+                per_layout[layout_name] = _summarize_episodes(layout_name, policies_by_layout[layout_name], teacher_median_kph)
+
+    return {
+        "role": "challenge", "stage": manifest.stage, "assisted": use_recovery,
+        "fixed_regression_scenarios": fixed_results, "challenge_family": per_layout,
+    }
+
+
 def _run_teacher_episode(curriculum_path: str, layout_name: str, *, seed: int, episode_seconds: float, max_actions: int) -> dict[str, Any]:
     entry, env = next(
         iter(
