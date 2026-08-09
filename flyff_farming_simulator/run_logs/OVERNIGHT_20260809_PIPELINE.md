@@ -1141,3 +1141,116 @@ Relaunched both 300k-timestep runs (tasks `bnfm7apkh` stable_waypoint,
 `bzca69tf5` normal_target, output suffixed `_v2` to keep the stopped,
 invalid first attempt's logs on disk for the record rather than
 overwriting them).
+
+## Step 3 complete: matched evaluation shows a nuanced, honest result
+
+`evaluations/matched_eval_target_hysteresis.json`, 5 episodes (catastrophic
+case + 2 high-switch + 2 low-switch controls), identical seeds, baseline
+(target_hysteresis_enabled=False) vs hysteresis (enabled, margin=3.0):
+
+| episode | baseline events/ticks | hysteresis events/ticks | switches base->hyst |
+|---|---|---|---|
+| 12_open_center_high_bursty/s1 (catastrophic) | 5/547 | **1/19** | 55->121* |
+| 06_broad_lobes_high_bursty/s0 | 4/35 | 4/77 (worse) | 233->136 |
+| 02_open_field_high_bursty/s0 | 2/30 | 6/44 (worse) | 222->135 |
+| 03_irregular_plain_typical_fast/s0 | 7/71 | 12/68 (worse events) | 151->106 |
+| 10_wide_neck_high_bursty/s1 | 8/65 | 11/105 (worse) | 157->109 |
+
+*switch count is HIGHER post-fix here specifically because the catastrophic
+lock (517 ticks pinned, zero switches possible while frozen) is gone --
+the agent is actually moving and re-targeting normally instead.
+
+**Totals: distinct events 26 (baseline) -> 34 (hysteresis), +31% WORSE.
+Contact ticks 748 -> 313, -58% better -- but this improvement is almost
+entirely the catastrophic case's -528 alone; excluding it, ticks go
+201 -> 294, +46% WORSE too. Target switches decreased in every single
+episode (818 -> 607 total, -26%), confirming the fix works exactly as
+designed at the mechanism level -- but reduced switching does not
+translate into fewer collisions outside the catastrophic-lock failure mode.**
+
+**Honest, non-simple conclusion:** target-selection hysteresis decisively
+fixes the CATASTROPHIC lock-in failure mode (zero-DOF dead-end reached via
+thrashing-induced bad approach) -- a real, valuable, isolated win. But it
+does NOT uniformly reduce collisions elsewhere; in 4 of 5 matched episodes
+it left events flat-or-worse despite cutting switch counts everywhere. A
+plausible mechanism (not yet verified): rapid re-targeting sometimes let
+the ORIGINAL greedy selector bail out of a developing bad approach by
+jumping to an easier nearby target -- stability removes that escape valve
+in cases where the initial approach turns out to be the harder one, even
+though it also removes the pathological churn that caused the catastrophic
+case. This is a genuine trade-off, not a strict improvement, and needs
+weighing before deciding whether Step 4 (geometric/clearance-aware target
+scoring, which could route the STABLE target choice itself away from
+risky approaches, addressing this specific trade-off) is the right next
+move, or whether a different mechanism is responsible for the 4 "worse"
+cases. Reporting this to the user rather than assuming the direction to
+take, since the result does not point at a single clear next step the way
+Step 1 and Step 2 did.
+
+## PPO ablation corrected per user's second round of feedback (2026-08-10)
+
+Standing decision: do NOT implement Step 4 (clearance-aware target
+scoring) yet. The hysteresis matched-eval result is preserved as
+experimental evidence, not promoted to canonical: it decisively fixes the
+catastrophic lock-in failure mode but is not globally collision-improving
+(4 of 5 matched episodes flat-or-worse on distinct events despite fewer
+switches everywhere) -- see the Step 3 summary above. Waiting for the PPO
+signal before deciding the next oracle-side move.
+
+Three corrections applied to the PPO ablation before committing more
+compute to it:
+
+1. **Steering-only.** `PureNavigationWrapper.step()` now force-overwrites
+   the event action to `EVENT_NONE` before it ever reaches the underlying
+   env, regardless of what the policy's event head outputs -- EVA's
+   cast-lock movement suppression can no longer become an accidental
+   collision-avoidance mechanism. Verified via
+   `TestSteeringOnly::test_event_action_is_always_forced_to_none`
+   (requests CAST_EVA every tick, confirms `total_valid_eva_casts` never
+   increments).
+
+2. **Two independent reward axes, not one conflated design.**
+   `reward_mode="safety"` (pure displacement, terminates on contact) is
+   now explicitly scoped as a locomotion-only baseline that must NOT be
+   used to conclude anything about target selection, since the optimal
+   policy under it can ignore target features entirely.
+   `reward_mode="goal"` (reward = per-tick reduction in distance to the
+   currently selected target, terminates on contact with the same -5.0
+   penalty) is the mode that actually tests target stability, since
+   ignoring the target is no longer a viable strategy. Verified via
+   `TestGoalRewardMode::test_reward_matches_internally_tracked_distance_
+   reduction` (checks the wrapper's own before/after target-distance
+   bookkeeping is internally consistent with the reward it returns, not a
+   fragile external re-derivation, since the target actor itself wanders
+   slightly every tick).
+
+3. **Checkpointing + periodic unseen evaluation**, not a blind 300k run.
+   `scratchpad_ppo_pure_navigation_v2.py`: saves a checkpoint and runs a
+   small fixed unseen-navigation eval (3 layouts x 2 seeds from
+   `oracle_fresh_confirmation`, 400-tick cap) every 25,000 timesteps,
+   reporting: pct episodes with any collision, mean episode length, mean
+   displacement, mean oscillation rate (steering-choice switch fraction),
+   and mean target progress (goal mode only). Ceiling set to 200,000
+   timesteps (down from the original blind 300k) -- intended to be
+   monitored and stopped early once the question is answered, not run to
+   completion automatically.
+
+Three runs launched in parallel (tasks `bxsza7btu` safety/normal_target,
+`b9p2ujgyz` goal/stable_waypoint, `blyirx0i6` goal/normal_target), same
+maps, physics, architecture (`SplitSteeringNavigationPolicy`, [64,32]
+net_arch), and budget between conditions. The key comparison pair for the
+target-stability question is `goal_stable` vs `goal_normal`; `safety` is a
+separate locomotion-only reference point per the correction above.
+
+Per the user's fork logic, going into this:
+- If `safety` becomes nearly collision-free quickly: the core "don't hit
+  walls" skill is easy, we've over-invested in the oracle.
+- If `safety` works but both `goal_*` runs fail: the hard part isn't
+  collision avoidance, it's combining navigation with a moving objective.
+- If `goal_stable` works and `goal_normal` doesn't: target selection is
+  cleanly isolated as the bottleneck, directly validating Step 2's
+  hysteresis direction (contra the mixed matched-eval result above, which
+  used the ORACLE's beam/escape machinery, not raw RL).
+- If even `safety` cannot avoid walls under immediate termination: the
+  problem is deeper than target selection (observation/action space or
+  dynamics), and the oracle-track investigation was justified all along.

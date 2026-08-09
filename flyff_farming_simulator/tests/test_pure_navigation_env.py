@@ -17,12 +17,15 @@ from simulator.synthetic import iter_variant_environments
 _ACTIVE_OFFSET = _DIRECT_ACTOR_FIELD_NAMES.index("active")
 
 
-def _make_env(mode: str, *, episode_steps: int = 60):
+def _make_env(mode: str, *, episode_steps: int = 60, reward_mode: str = "safety"):
     entry, raw_env = next(iter(iter_variant_environments(
         "synthetic_curriculum/curriculum.json", stage="early", seed=0,
         episode_steps=episode_steps, episode_seconds=30.0,
     )))
-    return PureNavigationWrapper(NavigationHistoryWrapper(raw_env), target_mode=mode), raw_env
+    return (
+        PureNavigationWrapper(NavigationHistoryWrapper(raw_env), target_mode=mode, reward_mode=reward_mode),
+        raw_env,
+    )
 
 
 def _active_slot_count(obs: np.ndarray) -> int:
@@ -75,4 +78,48 @@ class TestNormalTargetUnmasked:
         obs, _info = env.reset(seed=0)
         masked = env._maybe_mask(obs)
         assert np.array_equal(obs, masked)
+        env.close()
+
+
+class TestSteeringOnly:
+    def test_event_action_is_always_forced_to_none(self):
+        """2026-08-10 correction: EVA/jump must never reach the underlying
+        env, regardless of what the policy's event head requests -- EVA's
+        cast-lock movement suppression could otherwise become an accidental
+        collision-avoidance mechanism, contaminating the steering-only
+        question this experiment is meant to answer."""
+        env, raw_env = _make_env("normal_target")
+        env.reset(seed=0)
+        total_valid_eva_before = raw_env.total_valid_eva_casts
+        for _tick in range(15):
+            # Request CAST_EVA (event=1) every tick; the wrapper must
+            # override this to NONE (0) before it reaches the env.
+            _obs, _r, term, trunc, _info = env.step(np.asarray([0, 1], dtype=np.int64))
+            if term or trunc:
+                break
+        env.close()
+        assert raw_env.total_valid_eva_casts == total_valid_eva_before
+
+
+class TestGoalRewardMode:
+    def test_reward_matches_internally_tracked_distance_reduction(self):
+        """Under reward_mode='goal', reward must equal the per-tick
+        REDUCTION in distance to the current target (self._prev_target_
+        distance bookkeeping) -- not raw displacement, which would let the
+        policy earn reward moving in any direction including away from the
+        objective. Checks the wrapper's own tracked before/after distances
+        are internally consistent with the reward it returned, rather than
+        reimplementing distance math externally (fragile given the target
+        actor itself wanders slightly every tick)."""
+        env, raw_env = _make_env("stable_waypoint", reward_mode="goal")
+        env.reset(seed=0)
+        dist_before = env._prev_target_distance
+        assert dist_before is not None
+
+        _obs, reward, term, _trunc, _info = env.step(np.asarray([0, 0], dtype=np.int64))  # STRAIGHT
+
+        if not term:
+            dist_after = env._prev_target_distance
+            assert dist_after is not None
+            assert abs(reward - (dist_before - dist_after)) < 1.0e-6
         env.close()

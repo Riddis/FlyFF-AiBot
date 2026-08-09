@@ -1,22 +1,48 @@
-"""Pure-navigation environment wrapper for the 2026-08-09 PPO ablation
-experiment: strips farming/EVA/kill reward entirely, rewards only forward
-progress, and terminates the episode immediately on any physical contact
-with a large negative terminal reward.
+"""Pure-navigation environment wrapper for the 2026-08-09/10 PPO ablation
+experiment: strips farming/EVA/kill reward entirely and terminates the
+episode immediately on any physical contact with a large negative terminal
+reward.
 
 Purpose: answer directly whether the hand-engineered steering oracle's
 machinery (terminal-continuation gate, robust escape-BFS, target-selection
 hysteresis) is actually necessary, or whether a policy trained end-to-end
 under an unambiguous "collision ends the episode" incentive learns clean
-navigation on its own. Two conditions, same wrapper, only target stability
-differs:
+navigation on its own -- and specifically whether TARGET STABILITY is the
+deciding factor, isolated from the confound of the oracle's other
+machinery.
+
+Two independent axes, per the 2026-08-10 correction (the first version
+conflated them):
+
+`reward_mode`:
+  "safety" -- reward = per-tick forward progress (any direction). Answers
+    "can PPO learn generic collision-free locomotion?" The optimal policy
+    under this reward is free to ignore target features entirely (e.g.
+    circle in open space), so this must NOT be used to draw any conclusion
+    about target selection -- it is a locomotion-only baseline.
+  "goal" -- reward = per-tick REDUCTION in distance to the currently
+    selected target (stable or normal, per `target_mode`). Requires the
+    agent to actually make progress toward an objective, not just avoid
+    contact, so ignoring the target features is no longer a viable
+    strategy. This is the mode that actually tests target stability.
+
+`target_mode` (only meaningfully distinguishable under reward_mode="goal";
+see the module docstring history below for why a naive env-only fix does
+not suffice):
   A. stable_waypoint: the env's target-hysteresis margin is set to
      effectively infinite (initial target held all episode, barring
      death/unreachability) AND the raw observation's direct-actor block is
-     masked so only that one target actor is ever "active" -- see the
-     CRITICAL FIX note below for why the mask is required.
+     masked so only that one target actor is ever "active".
   B. normal_target: the env's actual current default target-selection
      behavior (hysteresis enabled, margin=3.0 cells) with NO observation
      masking -- i.e. "the real system as it exists today."
+
+STEERING-ONLY, per the 2026-08-10 correction: the event action (EVA/jump)
+is always forced to NONE before being applied to the underlying env,
+regardless of what the policy's event head outputs, so EVA's cast-lock
+movement suppression can never become an accidental collision-avoidance
+mechanism. This experiment answers whether PPO can learn WALL AVOIDANCE
+AT THE STEERING LEVEL (STRAIGHT/LEFT/RIGHT), nothing else.
 
 CRITICAL FIX (2026-08-09, caught before it produced a misleading result):
 the first version of this module only set `target_hysteresis_enabled`/
@@ -31,8 +57,8 @@ selection from the raw observation's direct-actor slots on every call (by
 design, so the live bot can compute the identical transform without any
 privileged env state). Two PPO runs under the env-only fix produced
 byte-identical training statistics at every checkpoint, which is what
-caught this. The fix here masks the raw observation directly: only the
-current sticky target's direct-actor slot is left "active", forcing
+caught this. The fix masks the raw observation directly: only the current
+sticky target's direct-actor slot is left "active", forcing
 `derive_geometry_features`'s greedy selection to have exactly one
 candidate, achieving real stability at the level the policy actually sees
 -- without modifying the shared, foundational `geometry_features.py`
@@ -40,6 +66,7 @@ transform used elsewhere (DAgger, the live bot, etc.).
 """
 from __future__ import annotations
 
+import math
 from typing import Any, Literal
 
 import gymnasium as gym
@@ -48,9 +75,12 @@ import numpy as np
 from farming.observation import ACTOR_FEATURES, DIRECT_ACTOR_SLOTS, DIRECT_ACTOR_START, _DIRECT_ACTOR_FIELD_NAMES
 
 TargetMode = Literal["stable_waypoint", "normal_target"]
+RewardMode = Literal["safety", "goal"]
 
 COLLISION_TERMINAL_REWARD = -5.0
 PROGRESS_REWARD_SCALE = 1.0
+GOAL_PROGRESS_REWARD_SCALE = 1.0
+EVENT_NONE = 0
 # Large enough that no candidate could ever beat the sticky target under
 # the existing margin comparison (see environment.py's hysteresis logic),
 # effectively locking the initial target for the whole episode short of it
@@ -102,30 +132,60 @@ def _mask_observation_to_sticky_target(obs: np.ndarray, base_env: Any) -> np.nda
     return masked
 
 
-class PureNavigationWrapper(gym.Wrapper):
-    """Reward = per-tick forward progress (cells moved); episode terminates
-    immediately with COLLISION_TERMINAL_REWARD on the first physical
-    contact. Farming/EVA/kill reward is never consulted."""
+def current_target_position(base_env: Any) -> tuple[float, float] | None:
+    """World position of the env's current sticky target (same precedence
+    as _obstacle_aware_target_angle: nearest-reachable, else best-group),
+    or None if no target is currently available."""
 
-    def __init__(self, env: Any, *, target_mode: TargetMode):
+    target_id = base_env._nearest_reachable_actor_id
+    if target_id is None:
+        target_id = base_env._best_group_actor_id
+    if target_id is None:
+        return None
+    for actor in base_env.actors:
+        if actor.alive and actor.actor_id == target_id:
+            return actor.x, actor.z
+    return None
+
+
+class PureNavigationWrapper(gym.Wrapper):
+    """Episode terminates immediately with COLLISION_TERMINAL_REWARD on the
+    first physical contact. Event action is always forced to NONE. Reward
+    otherwise depends on `reward_mode` (see module docstring)."""
+
+    def __init__(self, env: Any, *, target_mode: TargetMode, reward_mode: RewardMode = "safety"):
         super().__init__(env)
         self.target_mode = target_mode
+        self.reward_mode = reward_mode
         self._prev_contacts = 0
         self._prev_distance = 0.0
+        self._prev_target_distance: float | None = None
 
     def _maybe_mask(self, obs: np.ndarray) -> np.ndarray:
         if self.target_mode != "stable_waypoint":
             return obs
         return _mask_observation_to_sticky_target(obs, self.env.unwrapped)
 
+    def _target_distance(self) -> float | None:
+        base_env = self.env.unwrapped
+        target = current_target_position(base_env)
+        if target is None:
+            return None
+        dx = target[0] - base_env.player_x
+        dz = target[1] - base_env.player_z
+        return math.hypot(dx, dz) / base_env.map.native_units_per_cell
+
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
         configure_target_mode(self.env, self.target_mode)
         self._prev_contacts = int(info.get("contacts", 0)) if isinstance(info, dict) else 0
         self._prev_distance = float(info.get("total_distance_cells", 0.0)) if isinstance(info, dict) else 0.0
+        self._prev_target_distance = self._target_distance()
         return self._maybe_mask(obs), info
 
     def step(self, action):
+        action = np.asarray(action, dtype=np.int64).copy()
+        action[1] = EVENT_NONE
         obs, _reward, terminated, truncated, info = self.env.step(action)
         contacts = int(info.get("contacts", 0))
         distance = float(info.get("total_distance_cells", 0.0))
@@ -134,7 +194,18 @@ class PureNavigationWrapper(gym.Wrapper):
         self._prev_contacts = contacts
         self._prev_distance = distance
         obs = self._maybe_mask(obs)
+
+        new_target_distance = self._target_distance()
         if contact_this_tick:
+            self._prev_target_distance = new_target_distance
             return obs, COLLISION_TERMINAL_REWARD, True, truncated, info
-        reward = PROGRESS_REWARD_SCALE * max(0.0, displacement)
+
+        if self.reward_mode == "safety":
+            reward = PROGRESS_REWARD_SCALE * max(0.0, displacement)
+        else:
+            if self._prev_target_distance is not None and new_target_distance is not None:
+                reward = GOAL_PROGRESS_REWARD_SCALE * (self._prev_target_distance - new_target_distance)
+            else:
+                reward = 0.0
+        self._prev_target_distance = new_target_distance
         return obs, reward, terminated, truncated, info
