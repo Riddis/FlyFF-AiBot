@@ -707,3 +707,202 @@ actually chose at that tick; then check whether following coarse waypoints
 with the EXISTING (unchanged) depth-4 beam actually would have prevented
 that specific collision. Only if this small check is positive does a real
 router get built and matched-evaluated.
+
+## Proof-of-mechanism, first attempt: two real bugs found, initial "2/3 disagree" finding retracted
+
+Built `scratchpad_coarse_route_proof_of_mechanism.py` (clearance field via
+multi-source BFS + clearance-weighted Dijkstra coarse route, sanity-checked
+on a hand-built grid confirming it correctly routes around a narrow gap in
+favor of a wider one) and ran it on the 3 known long-lead-time fresh-pool
+decision points. Initial result: coarse route disagreed with the historical
+beam's actual choice at 2 of 3 points.
+
+**Decisive follow-up (`scratchpad_coarse_route_rollout_verification.py`):**
+actually steering with the coarse waypoint via the EXISTING, unchanged
+beam/escape machinery for a 40-tick window produced IDENTICAL contact counts
+to the historical replay in BOTH disagreement cases (28 vs 28, 19 vs 19) --
+suspicious, since a genuinely different first action should make every
+subsequent tick diverge.
+
+**Root cause, found via `scratchpad_debug_waypoint_no_effect.py`:** TWO real
+bugs in the first proof-of-mechanism script, not a finding about routing:
+1. `_target_position()` was called on an env whose position had been
+   MUTATED BACK to a historical tick AFTER the full episode had already been
+   replayed to completion via `record_trace` -- but `env._nearest_reachable_
+   actor_id`/`_best_group_actor_id` (which `_target_position` depends on)
+   are NOT reset by that mutation; they reflect whatever the live env's
+   internal targeting state was at the END of the full replay, not what it
+   actually was at that historical tick. A properly causal fresh replay
+   (stop exactly at the tick in question, never run past it) gives a
+   completely different target position.
+2. The comparison used a crude "classify the raw target angle by sign" rule
+   (`_classify_angle`, +-0.15 rad thresholds) instead of checking what the
+   BEAM would actually choose under that target angle -- target_angle only
+   affects the beam's SCORING tie-break among already-safety-gated
+   candidates, so a "different-looking" raw angle can still produce the
+   IDENTICAL chosen action once run through the real ranking.
+
+With both bugs fixed (proper fresh replay, compare actual `_beam_search_
+first_action` output under each target angle): at both re-checked points,
+the coarse waypoint's target angle (-1.634, -1.361) is nearly identical to
+the standard reactive target angle (-1.610, -1.345 respectively, differing
+by only ~0.02 rad) at the specific tick tested, and BOTH produce the
+IDENTICAL beam decision (STRAIGHT, matching what historically happened).
+
+**Retracting the "2/3 disagree" finding -- it was a measurement artifact.**
+The correctly-measured result is that, AT THE EXACT TICK IMMEDIATELY BEFORE
+the fallback streak begins, the coarse route and the existing reactive
+targeting do not disagree (at least at these 2 points). This does not yet
+mean coarse routing is unhelpful -- it may mean (a) the router needs to look
+at the STRUCTURE OF ITS OWN PATH further out (not just the immediate
+next-waypoint direction) to detect an upcoming bottleneck the very-next-step
+angle doesn't yet reveal, since at both checked ticks ALL 3 immediate
+candidates were still robustly safe (no local danger signal exists yet --
+exactly the two-timescale problem's premise), or (b) these 2 specific
+approach angles are cases where the coarse-optimal route genuinely requires
+going the same general direction the reactive target already points, with
+the real difference (if any) being in HOW carefully to navigate that
+direction rather than WHICH direction to pick -- not distinguishable by a
+single discrete LEFT/STRAIGHT/RIGHT waypoint check.
+
+Re-running the corrected comparison on the full original 3-point set (all
+now using the proper fresh-replay + actual-beam-decision methodology) before
+drawing further conclusions.
+
+## Corrected proof-of-mechanism result: 0/3 disagreement -- a genuine, non-buggy negative finding
+
+With both bugs fixed (`scratchpad_coarse_route_proof_of_mechanism_v2.py`,
+`evaluations/coarse_route_proof_of_mechanism_v2.json`): at all 3 originally-
+flagged decision points (the tick immediately before each long fallback
+streak begins), the coarse route's target angle is close to the standard
+reactive target angle, and BOTH produce the IDENTICAL beam decision in every
+case (STRAIGHT/STRAIGHT, STRAIGHT/STRAIGHT, LEFT/LEFT). 0/3 disagreement,
+not 2/3 -- the corrected measurement reverses the earlier (bugged) result.
+
+This is a genuine finding, not a bug, and it complicates the simple version
+of the routing hypothesis: at least AT THE EXACT TICK tested, a single coarse
+waypoint override would not have changed what the beam did.
+
+One additional, informative data point: the coarse route's OWN clearance
+profile for the seed1/tick52 case shows a declining sequence approaching the
+target -- `[5, 5, 4, 3, 2, 1]` cells of clearance over its first ~6 steps --
+meaning even the CLEARANCE-OPTIMAL path to that particular target must pass
+directly adjacent to an obstacle (clearance=1) to make progress. This
+specific approach may be a case where no rerouting avoids the tight
+passage -- the objective genuinely requires it -- shifting the diagnosis
+toward "how carefully the beam/escape executes through an unavoidably tight
+passage" rather than "which direction it should have gone instead." The
+other 2 cases show open, high-clearance coarse paths (10-11 and 8-9 cells)
+with no visible bottleneck in their first several steps, which is harder to
+explain if the agent still ended up cornered 20+ ticks later -- raising a
+real possibility that the immediate-next-tick target (nearest reachable
+actor) SHIFTS during the fallback-streak window as the agent gets closer to
+different, previously-unreachable monster groups, pulling it toward a
+DIFFERENT, tighter area not visible in a single-tick target snapshot taken
+before the streak begins.
+
+**Honest status: the proof-of-mechanism, correctly measured, does not show
+a clear win for a simple single-waypoint coarse-route override at the
+tested decision points.** This does not close the door on coarse routing --
+it suggests either (a) the target itself changes mid-approach in ways a
+single fixed-target snapshot can't capture, requiring the check to track
+target changes across the whole fallback-streak window, not just its start,
+or (b) some of these specific traps are genuinely tight passages that any
+route to that objective must navigate, shifting focus to execution quality
+within the passage rather than a different high-level direction. Both are
+testable with more diagnosis; neither has been checked yet given time spent
+on this sub-experiment. Reporting this to the user before committing further
+compute to either follow-up, since it changes the shape of the routing
+hypothesis itself.
+
+## Fresh confirmation pool: complete (24/24 episodes)
+
+`evaluations/oracle_fresh_confirmation_qualification.json`, full 12-layout
+x2-seed run:
+
+- episodes_with_any_contact: 24/24 (100.0%) -- zero clean episodes.
+- total_distinct_collision_events: 131 (mean 5.46/episode)
+- total_contact_ticks: 1705
+- max_consecutive_contact_ticks (worst episode): **517**
+- physical_stagnation_episodes: 2
+- zero_kill_episodes: 0 (productivity is fine; this is purely a collision problem)
+- median_kills_per_hour: 10572, median_unique_cells: 560, median_fallback_rate: 0.115
+
+**Confirms unambiguously: the current oracle (escape-BFS fix + continuation_
+depth=4) is NOT qualified as a DAgger teacher.** 100% contact rate on a pool
+that had zero influence on any tuning decision.
+
+**One severe outlier worth flagging separately, not averaging away:**
+`12_early_open_center_high_bursty` seed1 -- distinct_events=5,
+contact_ticks=547, max_consecutive_contact_ticks=517, fallback_rate=0.810
+(81% of the whole episode spent in fallback), physical_stagnation=True,
+unique_cells collapsed to 164 (vs ~550-580 for healthy episodes on the same
+pool). This is an order of magnitude worse than every other episode in this
+pool (next-worst max_consec is 26) and looks like a genuine catastrophic
+lock-in, not an instance of the same "several-tick fallback persistence"
+pattern characterized so far. Needs its own look before assuming it's the
+same mechanism -- 517 consecutive ticks is far beyond the 4-28 tick lead
+times seen elsewhere and may indicate a distinct failure mode (e.g. a true
+dead-end pocket, or a target-switching oscillation keeping the agent pinned).
+
+## Catastrophic-case investigation: a new, more precise root cause -- target thrashing, not (only) horizon length
+
+Investigated the severe outlier `12_early_open_center_high_bursty` seed1
+(max_consecutive_contact_ticks=517, fallback_rate=0.810) separately, per the
+standing instruction to inspect severe outliers rather than average them
+away.
+
+**Finding 1 -- this is a genuine zero-degrees-of-freedom dead end, not a
+"tight but eventually escapable" trap.** From tick ~200 onward the player is
+frozen at the EXACT SAME position/heading (x=-133.57, z=-24.86, heading=2.02)
+for 450+ ticks straight. Direct verification: at that exact state, all 3
+candidate actions (STRAIGHT/LEFT/RIGHT) produce contact=True with
+progress=0.000000 -- genuinely zero displacement in every direction, not
+just "some contact while still sliding." The escape-BFS itself (with the
+2026-08-09 robust-safety fix) returns None (no escape found at all within
+budget). The final last-resort fallback then deterministically re-picks the
+same zero-progress action forever (a tie-break artifact, `max()` over 3
+identical zero scores always returns the first candidate in `_CANDIDATES`
+order) -- explaining the perfect tick-over-tick stasis.
+
+**Finding 2 -- clearance declines monotonically on the approach, well
+outside the beam's horizon.** Tracing backward: clearance was 34 at tick 100,
+declining through 13/17/12/9 by tick 140-150, then crashing to 1 at tick 155
+and staying at 1 for the rest of the trapped period. This is a much cleaner
+signal than the earlier 3-point check: a clear, sustained decline over ~15
+ticks before full immobilization, not a single ambiguous tick.
+
+**Finding 3 -- a coarse route toward the CURRENT target at ticks 100/130/140
+stays well clear of the eventual trap (min clearance 34/19/13 respectively,
+increasing further along the path, none passing within 3 cells of the trap
+cell).** This means a coarse router using the SAME target selection as the
+existing reactive system would NOT have routed toward this trap from any of
+those checkpoints -- so the failure isn't "the coarse route agrees with a
+bad reactive choice" (as the earlier 3-point check suggested for a different
+episode).
+
+**Finding 4 -- the actual cause: the farming target itself thrashes.**
+Direct instrumentation of `env._nearest_reachable_actor_id`/`_best_group_
+actor_id` shows **10 distinct target switches in ticks 131-157 alone** (once
+every ~2.3 ticks on average) as the agent moves through this dense monster
+area -- switching between actor IDs 282, 97, 5, 477, 516, 669, 512, 625, 127,
+293 in rapid succession. This means the steering objective itself has no
+persistence or stability during the critical approach window: a coarse
+router recomputed toward "whatever the current target is" would face the
+exact same instability, since the correct route recommendation is itself a
+constantly-moving target during precisely the window that matters.
+
+**Revised diagnosis, more precise than "needs longer lookahead":** in at
+least this catastrophic case, the proximate cause is target-selection
+INSTABILITY (rapid re-targeting among nearby actors with no hysteresis or
+geometric awareness), not a pure lookahead-horizon limitation. This suggests
+a cheaper, more targeted candidate fix alongside/instead of a full coarse-
+routing layer: add stability/hysteresis to target selection (e.g. commit to
+a target for a minimum duration, or weight target choice by
+clearance/connectivity so a nearby-but-badly-positioned actor doesn't win
+over a slightly farther, more sensibly-reachable one) -- this does not
+require building the pathfinding infrastructure a full router would, and
+directly targets the newly-identified mechanism. Reporting this pivot to the
+user before choosing between (a) target-selection stability as the next
+small experiment, (b) continuing the coarse-routing-layer design, or (c)
+both, since it changes the most promising next fix category.
