@@ -906,3 +906,116 @@ directly targets the newly-identified mechanism. Reporting this pivot to the
 user before choosing between (a) target-selection stability as the next
 small experiment, (b) continuing the coarse-routing-layer design, or (c)
 both, since it changes the most promising next fix category.
+
+## User directive: target-stability-first, strictly sequenced
+
+Explicit plan received: target persistence/hysteresis FIRST (isolated,
+single variable), matched-tested, before adding clearance-aware scoring or
+resuming the coarse-routing layer. Two interpretation cautions logged as
+received, not yet independently verified:
+- the zero-DOF trapped state proves that state is kinodynamically dead for
+  the oracle's available controls; it does NOT prove the map itself is
+  defective -- the oracle may simply have approached a hole it should never
+  have entered;
+- the coarse route hitting clearance=1 in one earlier case proves THAT
+  PARTICULAR grid path goes through a tight cell; it does not prove no
+  zero-contact route exists elsewhere. Neither claim (map defect vs. planner
+  failure) is resolved yet.
+
+**Step 1 in progress:** built `scratchpad_measure_target_thrashing.py`
+(pure observation, zero behavior change -- runs the exact same oracle
+decision function used everywhere else, only adds instrumentation reading
+`env._nearest_reachable_actor_id`/`_best_group_actor_id` and computing
+target-direction deltas). Smoke-tested on `01_early_open_field_typical_fast`
+seed0: 171 target switches over that episode (28.7 per 100 ticks -- roughly
+one switch every 3-4 ticks across the WHOLE episode, not just near
+collisions), 140 "material" (>0.3 rad direction change), 123 of 171 (72%)
+happened while the OLD target was still alive and valid (a preference-driven
+switch, not a forced one from the old target dying) -- strong preliminary
+evidence the thrashing is pervasive and mostly avoidable-by-design, not
+merely reactive to targets disappearing. Launched the full 24-episode
+measurement across 8 parallel shards (16 logical cores available, each
+replay is single-threaded) to keep wall-clock time down to roughly one
+shard's worth (~3 episodes, ~35-40 min) instead of a serial ~5 hours.
+
+## Step 1 complete: target thrashing quantified across all 24 fresh-pool episodes
+
+`scratchpad_measure_target_thrashing.py` (8 parallel shards + 1 gap-fill for
+a sharding-parameter mismatch, all pure observation, zero behavior change),
+aggregated via `scratchpad_aggregate_target_thrashing.py` --
+`evaluations/target_thrashing_aggregate_report.json`, full log
+`run_logs/target_thrashing_aggregate_FULL24_20260809.log`:
+
+- **Whole-episode switch rate: median 29.9/100 ticks (mean 30.1), range
+  7.9-41.2.** Pervasive across the ENTIRE pool, not isolated to problem
+  episodes -- every layout shows substantial thrashing.
+- **70.9% of all 4199 recorded switches happened while the OLD target was
+  still alive and geodesically reachable** (1220 dead-target/forced
+  switches vs 2979 live-target/preference-driven switches) -- the large
+  majority of thrashing is the selector re-preferring a marginally
+  different target, not being forced off a dead one.
+- **Switches in the 20-tick window before collision onsets: 97.7% of 131
+  onsets had at least one switch (median 6, mean 5.5).**
+- **Switches in the 20-tick window before fallback-streak entries: 100% of
+  80 streaks had at least one switch (median 8, mean 7.35), and only 1.2%
+  had zero switches even in just the preceding 10 ticks.** Essentially every
+  observed escape-fallback episode is immediately preceded by target
+  instability.
+- **Fallback-streak duration is NOT clearly predicted by pre-streak switch
+  volume** (correlation -0.143, weakly negative if anything): streaks
+  preceded by >=2 switches in the prior 10 ticks have median duration 21
+  ticks; streaks preceded by <2 have median 17 but a much higher MEAN (57.6,
+  dragged up by the 523-tick catastrophic outlier, which itself had
+  relatively LOW pre-streak switching). This nuance matters: switching
+  activity is a near-universal PRECURSOR/co-occurring signal for entering
+  fallback, but does not clearly predict how SEVERE the resulting episode
+  will be -- both likely share a common upstream cause (dense, complex
+  local geometry produces both more re-targeting opportunities and more
+  navigational risk) rather than switch-count directly causing duration.
+
+This is strong enough evidence (per the standing "smallest controlled
+experiment" bar) to justify Step 2's isolated persistence intervention,
+exactly as the user specified -- proceeding.
+
+## Step 2 complete: target-selection hysteresis implemented as shared runtime infrastructure
+
+`simulator/environment.py`: both `_nearest_reachable_actor_id` (inline in
+`_observation()`) and `_best_group_actor_id` (via `_group_approach_potential`'s
+new `sticky_actor_id` parameter) now keep the CURRENT target unless a
+candidate beats it by more than `_TARGET_HYSTERESIS_MARGIN_CELLS = 3.0`
+geodesic cells -- a "meaningfully better" margin, not a fixed-duration timer,
+so a target that dies or goes unreachable is still dropped immediately (no
+margin check applies when the sticky target itself yields no finite
+geodesic this tick). New `self.target_hysteresis_enabled` flag (default
+`True`) lets the Step 3 matched comparison toggle old-vs-new behavior on
+identical env instances without any other code change.
+
+**Critical invariant preserved and unit-tested:** `_group_approach_potential`'s
+returned SCORE (which feeds `_approach_potential_cells`, itself used for
+PPO reward-shaping deltas at `RecordedFarmingEnv.step()`'s reward
+computation) is verified to be byte-identical whether or not
+`sticky_actor_id` is supplied -- hysteresis changes ONLY which actor ID gets
+selected for steering, never the reward-relevant potential value. This was
+a deliberate design constraint (`_group_approach_potential` has TWO call
+sites, one for reward computation which must stay untouched, one for
+`_observation()`'s target assignment which now applies hysteresis) and is
+covered by `tests/test_target_hysteresis.py::
+TestGroupApproachPotentialUnaffectedByStickiness`.
+
+Because the hysteresis logic lives in `environment.py`'s own
+`_observation()` (the single method that updates `_nearest_reachable_actor_id`/
+`_best_group_actor_id`, which BOTH the oracle's `_obstacle_aware_target_angle`
+and any future policy-observation-feature code read via
+`nearest_reachable_relative_angle()`/`best_group_relative_angle()`), this is
+structurally shared runtime infrastructure, not privileged teacher-only
+logic, satisfying the representability requirement by construction rather
+than by convention.
+
+New tests (`tests/test_target_hysteresis.py`, 5 tests, all passing):
+keeps current target when a new one is only marginally (within-margin)
+better; switches when meaningfully (beyond-margin) better; switches
+immediately when the current target dies; `target_hysteresis_enabled=False`
+reproduces the exact original greedy behavior (regression protection); the
+reward-relevant score invariant above. Full test suite re-run in the
+background to confirm no other regression from this environment.py change
+(broader-touching than the earlier steering_oracle.py-only fixes).

@@ -74,6 +74,20 @@ class RecordedFarmingEnv(_BaseEnv):
 
     metadata = {"render_modes": []}
     _DIRECT_PATH_LIMIT = 96
+    # 2026-08-09 target-selection hysteresis: both _nearest_reachable_actor_id
+    # and _best_group_actor_id were previously recomputed from scratch every
+    # tick as a pure greedy argmin/argmax over currently-visible candidates,
+    # with no memory of the previous target. Measured directly across the
+    # fresh-confirmation pool (24 episodes): ~30 target switches per 100
+    # ticks on average, 71% of them while the OLD target was still alive and
+    # reachable (a preference-driven re-target, not a forced one), and
+    # target switches present in the 20-tick window before 100% of 70
+    # observed fallback-escape streaks. This margin keeps the current target
+    # unless a candidate is at least this many geodesic cells better --
+    # deliberately a "meaningfully better" margin, not a fixed-duration
+    # timer, so a target that becomes genuinely worse (or dies/goes
+    # unreachable) is still dropped immediately.
+    _TARGET_HYSTERESIS_MARGIN_CELLS = 3.0
 
     def __init__(
         self,
@@ -153,6 +167,14 @@ class RecordedFarmingEnv(_BaseEnv):
         self._approach_potential_cells = 0.0
         self._best_group_actor_id: int | None = None
         self._nearest_reachable_actor_id: int | None = None
+        # Shared runtime infrastructure (not privileged/oracle-only): both the
+        # oracle and, eventually, the learned policy's target-geometry
+        # features read _best_group_actor_id/_nearest_reachable_actor_id via
+        # best_group_relative_angle()/nearest_reachable_relative_angle(), so
+        # stabilizing the target here propagates to every consumer
+        # automatically. Toggle exists for the 2026-08-09 matched A/B
+        # comparison against pre-hysteresis behavior; defaults on.
+        self.target_hysteresis_enabled = True
         self._visited_cells: set[tuple[int, int]] = set()
         self._next_actor_id = 1
         self._spawn_positions = tuple(
@@ -629,6 +651,8 @@ class RecordedFarmingEnv(_BaseEnv):
         self,
         candidates: list[tuple[float, SimActor, float, float]],
         geodesic_field: dict[tuple[int, int], float],
+        *,
+        sticky_actor_id: int | None = None,
     ) -> tuple[float, int | None]:
         """Return a reachable-group potential measured in effective cells.
 
@@ -636,6 +660,16 @@ class RecordedFarmingEnv(_BaseEnv):
         a capped density bonus, while geodesic distance subtracts from utility.
         The step reward uses only the change caused by player movement, so actor
         wandering and respawns cannot manufacture approach reward.
+
+        The returned SCORE is always the raw, un-hysteresis-adjusted best --
+        reward-shaping callers depend on this being the true best-available
+        potential every tick, never a stale value from sticking with an old
+        target. `sticky_actor_id` only affects which ACTOR ID is returned
+        (used for steering's target selection): if provided and still among
+        this tick's candidates, it is kept unless a candidate beats it by
+        more than `_TARGET_HYSTERESIS_MARGIN_CELLS`. Reward-only callers
+        should leave `sticky_actor_id=None` (the default) to get the
+        original, always-argmax behavior unchanged.
         """
 
         no_target_potential = -self.vision_radius_cells * 1.5
@@ -651,6 +685,7 @@ class RecordedFarmingEnv(_BaseEnv):
         radius_squared = radius * radius
         best_score = -math.inf
         best_actor_id: int | None = None
+        sticky_score: float | None = None
         # The nearest 96 visible actors are enough to identify an actionable
         # group target while keeping dense-map reward audits responsive. All
         # visible actors still contribute to each candidate's local group count.
@@ -685,9 +720,18 @@ class RecordedFarmingEnv(_BaseEnv):
             if score > best_score:
                 best_score = score
                 best_actor_id = actor.actor_id
+            if sticky_actor_id is not None and actor.actor_id == sticky_actor_id:
+                sticky_score = score
         if not math.isfinite(best_score):
             return no_target_potential, None
-        return float(best_score), best_actor_id
+        selected_actor_id = best_actor_id
+        if (
+            sticky_actor_id is not None
+            and sticky_score is not None
+            and best_score < sticky_score + self._TARGET_HYSTERESIS_MARGIN_CELLS
+        ):
+            selected_actor_id = sticky_actor_id
+        return float(best_score), selected_actor_id
 
     def _observation(
         self,
@@ -703,11 +747,14 @@ class RecordedFarmingEnv(_BaseEnv):
         if geodesic_field is None:
             geodesic_field = self._geodesic_field(player_cell)
         potential, best_actor_id = self._group_approach_potential(
-            candidates, geodesic_field
+            candidates, geodesic_field,
+            sticky_actor_id=self._best_group_actor_id if self.target_hysteresis_enabled else None,
         )
         self._approach_potential_cells = potential
         self._best_group_actor_id = best_actor_id
         nearest_reachable: tuple[float, int] | None = None
+        sticky_nearest_id = self._nearest_reachable_actor_id if self.target_hysteresis_enabled else None
+        sticky_nearest_geodesic: float | None = None
 
         actors: list[ActorObservation] = []
         for _distance, actor, dx_cells, dz_cells in candidates:
@@ -722,6 +769,8 @@ class RecordedFarmingEnv(_BaseEnv):
                 nearest_reachable is None or geodesic < nearest_reachable[0]
             ):
                 nearest_reachable = (float(geodesic), actor.actor_id)
+            if sticky_nearest_id is not None and actor.actor_id == sticky_nearest_id and math.isfinite(geodesic):
+                sticky_nearest_geodesic = float(geodesic)
             direct_path = DirectPathState.UNKNOWN
             if actor.actor_id in direct_ids:
                 direct_path = self.map.features.direct_path_state(player_cell, actor_cell)
@@ -737,9 +786,14 @@ class RecordedFarmingEnv(_BaseEnv):
                     alive=True,
                 )
             )
-        self._nearest_reachable_actor_id = (
-            None if nearest_reachable is None else nearest_reachable[1]
-        )
+        selected_nearest_id = None if nearest_reachable is None else nearest_reachable[1]
+        if (
+            sticky_nearest_geodesic is not None
+            and nearest_reachable is not None
+            and nearest_reachable[0] >= sticky_nearest_geodesic - self._TARGET_HYSTERESIS_MARGIN_CELLS
+        ):
+            selected_nearest_id = sticky_nearest_id
+        self._nearest_reachable_actor_id = selected_nearest_id
         normalized_x, normalized_z = self.map.features.normalized_position(player_cell)
         eva_cooldown = float(
             np.clip((self.elapsed - self.last_eva_at) / self.eva_cooldown_seconds, 0.0, 1.0)

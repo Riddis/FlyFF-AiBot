@@ -1,0 +1,2476 @@
+[
+  {
+    "layout": "01_early_open_field_typical_fast",
+    "seed": 0,
+    "n_ticks": 596,
+    "total_switches": 171,
+    "switches_per_100_ticks": 28.691275167785236,
+    "material_switches": 140,
+    "material_switches_per_100_ticks": 23.48993288590604,
+    "dead_target_switches": 47,
+    "live_target_switches": 123,
+    "n_onsets": 2,
+    "n_fallback_streaks": 1,
+    "onset_lookback_switches": {
+      "5": [
+        1,
+        2
+      ],
+      "10": [
+        3,
+        2
+      ],
+      "20": [
+        7,
+        2
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        1,
+        0
+      ],
+      "10": [
+        3,
+        0
+      ],
+      "20": [
+        7,
+        0
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        2
+      ],
+      "10": [
+        4
+      ],
+      "20": [
+        8
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        2
+      ],
+      "10": [
+        4
+      ],
+      "20": [
+        8
+      ]
+    },
+    "fallback_streak_durations": [
+      32
+    ]
+  },
+  {
+    "layout": "01_early_open_field_typical_fast",
+    "seed": 1,
+    "n_ticks": 597,
+    "total_switches": 171,
+    "switches_per_100_ticks": 28.64321608040201,
+    "material_switches": 140,
+    "material_switches_per_100_ticks": 23.450586264656618,
+    "dead_target_switches": 49,
+    "live_target_switches": 121,
+    "n_onsets": 8,
+    "n_fallback_streaks": 4,
+    "onset_lookback_switches": {
+      "5": [
+        1,
+        0,
+        0,
+        3,
+        1,
+        2,
+        3,
+        1
+      ],
+      "10": [
+        1,
+        1,
+        0,
+        6,
+        1,
+        3,
+        6,
+        1
+      ],
+      "20": [
+        4,
+        2,
+        1,
+        10,
+        5,
+        8,
+        7,
+        5
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        1,
+        0,
+        0,
+        3,
+        1,
+        2,
+        2,
+        1
+      ],
+      "10": [
+        1,
+        1,
+        0,
+        6,
+        1,
+        3,
+        4,
+        1
+      ],
+      "20": [
+        4,
+        2,
+        1,
+        10,
+        5,
+        7,
+        4,
+        3
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        0,
+        3,
+        2,
+        3
+      ],
+      "10": [
+        1,
+        5,
+        4,
+        4
+      ],
+      "20": [
+        4,
+        10,
+        7,
+        6
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        3,
+        2,
+        2
+      ],
+      "10": [
+        1,
+        5,
+        3,
+        2
+      ],
+      "20": [
+        4,
+        10,
+        6,
+        4
+      ]
+    },
+    "fallback_streak_durations": [
+      15,
+      21,
+      21,
+      20
+    ]
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "seed": 1,
+    "n_ticks": 606,
+    "total_switches": 176,
+    "switches_per_100_ticks": 29.042904290429043,
+    "material_switches": 127,
+    "material_switches_per_100_ticks": 20.957095709570957,
+    "dead_target_switches": 47,
+    "live_target_switches": 128,
+    "n_onsets": 7,
+    "n_fallback_streaks": 4,
+    "onset_lookback_switches": {
+      "5": [
+        0,
+        1,
+        2,
+        2,
+        2,
+        1,
+        0
+      ],
+      "10": [
+        0,
+        1,
+        3,
+        5,
+        3,
+        1,
+        0
+      ],
+      "20": [
+        6,
+        2,
+        3,
+        9,
+        7,
+        6,
+        1
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0
+      ],
+      "10": [
+        0,
+        0,
+        0,
+        4,
+        2,
+        1,
+        0
+      ],
+      "20": [
+        4,
+        1,
+        0,
+        7,
+        6,
+        4,
+        1
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        0,
+        3,
+        1,
+        0
+      ],
+      "10": [
+        5,
+        5,
+        2,
+        0
+      ],
+      "20": [
+        8,
+        8,
+        8,
+        9
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        3,
+        1,
+        0
+      ],
+      "10": [
+        3,
+        4,
+        2,
+        0
+      ],
+      "20": [
+        6,
+        7,
+        6,
+        5
+      ]
+    },
+    "fallback_streak_durations": [
+      36,
+      16,
+      13,
+      18
+    ]
+  },
+  {
+    "layout": "09_early_wide_neck_typical_fast",
+    "seed": 1,
+    "n_ticks": 588,
+    "total_switches": 154,
+    "switches_per_100_ticks": 26.19047619047619,
+    "material_switches": 134,
+    "material_switches_per_100_ticks": 22.789115646258505,
+    "dead_target_switches": 50,
+    "live_target_switches": 103,
+    "n_onsets": 8,
+    "n_fallback_streaks": 4,
+    "onset_lookback_switches": {
+      "5": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        1,
+        3,
+        1
+      ],
+      "10": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        1,
+        5,
+        1
+      ],
+      "20": [
+        9,
+        1,
+        0,
+        0,
+        0,
+        2,
+        8,
+        5
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ],
+      "10": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        1,
+        3,
+        1
+      ],
+      "20": [
+        7,
+        1,
+        0,
+        0,
+        0,
+        2,
+        6,
+        3
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        0,
+        0,
+        0,
+        2
+      ],
+      "10": [
+        4,
+        1,
+        1,
+        4
+      ],
+      "20": [
+        8,
+        2,
+        5,
+        7
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        0,
+        0,
+        2
+      ],
+      "10": [
+        3,
+        1,
+        1,
+        4
+      ],
+      "20": [
+        7,
+        2,
+        5,
+        7
+      ]
+    },
+    "fallback_streak_durations": [
+      21,
+      25,
+      30,
+      25
+    ]
+  },
+  {
+    "layout": "02_early_open_field_high_bursty",
+    "seed": 0,
+    "n_ticks": 548,
+    "total_switches": 222,
+    "switches_per_100_ticks": 40.51094890510949,
+    "material_switches": 188,
+    "material_switches_per_100_ticks": 34.306569343065696,
+    "dead_target_switches": 65,
+    "live_target_switches": 156,
+    "n_onsets": 2,
+    "n_fallback_streaks": 2,
+    "onset_lookback_switches": {
+      "5": [
+        1,
+        2
+      ],
+      "10": [
+        5,
+        5
+      ],
+      "20": [
+        8,
+        8
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        0,
+        2
+      ],
+      "10": [
+        4,
+        5
+      ],
+      "20": [
+        5,
+        7
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        4,
+        3
+      ],
+      "10": [
+        5,
+        6
+      ],
+      "20": [
+        9,
+        7
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        4,
+        3
+      ],
+      "10": [
+        4,
+        5
+      ],
+      "20": [
+        7,
+        6
+      ]
+    },
+    "fallback_streak_durations": [
+      18,
+      22
+    ]
+  },
+  {
+    "layout": "06_early_broad_lobes_high_bursty",
+    "seed": 0,
+    "n_ticks": 565,
+    "total_switches": 233,
+    "switches_per_100_ticks": 41.23893805309734,
+    "material_switches": 195,
+    "material_switches_per_100_ticks": 34.51327433628319,
+    "dead_target_switches": 61,
+    "live_target_switches": 171,
+    "n_onsets": 4,
+    "n_fallback_streaks": 2,
+    "onset_lookback_switches": {
+      "5": [
+        2,
+        1,
+        1,
+        3
+      ],
+      "10": [
+        4,
+        1,
+        2,
+        3
+      ],
+      "20": [
+        11,
+        4,
+        3,
+        5
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        2,
+        1,
+        1,
+        3
+      ],
+      "10": [
+        4,
+        1,
+        2,
+        3
+      ],
+      "20": [
+        11,
+        4,
+        3,
+        5
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        0,
+        2
+      ],
+      "10": [
+        1,
+        5
+      ],
+      "20": [
+        5,
+        11
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        2
+      ],
+      "10": [
+        1,
+        5
+      ],
+      "20": [
+        3,
+        9
+      ]
+    },
+    "fallback_streak_durations": [
+      1,
+      44
+    ]
+  },
+  {
+    "layout": "10_early_wide_neck_high_bursty",
+    "seed": 0,
+    "n_ticks": 597,
+    "total_switches": 173,
+    "switches_per_100_ticks": 28.97822445561139,
+    "material_switches": 132,
+    "material_switches_per_100_ticks": 22.110552763819097,
+    "dead_target_switches": 51,
+    "live_target_switches": 121,
+    "n_onsets": 5,
+    "n_fallback_streaks": 4,
+    "onset_lookback_switches": {
+      "5": [
+        2,
+        2,
+        0,
+        0,
+        2
+      ],
+      "10": [
+        3,
+        4,
+        0,
+        4,
+        4
+      ],
+      "20": [
+        8,
+        7,
+        2,
+        6,
+        7
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        1,
+        0,
+        0,
+        0,
+        1
+      ],
+      "10": [
+        2,
+        2,
+        0,
+        3,
+        3
+      ],
+      "20": [
+        4,
+        5,
+        0,
+        3,
+        5
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        1,
+        2,
+        3,
+        1
+      ],
+      "10": [
+        5,
+        3,
+        4,
+        2
+      ],
+      "20": [
+        10,
+        8,
+        7,
+        9
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        2,
+        2,
+        1
+      ],
+      "10": [
+        3,
+        3,
+        2,
+        2
+      ],
+      "20": [
+        6,
+        8,
+        4,
+        8
+      ]
+    },
+    "fallback_streak_durations": [
+      16,
+      31,
+      22,
+      16
+    ]
+  },
+  {
+    "layout": "02_early_open_field_high_bursty",
+    "seed": 1,
+    "n_ticks": 558,
+    "total_switches": 197,
+    "switches_per_100_ticks": 35.30465949820788,
+    "material_switches": 165,
+    "material_switches_per_100_ticks": 29.56989247311828,
+    "dead_target_switches": 62,
+    "live_target_switches": 134,
+    "n_onsets": 3,
+    "n_fallback_streaks": 2,
+    "onset_lookback_switches": {
+      "5": [
+        2,
+        1,
+        0
+      ],
+      "10": [
+        5,
+        4,
+        0
+      ],
+      "20": [
+        8,
+        7,
+        3
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        1,
+        1,
+        0
+      ],
+      "10": [
+        2,
+        4,
+        0
+      ],
+      "20": [
+        4,
+        6,
+        3
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        3,
+        3
+      ],
+      "10": [
+        5,
+        4
+      ],
+      "20": [
+        8,
+        9
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        1,
+        3
+      ],
+      "10": [
+        3,
+        4
+      ],
+      "20": [
+        5,
+        8
+      ]
+    },
+    "fallback_streak_durations": [
+      22,
+      21
+    ]
+  },
+  {
+    "layout": "06_early_broad_lobes_high_bursty",
+    "seed": 1,
+    "n_ticks": 564,
+    "total_switches": 216,
+    "switches_per_100_ticks": 38.297872340425535,
+    "material_switches": 183,
+    "material_switches_per_100_ticks": 32.4468085106383,
+    "dead_target_switches": 61,
+    "live_target_switches": 154,
+    "n_onsets": 3,
+    "n_fallback_streaks": 3,
+    "onset_lookback_switches": {
+      "5": [
+        1,
+        1,
+        1
+      ],
+      "10": [
+        4,
+        2,
+        6
+      ],
+      "20": [
+        7,
+        6,
+        12
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        1,
+        1,
+        1
+      ],
+      "10": [
+        4,
+        2,
+        6
+      ],
+      "20": [
+        7,
+        6,
+        12
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        2,
+        1,
+        5
+      ],
+      "10": [
+        4,
+        1,
+        8
+      ],
+      "20": [
+        9,
+        5,
+        12
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        2,
+        1,
+        5
+      ],
+      "10": [
+        4,
+        1,
+        8
+      ],
+      "20": [
+        9,
+        5,
+        12
+      ]
+    },
+    "fallback_streak_durations": [
+      17,
+      21,
+      8
+    ]
+  },
+  {
+    "layout": "10_early_wide_neck_high_bursty",
+    "seed": 1,
+    "n_ticks": 615,
+    "total_switches": 157,
+    "switches_per_100_ticks": 25.528455284552845,
+    "material_switches": 123,
+    "material_switches_per_100_ticks": 20.0,
+    "dead_target_switches": 43,
+    "live_target_switches": 113,
+    "n_onsets": 8,
+    "n_fallback_streaks": 3,
+    "onset_lookback_switches": {
+      "5": [
+        3,
+        1,
+        2,
+        1,
+        2,
+        1,
+        2,
+        2
+      ],
+      "10": [
+        4,
+        2,
+        3,
+        3,
+        4,
+        3,
+        4,
+        4
+      ],
+      "20": [
+        10,
+        2,
+        4,
+        4,
+        8,
+        5,
+        6,
+        8
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        3,
+        0,
+        1,
+        0,
+        2,
+        0,
+        1,
+        2
+      ],
+      "10": [
+        4,
+        1,
+        1,
+        1,
+        4,
+        2,
+        2,
+        3
+      ],
+      "20": [
+        8,
+        1,
+        2,
+        2,
+        6,
+        4,
+        4,
+        7
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        1,
+        3,
+        3
+      ],
+      "10": [
+        4,
+        4,
+        4
+      ],
+      "20": [
+        7,
+        8,
+        10
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        1,
+        2,
+        2
+      ],
+      "10": [
+        4,
+        3,
+        3
+      ],
+      "20": [
+        5,
+        6,
+        7
+      ]
+    },
+    "fallback_streak_durations": [
+      34,
+      33,
+      21
+    ]
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 0,
+    "n_ticks": 610,
+    "total_switches": 151,
+    "switches_per_100_ticks": 24.75409836065574,
+    "material_switches": 117,
+    "material_switches_per_100_ticks": 19.18032786885246,
+    "dead_target_switches": 45,
+    "live_target_switches": 105,
+    "n_onsets": 7,
+    "n_fallback_streaks": 4,
+    "onset_lookback_switches": {
+      "5": [
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        0
+      ],
+      "10": [
+        2,
+        4,
+        1,
+        2,
+        4,
+        3,
+        0
+      ],
+      "20": [
+        6,
+        6,
+        3,
+        2,
+        4,
+        5,
+        4
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        0,
+        1,
+        1,
+        0,
+        2,
+        2,
+        0
+      ],
+      "10": [
+        0,
+        4,
+        1,
+        1,
+        3,
+        2,
+        0
+      ],
+      "20": [
+        4,
+        5,
+        2,
+        1,
+        3,
+        4,
+        3
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        1,
+        3,
+        1,
+        0
+      ],
+      "10": [
+        4,
+        4,
+        3,
+        2
+      ],
+      "20": [
+        6,
+        6,
+        5,
+        6
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        3,
+        1,
+        0
+      ],
+      "10": [
+        3,
+        3,
+        2,
+        1
+      ],
+      "20": [
+        5,
+        5,
+        4,
+        5
+      ]
+    },
+    "fallback_streak_durations": [
+      25,
+      35,
+      17,
+      15
+    ]
+  },
+  {
+    "layout": "07_early_split_field_typical_fast",
+    "seed": 0,
+    "n_ticks": 585,
+    "total_switches": 157,
+    "switches_per_100_ticks": 26.837606837606838,
+    "material_switches": 123,
+    "material_switches_per_100_ticks": 21.025641025641026,
+    "dead_target_switches": 52,
+    "live_target_switches": 104,
+    "n_onsets": 17,
+    "n_fallback_streaks": 7,
+    "onset_lookback_switches": {
+      "5": [
+        2,
+        3,
+        0,
+        1,
+        2,
+        0,
+        1,
+        2,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        1,
+        1,
+        2
+      ],
+      "10": [
+        3,
+        6,
+        3,
+        1,
+        2,
+        1,
+        2,
+        3,
+        2,
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
+        1,
+        4
+      ],
+      "20": [
+        5,
+        9,
+        7,
+        6,
+        3,
+        5,
+        9,
+        8,
+        6,
+        1,
+        1,
+        2,
+        1,
+        1,
+        2,
+        2,
+        8
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        1,
+        2,
+        0,
+        1,
+        0,
+        0,
+        1,
+        2,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        1
+      ],
+      "10": [
+        1,
+        5,
+        3,
+        1,
+        0,
+        1,
+        2,
+        3,
+        2,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        3
+      ],
+      "20": [
+        2,
+        8,
+        6,
+        4,
+        1,
+        5,
+        8,
+        6,
+        5,
+        1,
+        1,
+        2,
+        1,
+        1,
+        1,
+        1,
+        7
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        1,
+        3,
+        0,
+        1,
+        1,
+        2,
+        3
+      ],
+      "10": [
+        2,
+        4,
+        3,
+        3,
+        3,
+        4,
+        5
+      ],
+      "20": [
+        5,
+        8,
+        6,
+        9,
+        9,
+        8,
+        10
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        3,
+        0,
+        1,
+        1,
+        2,
+        3
+      ],
+      "10": [
+        1,
+        4,
+        1,
+        3,
+        3,
+        4,
+        5
+      ],
+      "20": [
+        3,
+        8,
+        4,
+        8,
+        8,
+        6,
+        10
+      ]
+    },
+    "fallback_streak_durations": [
+      16,
+      37,
+      22,
+      31,
+      21,
+      50,
+      9
+    ]
+  },
+  {
+    "layout": "11_early_open_center_typical_fast",
+    "seed": 0,
+    "n_ticks": 603,
+    "total_switches": 173,
+    "switches_per_100_ticks": 28.68988391376451,
+    "material_switches": 138,
+    "material_switches_per_100_ticks": 22.885572139303484,
+    "dead_target_switches": 48,
+    "live_target_switches": 124,
+    "n_onsets": 6,
+    "n_fallback_streaks": 5,
+    "onset_lookback_switches": {
+      "5": [
+        0,
+        1,
+        1,
+        1,
+        2,
+        1
+      ],
+      "10": [
+        4,
+        2,
+        1,
+        1,
+        5,
+        5
+      ],
+      "20": [
+        8,
+        10,
+        4,
+        3,
+        7,
+        12
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        0,
+        0,
+        1,
+        1,
+        2,
+        1
+      ],
+      "10": [
+        3,
+        0,
+        1,
+        1,
+        5,
+        4
+      ],
+      "20": [
+        6,
+        6,
+        2,
+        1,
+        7,
+        11
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        4,
+        1,
+        1,
+        2,
+        1
+      ],
+      "10": [
+        5,
+        5,
+        1,
+        4,
+        6
+      ],
+      "20": [
+        8,
+        11,
+        3,
+        5,
+        11
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        3,
+        0,
+        1,
+        2,
+        0
+      ],
+      "10": [
+        4,
+        2,
+        1,
+        4,
+        5
+      ],
+      "20": [
+        6,
+        8,
+        1,
+        5,
+        10
+      ]
+    },
+    "fallback_streak_durations": [
+      20,
+      15,
+      3,
+      15,
+      8
+    ]
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "n_ticks": 606,
+    "total_switches": 162,
+    "switches_per_100_ticks": 26.73267326732673,
+    "material_switches": 134,
+    "material_switches_per_100_ticks": 22.112211221122113,
+    "dead_target_switches": 47,
+    "live_target_switches": 114,
+    "n_onsets": 8,
+    "n_fallback_streaks": 4,
+    "onset_lookback_switches": {
+      "5": [
+        0,
+        0,
+        1,
+        2,
+        2,
+        1,
+        1,
+        0
+      ],
+      "10": [
+        3,
+        0,
+        2,
+        4,
+        4,
+        3,
+        1,
+        1
+      ],
+      "20": [
+        6,
+        2,
+        7,
+        8,
+        8,
+        5,
+        4,
+        4
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        1,
+        1,
+        0
+      ],
+      "10": [
+        3,
+        0,
+        1,
+        2,
+        4,
+        3,
+        1,
+        1
+      ],
+      "20": [
+        6,
+        2,
+        5,
+        6,
+        8,
+        5,
+        4,
+        4
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        3,
+        1,
+        2,
+        2
+      ],
+      "10": [
+        4,
+        3,
+        3,
+        3
+      ],
+      "20": [
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        3,
+        1,
+        2,
+        2
+      ],
+      "10": [
+        4,
+        2,
+        3,
+        3
+      ],
+      "20": [
+        6,
+        5,
+        8,
+        9
+      ]
+    },
+    "fallback_streak_durations": [
+      24,
+      16,
+      21,
+      28
+    ]
+  },
+  {
+    "layout": "07_early_split_field_typical_fast",
+    "seed": 1,
+    "n_ticks": 597,
+    "total_switches": 162,
+    "switches_per_100_ticks": 27.1356783919598,
+    "material_switches": 124,
+    "material_switches_per_100_ticks": 20.770519262981576,
+    "dead_target_switches": 47,
+    "live_target_switches": 114,
+    "n_onsets": 7,
+    "n_fallback_streaks": 7,
+    "onset_lookback_switches": {
+      "5": [
+        3,
+        2,
+        3,
+        1,
+        3,
+        1,
+        1
+      ],
+      "10": [
+        4,
+        3,
+        4,
+        2,
+        5,
+        2,
+        2
+      ],
+      "20": [
+        4,
+        7,
+        10,
+        4,
+        8,
+        3,
+        4
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        1,
+        1,
+        1,
+        0,
+        3,
+        0,
+        1
+      ],
+      "10": [
+        1,
+        2,
+        2,
+        1,
+        4,
+        1,
+        2
+      ],
+      "20": [
+        1,
+        6,
+        7,
+        3,
+        7,
+        2,
+        4
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1
+      ],
+      "10": [
+        1,
+        2,
+        5,
+        1,
+        2,
+        1,
+        2
+      ],
+      "20": [
+        1,
+        6,
+        9,
+        5,
+        8,
+        5,
+        4
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "10": [
+        0,
+        2,
+        3,
+        1,
+        1,
+        1,
+        2
+      ],
+      "20": [
+        0,
+        6,
+        6,
+        5,
+        6,
+        4,
+        4
+      ]
+    },
+    "fallback_streak_durations": [
+      15,
+      28,
+      16,
+      16,
+      21,
+      22,
+      11
+    ]
+  },
+  {
+    "layout": "11_early_open_center_typical_fast",
+    "seed": 1,
+    "n_ticks": 582,
+    "total_switches": 182,
+    "switches_per_100_ticks": 31.27147766323024,
+    "material_switches": 143,
+    "material_switches_per_100_ticks": 24.57044673539519,
+    "dead_target_switches": 56,
+    "live_target_switches": 125,
+    "n_onsets": 5,
+    "n_fallback_streaks": 2,
+    "onset_lookback_switches": {
+      "5": [
+        1,
+        0,
+        0,
+        0,
+        2
+      ],
+      "10": [
+        4,
+        2,
+        1,
+        0,
+        5
+      ],
+      "20": [
+        6,
+        5,
+        5,
+        3,
+        12
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        1,
+        0,
+        0,
+        0,
+        2
+      ],
+      "10": [
+        4,
+        2,
+        1,
+        0,
+        3
+      ],
+      "20": [
+        6,
+        5,
+        5,
+        3,
+        9
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        3,
+        3
+      ],
+      "10": [
+        3,
+        6
+      ],
+      "20": [
+        6,
+        12
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        3,
+        1
+      ],
+      "10": [
+        3,
+        4
+      ],
+      "20": [
+        6,
+        9
+      ]
+    },
+    "fallback_streak_durations": [
+      22,
+      22
+    ]
+  },
+  {
+    "layout": "04_early_irregular_plain_high_bursty",
+    "seed": 0,
+    "n_ticks": 582,
+    "total_switches": 182,
+    "switches_per_100_ticks": 31.27147766323024,
+    "material_switches": 148,
+    "material_switches_per_100_ticks": 25.42955326460481,
+    "dead_target_switches": 54,
+    "live_target_switches": 127,
+    "n_onsets": 4,
+    "n_fallback_streaks": 1,
+    "onset_lookback_switches": {
+      "5": [
+        2,
+        1,
+        2,
+        2
+      ],
+      "10": [
+        5,
+        2,
+        2,
+        4
+      ],
+      "20": [
+        8,
+        7,
+        6,
+        5
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        2,
+        0,
+        1,
+        1
+      ],
+      "10": [
+        5,
+        1,
+        1,
+        2
+      ],
+      "20": [
+        7,
+        6,
+        5,
+        3
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        3
+      ],
+      "10": [
+        5
+      ],
+      "20": [
+        6
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        3
+      ],
+      "10": [
+        4
+      ],
+      "20": [
+        5
+      ]
+    },
+    "fallback_streak_durations": [
+      27
+    ]
+  },
+  {
+    "layout": "08_early_split_field_high_bursty",
+    "seed": 0,
+    "n_ticks": 573,
+    "total_switches": 181,
+    "switches_per_100_ticks": 31.588132635253054,
+    "material_switches": 150,
+    "material_switches_per_100_ticks": 26.17801047120419,
+    "dead_target_switches": 56,
+    "live_target_switches": 124,
+    "n_onsets": 1,
+    "n_fallback_streaks": 2,
+    "onset_lookback_switches": {
+      "5": [
+        1
+      ],
+      "10": [
+        3
+      ],
+      "20": [
+        6
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        0
+      ],
+      "10": [
+        1
+      ],
+      "20": [
+        3
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        2,
+        1
+      ],
+      "10": [
+        4,
+        2
+      ],
+      "20": [
+        6,
+        3
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        1,
+        0
+      ],
+      "10": [
+        2,
+        0
+      ],
+      "20": [
+        3,
+        1
+      ]
+    },
+    "fallback_streak_durations": [
+      23,
+      1
+    ]
+  },
+  {
+    "layout": "12_early_open_center_high_bursty",
+    "seed": 0,
+    "n_ticks": 582,
+    "total_switches": 201,
+    "switches_per_100_ticks": 34.5360824742268,
+    "material_switches": 166,
+    "material_switches_per_100_ticks": 28.522336769759452,
+    "dead_target_switches": 52,
+    "live_target_switches": 148,
+    "n_onsets": 1,
+    "n_fallback_streaks": 1,
+    "onset_lookback_switches": {
+      "5": [
+        2
+      ],
+      "10": [
+        2
+      ],
+      "20": [
+        8
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        1
+      ],
+      "10": [
+        1
+      ],
+      "20": [
+        7
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        0
+      ],
+      "10": [
+        2
+      ],
+      "20": [
+        9
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0
+      ],
+      "10": [
+        2
+      ],
+      "20": [
+        9
+      ]
+    },
+    "fallback_streak_durations": [
+      22
+    ]
+  },
+  {
+    "layout": "04_early_irregular_plain_high_bursty",
+    "seed": 1,
+    "n_ticks": 591,
+    "total_switches": 187,
+    "switches_per_100_ticks": 31.64128595600677,
+    "material_switches": 146,
+    "material_switches_per_100_ticks": 24.703891708967852,
+    "dead_target_switches": 52,
+    "live_target_switches": 134,
+    "n_onsets": 2,
+    "n_fallback_streaks": 2,
+    "onset_lookback_switches": {
+      "5": [
+        4,
+        2
+      ],
+      "10": [
+        5,
+        4
+      ],
+      "20": [
+        11,
+        8
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        0,
+        2
+      ],
+      "10": [
+        1,
+        4
+      ],
+      "20": [
+        7,
+        8
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        2,
+        2
+      ],
+      "10": [
+        4,
+        4
+      ],
+      "20": [
+        11,
+        8
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        2
+      ],
+      "10": [
+        2,
+        4
+      ],
+      "20": [
+        9,
+        8
+      ]
+    },
+    "fallback_streak_durations": [
+      27,
+      17
+    ]
+  },
+  {
+    "layout": "08_early_split_field_high_bursty",
+    "seed": 1,
+    "n_ticks": 585,
+    "total_switches": 180,
+    "switches_per_100_ticks": 30.76923076923077,
+    "material_switches": 143,
+    "material_switches_per_100_ticks": 24.444444444444443,
+    "dead_target_switches": 50,
+    "live_target_switches": 129,
+    "n_onsets": 6,
+    "n_fallback_streaks": 3,
+    "onset_lookback_switches": {
+      "5": [
+        3,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "10": [
+        6,
+        0,
+        0,
+        5,
+        2,
+        1
+      ],
+      "20": [
+        10,
+        3,
+        2,
+        7,
+        7,
+        4
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        3,
+        0,
+        0,
+        2,
+        0,
+        0
+      ],
+      "10": [
+        5,
+        0,
+        0,
+        5,
+        1,
+        1
+      ],
+      "20": [
+        8,
+        3,
+        2,
+        7,
+        5,
+        2
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        2,
+        3,
+        2
+      ],
+      "10": [
+        5,
+        4,
+        4
+      ],
+      "20": [
+        9,
+        7,
+        9
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        1,
+        3,
+        1
+      ],
+      "10": [
+        4,
+        4,
+        2
+      ],
+      "20": [
+        6,
+        7,
+        6
+      ]
+    },
+    "fallback_streak_durations": [
+      23,
+      18,
+      13
+    ]
+  },
+  {
+    "layout": "12_early_open_center_high_bursty",
+    "seed": 1,
+    "n_ticks": 699,
+    "total_switches": 55,
+    "switches_per_100_ticks": 7.868383404864091,
+    "material_switches": 38,
+    "material_switches_per_100_ticks": 5.436337625178827,
+    "dead_target_switches": 14,
+    "live_target_switches": 40,
+    "n_onsets": 5,
+    "n_fallback_streaks": 3,
+    "onset_lookback_switches": {
+      "5": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "10": [
+        3,
+        0,
+        3,
+        0,
+        1
+      ],
+      "20": [
+        6,
+        1,
+        8,
+        1,
+        1
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        0,
+        0,
+        1,
+        0,
+        0
+      ],
+      "10": [
+        0,
+        0,
+        3,
+        0,
+        1
+      ],
+      "20": [
+        2,
+        0,
+        5,
+        0,
+        1
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        4,
+        2,
+        1
+      ],
+      "10": [
+        5,
+        4,
+        1
+      ],
+      "20": [
+        7,
+        9,
+        2
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        2,
+        1
+      ],
+      "10": [
+        1,
+        2,
+        1
+      ],
+      "20": [
+        3,
+        5,
+        1
+      ]
+    },
+    "fallback_streak_durations": [
+      19,
+      24,
+      523
+    ]
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "seed": 0,
+    "n_ticks": 567,
+    "total_switches": 197,
+    "switches_per_100_ticks": 34.74426807760141,
+    "material_switches": 157,
+    "material_switches_per_100_ticks": 27.689594356261022,
+    "dead_target_switches": 59,
+    "live_target_switches": 137,
+    "n_onsets": 7,
+    "n_fallback_streaks": 5,
+    "onset_lookback_switches": {
+      "5": [
+        3,
+        0,
+        2,
+        2,
+        2,
+        1,
+        2
+      ],
+      "10": [
+        5,
+        0,
+        2,
+        4,
+        2,
+        1,
+        5
+      ],
+      "20": [
+        10,
+        4,
+        5,
+        8,
+        2,
+        3,
+        12
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        3,
+        0,
+        2,
+        0,
+        1,
+        1,
+        2
+      ],
+      "10": [
+        5,
+        0,
+        2,
+        1,
+        1,
+        1,
+        5
+      ],
+      "20": [
+        9,
+        4,
+        5,
+        4,
+        1,
+        3,
+        10
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        3,
+        1,
+        1,
+        0,
+        3
+      ],
+      "10": [
+        5,
+        1,
+        3,
+        2,
+        7
+      ],
+      "20": [
+        9,
+        4,
+        8,
+        4,
+        11
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        3,
+        1,
+        0,
+        0,
+        3
+      ],
+      "10": [
+        5,
+        1,
+        2,
+        2,
+        5
+      ],
+      "20": [
+        8,
+        4,
+        6,
+        3,
+        9
+      ]
+    },
+    "fallback_streak_durations": [
+      19,
+      2,
+      33,
+      18,
+      21
+    ]
+  },
+  {
+    "layout": "09_early_wide_neck_typical_fast",
+    "seed": 0,
+    "n_ticks": 591,
+    "total_switches": 183,
+    "switches_per_100_ticks": 30.96446700507614,
+    "material_switches": 154,
+    "material_switches_per_100_ticks": 26.057529610829103,
+    "dead_target_switches": 52,
+    "live_target_switches": 130,
+    "n_onsets": 5,
+    "n_fallback_streaks": 5,
+    "onset_lookback_switches": {
+      "5": [
+        1,
+        2,
+        2,
+        1,
+        3
+      ],
+      "10": [
+        1,
+        4,
+        5,
+        1,
+        4
+      ],
+      "20": [
+        5,
+        9,
+        10,
+        3,
+        10
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        1,
+        2,
+        2,
+        0,
+        3
+      ],
+      "10": [
+        1,
+        4,
+        5,
+        0,
+        4
+      ],
+      "20": [
+        4,
+        6,
+        10,
+        2,
+        10
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        0,
+        2,
+        1,
+        3,
+        2
+      ],
+      "10": [
+        2,
+        5,
+        2,
+        5,
+        3
+      ],
+      "20": [
+        7,
+        7,
+        6,
+        11,
+        9
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        2,
+        1,
+        3,
+        2
+      ],
+      "10": [
+        1,
+        3,
+        1,
+        5,
+        3
+      ],
+      "20": [
+        5,
+        4,
+        5,
+        11,
+        9
+      ]
+    },
+    "fallback_streak_durations": [
+      20,
+      14,
+      1,
+      21,
+      21
+    ]
+  }
+]
