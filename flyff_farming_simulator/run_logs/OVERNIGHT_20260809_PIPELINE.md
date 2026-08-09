@@ -1067,3 +1067,77 @@ each given the smoke-tested rate. Will evaluate both raw (no
 oracle/recovery) on the untouched `oracle_fresh_confirmation` pool for
 zero-collision rate once training completes, per the user's exact
 evaluation spec.
+
+## PPO ablation stopped: caught a real design bug before wasting more compute
+
+~30 minutes into both 300k-timestep runs, `ep_reward_mean`/`ep_len_mean`
+were identical between `stable_waypoint` and `normal_target` at every
+logged checkpoint -- suspicious for two conditions that should differ.
+Investigated immediately rather than let it keep running.
+
+**Root cause: `simulator/geometry_features.py`'s `derive_geometry_features`/
+`derive_geometry_features_torch` (which produce the 6 target-geometry
+values in the policy's actual 11-feature steering input) do NOT read
+`env._nearest_reachable_actor_id`/`_best_group_actor_id` at all.** They
+independently recompute their own stateless, memoryless "best candidate"
+selection (`_score_and_select`: `score = density_bonus - distance`,
+`argmax` over the raw observation's 12 direct-actor slots) from the raw
+923-value observation on every single call, per the module's own
+docstring: this was deliberately designed so the transform "can compute
+the identical transform from the same raw fields it already emits" --
+i.e. it is intentionally independent of any env-side privileged state,
+by design, for parity with the live bot which has no access to
+`_nearest_reachable_actor_id` either.
+
+This means my `target_hysteresis_enabled`/`configure_target_mode`
+mechanism (which only touches `_nearest_reachable_actor_id`/
+`_best_group_actor_id`, consumed exclusively by the PRIVILEGED ORACLE's
+`_obstacle_aware_target_angle`) has ZERO effect on what the POLICY
+actually observes, in either PPO condition -- both were seeing the exact
+same always-greedy, always-thrashing target selection at the observation
+level, explaining the identical training statistics precisely.
+
+This is exactly the representability gap flagged earlier in this session,
+now caught concretely with data before it produced a wasted or misleading
+result: the oracle-side hysteresis fix and the policy's own observation
+pipeline are two SEPARATE mechanisms that do not currently share target
+state, even though they are supposed to eventually (per the "shared route-
+target layer" requirement for DAgger).
+
+Stopped both PPO runs immediately (`TaskStop` on both, confirmed via
+process listing that all training/subprocess children exited cleanly, no
+orphans). No misleading numbers were produced or reported before this was
+caught -- the "identical stats" observation itself is what triggered the
+investigation. Redesigning `PureNavigationWrapper`'s stable_waypoint mode
+to act directly on the raw observation's actor-block values (so the
+existing, unmodified `derive_geometry_features` greedy selection has only
+ONE actor to possibly choose, forcing genuine stability at the level the
+policy actually reads) rather than relying on env-level attributes the
+geometry-feature transform was deliberately built not to depend on.
+
+## PPO ablation fixed and relaunched
+
+`simulator/pure_navigation_env.py` redesigned: `stable_waypoint` mode now
+additionally masks the raw observation's direct-actor block (via a new
+`_mask_observation_to_sticky_target` helper) so only the current sticky
+target's slot has its "active" flag set -- reuses the env's own
+already-stabilized `_nearest_reachable_actor_id`/`_best_group_actor_id`
+(set by the Step 2 hysteresis fix with an effectively-infinite margin for
+this mode) as the single source of truth for which actor is "the target",
+rather than tracking a second, separate notion of stickiness. Does not
+modify `geometry_features.py` itself (shared, foundational code) --
+purely a targeted observation-level mask local to this experiment.
+
+Verified directly before relaunching (not just re-smoke-tested blindly):
+(1) never more than 1 active direct-actor slot at any tick across a 40-tick
+rollout; (2) the sticky target's actor ID persists across many ticks (only
+changed 3 times in 40 ticks in the test rollout, consistent with genuine
+forced re-targets from death/going out of vision range, not preference
+thrashing -- a real reduction from the ~30/100-tick baseline rate).
+`normal_target` mode is deliberately left unmasked -- it should reflect
+today's real, unmodified observation pipeline.
+
+Relaunched both 300k-timestep runs (tasks `bnfm7apkh` stable_waypoint,
+`bzca69tf5` normal_target, output suffixed `_v2` to keep the stopped,
+invalid first attempt's logs on disk for the record rather than
+overwriting them).
