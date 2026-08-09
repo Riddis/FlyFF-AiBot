@@ -1019,3 +1019,51 @@ reproduces the exact original greedy behavior (regression protection); the
 reward-relevant score invariant above. Full test suite re-run in the
 background to confirm no other regression from this environment.py change
 (broader-touching than the earlier steering_oracle.py-only fixes).
+
+## User-directed parallel experiment: PPO pure-navigation ablation
+
+Per explicit user request, running a deliberately simple, decisive
+experiment alongside the oracle-perfection track: does direct PPO under an
+unambiguous "collision ends the episode" incentive learn clean navigation
+without any of the oracle's hand-engineered machinery? Two conditions to
+distinguish "target instability is the real problem" from "the whole
+oracle-track approach is overengineered" from "something deeper needs work":
+
+A. stable_waypoint -- target-selection hysteresis margin set effectively
+   infinite (holds the initial target for the whole episode, only
+   re-targeting if it dies/goes unreachable).
+B. normal_target -- the env's actual current default target-selection
+   (hysteresis enabled, margin=3.0 -- i.e. today's real system, not the
+   pre-hysteresis pure-greedy baseline).
+
+Same training curriculum (`synthetic_curriculum/curriculum.json`, 4 early-
+stage layouts), same movement noise (unmodified env physics), same policy
+architecture (`SplitSteeringNavigationPolicy`, [64,32] net_arch for
+steering/event/vf, matching `build_fresh_basic_policy`'s architecture),
+same training budget (300,000 timesteps, identical PPO hyperparameters)
+between conditions -- ONLY target_mode differs.
+
+New code: `simulator/pure_navigation_env.py` (`PureNavigationWrapper`:
+reward = per-tick forward progress only, farming/EVA/kill reward never
+consulted; episode terminates IMMEDIATELY with a -5.0 terminal reward on
+the first physical contact -- collision is unambiguously catastrophic, not
+merely penalized). `configure_target_mode()` sets the mode via `.unwrapped`
+(caught a real bug before it shipped: a naive manual `.env` walk would
+never have descended past the outer wrapper, since gymnasium's `Wrapper.
+__getattr__` delegation makes `hasattr` checks on the outer wrapper appear
+to already have the base env's attributes -- confirmed via a smoke test
+that the fix actually reaches the base `RecordedFarmingEnv` instance).
+`scratchpad_ppo_pure_navigation.py`: training driver, from-scratch PPO
+hyperparameters (lr=3e-4, ent_coef=0.02, NOT the conservative 5e-5/0.015
+fine-tuning defaults `build_fresh_basic_policy` hard-codes, which are
+tuned for refining an already-good policy, not learning from random init).
+
+Smoke-tested at 2000 timesteps (~44 steps/s with 4 parallel training
+envs): completed cleanly end-to-end, ep_reward_mean 89->108 and
+ep_len_mean 64.8->76.8 already trending up within that tiny window.
+Launched both full 300k-timestep runs in parallel in the background (tasks
+`bxsm6dl4n` stable_waypoint, `bj72hnt3f` normal_target), expected ~2 hours
+each given the smoke-tested rate. Will evaluate both raw (no
+oracle/recovery) on the untouched `oracle_fresh_confirmation` pool for
+zero-collision rate once training completes, per the user's exact
+evaluation spec.
