@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
@@ -25,6 +26,7 @@ from farming.observation import (
 from farming.session import SessionOutcome
 
 from . import movement_kinematics
+from .local_clearance import sample_heading_relative_clearance
 from .map_model import MapModel
 from .reward_model import (
     SimulatorRewardCalculator,
@@ -88,6 +90,25 @@ class RecordedFarmingEnv(_BaseEnv):
     # timer, so a target that becomes genuinely worse (or dies/goes
     # unreachable) is still dropped immediately.
     _TARGET_HYSTERESIS_MARGIN_CELLS = 3.0
+    # 2026-08-10 conditional persistence: the matched-eval + onset diagnosis
+    # of the unconditional hysteresis above found it was too crude --
+    # it eliminated the catastrophic 517-tick lock-in but left ordinary
+    # collision events flat-or-worse across 4 of 5 matched episodes, and
+    # 22/33 (67%) of the still-occurring hysteresis-trace collision onsets
+    # were preceded by a DECLINING local clearance trend over the prior 10
+    # ticks -- i.e. unconditional stickiness kept committing to a target
+    # whose approach was visibly deteriorating. This adds a narrow release
+    # condition on top of the existing margin: if local clearance has
+    # declined by more than the threshold over the trend window, the
+    # hysteresis margin check is bypassed for that tick (falls back to
+    # plain best-candidate selection, matching the "target is dead"
+    # code path) -- not a forced switch, just removing the artificial
+    # "stay sticky" preference so a genuinely deteriorating approach can be
+    # reconsidered. A small, deterministic rule, deliberately not a
+    # generic clearance-weighted target SCORE (which was a separate,
+    # bigger design the user asked to defer).
+    _CLEARANCE_TREND_WINDOW = 10
+    _CLEARANCE_DECLINE_RELEASE_THRESHOLD = 0.3
 
     def __init__(
         self,
@@ -175,6 +196,7 @@ class RecordedFarmingEnv(_BaseEnv):
         # automatically. Toggle exists for the 2026-08-09 matched A/B
         # comparison against pre-hysteresis behavior; defaults on.
         self.target_hysteresis_enabled = True
+        self._clearance_history: deque[float] = deque(maxlen=self._CLEARANCE_TREND_WINDOW)
         self._visited_cells: set[tuple[int, int]] = set()
         self._next_actor_id = 1
         self._spawn_positions = tuple(
@@ -205,6 +227,7 @@ class RecordedFarmingEnv(_BaseEnv):
         self._approach_potential_cells = 0.0
         self._best_group_actor_id = None
         self._nearest_reachable_actor_id = None
+        self._clearance_history.clear()
         self._visited_cells = set()
         start = self.model.player_start_positions[
             int(self.rng.integers(0, len(self.model.player_start_positions)))
@@ -733,6 +756,20 @@ class RecordedFarmingEnv(_BaseEnv):
             selected_actor_id = sticky_actor_id
         return float(best_score), selected_actor_id
 
+    def _update_clearance_history_and_check_decline(self) -> bool:
+        """Append this tick's local min-clearance to the rolling window and
+        report whether it has declined by more than
+        `_CLEARANCE_DECLINE_RELEASE_THRESHOLD` from the oldest sample in
+        the window to the newest -- the conditional-persistence release
+        signal (see `_CLEARANCE_TREND_WINDOW`'s docstring)."""
+
+        clearance = sample_heading_relative_clearance(self.map, self.player_x, self.player_z, self.heading)
+        min_clearance = min(clearance.values())
+        self._clearance_history.append(float(min_clearance))
+        if len(self._clearance_history) < self._CLEARANCE_TREND_WINDOW:
+            return False
+        return self._clearance_history[-1] < self._clearance_history[0] - self._CLEARANCE_DECLINE_RELEASE_THRESHOLD
+
     def _observation(
         self,
         *,
@@ -746,14 +783,20 @@ class RecordedFarmingEnv(_BaseEnv):
         direct_ids = {item[1].actor_id for item in candidates[: self._DIRECT_PATH_LIMIT]}
         if geodesic_field is None:
             geodesic_field = self._geodesic_field(player_cell)
+        # Conditional persistence: a sustained local-clearance decline
+        # releases the hysteresis lock for this tick (falls back to plain
+        # best-candidate selection) rather than forcing continued
+        # commitment to a deteriorating approach.
+        release_hysteresis = self.target_hysteresis_enabled and self._update_clearance_history_and_check_decline()
+        hysteresis_active = self.target_hysteresis_enabled and not release_hysteresis
         potential, best_actor_id = self._group_approach_potential(
             candidates, geodesic_field,
-            sticky_actor_id=self._best_group_actor_id if self.target_hysteresis_enabled else None,
+            sticky_actor_id=self._best_group_actor_id if hysteresis_active else None,
         )
         self._approach_potential_cells = potential
         self._best_group_actor_id = best_actor_id
         nearest_reachable: tuple[float, int] | None = None
-        sticky_nearest_id = self._nearest_reachable_actor_id if self.target_hysteresis_enabled else None
+        sticky_nearest_id = self._nearest_reachable_actor_id if hysteresis_active else None
         sticky_nearest_geodesic: float | None = None
 
         actors: list[ActorObservation] = []

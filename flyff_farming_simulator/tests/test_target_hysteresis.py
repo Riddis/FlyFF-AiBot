@@ -17,9 +17,11 @@ hand-computable.
 from __future__ import annotations
 
 import math
+from unittest.mock import patch
 
 import numpy as np
 
+import simulator.environment as environment_module
 from simulator.environment import RecordedFarmingEnv
 from simulator.map_model import MapModel
 from simulator.world_model import MovementModel, RecordedWorldModel
@@ -152,3 +154,56 @@ class TestGroupApproachPotentialUnaffectedByStickiness:
         # alone -- not a vacuous pass where both happen to already agree.
         assert id_no_sticky != id_with_sticky
         assert id_with_sticky == env.actors[0].actor_id
+
+
+class TestConditionalPersistenceClearanceRelease:
+    """2026-08-10: unconditional hysteresis kept committing to targets whose
+    approach was visibly deteriorating (22/33, 67% of remaining oracle
+    collision onsets were preceded by declining clearance). This adds a
+    narrow release condition: sustained clearance decline over the trend
+    window bypasses the margin check for that tick."""
+
+    def test_decline_detection_true_for_a_genuine_sustained_drop(self):
+        env = _make_env(hysteresis=True)
+        readings = [1.0, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2]  # drop of 0.8 over the window
+        assert len(readings) == env._CLEARANCE_TREND_WINDOW
+        with patch.object(
+            environment_module, "sample_heading_relative_clearance",
+            side_effect=[{"forward": r, "left": r, "right": r} for r in readings],
+        ):
+            declined = False
+            for _ in readings:
+                declined = env._update_clearance_history_and_check_decline()
+        assert declined is True
+
+    def test_decline_detection_false_for_stable_or_improving_clearance(self):
+        env = _make_env(hysteresis=True)
+        readings = [0.5, 0.5, 0.6, 0.5, 0.6, 0.7, 0.6, 0.7, 0.8, 0.7]  # noisy but not declining
+        assert len(readings) == env._CLEARANCE_TREND_WINDOW
+        with patch.object(
+            environment_module, "sample_heading_relative_clearance",
+            side_effect=[{"forward": r, "left": r, "right": r} for r in readings],
+        ):
+            declined = False
+            for _ in readings:
+                declined = env._update_clearance_history_and_check_decline()
+        assert declined is False
+
+    def test_release_lets_hysteresis_reconsider_a_marginally_better_candidate(self):
+        """The core behavior change: under plain margin-based hysteresis
+        (see test_keeps_current_target_when_new_one_is_only_marginally_
+        better above), a candidate only 2 cells closer than the current
+        5-cell target is NOT enough to steal it. With a detected clearance
+        decline, that same marginal candidate must be free to win, since
+        the hysteresis preference is released (not forced) for this tick."""
+        env = _make_env(hysteresis=True)
+        env.player_x, env.player_z = env.map.layout_to_native(30, 30)
+        _place(env, 0, 35, 30)  # A: 5 cells -> becomes initial target
+        _place(env, 1, 60, 30)  # B: far away, irrelevant initially
+        env._observation()
+        assert env._nearest_reachable_actor_id == env.actors[0].actor_id
+
+        _place(env, 1, 33, 30)  # B: 3 cells -- only 2 closer than A, within margin
+        with patch.object(env, "_update_clearance_history_and_check_decline", return_value=True):
+            env._observation()
+        assert env._nearest_reachable_actor_id == env.actors[1].actor_id

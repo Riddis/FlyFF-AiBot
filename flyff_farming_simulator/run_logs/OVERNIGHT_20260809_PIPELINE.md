@@ -1254,3 +1254,100 @@ Per the user's fork logic, going into this:
 - If even `safety` cannot avoid walls under immediate termination: the
   problem is deeper than target selection (observation/action space or
   dynamics), and the oracle-track investigation was justified all along.
+
+## PPO ablation: early but consistent, growing signal favoring target stability
+
+Three checkpoints in (25.6k, 51.2k, 76.8k timesteps), all three runs still
+training in the background:
+
+| checkpoint | safety (locomotion-only) | goal_stable | goal_normal |
+|---|---|---|---|
+| 25,600 | collision%=100.0 len=38.0 disp=83.0 | collision%=**83.3** len=146.0 disp=254.1 | collision%=100.0 len=96.2 disp=167.3 |
+| 51,200 | collision%=100.0 len=38.2 disp=83.2 | collision%=**66.7** len=153.3 disp=267.4 | collision%=100.0 len=51.5 disp=90.6 |
+| 76,800 | collision%=100.0 len=78.0 disp=158.7 | collision%=**66.7** len=153.3 disp=267.4 | collision%=100.0 len=54.2 disp=94.8 |
+
+**goal_stable consistently and substantially outperforms goal_normal at
+every checkpoint measured so far** -- lower collision rate (66.7-83.3% vs
+a flat 100%), 2-3x longer survival, 2-3x more displacement. This is
+exactly the "stable-target Goal PPO works and normal-target Goal PPO
+doesn't -> target selection is cleanly isolated" outcome from the user's
+fork logic, and it corroborates the messier oracle-based matched-eval
+result (which only showed a clean win on the single catastrophic case)
+with a cleaner, more controlled causal design.
+
+`safety` (locomotion-only baseline) is NOT yet meaningfully learning --
+100% collision rate held flat through 51.2k, only showing early signs of
+life at 76.8k (oscillation jumping from ~0.01 to 0.21, episode length
+doubling). This means the "is collision avoidance trivially easy" question
+is not yet answered either way; needs more checkpoints.
+
+One data quality flag, not yet resolved: `goal_stable`'s 51,200 and 76,800
+checkpoints report BYTE-IDENTICAL episode-level eval stats (len=153.3,
+disp=267.4 to one decimal, only oscillation differing 0.027->0.025) --
+plausible if the policy's deterministic argmax decisions on these specific
+fixed eval episodes have locally converged even as other (non-argmax-
+affecting) aspects of the policy continue to shift, but worth a direct
+sanity check later given this session's history of catching real bugs
+behind suspiciously-identical numbers (the original PPO ablation design
+flaw was caught exactly this way). Not treating it as invalidating for now
+since collision% is not regressing and the trend across all 3 checkpoints
+is coherent, but flagging for scrutiny before drawing final conclusions.
+
+## User directive (2026-08-10): dual-track, independent, don't merge until decisive
+
+Corrected the earlier "pause oracle work" stance: run Track A (corrected
+PPO) and Track B (oracle conditional persistence) in parallel, kept
+strictly independent (no cross-feeding results between tracks mid-
+experiment), compare once each reaches a decisive result. Whichever
+demonstrates genuinely collision-free productive navigation first leads.
+
+**Track A fix applied:** found and fixed a real target-switch reward
+discontinuity bug in `PureNavigationWrapper` (goal-mode reward compared
+distance-to-OLD-target against distance-to-NEW-target on any tick where
+the target switched -- an apples-to-oranges spurious spike/cliff, likely
+corrupting the learning signal especially for `goal_normal`'s frequent
+switching). Fixed so both terms of the progress delta always use the
+CURRENT target. Also fixed `quick_eval`'s `target_progress` metric, which
+had the identical flaw (start/end distance to possibly-different targets)
+-- now sums the wrapper's own corrected per-tick reward instead. New
+regression test forces a mid-episode target switch and confirms no spike.
+The prior 76,800-step checkpoints (trained under the buggy reward) are
+discarded, not resumed from -- restarted all 3 conditions (`safety`,
+`goal_stable`, `goal_normal`) fresh, output suffixed `_v3`. Committed.
+
+**Track B: conditional target persistence implemented.** Per the user's
+specific design: keep the current sticky target under the existing margin
+rule UNLESS local clearance has been in SUSTAINED DECLINE over a rolling
+window, in which case the hysteresis preference is released for that tick
+(falls back to plain best-candidate selection -- NOT a forced switch, just
+removing the artificial "stay sticky" bias so a genuinely deteriorating
+approach can be reconsidered). Implementation:
+`RecordedFarmingEnv._update_clearance_history_and_check_decline()`
+(new method) tracks a `deque(maxlen=_CLEARANCE_TREND_WINDOW=10)` of
+per-tick min-clearance (via the existing `sample_heading_relative_clearance`),
+reports decline when the newest reading is more than
+`_CLEARANCE_DECLINE_RELEASE_THRESHOLD=0.3` below the oldest in the window.
+Wired into `_observation()`: `release_hysteresis = target_hysteresis_enabled
+and decline_detected`; both the `_nearest_reachable_actor_id` and
+`_best_group_actor_id` (via `_group_approach_potential`'s `sticky_actor_id`)
+paths now pass `sticky_actor_id=None` when releasing, exactly matching the
+existing "target is dead" code path -- no new branch logic duplicated.
+Does not touch beam depth, sigma, fallback, or PPO reward, per the
+standing instruction to isolate this one change.
+
+New tests (`tests/test_target_hysteresis.py`, 4 added, all passing):
+decline-detection true for a genuine sustained drop / false for stable-or-
+noisy-non-declining readings (mocking `sample_heading_relative_clearance`
+directly for precise control); the core behavioral change -- a candidate
+only 2 cells closer than the current target (within the margin, would
+normally be rejected per the existing hysteresis test) is now free to win
+once a decline is detected. All 8 tests in the file pass; full suite
+re-running in the background before matched-testing.
+
+Next: matched-test conditional persistence against unconditional hysteresis
+and the original baseline on the SAME episodes used before (catastrophic
+case + 4 regressed episodes), per the standing "matched episodes first,
+development pool if improved, fresh confirmation only if warranted"
+sequencing. Track A and Track B artifacts/logs/checkpoints kept in
+separate files throughout; no result from one track is used to modify the
+other before each has a decisive result of its own.
