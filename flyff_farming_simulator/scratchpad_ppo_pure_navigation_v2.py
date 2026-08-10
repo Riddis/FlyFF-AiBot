@@ -97,11 +97,16 @@ def quick_eval(model, *, target_mode: str, reward_mode: str) -> dict:
             )
             obs, _info = env.reset(seed=seed)
             base_env = env.unwrapped
-            start_target_distance = env._target_distance()
             steering_choices = []
             collided = False
             steps = 0
             start_distance_cells = float(base_env.total_distance_cells)
+            # Sum of the wrapper's own (target-switch-discontinuity-free,
+            # see pure_navigation_env.py's 2026-08-10 correction) per-tick
+            # goal reward -- NOT a start-vs-end distance delta, which would
+            # reintroduce the same "different target at each end" flaw if
+            # the target switched anywhere during the episode.
+            cumulative_goal_reward = 0.0
             for _tick in range(EVAL_MAX_ACTIONS):
                 action, _state = model.predict(obs, deterministic=True)
                 steering_choices.append(int(action[0]))
@@ -110,16 +115,15 @@ def quick_eval(model, *, target_mode: str, reward_mode: str) -> dict:
                 if term and reward <= -1.0:
                     collided = True
                     break
+                if reward_mode == "goal":
+                    cumulative_goal_reward += float(reward)
                 if term or trunc:
                     break
             end_distance_cells = float(base_env.total_distance_cells)
-            end_target_distance = env._target_distance()
             env.close()
 
             switches = sum(1 for a, b in zip(steering_choices, steering_choices[1:]) if a != b)
-            target_progress = None
-            if start_target_distance is not None and end_target_distance is not None:
-                target_progress = start_target_distance - end_target_distance
+            target_progress = cumulative_goal_reward if reward_mode == "goal" else None
 
             episodes.append({
                 "layout": layout_name, "seed": seed, "collided": collided, "steps": steps,

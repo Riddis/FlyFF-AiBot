@@ -151,7 +151,21 @@ def current_target_position(base_env: Any) -> tuple[float, float] | None:
 class PureNavigationWrapper(gym.Wrapper):
     """Episode terminates immediately with COLLISION_TERMINAL_REWARD on the
     first physical contact. Event action is always forced to NONE. Reward
-    otherwise depends on `reward_mode` (see module docstring)."""
+    otherwise depends on `reward_mode` (see module docstring).
+
+    CORRECTED 2026-08-10 (target-switch reward discontinuity): the first
+    version tracked `_prev_target_distance` relative to whatever target was
+    active AT THE TIME it was recorded -- so on a tick where the target
+    switched, the reward compared "distance to the OLD target one tick ago"
+    against "distance to the NEW target now", an apples-to-oranges
+    comparison that could produce a large spurious reward spike or cliff
+    completely unrelated to actual navigation quality, exactly on ticks
+    where the target changes. Fixed by always computing BOTH terms of the
+    progress delta relative to the SAME (current) target: distance from the
+    PREVIOUS player position to the CURRENT target, minus distance from the
+    CURRENT player position to the CURRENT target. This is well-defined and
+    discontinuity-free regardless of whether the target switched this tick.
+    """
 
     def __init__(self, env: Any, *, target_mode: TargetMode, reward_mode: RewardMode = "safety"):
         super().__init__(env)
@@ -159,53 +173,63 @@ class PureNavigationWrapper(gym.Wrapper):
         self.reward_mode = reward_mode
         self._prev_contacts = 0
         self._prev_distance = 0.0
-        self._prev_target_distance: float | None = None
+        self._prev_player_x = 0.0
+        self._prev_player_z = 0.0
 
     def _maybe_mask(self, obs: np.ndarray) -> np.ndarray:
         if self.target_mode != "stable_waypoint":
             return obs
         return _mask_observation_to_sticky_target(obs, self.env.unwrapped)
 
-    def _target_distance(self) -> float | None:
+    def _distance_to_current_target(self, player_x: float, player_z: float) -> float | None:
         base_env = self.env.unwrapped
         target = current_target_position(base_env)
         if target is None:
             return None
-        dx = target[0] - base_env.player_x
-        dz = target[1] - base_env.player_z
+        dx = target[0] - player_x
+        dz = target[1] - player_z
         return math.hypot(dx, dz) / base_env.map.native_units_per_cell
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
         configure_target_mode(self.env, self.target_mode)
+        base_env = self.env.unwrapped
         self._prev_contacts = int(info.get("contacts", 0)) if isinstance(info, dict) else 0
         self._prev_distance = float(info.get("total_distance_cells", 0.0)) if isinstance(info, dict) else 0.0
-        self._prev_target_distance = self._target_distance()
+        self._prev_player_x = float(base_env.player_x)
+        self._prev_player_z = float(base_env.player_z)
         return self._maybe_mask(obs), info
 
     def step(self, action):
         action = np.asarray(action, dtype=np.int64).copy()
         action[1] = EVENT_NONE
+        prev_player_x, prev_player_z = self._prev_player_x, self._prev_player_z
         obs, _reward, terminated, truncated, info = self.env.step(action)
+        base_env = self.env.unwrapped
         contacts = int(info.get("contacts", 0))
         distance = float(info.get("total_distance_cells", 0.0))
         displacement = distance - self._prev_distance
         contact_this_tick = contacts > self._prev_contacts
         self._prev_contacts = contacts
         self._prev_distance = distance
+        self._prev_player_x = float(base_env.player_x)
+        self._prev_player_z = float(base_env.player_z)
         obs = self._maybe_mask(obs)
 
-        new_target_distance = self._target_distance()
         if contact_this_tick:
-            self._prev_target_distance = new_target_distance
             return obs, COLLISION_TERMINAL_REWARD, True, truncated, info
 
         if self.reward_mode == "safety":
             reward = PROGRESS_REWARD_SCALE * max(0.0, displacement)
         else:
-            if self._prev_target_distance is not None and new_target_distance is not None:
-                reward = GOAL_PROGRESS_REWARD_SCALE * (self._prev_target_distance - new_target_distance)
+            # Both terms use the CURRENT target -- never the target that may
+            # have been active a tick ago -- so a mid-tick target switch
+            # cannot inject a spurious reward spike/cliff (see class
+            # docstring's 2026-08-10 correction).
+            prev_distance_to_current_target = self._distance_to_current_target(prev_player_x, prev_player_z)
+            new_distance_to_current_target = self._distance_to_current_target(base_env.player_x, base_env.player_z)
+            if prev_distance_to_current_target is not None and new_distance_to_current_target is not None:
+                reward = GOAL_PROGRESS_REWARD_SCALE * (prev_distance_to_current_target - new_distance_to_current_target)
             else:
                 reward = 0.0
-        self._prev_target_distance = new_target_distance
         return obs, reward, terminated, truncated, info

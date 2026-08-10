@@ -104,22 +104,51 @@ class TestSteeringOnly:
 class TestGoalRewardMode:
     def test_reward_matches_internally_tracked_distance_reduction(self):
         """Under reward_mode='goal', reward must equal the per-tick
-        REDUCTION in distance to the current target (self._prev_target_
-        distance bookkeeping) -- not raw displacement, which would let the
-        policy earn reward moving in any direction including away from the
-        objective. Checks the wrapper's own tracked before/after distances
-        are internally consistent with the reward it returned, rather than
-        reimplementing distance math externally (fragile given the target
-        actor itself wanders slightly every tick)."""
+        REDUCTION in distance to the CURRENT target, with both the "before"
+        and "after" distance computed relative to the SAME (current)
+        target -- not raw displacement, and not a naive before/after-target
+        mismatch (see the 2026-08-10 correction: comparing distance to
+        whatever target was active a tick ago against distance to a
+        possibly-DIFFERENT current target injects a spurious reward spike
+        on every target switch)."""
         env, raw_env = _make_env("stable_waypoint", reward_mode="goal")
         env.reset(seed=0)
-        dist_before = env._prev_target_distance
-        assert dist_before is not None
+        prev_x, prev_z = env._prev_player_x, env._prev_player_z
 
         _obs, reward, term, _trunc, _info = env.step(np.asarray([0, 0], dtype=np.int64))  # STRAIGHT
 
         if not term:
-            dist_after = env._prev_target_distance
-            assert dist_after is not None
+            # Recompute independently using the CURRENT target for both
+            # terms, matching the wrapper's own (fixed) methodology.
+            dist_before = env._distance_to_current_target(prev_x, prev_z)
+            dist_after = env._distance_to_current_target(raw_env.player_x, raw_env.player_z)
+            assert dist_before is not None and dist_after is not None
             assert abs(reward - (dist_before - dist_after)) < 1.0e-6
+        env.close()
+
+    def test_target_switch_does_not_produce_reward_discontinuity(self):
+        """Directly forces a target switch mid-episode (by killing the
+        current target) and confirms the reward on that exact tick is still
+        a small, sane progress value -- not a large spurious spike from
+        comparing distance-to-old-target against distance-to-new-target."""
+        env, raw_env = _make_env("normal_target", reward_mode="goal", episode_steps=100)
+        env.reset(seed=0)
+        for _tick in range(10):
+            _obs, _r, term, trunc, _info = env.step(np.asarray([0, 0], dtype=np.int64))
+            if term or trunc:
+                return  # collided or ended before we could force a switch; inconclusive, not a failure
+
+        target_id = raw_env._nearest_reachable_actor_id
+        for actor in raw_env.actors:
+            if actor.actor_id == target_id:
+                actor.alive = False
+                break
+
+        _obs, reward, term, _trunc, _info = env.step(np.asarray([0, 0], dtype=np.int64))
+        if not term:
+            # One tick of native-unit movement is bounded by the movement
+            # model's distance scale (a few cells at most) -- a genuine
+            # progress reward this large would indicate a discontinuity,
+            # not real navigation progress.
+            assert abs(reward) < 20.0
         env.close()
