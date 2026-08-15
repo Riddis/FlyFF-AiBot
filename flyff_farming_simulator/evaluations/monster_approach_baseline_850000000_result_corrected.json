@@ -1,0 +1,3913 @@
+{
+  "spec_seed": 850000000,
+  "episode_seed_base": 850800000,
+  "strata": {
+    "open_control": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed": 20
+      },
+      "outcome_episode_keys": {
+        "killed": [
+          "('open_control', 0)",
+          "('open_control', 1)",
+          "('open_control', 2)",
+          "('open_control', 3)",
+          "('open_control', 4)",
+          "('open_control', 5)",
+          "('open_control', 6)",
+          "('open_control', 7)",
+          "('open_control', 8)",
+          "('open_control', 9)",
+          "('open_control', 10)",
+          "('open_control', 11)",
+          "('open_control', 12)",
+          "('open_control', 13)",
+          "('open_control', 14)",
+          "('open_control', 15)",
+          "('open_control', 16)",
+          "('open_control', 17)",
+          "('open_control', 18)",
+          "('open_control', 19)"
+        ]
+      },
+      "total_kills": 20,
+      "kill_rate_episodes_with_ge1_kill": 1.0,
+      "mean_kills_per_episode": 1.0,
+      "episodes_reaching_eva_range": 20,
+      "episodes_reaching_eva_range_rate": 1.0,
+      "ticks_to_first_range": {
+        "n": 20,
+        "mean": 5.65,
+        "median": 6.0,
+        "min": 2,
+        "max": 9
+      },
+      "ticks_per_kill": {
+        "n": 20,
+        "mean": 5.65,
+        "median": 6.0,
+        "min": 2,
+        "max": 9
+      },
+      "total_contact_ticks": 0,
+      "episodes_with_collision": 0,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 0,
+      "death_driven_retargets": 0,
+      "live_hysteresis_switches": 0,
+      "mean_target_switches_per_episode": 0.0,
+      "total_replans": 0,
+      "switch_to_kill_success": {
+        "successes": 0,
+        "total_switches": 0,
+        "rate": null
+      },
+      "target_drift_cells": {
+        "n": 20,
+        "mean": 0.166,
+        "median": 0.176,
+        "min": 0.06,
+        "max": 0.27
+      },
+      "initial_target_bearing_deg": {
+        "n": 20,
+        "mean": 24.361,
+        "median": 29.36,
+        "min": -171.11,
+        "max": 155.9
+      }
+    },
+    "awkward_heading": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed": 20
+      },
+      "outcome_episode_keys": {
+        "killed": [
+          "('awkward_heading', 0)",
+          "('awkward_heading', 1)",
+          "('awkward_heading', 2)",
+          "('awkward_heading', 3)",
+          "('awkward_heading', 4)",
+          "('awkward_heading', 5)",
+          "('awkward_heading', 6)",
+          "('awkward_heading', 7)",
+          "('awkward_heading', 8)",
+          "('awkward_heading', 9)",
+          "('awkward_heading', 10)",
+          "('awkward_heading', 11)",
+          "('awkward_heading', 12)",
+          "('awkward_heading', 13)",
+          "('awkward_heading', 14)",
+          "('awkward_heading', 15)",
+          "('awkward_heading', 16)",
+          "('awkward_heading', 17)",
+          "('awkward_heading', 18)",
+          "('awkward_heading', 19)"
+        ]
+      },
+      "total_kills": 20,
+      "kill_rate_episodes_with_ge1_kill": 1.0,
+      "mean_kills_per_episode": 1.0,
+      "episodes_reaching_eva_range": 20,
+      "episodes_reaching_eva_range_rate": 1.0,
+      "ticks_to_first_range": {
+        "n": 20,
+        "mean": 7.1,
+        "median": 7.0,
+        "min": 4,
+        "max": 10
+      },
+      "ticks_per_kill": {
+        "n": 20,
+        "mean": 7.1,
+        "median": 7.0,
+        "min": 4,
+        "max": 10
+      },
+      "total_contact_ticks": 0,
+      "episodes_with_collision": 0,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 0,
+      "death_driven_retargets": 0,
+      "live_hysteresis_switches": 0,
+      "mean_target_switches_per_episode": 0.0,
+      "total_replans": 0,
+      "switch_to_kill_success": {
+        "successes": 0,
+        "total_switches": 0,
+        "rate": null
+      },
+      "target_drift_cells": {
+        "n": 20,
+        "mean": 0.208,
+        "median": 0.208,
+        "min": 0.12,
+        "max": 0.28
+      },
+      "initial_target_bearing_deg": {
+        "n": 20,
+        "mean": 28.501,
+        "median": 124.235,
+        "min": -176.72,
+        "max": 177.24
+      }
+    },
+    "obstacle_approach": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed": 19,
+        "collision": 1
+      },
+      "outcome_episode_keys": {
+        "killed": [
+          "('obstacle_approach', 0)",
+          "('obstacle_approach', 1)",
+          "('obstacle_approach', 2)",
+          "('obstacle_approach', 4)",
+          "('obstacle_approach', 5)",
+          "('obstacle_approach', 6)",
+          "('obstacle_approach', 7)",
+          "('obstacle_approach', 8)",
+          "('obstacle_approach', 9)",
+          "('obstacle_approach', 10)",
+          "('obstacle_approach', 11)",
+          "('obstacle_approach', 12)",
+          "('obstacle_approach', 13)",
+          "('obstacle_approach', 14)",
+          "('obstacle_approach', 15)",
+          "('obstacle_approach', 16)",
+          "('obstacle_approach', 17)",
+          "('obstacle_approach', 18)",
+          "('obstacle_approach', 19)"
+        ],
+        "collision": [
+          "('obstacle_approach', 3)"
+        ]
+      },
+      "total_kills": 19,
+      "kill_rate_episodes_with_ge1_kill": 0.95,
+      "mean_kills_per_episode": 0.95,
+      "episodes_reaching_eva_range": 19,
+      "episodes_reaching_eva_range_rate": 0.95,
+      "ticks_to_first_range": {
+        "n": 19,
+        "mean": 6.737,
+        "median": 6,
+        "min": 4,
+        "max": 14
+      },
+      "ticks_per_kill": {
+        "n": 19,
+        "mean": 6.737,
+        "median": 6,
+        "min": 4,
+        "max": 14
+      },
+      "total_contact_ticks": 1,
+      "episodes_with_collision": 1,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 0,
+      "death_driven_retargets": 0,
+      "live_hysteresis_switches": 0,
+      "mean_target_switches_per_episode": 0.0,
+      "total_replans": 0,
+      "switch_to_kill_success": {
+        "successes": 0,
+        "total_switches": 0,
+        "rate": null
+      },
+      "target_drift_cells": {
+        "n": 19,
+        "mean": 0.2,
+        "median": 0.18,
+        "min": 0.12,
+        "max": 0.42
+      },
+      "initial_target_bearing_deg": {
+        "n": 20,
+        "mean": 4.312,
+        "median": 0.195,
+        "min": -178.6,
+        "max": 176.35
+      }
+    },
+    "long_route": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed": 20
+      },
+      "outcome_episode_keys": {
+        "killed": [
+          "('long_route', 0)",
+          "('long_route', 1)",
+          "('long_route', 2)",
+          "('long_route', 3)",
+          "('long_route', 4)",
+          "('long_route', 5)",
+          "('long_route', 6)",
+          "('long_route', 7)",
+          "('long_route', 8)",
+          "('long_route', 9)",
+          "('long_route', 10)",
+          "('long_route', 11)",
+          "('long_route', 12)",
+          "('long_route', 13)",
+          "('long_route', 14)",
+          "('long_route', 15)",
+          "('long_route', 16)",
+          "('long_route', 17)",
+          "('long_route', 18)",
+          "('long_route', 19)"
+        ]
+      },
+      "total_kills": 20,
+      "kill_rate_episodes_with_ge1_kill": 1.0,
+      "mean_kills_per_episode": 1.0,
+      "episodes_reaching_eva_range": 20,
+      "episodes_reaching_eva_range_rate": 1.0,
+      "ticks_to_first_range": {
+        "n": 20,
+        "mean": 12.4,
+        "median": 12.0,
+        "min": 10,
+        "max": 16
+      },
+      "ticks_per_kill": {
+        "n": 20,
+        "mean": 12.4,
+        "median": 12.0,
+        "min": 10,
+        "max": 16
+      },
+      "total_contact_ticks": 0,
+      "episodes_with_collision": 0,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 0,
+      "death_driven_retargets": 0,
+      "live_hysteresis_switches": 0,
+      "mean_target_switches_per_episode": 0.0,
+      "total_replans": 0,
+      "switch_to_kill_success": {
+        "successes": 0,
+        "total_switches": 0,
+        "rate": null
+      },
+      "target_drift_cells": {
+        "n": 20,
+        "mean": 0.363,
+        "median": 0.36,
+        "min": 0.3,
+        "max": 0.448
+      },
+      "initial_target_bearing_deg": {
+        "n": 20,
+        "mean": -21.107,
+        "median": -24.615,
+        "min": -179.66,
+        "max": 153.03
+      }
+    },
+    "competing_targets": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed_target_count_reached": 20
+      },
+      "outcome_episode_keys": {
+        "killed_target_count_reached": [
+          "('competing_targets', 0)",
+          "('competing_targets', 1)",
+          "('competing_targets', 2)",
+          "('competing_targets', 3)",
+          "('competing_targets', 4)",
+          "('competing_targets', 5)",
+          "('competing_targets', 6)",
+          "('competing_targets', 7)",
+          "('competing_targets', 8)",
+          "('competing_targets', 9)",
+          "('competing_targets', 10)",
+          "('competing_targets', 11)",
+          "('competing_targets', 12)",
+          "('competing_targets', 13)",
+          "('competing_targets', 14)",
+          "('competing_targets', 15)",
+          "('competing_targets', 16)",
+          "('competing_targets', 17)",
+          "('competing_targets', 18)",
+          "('competing_targets', 19)"
+        ]
+      },
+      "total_kills": 60,
+      "kill_rate_episodes_with_ge1_kill": 1.0,
+      "mean_kills_per_episode": 3.0,
+      "episodes_reaching_eva_range": 20,
+      "episodes_reaching_eva_range_rate": 1.0,
+      "ticks_to_first_range": {
+        "n": 20,
+        "mean": 4.35,
+        "median": 4.0,
+        "min": 2,
+        "max": 8
+      },
+      "ticks_per_kill": {
+        "n": 57,
+        "mean": 7.421,
+        "median": 7,
+        "min": 2,
+        "max": 17
+      },
+      "total_contact_ticks": 0,
+      "episodes_with_collision": 0,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 41,
+      "death_driven_retargets": 37,
+      "live_hysteresis_switches": 4,
+      "mean_target_switches_per_episode": 2.05,
+      "total_replans": 41,
+      "switch_to_kill_success": {
+        "successes": 41,
+        "total_switches": 41,
+        "rate": 1.0
+      },
+      "target_drift_cells": {
+        "n": 61,
+        "mean": 0.187,
+        "median": 0.18,
+        "min": 0.03,
+        "max": 0.473
+      },
+      "initial_target_bearing_deg": {
+        "n": 20,
+        "mean": 23.379,
+        "median": 14.8,
+        "min": -172.93,
+        "max": 177.07
+      }
+    },
+    "multi_kill_farming": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed_target_count_reached": 20
+      },
+      "outcome_episode_keys": {
+        "killed_target_count_reached": [
+          "('multi_kill_farming', 0)",
+          "('multi_kill_farming', 1)",
+          "('multi_kill_farming', 2)",
+          "('multi_kill_farming', 3)",
+          "('multi_kill_farming', 4)",
+          "('multi_kill_farming', 5)",
+          "('multi_kill_farming', 6)",
+          "('multi_kill_farming', 7)",
+          "('multi_kill_farming', 8)",
+          "('multi_kill_farming', 9)",
+          "('multi_kill_farming', 10)",
+          "('multi_kill_farming', 11)",
+          "('multi_kill_farming', 12)",
+          "('multi_kill_farming', 13)",
+          "('multi_kill_farming', 14)",
+          "('multi_kill_farming', 15)",
+          "('multi_kill_farming', 16)",
+          "('multi_kill_farming', 17)",
+          "('multi_kill_farming', 18)",
+          "('multi_kill_farming', 19)"
+        ]
+      },
+      "total_kills": 60,
+      "kill_rate_episodes_with_ge1_kill": 1.0,
+      "mean_kills_per_episode": 3.0,
+      "episodes_reaching_eva_range": 20,
+      "episodes_reaching_eva_range_rate": 1.0,
+      "ticks_to_first_range": {
+        "n": 20,
+        "mean": 3.4,
+        "median": 3.0,
+        "min": 1,
+        "max": 7
+      },
+      "ticks_per_kill": {
+        "n": 54,
+        "mean": 6.704,
+        "median": 7.0,
+        "min": 1,
+        "max": 17
+      },
+      "total_contact_ticks": 0,
+      "episodes_with_collision": 0,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 36,
+      "death_driven_retargets": 34,
+      "live_hysteresis_switches": 2,
+      "mean_target_switches_per_episode": 1.8,
+      "total_replans": 36,
+      "switch_to_kill_success": {
+        "successes": 35,
+        "total_switches": 36,
+        "rate": 0.972
+      },
+      "target_drift_cells": {
+        "n": 56,
+        "mean": 0.173,
+        "median": 0.18,
+        "min": 0.0,
+        "max": 0.461
+      },
+      "initial_target_bearing_deg": {
+        "n": 20,
+        "mean": -58.923,
+        "median": -85.93,
+        "min": -175.21,
+        "max": 154.17
+      }
+    }
+  },
+  "overall": {
+    "n_episodes": 120,
+    "total_kills": 199,
+    "episodes_with_collision": 1,
+    "episodes_timeout": 0,
+    "episodes_planner_failure": 0,
+    "episodes_stuck": 0,
+    "episodes_ran_out_of_targets": 0,
+    "total_switches": 77,
+    "death_driven_retargets": 71,
+    "live_hysteresis_switches": 6,
+    "total_replans": 77,
+    "invariant_violations": []
+  },
+  "raw_episodes": [
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.18000000000000213
+      ],
+      "initial_heading_radians": -3.018925987463734,
+      "initial_target_bearing_relative_radians": 2.721046974944036,
+      "category": "open_control",
+      "index": 0
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.16241310191034733
+      ],
+      "initial_heading_radians": -1.688066208491969,
+      "initial_target_bearing_relative_radians": 1.9700369352474232,
+      "category": "open_control",
+      "index": 1
+    },
+    {
+      "outcome": "killed",
+      "ticks": 4,
+      "total_kills": 1,
+      "kill_ticks": [
+        3
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.09000000000000238
+      ],
+      "initial_heading_radians": -1.0563714604157184,
+      "initial_target_bearing_relative_radians": 0.74943064188424,
+      "category": "open_control",
+      "index": 2
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.18000000000000133
+      ],
+      "initial_heading_radians": -0.29345405307196426,
+      "initial_target_bearing_relative_radians": 0.157684429146525,
+      "category": "open_control",
+      "index": 3
+    },
+    {
+      "outcome": "killed",
+      "ticks": 6,
+      "total_kills": 1,
+      "kill_ticks": [
+        5
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.15000000000000158
+      ],
+      "initial_heading_radians": -2.0524616473187054,
+      "initial_target_bearing_relative_radians": 2.1651053308907513,
+      "category": "open_control",
+      "index": 4
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.17999999999999933
+      ],
+      "initial_heading_radians": -0.6674853747869665,
+      "initial_target_bearing_relative_radians": 1.0668579011157175,
+      "category": "open_control",
+      "index": 5
+    },
+    {
+      "outcome": "killed",
+      "ticks": 3,
+      "total_kills": 1,
+      "kill_ticks": [
+        2
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 2,
+      "target_drift_segments_cells": [
+        0.06000000000000173
+      ],
+      "initial_heading_radians": 0.013511161525427084,
+      "initial_target_bearing_relative_radians": 0.20283740498993405,
+      "category": "open_control",
+      "index": 6
+    },
+    {
+      "outcome": "killed",
+      "ticks": 4,
+      "total_kills": 1,
+      "kill_ticks": [
+        3
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.07118951078369201
+      ],
+      "initial_heading_radians": 1.1027013578603224,
+      "initial_target_bearing_relative_radians": -0.7144511182119979,
+      "category": "open_control",
+      "index": 7
+    },
+    {
+      "outcome": "killed",
+      "ticks": 10,
+      "total_kills": 1,
+      "kill_ticks": [
+        9
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 9,
+      "target_drift_segments_cells": [
+        0.2700000000000065
+      ],
+      "initial_heading_radians": 2.730218642707058,
+      "initial_target_bearing_relative_radians": -2.9152400927797406,
+      "category": "open_control",
+      "index": 8
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.17999999999999933
+      ],
+      "initial_heading_radians": -1.3605173526048795,
+      "initial_target_bearing_relative_radians": 1.904197611491791,
+      "category": "open_control",
+      "index": 9
+    },
+    {
+      "outcome": "killed",
+      "ticks": 10,
+      "total_kills": 1,
+      "kill_ticks": [
+        9
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 9,
+      "target_drift_segments_cells": [
+        0.2699999999999992
+      ],
+      "initial_heading_radians": 2.6392740422088856,
+      "initial_target_bearing_relative_radians": -2.853520926489918,
+      "category": "open_control",
+      "index": 10
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.18000000000000474
+      ],
+      "initial_heading_radians": 0.5290136219624255,
+      "initial_target_bearing_relative_radians": -0.4205399885663529,
+      "category": "open_control",
+      "index": 11
+    },
+    {
+      "outcome": "killed",
+      "ticks": 6,
+      "total_kills": 1,
+      "kill_ticks": [
+        5
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.15000000000000058
+      ],
+      "initial_heading_radians": 0.3961536118701128,
+      "initial_target_bearing_relative_radians": 0.21260126958341094,
+      "category": "open_control",
+      "index": 12
+    },
+    {
+      "outcome": "killed",
+      "ticks": 5,
+      "total_kills": 1,
+      "kill_ticks": [
+        4
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.1200000000000038
+      ],
+      "initial_heading_radians": -0.6496363628559587,
+      "initial_target_bearing_relative_radians": 0.27540455432790856,
+      "category": "open_control",
+      "index": 13
+    },
+    {
+      "outcome": "killed",
+      "ticks": 8,
+      "total_kills": 1,
+      "kill_ticks": [
+        7
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.17201867575389607
+      ],
+      "initial_heading_radians": -1.8768424312124983,
+      "initial_target_bearing_relative_radians": 1.710571790160838,
+      "category": "open_control",
+      "index": 14
+    },
+    {
+      "outcome": "killed",
+      "ticks": 4,
+      "total_kills": 1,
+      "kill_ticks": [
+        3
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.08999999999999911
+      ],
+      "initial_heading_radians": -0.5662310541560558,
+      "initial_target_bearing_relative_radians": -0.02945328657659951,
+      "category": "open_control",
+      "index": 15
+    },
+    {
+      "outcome": "killed",
+      "ticks": 10,
+      "total_kills": 1,
+      "kill_ticks": [
+        9
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 9,
+      "target_drift_segments_cells": [
+        0.27000000000000796
+      ],
+      "initial_heading_radians": 2.991839276804453,
+      "initial_target_bearing_relative_radians": -2.9863723686693224,
+      "category": "open_control",
+      "index": 16
+    },
+    {
+      "outcome": "killed",
+      "ticks": 5,
+      "total_kills": 1,
+      "kill_ticks": [
+        4
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.11999999999999832
+      ],
+      "initial_heading_radians": -1.8142127557422054,
+      "initial_target_bearing_relative_radians": 2.085062977539113,
+      "category": "open_control",
+      "index": 17
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.1790396466790894
+      ],
+      "initial_heading_radians": -0.7284103189110414,
+      "initial_target_bearing_relative_radians": 0.916578695699682,
+      "category": "open_control",
+      "index": 18
+    },
+    {
+      "outcome": "killed",
+      "ticks": 9,
+      "total_kills": 1,
+      "kill_ticks": [
+        8
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 8,
+      "target_drift_segments_cells": [
+        0.23907850677014883
+      ],
+      "initial_heading_radians": -2.32038583144245,
+      "initial_target_bearing_relative_radians": 2.2862357420343593,
+      "category": "open_control",
+      "index": 19
+    },
+    {
+      "outcome": "killed",
+      "ticks": 10,
+      "total_kills": 1,
+      "kill_ticks": [
+        9
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 9,
+      "target_drift_segments_cells": [
+        0.20648697170083405
+      ],
+      "initial_heading_radians": -2.0203901281311336,
+      "initial_target_bearing_relative_radians": 2.5583160695821223,
+      "category": "awkward_heading",
+      "index": 0
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.17999999999999738
+      ],
+      "initial_heading_radians": -2.2200766332074626,
+      "initial_target_bearing_relative_radians": 2.788565971438267,
+      "category": "awkward_heading",
+      "index": 1
+    },
+    {
+      "outcome": "killed",
+      "ticks": 9,
+      "total_kills": 1,
+      "kill_ticks": [
+        8
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 8,
+      "target_drift_segments_cells": [
+        0.23851011168004554
+      ],
+      "initial_heading_radians": 3.0818458007028955,
+      "initial_target_bearing_relative_radians": -3.08443113102572,
+      "category": "awkward_heading",
+      "index": 2
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.17999999999999516
+      ],
+      "initial_heading_radians": -2.488078153436586,
+      "initial_target_bearing_relative_radians": 2.2410375675119547,
+      "category": "awkward_heading",
+      "index": 3
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.18000000000000518
+      ],
+      "initial_heading_radians": 2.526401407334478,
+      "initial_target_bearing_relative_radians": -2.562764438318732,
+      "category": "awkward_heading",
+      "index": 4
+    },
+    {
+      "outcome": "killed",
+      "ticks": 5,
+      "total_kills": 1,
+      "kill_ticks": [
+        4
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.11999999999999952
+      ],
+      "initial_heading_radians": 2.609488760191411,
+      "initial_target_bearing_relative_radians": -2.2460656607646956,
+      "category": "awkward_heading",
+      "index": 5
+    },
+    {
+      "outcome": "killed",
+      "ticks": 10,
+      "total_kills": 1,
+      "kill_ticks": [
+        9
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 9,
+      "target_drift_segments_cells": [
+        0.26999999999999735
+      ],
+      "initial_heading_radians": -2.542813879142912,
+      "initial_target_bearing_relative_radians": 2.6191475917162883,
+      "category": "awkward_heading",
+      "index": 6
+    },
+    {
+      "outcome": "killed",
+      "ticks": 8,
+      "total_kills": 1,
+      "kill_ticks": [
+        7
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.21000000000000796
+      ],
+      "initial_heading_radians": -2.0063340016736677,
+      "initial_target_bearing_relative_radians": 2.1484510407858055,
+      "category": "awkward_heading",
+      "index": 7
+    },
+    {
+      "outcome": "killed",
+      "ticks": 9,
+      "total_kills": 1,
+      "kill_ticks": [
+        8
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 8,
+      "target_drift_segments_cells": [
+        0.24000000000000618
+      ],
+      "initial_heading_radians": 2.521757751286953,
+      "initial_target_bearing_relative_radians": -2.6509487596445775,
+      "category": "awkward_heading",
+      "index": 8
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.17999999999999838
+      ],
+      "initial_heading_radians": 2.5416260526237076,
+      "initial_target_bearing_relative_radians": -2.201121319673264,
+      "category": "awkward_heading",
+      "index": 9
+    },
+    {
+      "outcome": "killed",
+      "ticks": 6,
+      "total_kills": 1,
+      "kill_ticks": [
+        5
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.1499999999999976
+      ],
+      "initial_heading_radians": -3.229296384857088,
+      "initial_target_bearing_relative_radians": 2.939683691441508,
+      "category": "awkward_heading",
+      "index": 10
+    },
+    {
+      "outcome": "killed",
+      "ticks": 6,
+      "total_kills": 1,
+      "kill_ticks": [
+        5
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.15000000000000277
+      ],
+      "initial_heading_radians": 2.172213509138615,
+      "initial_target_bearing_relative_radians": -2.5314364855881406,
+      "category": "awkward_heading",
+      "index": 11
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.1800000000000033
+      ],
+      "initial_heading_radians": -2.8678326170808726,
+      "initial_target_bearing_relative_radians": 2.7754053123434117,
+      "category": "awkward_heading",
+      "index": 12
+    },
+    {
+      "outcome": "killed",
+      "ticks": 9,
+      "total_kills": 1,
+      "kill_ticks": [
+        8
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 8,
+      "target_drift_segments_cells": [
+        0.2393120345273284
+      ],
+      "initial_heading_radians": -1.9048522110104233,
+      "initial_target_bearing_relative_radians": 2.4611070996070814,
+      "category": "awkward_heading",
+      "index": 13
+    },
+    {
+      "outcome": "killed",
+      "ticks": 9,
+      "total_kills": 1,
+      "kill_ticks": [
+        8
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 8,
+      "target_drift_segments_cells": [
+        0.24000000000000632
+      ],
+      "initial_heading_radians": -1.6503539858528997,
+      "initial_target_bearing_relative_radians": 2.188061666558606,
+      "category": "awkward_heading",
+      "index": 14
+    },
+    {
+      "outcome": "killed",
+      "ticks": 9,
+      "total_kills": 1,
+      "kill_ticks": [
+        8
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 8,
+      "target_drift_segments_cells": [
+        0.2400000000000068
+      ],
+      "initial_heading_radians": -2.637299319615415,
+      "initial_target_bearing_relative_radians": 2.350744369287239,
+      "category": "awkward_heading",
+      "index": 15
+    },
+    {
+      "outcome": "killed",
+      "ticks": 8,
+      "total_kills": 1,
+      "kill_ticks": [
+        7
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.2045297171410842
+      ],
+      "initial_heading_radians": 2.427303371889589,
+      "initial_target_bearing_relative_radians": -2.241759095720624,
+      "category": "awkward_heading",
+      "index": 16
+    },
+    {
+      "outcome": "killed",
+      "ticks": 10,
+      "total_kills": 1,
+      "kill_ticks": [
+        9
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 9,
+      "target_drift_segments_cells": [
+        0.26999999999999896
+      ],
+      "initial_heading_radians": 3.3085845302962555,
+      "initial_target_bearing_relative_radians": -2.81470361970272,
+      "category": "awkward_heading",
+      "index": 17
+    },
+    {
+      "outcome": "killed",
+      "ticks": 8,
+      "total_kills": 1,
+      "kill_ticks": [
+        7
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.2100000000000113
+      ],
+      "initial_heading_radians": -2.339781839905259,
+      "initial_target_bearing_relative_radians": 2.11777259037009,
+      "category": "awkward_heading",
+      "index": 18
+    },
+    {
+      "outcome": "killed",
+      "ticks": 11,
+      "total_kills": 1,
+      "kill_ticks": [
+        10
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 10,
+      "target_drift_segments_cells": [
+        0.28006712872184397
+      ],
+      "initial_heading_radians": -2.797621865454128,
+      "initial_target_bearing_relative_radians": 3.093453403133072,
+      "category": "awkward_heading",
+      "index": 19
+    },
+    {
+      "outcome": "killed",
+      "ticks": 8,
+      "total_kills": 1,
+      "kill_ticks": [
+        7
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.2099999999999979
+      ],
+      "initial_heading_radians": -1.4396360276136997,
+      "initial_target_bearing_relative_radians": 1.4724376888495354,
+      "category": "obstacle_approach",
+      "index": 0
+    },
+    {
+      "outcome": "killed",
+      "ticks": 8,
+      "total_kills": 1,
+      "kill_ticks": [
+        7
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.21000000000000496
+      ],
+      "initial_heading_radians": 3.02268542828351,
+      "initial_target_bearing_relative_radians": 2.9967305337082197,
+      "category": "obstacle_approach",
+      "index": 1
+    },
+    {
+      "outcome": "killed",
+      "ticks": 9,
+      "total_kills": 1,
+      "kill_ticks": [
+        8
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 8,
+      "target_drift_segments_cells": [
+        0.24000000000001084
+      ],
+      "initial_heading_radians": -1.0580604800104458,
+      "initial_target_bearing_relative_radians": 0.48749759012762856,
+      "category": "obstacle_approach",
+      "index": 2
+    },
+    {
+      "outcome": "collision",
+      "ticks": 6,
+      "total_kills": 0,
+      "kill_ticks": [],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [
+        5
+      ],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 0,
+      "eva_valid_casts": 0,
+      "ticks_to_first_range": null,
+      "target_drift_segments_cells": [],
+      "initial_heading_radians": -3.0954670453013775,
+      "initial_target_bearing_relative_radians": 3.0778954260925464,
+      "category": "obstacle_approach",
+      "index": 3
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.18000000000000382
+      ],
+      "initial_heading_radians": -2.811184616254062,
+      "initial_target_bearing_relative_radians": -3.1172312715227535,
+      "category": "obstacle_approach",
+      "index": 4
+    },
+    {
+      "outcome": "killed",
+      "ticks": 15,
+      "total_kills": 1,
+      "kill_ticks": [
+        14
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 14,
+      "target_drift_segments_cells": [
+        0.4199999999999918
+      ],
+      "initial_heading_radians": -0.7139272579407958,
+      "initial_target_bearing_relative_radians": -0.16794468063923942,
+      "category": "obstacle_approach",
+      "index": 5
+    },
+    {
+      "outcome": "killed",
+      "ticks": 9,
+      "total_kills": 1,
+      "kill_ticks": [
+        8
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 8,
+      "target_drift_segments_cells": [
+        0.23339432753635925
+      ],
+      "initial_heading_radians": -1.2937129164083365,
+      "initial_target_bearing_relative_radians": 1.2691044369956164,
+      "category": "obstacle_approach",
+      "index": 6
+    },
+    {
+      "outcome": "killed",
+      "ticks": 6,
+      "total_kills": 1,
+      "kill_ticks": [
+        5
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.1499999999999978
+      ],
+      "initial_heading_radians": 1.356623715106755,
+      "initial_target_bearing_relative_radians": -0.7524519925480357,
+      "category": "obstacle_approach",
+      "index": 7
+    },
+    {
+      "outcome": "killed",
+      "ticks": 8,
+      "total_kills": 1,
+      "kill_ticks": [
+        7
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.21000000000000205
+      ],
+      "initial_heading_radians": -2.0977284264185236,
+      "initial_target_bearing_relative_radians": 2.3642497713697677,
+      "category": "obstacle_approach",
+      "index": 8
+    },
+    {
+      "outcome": "killed",
+      "ticks": 13,
+      "total_kills": 1,
+      "kill_ticks": [
+        12
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 12,
+      "target_drift_segments_cells": [
+        0.3599999999999869
+      ],
+      "initial_heading_radians": 0.45568192073149794,
+      "initial_target_bearing_relative_radians": -0.9817247358868788,
+      "category": "obstacle_approach",
+      "index": 9
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.18000000000000385
+      ],
+      "initial_heading_radians": 2.745046889258835,
+      "initial_target_bearing_relative_radians": -2.4515843777736293,
+      "category": "obstacle_approach",
+      "index": 10
+    },
+    {
+      "outcome": "killed",
+      "ticks": 6,
+      "total_kills": 1,
+      "kill_ticks": [
+        5
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.14853770965029678
+      ],
+      "initial_heading_radians": 2.0880476521736506,
+      "initial_target_bearing_relative_radians": -1.621367467486612,
+      "category": "obstacle_approach",
+      "index": 11
+    },
+    {
+      "outcome": "killed",
+      "ticks": 7,
+      "total_kills": 1,
+      "kill_ticks": [
+        6
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.1800000000000046
+      ],
+      "initial_heading_radians": 0.08095495208013714,
+      "initial_target_bearing_relative_radians": -0.5093094951386908,
+      "category": "obstacle_approach",
+      "index": 12
+    },
+    {
+      "outcome": "killed",
+      "ticks": 8,
+      "total_kills": 1,
+      "kill_ticks": [
+        7
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.20999999999999386
+      ],
+      "initial_heading_radians": 0.1270392160210294,
+      "initial_target_bearing_relative_radians": 0.17467950602241034,
+      "category": "obstacle_approach",
+      "index": 13
+    },
+    {
+      "outcome": "killed",
+      "ticks": 6,
+      "total_kills": 1,
+      "kill_ticks": [
+        5
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.12021743089523737
+      ],
+      "initial_heading_radians": -0.9710393582413266,
+      "initial_target_bearing_relative_radians": 0.4725619567784507,
+      "category": "obstacle_approach",
+      "index": 14
+    },
+    {
+      "outcome": "killed",
+      "ticks": 6,
+      "total_kills": 1,
+      "kill_ticks": [
+        5
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.14999999999999786
+      ],
+      "initial_heading_radians": 1.3786600693798396,
+      "initial_target_bearing_relative_radians": -1.5711858336091862,
+      "category": "obstacle_approach",
+      "index": 15
+    },
+    {
+      "outcome": "killed",
+      "ticks": 6,
+      "total_kills": 1,
+      "kill_ticks": [
+        5
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.14999999999999736
+      ],
+      "initial_heading_radians": 0.22434711377884842,
+      "initial_target_bearing_relative_radians": -0.28334976017127395,
+      "category": "obstacle_approach",
+      "index": 16
+    },
+    {
+      "outcome": "killed",
+      "ticks": 5,
+      "total_kills": 1,
+      "kill_ticks": [
+        4
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.11999999999999894
+      ],
+      "initial_heading_radians": -0.05907405362387852,
+      "initial_target_bearing_relative_radians": 0.551390683725082,
+      "category": "obstacle_approach",
+      "index": 17
+    },
+    {
+      "outcome": "killed",
+      "ticks": 5,
+      "total_kills": 1,
+      "kill_ticks": [
+        4
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.11999999999999915
+      ],
+      "initial_heading_radians": -1.5197586392740954,
+      "initial_target_bearing_relative_radians": 1.8248730230772015,
+      "category": "obstacle_approach",
+      "index": 18
+    },
+    {
+      "outcome": "killed",
+      "ticks": 8,
+      "total_kills": 1,
+      "kill_ticks": [
+        7
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.21000000000000246
+      ],
+      "initial_heading_radians": 1.1272084693539925,
+      "initial_target_bearing_relative_radians": -1.7299125432570284,
+      "category": "obstacle_approach",
+      "index": 19
+    },
+    {
+      "outcome": "killed",
+      "ticks": 16,
+      "total_kills": 1,
+      "kill_ticks": [
+        15
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 15,
+      "target_drift_segments_cells": [
+        0.44841492335579436
+      ],
+      "initial_heading_radians": 2.5926217899775885,
+      "initial_target_bearing_relative_radians": -3.017570572163253,
+      "category": "long_route",
+      "index": 0
+    },
+    {
+      "outcome": "killed",
+      "ticks": 12,
+      "total_kills": 1,
+      "kill_ticks": [
+        11
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 11,
+      "target_drift_segments_cells": [
+        0.3298544656931549
+      ],
+      "initial_heading_radians": -1.4676156510628422,
+      "initial_target_bearing_relative_radians": 2.052030278327596,
+      "category": "long_route",
+      "index": 1
+    },
+    {
+      "outcome": "killed",
+      "ticks": 17,
+      "total_kills": 1,
+      "kill_ticks": [
+        16
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 16,
+      "target_drift_segments_cells": [
+        0.4310524906583664
+      ],
+      "initial_heading_radians": 2.8820027693221766,
+      "initial_target_bearing_relative_radians": -3.135644266772368,
+      "category": "long_route",
+      "index": 2
+    },
+    {
+      "outcome": "killed",
+      "ticks": 12,
+      "total_kills": 1,
+      "kill_ticks": [
+        11
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 11,
+      "target_drift_segments_cells": [
+        0.33000000000000934
+      ],
+      "initial_heading_radians": 0.8526552070219804,
+      "initial_target_bearing_relative_radians": -0.24356215735063524,
+      "category": "long_route",
+      "index": 3
+    },
+    {
+      "outcome": "killed",
+      "ticks": 15,
+      "total_kills": 1,
+      "kill_ticks": [
+        14
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 14,
+      "target_drift_segments_cells": [
+        0.3707213051496158
+      ],
+      "initial_heading_radians": -2.5639772070939486,
+      "initial_target_bearing_relative_radians": 2.670908843596934,
+      "category": "long_route",
+      "index": 4
+    },
+    {
+      "outcome": "killed",
+      "ticks": 14,
+      "total_kills": 1,
+      "kill_ticks": [
+        13
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 13,
+      "target_drift_segments_cells": [
+        0.3900000000000188
+      ],
+      "initial_heading_radians": 1.6598248592382419,
+      "initial_target_bearing_relative_radians": -1.6276224979950404,
+      "category": "long_route",
+      "index": 5
+    },
+    {
+      "outcome": "killed",
+      "ticks": 14,
+      "total_kills": 1,
+      "kill_ticks": [
+        13
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 13,
+      "target_drift_segments_cells": [
+        0.3899999999999965
+      ],
+      "initial_heading_radians": 1.5696540990543664,
+      "initial_target_bearing_relative_radians": -1.819922549536755,
+      "category": "long_route",
+      "index": 6
+    },
+    {
+      "outcome": "killed",
+      "ticks": 11,
+      "total_kills": 1,
+      "kill_ticks": [
+        10
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 10,
+      "target_drift_segments_cells": [
+        0.30000000000000077
+      ],
+      "initial_heading_radians": 1.2187254740076838,
+      "initial_target_bearing_relative_radians": -0.6156578196402317,
+      "category": "long_route",
+      "index": 7
+    },
+    {
+      "outcome": "killed",
+      "ticks": 12,
+      "total_kills": 1,
+      "kill_ticks": [
+        11
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 11,
+      "target_drift_segments_cells": [
+        0.32999999999997925
+      ],
+      "initial_heading_radians": 1.617751563700212,
+      "initial_target_bearing_relative_radians": -1.1087876520504398,
+      "category": "long_route",
+      "index": 8
+    },
+    {
+      "outcome": "killed",
+      "ticks": 12,
+      "total_kills": 1,
+      "kill_ticks": [
+        11
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 11,
+      "target_drift_segments_cells": [
+        0.3113156234923393
+      ],
+      "initial_heading_radians": -2.5892246733639617,
+      "initial_target_bearing_relative_radians": 2.0203172519906234,
+      "category": "long_route",
+      "index": 9
+    },
+    {
+      "outcome": "killed",
+      "ticks": 13,
+      "total_kills": 1,
+      "kill_ticks": [
+        12
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 12,
+      "target_drift_segments_cells": [
+        0.35065041346328946
+      ],
+      "initial_heading_radians": 2.880011337798253,
+      "initial_target_bearing_relative_radians": -2.3336736019506037,
+      "category": "long_route",
+      "index": 10
+    },
+    {
+      "outcome": "killed",
+      "ticks": 13,
+      "total_kills": 1,
+      "kill_ticks": [
+        12
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 12,
+      "target_drift_segments_cells": [
+        0.3600000000000081
+      ],
+      "initial_heading_radians": 1.4987467477341925,
+      "initial_target_bearing_relative_radians": -1.834849086428013,
+      "category": "long_route",
+      "index": 11
+    },
+    {
+      "outcome": "killed",
+      "ticks": 14,
+      "total_kills": 1,
+      "kill_ticks": [
+        13
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 13,
+      "target_drift_segments_cells": [
+        0.38957011288182053
+      ],
+      "initial_heading_radians": -2.1928482913855873,
+      "initial_target_bearing_relative_radians": 2.4875699699306706,
+      "category": "long_route",
+      "index": 12
+    },
+    {
+      "outcome": "killed",
+      "ticks": 12,
+      "total_kills": 1,
+      "kill_ticks": [
+        11
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 11,
+      "target_drift_segments_cells": [
+        0.3207561018228512
+      ],
+      "initial_heading_radians": -2.1890549359190277,
+      "initial_target_bearing_relative_radians": 1.836800127414269,
+      "category": "long_route",
+      "index": 13
+    },
+    {
+      "outcome": "killed",
+      "ticks": 14,
+      "total_kills": 1,
+      "kill_ticks": [
+        13
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 13,
+      "target_drift_segments_cells": [
+        0.38192326449755776
+      ],
+      "initial_heading_radians": 1.278472597439671,
+      "initial_target_bearing_relative_radians": -1.8659187494469562,
+      "category": "long_route",
+      "index": 14
+    },
+    {
+      "outcome": "killed",
+      "ticks": 15,
+      "total_kills": 1,
+      "kill_ticks": [
+        14
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 14,
+      "target_drift_segments_cells": [
+        0.38200947912090943
+      ],
+      "initial_heading_radians": -3.046704906249362,
+      "initial_target_bearing_relative_radians": -2.9796138685814477,
+      "category": "long_route",
+      "index": 15
+    },
+    {
+      "outcome": "killed",
+      "ticks": 13,
+      "total_kills": 1,
+      "kill_ticks": [
+        12
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 12,
+      "target_drift_segments_cells": [
+        0.3599999999999907
+      ],
+      "initial_heading_radians": 0.13942696055909076,
+      "initial_target_bearing_relative_radians": -0.21759286860695323,
+      "category": "long_route",
+      "index": 16
+    },
+    {
+      "outcome": "killed",
+      "ticks": 14,
+      "total_kills": 1,
+      "kill_ticks": [
+        13
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 13,
+      "target_drift_segments_cells": [
+        0.3899999999999895
+      ],
+      "initial_heading_radians": -1.878080378345247,
+      "initial_target_bearing_relative_radians": 2.1247067516726705,
+      "category": "long_route",
+      "index": 17
+    },
+    {
+      "outcome": "killed",
+      "ticks": 12,
+      "total_kills": 1,
+      "kill_ticks": [
+        11
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 11,
+      "target_drift_segments_cells": [
+        0.32990771496511906
+      ],
+      "initial_heading_radians": 0.4539887217121752,
+      "initial_target_bearing_relative_radians": 0.009488089121331644,
+      "category": "long_route",
+      "index": 18
+    },
+    {
+      "outcome": "killed",
+      "ticks": 13,
+      "total_kills": 1,
+      "kill_ticks": [
+        12
+      ],
+      "target_switches": 0,
+      "replans": 0,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [],
+      "eva_cast_attempts": 1,
+      "eva_valid_casts": 1,
+      "ticks_to_first_range": 12,
+      "target_drift_segments_cells": [
+        0.360000000000014
+      ],
+      "initial_heading_radians": -0.5808745681641945,
+      "initial_target_bearing_relative_radians": 0.23067480789427208,
+      "category": "long_route",
+      "index": 19
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 25,
+      "total_kills": 3,
+      "kill_ticks": [
+        5,
+        12,
+        24
+      ],
+      "target_switches": 3,
+      "replans": 3,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 1,
+          "old_target_id": 2,
+          "new_target_id": 5,
+          "reason": "live_hysteresis_switch"
+        },
+        {
+          "tick": 5,
+          "old_target_id": 5,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 12,
+          "old_target_id": 2,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.05999999999999952,
+        0.09000000000000061,
+        0.17848520969832646,
+        0.3300000000000032
+      ],
+      "initial_heading_radians": -1.0810754734243497,
+      "initial_target_bearing_relative_radians": 2.511525952359076,
+      "category": "competing_targets",
+      "index": 0
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 24,
+      "total_kills": 3,
+      "kill_ticks": [
+        6,
+        13,
+        23
+      ],
+      "target_switches": 3,
+      "replans": 3,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 1,
+          "old_target_id": 1,
+          "new_target_id": 4,
+          "reason": "live_hysteresis_switch"
+        },
+        {
+          "tick": 6,
+          "old_target_id": 4,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 13,
+          "old_target_id": 1,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.05999999999999976,
+        0.11999999999999714,
+        0.1690547182785853,
+        0.23328772945864748
+      ],
+      "initial_heading_radians": 1.9791869904717245,
+      "initial_target_bearing_relative_radians": 2.7795909347452032,
+      "category": "competing_targets",
+      "index": 1
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 22,
+      "total_kills": 3,
+      "kill_ticks": [
+        2,
+        9,
+        21
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 2,
+          "old_target_id": 3,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 9,
+          "old_target_id": 1,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 2,
+      "target_drift_segments_cells": [
+        0.059999999999998464,
+        0.179999999999997,
+        0.3086739619361738
+      ],
+      "initial_heading_radians": 0.426828741392387,
+      "initial_target_bearing_relative_radians": 0.09649909669856505,
+      "category": "competing_targets",
+      "index": 2
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 21,
+      "total_kills": 3,
+      "kill_ticks": [
+        2,
+        9,
+        20
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 2,
+          "old_target_id": 4,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 9,
+          "old_target_id": 1,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 2,
+      "target_drift_segments_cells": [
+        0.05999999999999905,
+        0.18000000000000063,
+        0.29999999999999355
+      ],
+      "initial_heading_radians": -0.9377781071954439,
+      "initial_target_bearing_relative_radians": 0.8199666271615427,
+      "category": "competing_targets",
+      "index": 3
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 20,
+      "total_kills": 3,
+      "kill_ticks": [
+        5,
+        12,
+        19
+      ],
+      "target_switches": 3,
+      "replans": 3,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 1,
+          "old_target_id": 4,
+          "new_target_id": 1,
+          "reason": "live_hysteresis_switch"
+        },
+        {
+          "tick": 5,
+          "old_target_id": 1,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 12,
+          "old_target_id": 4,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.060000000000001386,
+        0.09000000000000051,
+        0.18000000000000413,
+        0.17199165732242538
+      ],
+      "initial_heading_radians": 2.9458114383868477,
+      "initial_target_bearing_relative_radians": 3.0904856178279854,
+      "category": "competing_targets",
+      "index": 4
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 15,
+      "total_kills": 3,
+      "kill_ticks": [
+        7,
+        14
+      ],
+      "target_switches": 1,
+      "replans": 1,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 7,
+          "old_target_id": 4,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 2,
+      "eva_valid_casts": 2,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.20684275330137783,
+        0.17647193295948918
+      ],
+      "initial_heading_radians": 2.515872623863417,
+      "initial_target_bearing_relative_radians": -2.1682334956671045,
+      "category": "competing_targets",
+      "index": 5
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 18,
+      "total_kills": 3,
+      "kill_ticks": [
+        3,
+        10,
+        17
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 3,
+          "old_target_id": 1,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 10,
+          "old_target_id": 4,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.09000000000000008,
+        0.18000000000000047,
+        0.17999999999999836
+      ],
+      "initial_heading_radians": 0.2594886820590103,
+      "initial_target_bearing_relative_radians": -0.029425420938921504,
+      "category": "competing_targets",
+      "index": 6
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 14,
+      "total_kills": 3,
+      "kill_ticks": [
+        3,
+        13
+      ],
+      "target_switches": 1,
+      "replans": 1,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 3,
+          "old_target_id": 5,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 2,
+      "eva_valid_casts": 2,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.08999999999999769,
+        0.2632498933985578
+      ],
+      "initial_heading_radians": 0.40412374419761443,
+      "initial_target_bearing_relative_radians": -1.365835139502288,
+      "category": "competing_targets",
+      "index": 7
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 22,
+      "total_kills": 3,
+      "kill_ticks": [
+        3,
+        10,
+        21
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 3,
+          "old_target_id": 3,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 10,
+          "old_target_id": 2,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.08999999999999997,
+        0.1799999999999992,
+        0.2985595092436872
+      ],
+      "initial_heading_radians": 1.5524181381437767,
+      "initial_target_bearing_relative_radians": 0.007272798179188911,
+      "category": "competing_targets",
+      "index": 8
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 21,
+      "total_kills": 3,
+      "kill_ticks": [
+        6,
+        13,
+        20
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 6,
+          "old_target_id": 3,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 13,
+          "old_target_id": 2,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.17999999999999688,
+        0.17739336299724093,
+        0.18000000000000496
+      ],
+      "initial_heading_radians": -2.302131046263509,
+      "initial_target_bearing_relative_radians": 1.9776973121258752,
+      "category": "competing_targets",
+      "index": 9
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 31,
+      "total_kills": 3,
+      "kill_ticks": [
+        6,
+        13,
+        30
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 6,
+          "old_target_id": 3,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 13,
+          "old_target_id": 2,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.17813575874566842,
+        0.179999999999997,
+        0.47307870637297483
+      ],
+      "initial_heading_radians": -0.7771012535510158,
+      "initial_target_bearing_relative_radians": 2.6257274043168826,
+      "category": "competing_targets",
+      "index": 10
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 21,
+      "total_kills": 3,
+      "kill_ticks": [
+        4,
+        11,
+        20
+      ],
+      "target_switches": 3,
+      "replans": 3,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 2,
+          "old_target_id": 3,
+          "new_target_id": 1,
+          "reason": "live_hysteresis_switch"
+        },
+        {
+          "tick": 4,
+          "old_target_id": 1,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 11,
+          "old_target_id": 3,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.08999999999999918,
+        0.03000000000000008,
+        0.17820915778553936,
+        0.24000000000000332
+      ],
+      "initial_heading_radians": 2.7842164781071492,
+      "initial_target_bearing_relative_radians": 2.7043653879182794,
+      "category": "competing_targets",
+      "index": 11
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 26,
+      "total_kills": 3,
+      "kill_ticks": [
+        4,
+        11,
+        25
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 4,
+          "old_target_id": 3,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 11,
+          "old_target_id": 2,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.11999999999999934,
+        0.17999999999999966,
+        0.37892945881294665
+      ],
+      "initial_heading_radians": 2.8420990941279882,
+      "initial_target_bearing_relative_radians": -2.523214316184378,
+      "category": "competing_targets",
+      "index": 12
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 11,
+      "total_kills": 3,
+      "kill_ticks": [
+        3,
+        10
+      ],
+      "target_switches": 1,
+      "replans": 1,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 3,
+          "old_target_id": 5,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 2,
+      "eva_valid_casts": 2,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.09000000000000072,
+        0.17999999999999977
+      ],
+      "initial_heading_radians": -1.3167839883991035,
+      "initial_target_bearing_relative_radians": 1.2692220432514714,
+      "category": "competing_targets",
+      "index": 13
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 28,
+      "total_kills": 3,
+      "kill_ticks": [
+        4,
+        11,
+        27
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 4,
+          "old_target_id": 1,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 11,
+          "old_target_id": 2,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.11299460677638021,
+        0.1800000000000044,
+        0.4500000000000102
+      ],
+      "initial_heading_radians": -0.3016141975874218,
+      "initial_target_bearing_relative_radians": 0.06360672019026012,
+      "category": "competing_targets",
+      "index": 14
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 24,
+      "total_kills": 3,
+      "kill_ticks": [
+        4,
+        11,
+        23
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 4,
+          "old_target_id": 1,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 11,
+          "old_target_id": 2,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.12000000000000047,
+        0.18000000000000216,
+        0.32746142689725954
+      ],
+      "initial_heading_radians": -2.387475071126218,
+      "initial_target_bearing_relative_radians": -2.3145099344321785,
+      "category": "competing_targets",
+      "index": 15
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 32,
+      "total_kills": 3,
+      "kill_ticks": [
+        8,
+        15,
+        31
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 8,
+          "old_target_id": 1,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 15,
+          "old_target_id": 4,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 8,
+      "target_drift_segments_cells": [
+        0.23999999999999677,
+        0.18000000000000407,
+        0.4500000000000004
+      ],
+      "initial_heading_radians": -2.8617062241195623,
+      "initial_target_bearing_relative_radians": 2.8955416322376264,
+      "category": "competing_targets",
+      "index": 16
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 25,
+      "total_kills": 3,
+      "kill_ticks": [
+        7,
+        14,
+        24
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 7,
+          "old_target_id": 2,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 14,
+          "old_target_id": 3,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.2099999999999966,
+        0.17598567673331045,
+        0.2483787925714555
+      ],
+      "initial_heading_radians": -2.152368376156128,
+      "initial_target_bearing_relative_radians": -3.0181702494554776,
+      "category": "competing_targets",
+      "index": 17
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 22,
+      "total_kills": 3,
+      "kill_ticks": [
+        2,
+        9,
+        21
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 2,
+          "old_target_id": 4,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 9,
+          "old_target_id": 2,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 2,
+      "target_drift_segments_cells": [
+        0.059999999999998894,
+        0.17857611696814624,
+        0.32565023686458117
+      ],
+      "initial_heading_radians": -0.28277245125376993,
+      "initial_target_bearing_relative_radians": 0.42009400950299747,
+      "category": "competing_targets",
+      "index": 18
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 21,
+      "total_kills": 3,
+      "kill_ticks": [
+        3,
+        10,
+        20
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 3,
+          "old_target_id": 3,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 10,
+          "old_target_id": 1,
+          "new_target_id": 5,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.08999999999999997,
+        0.17999999999999622,
+        0.26999999999999774
+      ],
+      "initial_heading_radians": 2.59857791370795,
+      "initial_target_bearing_relative_radians": -1.6811267789861022,
+      "category": "competing_targets",
+      "index": 19
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 13,
+      "total_kills": 3,
+      "kill_ticks": [
+        4,
+        12
+      ],
+      "target_switches": 1,
+      "replans": 1,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 4,
+          "old_target_id": 1,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 2,
+      "eva_valid_casts": 2,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.1200000000000001,
+        0.20996553489024775
+      ],
+      "initial_heading_radians": 1.1571157236938774,
+      "initial_target_bearing_relative_radians": -2.004570708348005,
+      "category": "multi_kill_farming",
+      "index": 0
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 20,
+      "total_kills": 3,
+      "kill_ticks": [
+        5,
+        12,
+        19
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 5,
+          "old_target_id": 1,
+          "new_target_id": 5,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 12,
+          "old_target_id": 5,
+          "new_target_id": 6,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.149999999999997,
+        0.18000000000000227,
+        0.1800000000000067
+      ],
+      "initial_heading_radians": -2.4549011464649575,
+      "initial_target_bearing_relative_radians": -1.491645141872761,
+      "category": "multi_kill_farming",
+      "index": 1
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 14,
+      "total_kills": 3,
+      "kill_ticks": [
+        6,
+        13
+      ],
+      "target_switches": 1,
+      "replans": 1,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 6,
+          "old_target_id": 3,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 2,
+      "eva_valid_casts": 2,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.17723613438467575,
+        0.17999999999999788
+      ],
+      "initial_heading_radians": 1.0734186309262865,
+      "initial_target_bearing_relative_radians": -3.058021957582989,
+      "category": "multi_kill_farming",
+      "index": 2
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 26,
+      "total_kills": 3,
+      "kill_ticks": [
+        6,
+        13,
+        25
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 6,
+          "old_target_id": 3,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 13,
+          "old_target_id": 2,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 6,
+      "target_drift_segments_cells": [
+        0.1799999999999996,
+        0.1668095660266042,
+        0.3035436849023933
+      ],
+      "initial_heading_radians": -2.7439263297979606,
+      "initial_target_bearing_relative_radians": -2.6345088140516237,
+      "category": "multi_kill_farming",
+      "index": 3
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 17,
+      "total_kills": 3,
+      "kill_ticks": [
+        7,
+        16
+      ],
+      "target_switches": 1,
+      "replans": 1,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 7,
+          "old_target_id": 2,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 2,
+      "eva_valid_casts": 2,
+      "ticks_to_first_range": 7,
+      "target_drift_segments_cells": [
+        0.2053307511971434,
+        0.23964928432387225
+      ],
+      "initial_heading_radians": 2.1163545885791804,
+      "initial_target_bearing_relative_radians": -2.535345068188474,
+      "category": "multi_kill_farming",
+      "index": 4
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 17,
+      "total_kills": 3,
+      "kill_ticks": [
+        1,
+        9,
+        16
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 1,
+          "old_target_id": 4,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 9,
+          "old_target_id": 1,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 1,
+      "target_drift_segments_cells": [
+        0.02999999999999969,
+        0.21000000000000524,
+        0.16394275816819925
+      ],
+      "initial_heading_radians": -2.737790970632344,
+      "initial_target_bearing_relative_radians": -0.7410777290940038,
+      "category": "multi_kill_farming",
+      "index": 5
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 22,
+      "total_kills": 3,
+      "kill_ticks": [
+        4,
+        11,
+        21
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 4,
+          "old_target_id": 5,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 11,
+          "old_target_id": 3,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.12000000000000019,
+        0.18000000000000094,
+        0.2666733367272571
+      ],
+      "initial_heading_radians": -1.81552276315279,
+      "initial_target_bearing_relative_radians": -2.5156457814851816,
+      "category": "multi_kill_farming",
+      "index": 6
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 12,
+      "total_kills": 3,
+      "kill_ticks": [
+        4,
+        11
+      ],
+      "target_switches": 1,
+      "replans": 1,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 4,
+          "old_target_id": 3,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 2,
+      "eva_valid_casts": 2,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.11999999999999751,
+        0.1800000000000106
+      ],
+      "initial_heading_radians": 1.8178891310712864,
+      "initial_target_bearing_relative_radians": -1.5305182005276663,
+      "category": "multi_kill_farming",
+      "index": 7
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 24,
+      "total_kills": 3,
+      "kill_ticks": [
+        2,
+        9,
+        23
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 2,
+          "old_target_id": 2,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 9,
+          "old_target_id": 4,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 2,
+      "target_drift_segments_cells": [
+        0.059999999999999484,
+        0.17999999999999905,
+        0.38999999999999246
+      ],
+      "initial_heading_radians": 0.46339537185230295,
+      "initial_target_bearing_relative_radians": 0.6888305227308056,
+      "category": "multi_kill_farming",
+      "index": 8
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 17,
+      "total_kills": 3,
+      "kill_ticks": [
+        1,
+        9,
+        16
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 1,
+          "old_target_id": 1,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 9,
+          "old_target_id": 4,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 1,
+      "target_drift_segments_cells": [
+        0.03000000000000028,
+        0.2099268508557644,
+        0.1799999999999924
+      ],
+      "initial_heading_radians": 2.96696798241571,
+      "initial_target_bearing_relative_radians": -0.21319407215990796,
+      "category": "multi_kill_farming",
+      "index": 9
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 18,
+      "total_kills": 3,
+      "kill_ticks": [
+        3,
+        10,
+        17
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 3,
+          "old_target_id": 2,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 10,
+          "old_target_id": 1,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.08814539712690905,
+        0.15309045815959826,
+        0.17957482387614704
+      ],
+      "initial_heading_radians": 1.4268432962040976,
+      "initial_target_bearing_relative_radians": -1.9989587794057635,
+      "category": "multi_kill_farming",
+      "index": 10
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 13,
+      "total_kills": 3,
+      "kill_ticks": [
+        3,
+        12
+      ],
+      "target_switches": 1,
+      "replans": 1,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 3,
+          "old_target_id": 3,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 2,
+      "eva_valid_casts": 2,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.09000000000000266,
+        0.23999999999999555
+      ],
+      "initial_heading_radians": -1.856610047622146,
+      "initial_target_bearing_relative_radians": -1.5079817608293802,
+      "category": "multi_kill_farming",
+      "index": 11
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 25,
+      "total_kills": 3,
+      "kill_ticks": [
+        5,
+        17,
+        24
+      ],
+      "target_switches": 3,
+      "replans": 3,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 1,
+          "old_target_id": 4,
+          "new_target_id": 2,
+          "reason": "live_hysteresis_switch"
+        },
+        {
+          "tick": 5,
+          "old_target_id": 2,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 17,
+          "old_target_id": 4,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 5,
+      "target_drift_segments_cells": [
+        0.05999999999999872,
+        0.08999999999999897,
+        0.32794323468122144,
+        0.1800000000000057
+      ],
+      "initial_heading_radians": 0.40943542293422386,
+      "initial_target_bearing_relative_radians": 2.6908581498645843,
+      "category": "multi_kill_farming",
+      "index": 12
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 18,
+      "total_kills": 3,
+      "kill_ticks": [
+        3,
+        10,
+        17
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 3,
+          "old_target_id": 4,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 10,
+          "old_target_id": 2,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.089999999999999,
+        0.1800000000000053,
+        0.17971826970806853
+      ],
+      "initial_heading_radians": 1.3558043706407066,
+      "initial_target_bearing_relative_radians": 0.2332246003038527,
+      "category": "multi_kill_farming",
+      "index": 13
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 10,
+      "total_kills": 3,
+      "kill_ticks": [
+        2,
+        9
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 2,
+          "old_target_id": 4,
+          "new_target_id": 5,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 8,
+          "old_target_id": 5,
+          "new_target_id": 3,
+          "reason": "live_hysteresis_switch"
+        }
+      ],
+      "eva_cast_attempts": 2,
+      "eva_valid_casts": 2,
+      "ticks_to_first_range": 2,
+      "target_drift_segments_cells": [
+        0.06000000000000049,
+        0.18000000000000071,
+        0.0
+      ],
+      "initial_heading_radians": 1.5500617477117595,
+      "initial_target_bearing_relative_radians": -1.7777850991879927,
+      "category": "multi_kill_farming",
+      "index": 14
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 24,
+      "total_kills": 3,
+      "kill_ticks": [
+        2,
+        9,
+        23
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 2,
+          "old_target_id": 3,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 9,
+          "old_target_id": 1,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 2,
+      "target_drift_segments_cells": [
+        0.059999999999999616,
+        0.17999999999999913,
+        0.3899999999999959
+      ],
+      "initial_heading_radians": -0.3168328176239097,
+      "initial_target_bearing_relative_radians": -0.08886193819320627,
+      "category": "multi_kill_farming",
+      "index": 15
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 17,
+      "total_kills": 3,
+      "kill_ticks": [
+        2,
+        9,
+        16
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 2,
+          "old_target_id": 6,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 9,
+          "old_target_id": 1,
+          "new_target_id": 4,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 2,
+      "target_drift_segments_cells": [
+        0.0600000000000002,
+        0.1799557085933215,
+        0.17852208940803002
+      ],
+      "initial_heading_radians": -1.7360274798160342,
+      "initial_target_bearing_relative_radians": 1.5269758004769132,
+      "category": "multi_kill_farming",
+      "index": 16
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 21,
+      "total_kills": 3,
+      "kill_ticks": [
+        1,
+        9,
+        20
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 1,
+          "old_target_id": 4,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 9,
+          "old_target_id": 2,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 1,
+      "target_drift_segments_cells": [
+        0.03000000000000006,
+        0.21000000000000033,
+        0.2889448856014773
+      ],
+      "initial_heading_radians": 2.734410225658869,
+      "initial_target_bearing_relative_radians": -0.8746251436353161,
+      "category": "multi_kill_farming",
+      "index": 17
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 25,
+      "total_kills": 3,
+      "kill_ticks": [
+        3,
+        11,
+        24
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 3,
+          "old_target_id": 4,
+          "new_target_id": 1,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 11,
+          "old_target_id": 1,
+          "new_target_id": 3,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 3,
+      "target_drift_segments_cells": [
+        0.08893687744827562,
+        0.20997745907450044,
+        0.35999999999999965
+      ],
+      "initial_heading_radians": 1.6470574624364307,
+      "initial_target_bearing_relative_radians": -0.8557106134385934,
+      "category": "multi_kill_farming",
+      "index": 18
+    },
+    {
+      "outcome": "killed_target_count_reached",
+      "ticks": 29,
+      "total_kills": 3,
+      "kill_ticks": [
+        4,
+        11,
+        28
+      ],
+      "target_switches": 2,
+      "replans": 2,
+      "contact_ticks": [],
+      "stuck_trigger_ticks": [],
+      "target_change_events": [
+        {
+          "tick": 4,
+          "old_target_id": 1,
+          "new_target_id": 5,
+          "reason": "death_driven_retarget"
+        },
+        {
+          "tick": 11,
+          "old_target_id": 5,
+          "new_target_id": 2,
+          "reason": "death_driven_retarget"
+        }
+      ],
+      "eva_cast_attempts": 3,
+      "eva_valid_casts": 3,
+      "ticks_to_first_range": 4,
+      "target_drift_segments_cells": [
+        0.11660210113777973,
+        0.179999999999999,
+        0.4606365598044594
+      ],
+      "initial_heading_radians": -0.2094959476073508,
+      "initial_target_bearing_relative_radians": -1.8794592897309461,
+      "category": "multi_kill_farming",
+      "index": 19
+    }
+  ]
+}

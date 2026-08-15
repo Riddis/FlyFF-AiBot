@@ -1,0 +1,339 @@
+{
+  "A_original_wall_present_extreme_heading": {
+    "outcome": "collision",
+    "ticks": 6,
+    "total_kills": 0,
+    "kill_ticks": [],
+    "target_switches": 0,
+    "replans": 0,
+    "contact_ticks": [
+      5
+    ],
+    "stuck_trigger_ticks": [],
+    "target_change_events": [],
+    "eva_cast_attempts": 0,
+    "eva_valid_casts": 0,
+    "ticks_to_first_range": null,
+    "target_drift_segments_cells": [],
+    "initial_heading_radians": -3.0954670453013775,
+    "initial_target_bearing_relative_radians": 3.0778954260925464,
+    "trace": [
+      {
+        "tick": 0,
+        "pre_pose": [
+          0.0,
+          0.0,
+          -177.36
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "LEFT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 1,
+        "pre_pose": [
+          -3.782,
+          -1.98,
+          -131.92
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "LEFT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 2,
+        "pre_pose": [
+          -4.837,
+          -6.092,
+          -81.87
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "LEFT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 3,
+        "pre_pose": [
+          -2.362,
+          -9.54,
+          -31.81
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "LEFT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 4,
+        "pre_pose": [
+          1.871,
+          -9.857,
+          18.25
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "STRAIGHT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 5,
+        "pre_pose": [
+          6.032,
+          -8.485,
+          18.25
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "LEFT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": true,
+        "target_id": 1,
+        "stuck": false
+      }
+    ]
+  },
+  "B_wall_removed_same_extreme_heading": {
+    "outcome": "killed",
+    "ticks": 7,
+    "total_kills": 1,
+    "kill_ticks": [
+      6
+    ],
+    "target_switches": 0,
+    "replans": 0,
+    "contact_ticks": [],
+    "stuck_trigger_ticks": [],
+    "target_change_events": [],
+    "eva_cast_attempts": 1,
+    "eva_valid_casts": 1,
+    "ticks_to_first_range": 6,
+    "target_drift_segments_cells": [
+      0.14845120373966852
+    ],
+    "initial_heading_radians": -3.0954670453013775,
+    "initial_target_bearing_relative_radians": 3.0778954260925464,
+    "trace": [
+      {
+        "tick": 0,
+        "pre_pose": [
+          0.0,
+          0.0,
+          -177.36
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "LEFT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 1,
+        "pre_pose": [
+          -3.782,
+          -1.98,
+          -131.92
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "LEFT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 2,
+        "pre_pose": [
+          -4.837,
+          -6.092,
+          -81.87
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "LEFT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 3,
+        "pre_pose": [
+          -2.362,
+          -9.54,
+          -31.81
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "LEFT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 4,
+        "pre_pose": [
+          1.871,
+          -9.857,
+          18.25
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "STRAIGHT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 5,
+        "pre_pose": [
+          6.032,
+          -8.485,
+          18.25
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "LEFT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 6,
+        "pre_pose": [
+          9.142,
+          -5.561,
+          63.68
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "RIGHT",
+        "eva_ready": true,
+        "kills_this_tick": 1,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      }
+    ]
+  },
+  "C_wall_present_aligned_heading": {
+    "outcome": "killed",
+    "ticks": 2,
+    "total_kills": 1,
+    "kill_ticks": [
+      1
+    ],
+    "target_switches": 0,
+    "replans": 0,
+    "contact_ticks": [],
+    "stuck_trigger_ticks": [],
+    "target_change_events": [],
+    "eva_cast_attempts": 1,
+    "eva_valid_casts": 1,
+    "ticks_to_first_range": 1,
+    "target_drift_segments_cells": [
+      0.029999999999999645
+    ],
+    "initial_heading_radians": -0.017571619208831213,
+    "initial_target_bearing_relative_radians": 3.469446951953614e-18,
+    "trace": [
+      {
+        "tick": 0,
+        "pre_pose": [
+          0.0,
+          0.0,
+          -1.01
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "STRAIGHT",
+        "eva_ready": false,
+        "kills_this_tick": 0,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      },
+      {
+        "tick": 1,
+        "pre_pose": [
+          4.381,
+          -0.077,
+          -1.01
+        ],
+        "waypoint": [
+          17.131,
+          -0.301
+        ],
+        "steering": "STRAIGHT",
+        "eva_ready": true,
+        "kills_this_tick": 1,
+        "contact": false,
+        "target_id": 1,
+        "stuck": false
+      }
+    ]
+  }
+}

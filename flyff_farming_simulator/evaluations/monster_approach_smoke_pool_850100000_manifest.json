@@ -1,0 +1,306 @@
+{
+  "spec_seed": 850100000,
+  "strata": {
+    "open_single": {
+      "target": 4,
+      "attempts": 4,
+      "accepted": [
+        {
+          "category": "open_single",
+          "monster_offsets": [
+            [
+              19.929803595764476,
+              0.06015357476035843
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_single",
+          "monster_offsets": [
+            [
+              10.227765970505036,
+              -0.23663324409783415
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_single",
+          "monster_offsets": [
+            [
+              13.957029221614615,
+              0.028998888910902965
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_single",
+          "monster_offsets": [
+            [
+              12.067275988748056,
+              -0.43406755925290197
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        }
+      ],
+      "rejected": []
+    },
+    "open_multi_switch": {
+      "target": 3,
+      "attempts": 3,
+      "accepted": [
+        {
+          "category": "open_multi_switch",
+          "monster_offsets": [
+            [
+              21.146382441641055,
+              1.7787974521590733
+            ],
+            [
+              13.379255095120746,
+              0.9280708385612328
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_multi_switch",
+          "monster_offsets": [
+            [
+              23.253637169503868,
+              -1.234509570036992
+            ],
+            [
+              10.288050738114968,
+              0.7527116922256551
+            ],
+            [
+              24.117920625057593,
+              1.792063356047902
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_multi_switch",
+          "monster_offsets": [
+            [
+              17.179466760541732,
+              -1.066638435950361
+            ],
+            [
+              23.630362750590365,
+              0.3932997823372011
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        }
+      ],
+      "rejected": []
+    },
+    "obstacle_approach": {
+      "target": 4,
+      "attempts": 4,
+      "accepted": [
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              9.493148658329426,
+              0.33409522238687317
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "none",
+              "wall_offset_cells": 4,
+              "wall_depth_cells": 2,
+              "half_span_cells": 4,
+              "straight_offset_cells": 1
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              8.004824340954544,
+              0.1754980992598908
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "right",
+              "wall_offset_cells": 8,
+              "wall_depth_cells": 3,
+              "half_span_cells": 4,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              12.073325003555663,
+              -0.12116471889114622
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "right",
+              "wall_offset_cells": 6,
+              "wall_depth_cells": 2,
+              "half_span_cells": 6,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              14.224215389599522,
+              -0.18212645754398377
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "left",
+              "wall_offset_cells": 7,
+              "wall_depth_cells": 2,
+              "half_span_cells": 5,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        }
+      ],
+      "rejected": []
+    },
+    "awkward_heading": {
+      "target": 3,
+      "attempts": 3,
+      "accepted": [
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              19.477517584181605,
+              -0.38606563720948106
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": 2.173748129442532
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              8.045605244286882,
+              0.5755003747975727
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -2.461085401287608
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              9.776842076633978,
+              0.11790130157546286
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -2.3504237590903614
+        }
+      ],
+      "rejected": []
+    },
+    "long_route": {
+      "target": 3,
+      "attempts": 3,
+      "accepted": [
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              40.025775505665095,
+              -0.44832919894759404
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "none",
+              "wall_offset_cells": 5,
+              "wall_depth_cells": 2,
+              "half_span_cells": 5,
+              "straight_offset_cells": 3
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              40.97829242941573,
+              0.23345395303136096
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "left",
+              "wall_offset_cells": 7,
+              "wall_depth_cells": 3,
+              "half_span_cells": 4,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              41.13070769447052,
+              0.5839390669747195
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "none",
+              "wall_offset_cells": 4,
+              "wall_depth_cells": 2,
+              "half_span_cells": 4,
+              "straight_offset_cells": 3
+            },
+            {
+              "gap_side": "right",
+              "wall_offset_cells": 5,
+              "wall_depth_cells": 3,
+              "half_span_cells": 6,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        }
+      ],
+      "rejected": []
+    }
+  }
+}
