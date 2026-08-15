@@ -1,0 +1,39 @@
+# =============================================================================
+# BYTE-PRESERVATION RULES (narrow, deliberate exception)
+# =============================================================================
+# These files participate in a SHA-256 byte-identity contract: the historical
+# reproduction guard (flyff_farming_simulator/scratchpad_historical_reproduction_
+# guard.py) and the frozen snapshot evaluations/router_v2_historical_reproduction_
+# snapshot_20260815.json hash their RAW BYTES and refuse to run on any mismatch.
+#
+# The repository has core.autocrlf=true, which rewrites line endings on checkout.
+# Without `-text` these files materialize with different bytes in a fresh
+# checkout than the frozen snapshot expects, and the guard fails -- which is
+# exactly what was observed at tag historical-reproduction-baseline-20260815's
+# original target (see docs/migration/DECISION_LOG.md, D7/D8).
+#
+# `-text` disables ALL line-ending conversion in both directions, so what is
+# committed is exactly what is checked out. This is deliberately scoped to the
+# guard-hash-sensitive set only. It is NOT a general normalization policy, and
+# `git add --renormalize` was NOT run.
+#
+# Evidence for each entry:
+#   - the 5 .py files + the .zip are scratchpad_historical_reproduction_guard.py
+#     REQUIRED_FILES
+#   - both *_manifest.json files carry frozen hashes in
+#     router_v2_historical_reproduction_snapshot_20260815.json, and the 820M
+#     manifest is additionally passed as `extra_files` at run time
+# -----------------------------------------------------------------------------
+
+flyff_farming_simulator/simulator/kinodynamic_route_planner.py    -text
+flyff_farming_simulator/simulator/movement_kernel.py              -text
+flyff_farming_simulator/scratchpad_general_router_episode.py      -text
+flyff_farming_simulator/scratchpad_beginner_navigation_mix_pools.py -text
+flyff_farming_simulator/scratchpad_legacy_qualified_selector.py   -text
+
+flyff_farming_simulator/evaluations/router_mix_final_pool_820000000_manifest.json          -text
+flyff_farming_simulator/evaluations/router_mix_qualification_pool_840000000_manifest.json  -text
+
+# Binary already, but stated explicitly so the hash contract does not depend on
+# git's binary auto-detection.
+flyff_farming_simulator/models/generalized_waypoint_both_seed2_0051200.zip -text
