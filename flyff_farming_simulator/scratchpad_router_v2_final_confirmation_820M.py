@@ -71,6 +71,7 @@ from pathlib import Path
 from stable_baselines3 import PPO
 
 from scratchpad_beginner_navigation_mix_pools import FINAL_CONFIRMATION_SPEC_SEED, eval_obstacle_manifest, load_manifest
+from scratchpad_historical_reproduction_guard import verify_historical_snapshot
 from scratchpad_legacy_qualified_selector import select_persistent_waypoint_legacy_pre_v2
 from scratchpad_router_v2_guarded_development_validation import eval_open_stratum
 from simulator.kinodynamic_route_planner import select_persistent_waypoint_experimental_invalid_hop_guard
@@ -82,6 +83,9 @@ OPEN_EPISODE_SEED_BASE = 820_700_000
 
 
 def main() -> None:
+    verify_historical_snapshot(
+        extra_files=(f"evaluations/router_mix_final_pool_{FINAL_CONFIRMATION_SPEC_SEED}_manifest.json",),
+    )
     manifest = load_manifest(ROOT / "evaluations" / f"router_mix_final_pool_{FINAL_CONFIRMATION_SPEC_SEED}_manifest.json")
     model = PPO.load(str(BASELINE_CHECKPOINT), device="cpu")
 
