@@ -1,0 +1,26 @@
+==========================================================================================
+HOLDOUT VALIDATION -- end-to-end through extract_real(), W=0.08 and tolerances FROZEN
+(reporting errors only, not tuning against these results)
+==========================================================================================
+
+--- STEP-TRANSITION GRID: 168 tick observations across 24 unseen parameter combos ---
+distance error: mean=0.0061 median=0.0012 max=0.0305 (cells)
+  tick=1: n=24 turn_err mean=0.0145 median=0.0133 max=0.0505 rad
+  tick=2: n=24 turn_err mean=0.0122 median=0.0099 max=0.0305 rad
+  tick=3: n=24 turn_err mean=0.0090 median=0.0004 max=0.0429 rad
+  tick=4: n=24 turn_err mean=0.0083 median=0.0020 max=0.0318 rad
+  tick=5: n=24 turn_err mean=0.0051 median=0.0002 max=0.0318 rad
+  tick=6: n=24 turn_err mean=0.0079 median=0.0004 max=0.0395 rad
+  tick=7: n=24 turn_err mean=0.0075 median=0.0011 max=0.0279 rad
+missing turn values (curve context insufficient): 0/168
+
+--- SMOOTH-RAMP GRID: 56 tick observations ---
+distance error: mean=0.0047 max=0.0236 (cells)
+  tick=1: n=8 turn_err mean=0.0188 median=0.0047 max=0.0663 rad  (expected_turn examples: [np.float64(-0.333), np.float64(-0.267), np.float64(0.267), np.float64(0.333)])
+  tick=2: n=8 turn_err mean=0.0172 median=0.0096 max=0.0480 rad  (expected_turn examples: [np.float64(-0.917), np.float64(-0.733), np.float64(0.733), np.float64(0.917)])
+  tick=3: n=8 turn_err mean=0.0084 median=0.0028 max=0.0339 rad  (expected_turn examples: [np.float64(-1.0), np.float64(-0.8), np.float64(0.8), np.float64(1.0)])
+  tick=4: n=8 turn_err mean=0.0063 median=0.0003 max=0.0225 rad  (expected_turn examples: [np.float64(-1.0), np.float64(-0.8), np.float64(0.8), np.float64(1.0)])
+  tick=5: n=8 turn_err mean=0.0100 median=0.0013 max=0.0450 rad  (expected_turn examples: [np.float64(-1.0), np.float64(-0.8), np.float64(0.8), np.float64(1.0)])
+  tick=6: n=8 turn_err mean=0.0033 median=0.0018 max=0.0078 rad  (expected_turn examples: [np.float64(-1.0), np.float64(-0.8), np.float64(0.8), np.float64(1.0)])
+  tick=7: n=8 turn_err mean=0.0062 median=0.0035 max=0.0238 rad  (expected_turn examples: [np.float64(-1.0), np.float64(-0.8), np.float64(0.8), np.float64(1.0)])
+missing turn values: 0/56

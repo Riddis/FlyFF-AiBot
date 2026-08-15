@@ -1,0 +1,75 @@
+Segmented 337 usable trials (focused throughout) from movement_calibration.csv
+action
+STRAIGHT    113
+RIGHT       112
+LEFT        112
+Name: count, dtype: int64
+
+================================================================================
+STRAIGHT (n=113 trials)
+================================================================================
+duration_s: n= 113 mean= 0.5814 median= 0.2797 std= 0.7609 p05= 0.0800 p95= 2.6200 min= 0.0200 max= 3.2797
+distance_cells (net, whole trial): n= 113 mean= 7.6484 median= 3.6231 std=10.1351 p05= 0.9804 p95=34.8313 min= 0.2131 max=43.6895
+distance_cells/sec: n= 113 mean=12.7558 median=13.1066 std= 0.9673 p05=10.6485 p95=13.9111 min=10.6164 max=14.2284
+  => distance per 0.20s control interval: mean=2.5512 median=2.6213 cells
+
+-- distance_cells by duration bucket (tests linear scaling) --
+  dur in (0.0, 0.35]: n= 62 mean_duration=0.131s mean_distance=1.647cells distance/duration=12.608cells/s
+  dur in (0.35, 0.75]: n= 20 mean_duration=0.459s mean_distance=5.989cells distance/duration=13.049cells/s
+  dur in (0.75, 2.0]: n= 21 mean_duration=0.988s mean_distance=13.083cells distance/duration=13.247cells/s
+  dur in (2.0, 4.0]: n= 10 mean_duration=2.768s mean_distance=36.766cells distance/duration=13.282cells/s
+
+================================================================================
+LEFT (n=112 trials)
+================================================================================
+duration_s: n= 112 mean= 0.6867 median= 0.2699 std= 0.9961 p05= 0.0800 p95= 3.2762 min= 0.0598 max= 4.4801
+distance_cells (net, whole trial): n= 112 mean= 9.0481 median= 3.5158 std=13.2924 p05= 0.8525 p95=43.6368 min= 0.6394 max=59.8726
+heading_change_radians (net, whole trial): n=  83 mean= 3.4532 median= 1.5006 std= 4.7272 p05= 0.0698 p95=15.3481 min= 0.0349 max=19.1491
+distance_cells/sec: n= 112 mean=12.7021 median=12.9518 std= 1.0204 p05=10.6429 p95=13.8976 min=10.6068 max=15.2100
+  => distance per 0.20s control interval: mean=2.5404 median=2.5904 cells
+turn_radians/sec: n=  83 mean= 2.7865 median= 3.3397 std= 1.4030 p05= 0.5798 p95= 4.2389 min= 0.2906 max= 4.2743
+  => turn per 0.20s control interval: mean=0.5573 median=0.6679 rad
+
+-- distance_cells by duration bucket (tests linear scaling) --
+  dur in (0.0, 0.35]: n= 62 mean_duration=0.133s mean_distance=1.650cells distance/duration=12.440cells/s
+      mean_heading_change=16.34deg turn/duration=123.22deg/s
+  dur in (0.35, 0.75]: n= 17 mean_duration=0.449s mean_distance=5.903cells distance/duration=13.135cells/s
+      mean_heading_change=86.49deg turn/duration=192.44deg/s
+  dur in (0.75, 2.0]: n= 23 mean_duration=1.097s mean_distance=14.517cells distance/duration=13.238cells/s
+      mean_heading_change=248.17deg turn/duration=226.32deg/s
+  dur in (2.0, 4.0]: n=  8 mean_duration=3.393s mean_distance=45.145cells distance/duration=13.307cells/s
+      mean_heading_change=822.89deg turn/duration=242.56deg/s
+
+================================================================================
+RIGHT (n=112 trials)
+================================================================================
+duration_s: n= 112 mean= 0.6650 median= 0.2499 std= 0.9712 p05= 0.0602 p95= 3.2718 min= 0.0398 max= 4.2799
+distance_cells (net, whole trial): n= 112 mean= 8.8152 median= 3.0898 std=12.9458 p05= 0.8522 p95=43.6692 min= 0.4263 max=57.1023
+heading_change_radians (net, whole trial): n=  79 mean=-3.5246 median=-1.4780 std= 4.6568 p05=-15.0021 p95=-0.0699 min=-18.3114 max=-0.0600
+distance_cells/sec: n= 112 mean=13.0329 median=13.2477 std= 1.1097 p05=10.6470 p95=14.2279 min=10.4693 max=17.6547
+  => distance per 0.20s control interval: mean=2.6066 median=2.6495 cells
+turn_radians/sec: n=  79 mean=-2.9397 median=-3.3892 std= 1.2499 p05=-4.2407 p95=-0.5837 min=-4.2785 max=-0.4998
+  => turn per 0.20s control interval: mean=-0.5879 median=-0.6778 rad
+
+-- distance_cells by duration bucket (tests linear scaling) --
+  dur in (0.0, 0.35]: n= 65 mean_duration=0.133s mean_distance=1.728cells distance/duration=12.967cells/s
+      mean_heading_change=-20.63deg turn/duration=-154.82deg/s
+  dur in (0.35, 0.75]: n= 14 mean_duration=0.421s mean_distance=5.565cells distance/duration=13.207cells/s
+      mean_heading_change=-81.39deg turn/duration=-193.14deg/s
+  dur in (0.75, 2.0]: n= 23 mean_duration=1.085s mean_distance=14.424cells distance/duration=13.292cells/s
+      mean_heading_change=-246.05deg turn/duration=-226.74deg/s
+  dur in (2.0, 4.0]: n=  8 mean_duration=3.335s mean_distance=44.372cells distance/duration=13.305cells/s
+      mean_heading_change=-808.68deg turn/duration=-242.48deg/s
+
+================================================================================
+distance <-> |heading_change| correlation (trial-level)
+================================================================================
+LEFT: r=1.0000 (n=83)
+RIGHT: r=0.9999 (n=79)
+
+================================================================================
+Current fitted model for comparison
+================================================================================
+STRAIGHT: distance=2.517+-0.947 cells/0.2s, turn=0.0
+LEFT:     distance=0.964+-0.962 cells/0.2s, turn=+0.184+-0.211 rad/0.2s
+RIGHT:    distance=0.966+-1.005 cells/0.2s, turn=-0.148+-0.195 rad/0.2s

@@ -1,0 +1,60 @@
+  tick=6: distance=2.6553 (err=0.0047) turn=0.0000 (expected 0.0000, err=0.0000) OK
+  tick=7: distance=2.6564 (err=0.0036) turn=0.0000 (expected 0.0000, err=0.0000) OK
+
+ALL SYNTHETIC TESTS PASSED
+
+
+==========================================================================================
+REAL DATA: movement_calibration_steering.csv
+==========================================================================================
+
+tick=1 LEFT: distance/0.2s: n=  57 mean= 2.7555 median= 2.8399 std= 0.1064 p05= 2.6220 p25= 2.6269 p75= 2.8430 p95= 2.8478
+              turn/0.2s (rad): n=  57 mean= 0.8002 median= 0.8020 std= 0.0372 p05= 0.7497 p25= 0.7675 p75= 0.8238 p95= 0.8651  [45.95deg median]
+
+tick=2 LEFT: distance/0.2s: n=  54 mean= 2.7090 median= 2.6269 std= 0.1139 p05= 2.6174 p25= 2.6235 p75= 2.8419 p95= 2.8451
+              turn/0.2s (rad): n=  54 mean= 0.8700 median= 0.8725 std= 0.0267 p05= 0.8370 p25= 0.8379 p75= 0.8983 p95= 0.9079  [49.99deg median]
+
+tick=3 LEFT: distance/0.2s: n=  35 mean= 2.7439 median= 2.8390 std= 0.1201 p05= 2.6199 p25= 2.6258 p75= 2.8448 p95= 2.8466
+              turn/0.2s (rad): n=  35 mean= 0.8736 median= 0.8726 std= 0.0254 p05= 0.8378 p25= 0.8554 p75= 0.9054 p95= 0.9080  [50.00deg median]
+
+tick=4 LEFT: distance/0.2s: n=  28 mean= 2.7264 median= 2.6284 std= 0.1235 p05= 2.6205 p25= 2.6239 p75= 2.8444 p95= 2.8490
+              turn/0.2s (rad): n=  28 mean= 0.8675 median= 0.8716 std= 0.0272 p05= 0.8372 p25= 0.8381 p75= 0.8812 p95= 0.9075  [49.94deg median]
+
+tick=5 LEFT: distance/0.2s: n=  25 mean= 2.7640 median= 2.8403 std= 0.1046 p05= 2.6222 p25= 2.6258 p75= 2.8433 p95= 2.8456
+              turn/0.2s (rad): n=  25 mean= 0.8807 median= 0.8732 std= 0.0283 p05= 0.8374 p25= 0.8707 p75= 0.9070 p95= 0.9080  [50.03deg median]
+
+tick=steady LEFT: distance/0.2s: n= 140 mean= 2.7290 median= 2.6329 std= 0.1151 p05= 2.6200 p25= 2.6243 p75= 2.8425 p95= 2.8464
+              turn/0.2s (rad): n= 140 mean= 0.8718 median= 0.8727 std= 0.0267 p05= 0.8369 p25= 0.8384 p75= 0.9064 p95= 0.9078  [50.00deg median]
+
+tick=1 RIGHT: distance/0.2s: n=  56 mean= 2.7295 median= 2.6320 std= 0.1305 p05= 2.6184 p25= 2.6235 p75= 2.8439 p95= 2.8499
+              turn/0.2s (rad): n=  56 mean=-0.7856 median=-0.7896 std= 0.0394 p05=-0.8306 p25=-0.8234 p75=-0.7561 p95=-0.6989  [-45.24deg median]
+
+tick=2 RIGHT: distance/0.2s: n=  51 mean= 2.7492 median= 2.8378 std= 0.1076 p05= 2.6226 p25= 2.6261 p75= 2.8439 p95= 2.8458
+              turn/0.2s (rad): n=  51 mean=-0.8758 median=-0.8736 std= 0.0287 p05=-0.9099 p25=-0.9073 p75=-0.8402 p95=-0.8385  [-50.05deg median]
+
+tick=3 RIGHT: distance/0.2s: n=  33 mean= 2.7491 median= 2.8385 std= 0.1078 p05= 2.6202 p25= 2.6244 p75= 2.8424 p95= 2.8439
+              turn/0.2s (rad): n=  33 mean=-0.8727 median=-0.8737 std= 0.0263 p05=-0.9087 p25=-0.9079 p75=-0.8396 p95=-0.8385  [-50.06deg median]
+
+tick=4 RIGHT: distance/0.2s: n=  26 mean= 2.7086 median= 2.6290 std= 0.1217 p05= 2.6198 p25= 2.6247 p75= 2.8418 p95= 2.8447
+              turn/0.2s (rad): n=  26 mean=-0.8695 median=-0.8732 std= 0.0279 p05=-0.9092 p25=-0.8745 p75=-0.8395 p95=-0.8381  [-50.03deg median]
+
+tick=5 RIGHT: distance/0.2s: n=  25 mean= 2.7384 median= 2.8352 std= 0.1086 p05= 2.6221 p25= 2.6260 p75= 2.8429 p95= 2.8464
+              turn/0.2s (rad): n=  25 mean=-0.8751 median=-0.8738 std= 0.0284 p05=-0.9090 p25=-0.9075 p75=-0.8404 p95=-0.8385  [-50.06deg median]
+
+tick=steady RIGHT: distance/0.2s: n= 151 mean= 2.7331 median= 2.6330 std= 0.1084 p05= 2.6210 p25= 2.6252 p75= 2.8426 p95= 2.8459
+              turn/0.2s (rad): n= 151 mean=-0.8738 median=-0.8737 std= 0.0286 p05=-0.9089 p25=-0.9078 p75=-0.8395 p95=-0.8383  [-50.06deg median]
+
+pre-pulse STRAIGHT: distance/0.2s: n= 158 mean= 2.7497 median= 2.8411 std= 0.1135 p05= 2.6215 p25= 2.6256 p75= 2.8441 p95= 2.8475
+              turn/0.2s (rad): n=0
+
+==========================================================================================
+LEFT vs RIGHT symmetry per tick
+==========================================================================================
+tick=       1  distance: LEFT=2.8399 RIGHT=2.6320  |turn|: LEFT=0.8020 RIGHT=0.7896 (asymmetry=1.55%)
+tick=       2  distance: LEFT=2.6269 RIGHT=2.8378  |turn|: LEFT=0.8725 RIGHT=0.8736 (asymmetry=0.13%)
+tick=       3  distance: LEFT=2.8390 RIGHT=2.8385  |turn|: LEFT=0.8726 RIGHT=0.8737 (asymmetry=0.12%)
+tick=       4  distance: LEFT=2.6284 RIGHT=2.6290  |turn|: LEFT=0.8716 RIGHT=0.8732 (asymmetry=0.19%)
+tick=       5  distance: LEFT=2.8403 RIGHT=2.8352  |turn|: LEFT=0.8732 RIGHT=0.8738 (asymmetry=0.07%)
+tick=  steady  distance: LEFT=2.6329 RIGHT=2.6330  |turn|: LEFT=0.8727 RIGHT=0.8737 (asymmetry=0.12%)
+
+Current fitted model: LEFT_dist=0.964 LEFT_turn=+0.184  RIGHT_dist=0.966 RIGHT_turn=-0.148 (per 0.2s)

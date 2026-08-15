@@ -1,0 +1,55 @@
+      tick   action  distance_cells                                                  heading_change_radians
+
+         1     LEFT  distance/0.2s: n=  58 mean= 2.4735 median= 2.4057 std= 0.1231 p05= 2.3723 p25= 2.4057 p75= 2.6242 p95= 2.6243
+                     turn/0.2s (rad): n=  58 mean= 0.7372 median= 0.7416 std= 0.0435 p05= 0.6953 p25= 0.7154 p75= 0.7678 p95= 0.7878  [42.49deg median]
+
+         2     LEFT  distance/0.2s: n=  56 mean= 2.4450 median= 2.4057 std= 0.1245 p05= 2.1872 p25= 2.4057 p75= 2.6242 p95= 2.6242
+                     turn/0.2s (rad): n=  56 mean= 0.8518 median= 0.8724 std= 0.0571 p05= 0.7329 p25= 0.8376 p75= 0.8725 p95= 0.9074  [49.99deg median]
+
+         3     LEFT  distance/0.2s: n=  37 mean= 2.4825 median= 2.4057 std= 0.1267 p05= 2.3614 p25= 2.4057 p75= 2.6242 p95= 2.6242
+                     turn/0.2s (rad): n=  37 mean= 0.8628 median= 0.8725 std= 0.0494 p05= 0.8126 p25= 0.8550 p75= 0.8899 p95= 0.9074  [49.99deg median]
+
+         4     LEFT  distance/0.2s: n=  28 mean= 2.4681 median= 2.4057 std= 0.1529 p05= 2.1872 p25= 2.4057 p75= 2.6242 p95= 2.6242
+                     turn/0.2s (rad): n=  28 mean= 0.8636 median= 0.8724 std= 0.0369 p05= 0.8375 p25= 0.8550 p75= 0.8768 p95= 0.9074  [49.99deg median]
+
+         5     LEFT  distance/0.2s: n=  25 mean= 2.4931 median= 2.4057 std= 0.1236 p05= 2.4057 p25= 2.4057 p75= 2.6242 p95= 2.6242
+                     turn/0.2s (rad): n=  25 mean= 0.8780 median= 0.8899 std= 0.0245 p05= 0.8375 p25= 0.8724 p75= 0.8899 p95= 0.9074  [50.99deg median]
+
+    steady     LEFT  distance/0.2s: n= 119 mean= 2.4645 median= 2.4057 std= 0.1289 p05= 2.1872 p25= 2.4057 p75= 2.6242 p95= 2.6242
+                     turn/0.2s (rad): n= 119 mean= 0.8644 median= 0.8725 std= 0.0433 p05= 0.8248 p25= 0.8550 p75= 0.8899 p95= 0.9074  [49.99deg median]
+
+         1    RIGHT  distance/0.2s: n=  56 mean= 2.4409 median= 2.4057 std= 0.1292 p05= 2.1872 p25= 2.4057 p75= 2.6238 p95= 2.6245
+                     turn/0.2s (rad): n=  56 mean=-0.7325 median=-0.7339 std= 0.0316 p05=-0.7863 p25=-0.7549 p75=-0.7077 p95=-0.6800  [-42.05deg median]
+
+         2    RIGHT  distance/0.2s: n=  52 mean= 2.4771 median= 2.4057 std= 0.1336 p05= 2.1872 p25= 2.4057 p75= 2.6242 p95= 2.6242
+                     turn/0.2s (rad): n=  52 mean=-0.8645 median=-0.8736 std= 0.0421 p05=-0.9086 p25=-0.8911 p75=-0.8462 p95=-0.8099  [-50.06deg median]
+
+         3    RIGHT  distance/0.2s: n=  34 mean= 2.4507 median= 2.4057 std= 0.1158 p05= 2.3291 p25= 2.4057 p75= 2.5694 p95= 2.6242
+                     turn/0.2s (rad): n=  34 mean=-0.8652 median=-0.8736 std= 0.0459 p05=-0.9086 p25=-0.8911 p75=-0.8562 p95=-0.8177  [-50.06deg median]
+
+         4    RIGHT  distance/0.2s: n=  28 mean= 2.4447 median= 2.4057 std= 0.1313 p05= 2.1873 p25= 2.4057 p75= 2.6240 p95= 2.6242
+                     turn/0.2s (rad): n=  28 mean=-0.8518 median=-0.8736 std= 0.0648 p05=-0.8911 p25=-0.8780 p75=-0.8387 p95=-0.7024  [-50.05deg median]
+
+         5    RIGHT  distance/0.2s: n=  25 mean= 2.4582 median= 2.4057 std= 0.1119 p05= 2.4057 p25= 2.4057 p75= 2.6242 p95= 2.6242
+                     turn/0.2s (rad): n=  25 mean=-0.8743 median=-0.8736 std= 0.0218 p05=-0.9086 p25=-0.8911 p75=-0.8562 p95=-0.8387  [-50.06deg median]
+
+    steady    RIGHT  distance/0.2s: n= 132 mean= 2.4338 median= 2.4057 std= 0.1273 p05= 2.1872 p25= 2.4057 p75= 2.4057 p95= 2.6242
+                     turn/0.2s (rad): n= 132 mean=-0.8633 median=-0.8736 std= 0.0450 p05=-0.9086 p25=-0.8911 p75=-0.8562 p95=-0.7488  [-50.06deg median]
+
+ pre-pulse  STRAIGHT  distance/0.2s: n= 159 mean= 2.4779 median= 2.4063 std= 0.1376 p05= 2.1875 p25= 2.4062 p75= 2.6250 p95= 2.6250
+                     turn/0.2s (rad): n= 159 mean=-0.0004 median=-0.0000 std= 0.0046 p05=-0.0000 p25=-0.0000 p75= 0.0000 p95= 0.0000
+
+====================================================================================================
+LEFT vs RIGHT symmetry per tick (|magnitude| comparison)
+====================================================================================================
+tick=       1  distance: LEFT=2.4057 RIGHT=2.4057 (ratio=1.000)  |turn|: LEFT=0.7416 RIGHT=0.7339 (ratio=1.011)
+tick=       2  distance: LEFT=2.4057 RIGHT=2.4057 (ratio=1.000)  |turn|: LEFT=0.8724 RIGHT=0.8736 (ratio=0.999)
+tick=       3  distance: LEFT=2.4057 RIGHT=2.4057 (ratio=1.000)  |turn|: LEFT=0.8725 RIGHT=0.8736 (ratio=0.999)
+tick=       4  distance: LEFT=2.4057 RIGHT=2.4057 (ratio=1.000)  |turn|: LEFT=0.8724 RIGHT=0.8736 (ratio=0.999)
+tick=       5  distance: LEFT=2.4057 RIGHT=2.4057 (ratio=1.000)  |turn|: LEFT=0.8899 RIGHT=0.8736 (ratio=1.019)
+tick=  steady  distance: LEFT=2.4057 RIGHT=2.4057 (ratio=1.000)  |turn|: LEFT=0.8725 RIGHT=0.8736 (ratio=0.999)
+
+====================================================================================================
+For comparison
+====================================================================================================
+Current fitted model:      LEFT_dist=0.964 LEFT_turn=+0.184  RIGHT_dist=0.966 RIGHT_turn=-0.148 (per 0.2s)
