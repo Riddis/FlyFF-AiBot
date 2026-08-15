@@ -3,5 +3,8 @@
   "tests/test_kinodynamic_route_planner.py": "c6053df856a2bc5b27a3d0d27c78cec8798f88b805811204b7ee0fd16dcce856",
   "tests/test_router_waypoint_env.py": "fe3033fccd2941344de90134a1e69a758033ca1a19fcdac61ffd184d6e1fb9c5",
   "tests/test_beginner_navigation_mix_train.py": "fa4cd00e6f4307745c65afb3fab72a13fa23b25e2b364bfc1d23065933f2c546",
-  "scratchpad_legacy_qualified_selector.py": "cfbb384c098be1ea26e798599c7b6b32882f326648a0f1568e1b4ab5e828f6be"
+  "scratchpad_legacy_qualified_selector.py": "cfbb384c098be1ea26e798599c7b6b32882f326648a0f1568e1b4ab5e828f6be",
+  "git_commit": "203ffb81377169ff7390b7e4086bea49a136c21c",
+  "git_branch": "feature/standalone-farming-recorder-simulator",
+  "date": "2026-08-15"
 }

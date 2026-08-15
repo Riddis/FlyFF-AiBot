@@ -677,13 +677,15 @@ suite reran clean (31 passed, 1 skipped) after these changes.
 | `tests/test_beginner_navigation_mix_train.py` | `fa4cd00e6f4307745c65afb3fab72a13fa23b25e2b364bfc1d23065933f2c546` |
 | `scratchpad_legacy_qualified_selector.py` | `cfbb384c098be1ea26e798599c7b6b32882f326648a0f1568e1b4ab5e828f6be` |
 
-Git commit: `GIT_COMMIT_HASH_PLACEHOLDER` (this repo's router-fix files --
-`simulator/kinodynamic_route_planner.py`, the three test files, this run
+Git commit: `203ffb81377169ff7390b7e4086bea49a136c21c` (branch `feature/
+standalone-farming-recorder-simulator`) -- this repo's router-fix files
+(`simulator/kinodynamic_route_planner.py`, the three test files, this run
 log, `MISTAKES.md`, `CLAUDE.md`, and the full router-investigation
-scratchpad/evaluation evidence trail -- had never previously been
-committed on this branch; committed now as a scoped commit, deliberately
-excluding ~500 unrelated pending changes elsewhere in the repo). Date:
-2026-08-15.
+scratchpad/evaluation evidence trail -- 55 files) had never previously
+been committed on this branch; committed now as a scoped commit,
+deliberately excluding ~500 unrelated pending changes elsewhere in the
+repo (older, unrelated modified/untracked content from other concurrent
+work). Date: 2026-08-15.
 
 **Full provenance chain**:
 pre-promotion frozen state (checksummed) -> 840M qualification PASS ->
