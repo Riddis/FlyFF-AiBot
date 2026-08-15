@@ -258,22 +258,28 @@ class SplitSteeringEventPolicy(ActorCriticPolicy):
         return data
 
 
-# Phase 2: 6 target-geometry + 3 physical-clearance + recent_progress + recent_contact.
+# Phase 2: 6 target-geometry + 3 physical-clearance + SIDECAR_SIZE (recent_progress
+# + recent_contact + 3-way prev-steering one-hot, since 2026-08-13). Derived
+# programmatically from SIDECAR_SIZE, not hardcoded -- this constant (and every
+# downstream dimension below) tracks navigation_history.SIDECAR_SIZE automatically.
 STEERING_NAVIGATION_FEATURE_SIZE = GEOMETRY_FEATURE_SIZE + CLEARANCE_FEATURE_SIZE + SIDECAR_SIZE
 
 
 class NavigationAugmentedFeaturesExtractor(BaseFeaturesExtractor):
-    """Phase 2 features extractor. Input is the 925-value
-    NavigationHistoryWrapper-augmented observation (923 raw + 2 temporal
+    """Phase 2 features extractor. Input is the POLICY_INPUT_SIZE-value
+    NavigationHistoryWrapper-augmented observation (923 raw + SIDECAR_SIZE
     sidecar values -- a policy-input contract distinct from the 923-value
     recorder/live game-observation contract, see
     simulator.navigation_history.STEERING_POLICY_INPUT_SCHEMA_ID).
 
-    Produces `[raw_923 | derived_9 | sidecar_2]` (934 values):
+    Produces `[raw_923 | derived_9 | sidecar_SIDECAR_SIZE]`
+    (RAW_OBSERVATION_SIZE + STEERING_NAVIGATION_FEATURE_SIZE values):
     event_net/vf_net consume only `features[:, :923]` -- byte-for-byte
     identical to the un-augmented policy's input, never touched by this
     extractor's derived features. steering_net consumes
-    `features[:, 923:934]` (11 values).
+    `features[:, 923 : 923 + STEERING_NAVIGATION_FEATURE_SIZE]`
+    (STEERING_NAVIGATION_FEATURE_SIZE values -- 14 as of the 2026-08-13
+    previous-steering sidecar expansion, up from 11).
     """
 
     def __init__(self, observation_space: spaces.Box) -> None:

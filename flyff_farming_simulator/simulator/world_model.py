@@ -27,6 +27,19 @@ _JUMP_BIT = 1 << 3
 
 @dataclass(frozen=True, slots=True)
 class MovementModel:
+    """Legacy per-action Gaussian movement fit (one discrete action ->
+    Normal(mean, std) distance/turn, turn-then-translate execution).
+
+    2026-08-13: RecordedFarmingEnv._move_player no longer reads this data
+    at all -- it unconditionally delegates to movement_kernel.
+    advance_player_tick (the calibrated constant-curvature-arc kernel),
+    regardless of what a loaded RecordedWorldModel's `movement` field
+    contains. This dataclass and field are kept only as a historical/
+    informational record of what a given serialized world was originally
+    fit from (see RecordedWorldModel.movement_physics_model) -- they are
+    inert data now, not consulted for physics, and must never be
+    reinterpreted as if they still parameterized live movement."""
+
     samples: int
     distance_mean_cells: float
     distance_std_cells: float
@@ -61,6 +74,17 @@ class RecordedWorldModel:
     respawn_delay_source: str = "same_slot_aggregate_provisional"
     human_action_probabilities: tuple[float, ...] = (0.60, 0.14, 0.14, 0.10, 0.02)
     fit_warnings: tuple[str, ...] = field(default_factory=tuple)
+    # 2026-08-13: what `movement`'s stats were historically fit from, NOT a
+    # live configuration switch -- RecordedFarmingEnv always executes
+    # movement_kernel's calibrated-arc physics regardless of this tag's
+    # value (see MovementModel's docstring). Defaults to the legacy tag so
+    # every world file serialized before this field existed is correctly
+    # identified as legacy by absence, never silently treated as
+    # calibrated-arc. Worlds/curricula regenerated from the live
+    # calibration should pass movement_kernel.MOVEMENT_PHYSICS_MODEL_ID
+    # explicitly here for provenance, even though it changes no simulator
+    # behavior either way.
+    movement_physics_model: str = "legacy_recorded_iid"
 
     def save(self, path: str | Path) -> Path:
         resolved = Path(path)

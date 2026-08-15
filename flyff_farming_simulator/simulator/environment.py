@@ -28,6 +28,7 @@ from farming.session import SessionOutcome
 from . import movement_kinematics
 from .local_clearance import sample_heading_relative_clearance
 from .map_model import MapModel
+from .movement_kernel import SteeringDirection, advance_player_tick
 from .reward_model import (
     SimulatorRewardCalculator,
     SimulatorRewardComponents,
@@ -47,6 +48,23 @@ except ImportError:  # pragma: no cover - exercised on minimal installations.
 
     class _BaseEnv:  # type: ignore[no-redef]
         pass
+
+
+# 2026-08-13: maps FarmingAction -> SteeringDirection for movement_kernel.
+# advance_player_tick. RUN_FORWARD_JUMP is mapped to NONE (non-steering) --
+# a deliberate judgment call, not a measured fact: the live calibration
+# never covered jump-while-turning, and the legacy model's own jump
+# handling only ever scaled a sampled turn by 0.15 (a minor contribution),
+# so treating jump as non-steering is the more conservative default absent
+# jump-specific calibration data. CAST_EVA never reaches this mapping --
+# step() always passes the current movement_action (never CAST_EVA itself)
+# to _move_player.
+_STEERING_DIRECTION_BY_ACTION: dict[FarmingAction, SteeringDirection] = {
+    FarmingAction.RUN_FORWARD: SteeringDirection.NONE,
+    FarmingAction.RUN_FORWARD_LEFT: SteeringDirection.LEFT,
+    FarmingAction.RUN_FORWARD_RIGHT: SteeringDirection.RIGHT,
+    FarmingAction.RUN_FORWARD_JUMP: SteeringDirection.NONE,
+}
 
 
 @dataclass(slots=True)
@@ -173,6 +191,7 @@ class RecordedFarmingEnv(_BaseEnv):
         self.last_jump_at = -math.inf
         self.last_action = FarmingAction.RUN_FORWARD
         self.held_movement: FarmingAction | None = FarmingAction.RUN_FORWARD
+        self.previous_steering: SteeringDirection = SteeringDirection.NONE
         self.last_displacement_cells = 0.0
         self.last_contact = False
         self.total_kills = 0
@@ -214,6 +233,7 @@ class RecordedFarmingEnv(_BaseEnv):
         self.last_jump_at = -math.inf
         self.last_action = FarmingAction.RUN_FORWARD
         self.held_movement = FarmingAction.RUN_FORWARD
+        self.previous_steering = SteeringDirection.NONE
         self.last_displacement_cells = 0.0
         self.last_contact = False
         self.total_kills = 0
@@ -512,34 +532,33 @@ class RecordedFarmingEnv(_BaseEnv):
         *,
         distance_scale: float = 1.0,
     ) -> tuple[float, bool]:
-        model = self.model.movement[int(action)]
-        distance = float(
-            np.clip(
-                self.rng.normal(model.distance_mean_cells, max(0.01, model.distance_std_cells)),
-                0.0,
-                5.0,
-            )
-        ) * max(0.0, float(distance_scale))
-        turn = float(
-            self.rng.normal(model.turn_mean_radians, max(0.005, model.turn_std_radians))
-        ) * max(0.0, float(distance_scale))
-        if action is FarmingAction.RUN_FORWARD_LEFT:
-            turn = abs(turn) if abs(turn) > 0.01 else 0.10
-        elif action is FarmingAction.RUN_FORWARD_RIGHT:
-            turn = -abs(turn) if abs(turn) > 0.01 else -0.10
-        else:
-            turn = 0.0 if action is not FarmingAction.RUN_FORWARD_JUMP else turn * 0.15
-        self.heading = math.atan2(math.sin(self.heading + turn), math.cos(self.heading + turn))
-        native_distance = distance * self.map.native_units_per_cell
-        dx = math.cos(self.heading) * native_distance
-        dz = math.sin(self.heading) * native_distance
-        accepted_x, accepted_z, contact = self._advance_with_slide(
-            self.player_x, self.player_z, dx, dz
+        """2026-08-13: delegates to movement_kernel.advance_player_tick,
+        the one authoritative constant-curvature-arc kinematics function
+        (also used by the kinodynamic planner and the oracle) -- replaces
+        the legacy per-call random turn-then-translate sampling. This is
+        the deployment-matched-calibrated model: forward path length is
+        constant regardless of steering, and turn magnitude depends on
+        whether `action` continues the same steering direction as
+        `self.previous_steering` (onset vs. steady) -- see
+        run_logs/REPLACEMENT_MOVEMENT_MODEL_SPEC_2026-08-13.md. No
+        movement noise is injected (see that spec's "Noise" section);
+        self.rng is no longer consumed here."""
+        current_steering = _STEERING_DIRECTION_BY_ACTION.get(action, SteeringDirection.NONE)
+        result = advance_player_tick(
+            self.map,
+            self.player_x,
+            self.player_z,
+            self.heading,
+            self.previous_steering,
+            current_steering,
+            distance_scale=distance_scale,
         )
-        actual = math.hypot(accepted_x - self.player_x, accepted_z - self.player_z)
+        actual = math.hypot(result.x - self.player_x, result.z - self.player_z)
         actual /= self.map.native_units_per_cell
-        self.player_x, self.player_z = accepted_x, accepted_z
-        return float(actual), contact
+        self.player_x, self.player_z = result.x, result.z
+        self.heading = result.heading
+        self.previous_steering = result.next_previous_steering
+        return float(actual), result.contact
 
     def _move_monsters(self, elapsed_seconds: float) -> bool:
         speed = max(0.0, self.model.monster_speed_cells_per_second)
@@ -878,6 +897,7 @@ class RecordedFarmingEnv(_BaseEnv):
             "eva_count": self._eva_count(),
             "player_x": self.player_x,
             "player_z": self.player_z,
+            "previous_steering": int(self.previous_steering),
             "elapsed_seconds": float(self.elapsed),
             "total_distance_cells": float(self.total_distance_cells),
             "net_displacement_cells": float(net_displacement),

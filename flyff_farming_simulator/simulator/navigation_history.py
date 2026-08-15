@@ -1,5 +1,6 @@
 """Canonical per-tick navigation evidence and a collection-side rolling
-history wrapper that appends 2 temporal sidecar values to the observation.
+history wrapper that appends temporal + steering-state sidecar values to
+the observation.
 
 Phase 2 design (see the approved plan): the raw 923-value observation
 contract is never touched. Instead, a `gym.Wrapper` maintains a short
@@ -7,9 +8,9 @@ history of `NavigationStepEvidence` -- built from the same raw,
 undecoded quantities `RecoveryController` and `milestone_evaluator`
 already use (`total_distance_cells`/`contacts` diffed between steps),
 never from the observation's encoded `displacement_bipolar`/
-`contact_bipolar` fields -- and appends 2 derived values
-(`recent_progress`, `recent_contact`) to produce a 925-value POLICY INPUT,
-distinct from the 923-value recorder/live game-observation contract.
+`contact_bipolar` fields -- and appends 2 derived temporal values
+(`recent_progress`, `recent_contact`) to produce a POLICY INPUT distinct
+from the 923-value recorder/live game-observation contract.
 
 `NavigationStepEvidence` is deliberately environment-agnostic: the
 simulator populates it from its own info-dict keys, but a future live-bot
@@ -22,6 +23,20 @@ Window size and the `expected_clear_path_displacement` normalizer are
 calibration outputs, frozen from the navigation_calibration pool (see
 CALIBRATED_HISTORY_WINDOW / CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT
 below and evaluations/navigation_calibration_results.json) -- not guesses.
+
+2026-08-13 addition (calibrated constant-curvature-arc kernel migration):
+the corrected movement physics makes `previous_steering` part of the
+environment's Markov state (movement_kernel.resolve_signed_turn_radians
+is stateful -- the same current action produces a different turn
+depending on whether it continues the prior tick's steering or not). This
+is NOT privileged simulator information: a live controller always knows
+what steering it itself commanded last tick. A 3-way one-hot
+(`prev_straight`/`prev_left`/`prev_right`), read directly from
+`info["previous_steering"]` (RecordedFarmingEnv exposes this as a plain
+int-valued SteeringDirection), is appended alongside the 2 temporal
+values -- sidecar size grows from 2 to 5 accordingly. See
+run_logs/REPLACEMENT_MOVEMENT_MODEL_SPEC_2026-08-13.md's "Previous
+steering is Markov state" section.
 """
 
 from __future__ import annotations
@@ -41,9 +56,13 @@ except ImportError:  # pragma: no cover - exercised on minimal installations.
 
 from farming.actions import FarmingEvent
 
-STEERING_POLICY_INPUT_SCHEMA_ID = "steering-nav-sidecar-v1-925"
+from .movement_kernel import SteeringDirection
+
+STEERING_POLICY_INPUT_SCHEMA_ID = "steering-nav-sidecar-v2-928"
 RAW_OBSERVATION_SIZE = 923
-SIDECAR_SIZE = 2
+TEMPORAL_SIDECAR_SIZE = 2
+PREVIOUS_STEERING_SIDECAR_SIZE = 3
+SIDECAR_SIZE = TEMPORAL_SIDECAR_SIZE + PREVIOUS_STEERING_SIDECAR_SIZE
 POLICY_INPUT_SIZE = RAW_OBSERVATION_SIZE + SIDECAR_SIZE
 
 # Frozen calibration outputs from the navigation_calibration pool (12
@@ -59,30 +78,53 @@ CALIBRATED_HISTORY_WINDOW = 15
 CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT = 1.79
 
 
+def previous_steering_one_hot(previous_steering: "SteeringDirection | int") -> np.ndarray:
+    """Pure function computing the 3-way [prev_straight, prev_left,
+    prev_right] one-hot from a SteeringDirection (or its plain int value,
+    as arrives via info["previous_steering"]). This is an INSTANTANEOUS
+    state read (what steering was active going into the tick that just
+    produced this observation), not a windowed statistic like the
+    temporal sidecar values -- deliberately a separate function rather
+    than folded into the history-windowing logic below."""
+
+    direction = int(previous_steering)
+    one_hot = np.zeros((PREVIOUS_STEERING_SIDECAR_SIZE,), dtype=np.float32)
+    if 0 <= direction < PREVIOUS_STEERING_SIDECAR_SIZE:
+        one_hot[direction] = 1.0
+    else:
+        raise ValueError(f"previous_steering must be 0 (NONE), 1 (LEFT), or 2 (RIGHT); got {direction}")
+    return one_hot
+
+
 def sidecar_values_from_history(
     history: "deque[NavigationStepEvidence] | list[NavigationStepEvidence]",
+    previous_steering: "SteeringDirection | int",
     *,
     expected_clear_path_displacement: float = CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT,
 ) -> np.ndarray:
-    """Pure function computing [recent_progress, recent_contact] from a
-    window of NavigationStepEvidence. The single source of truth for this
+    """Pure function computing the full 5-value sidecar
+    [recent_progress, recent_contact, prev_straight, prev_left,
+    prev_right] from a window of NavigationStepEvidence plus the current
+    previous_steering state. The single source of truth for this
     computation -- NavigationHistoryWrapper._sidecar_values (live rollout
     collection) and any offline reconstruction (e.g. from recordings) must
-    both call this rather than reimplementing the windowing/EVA-exclusion
-    logic separately, so they can never silently drift apart."""
+    both call this rather than reimplementing the windowing/EVA-exclusion/
+    one-hot logic separately, so they can never silently drift apart."""
 
     eligible = [e for e in history if not e.eva_attempted]
     if not eligible:
-        return np.zeros((SIDECAR_SIZE,), dtype=np.float32)
-    recent_progress = float(
-        np.clip(
-            np.mean([e.displacement_cells for e in eligible]) / expected_clear_path_displacement,
-            0.0,
-            1.0,
+        temporal = np.zeros((TEMPORAL_SIDECAR_SIZE,), dtype=np.float32)
+    else:
+        recent_progress = float(
+            np.clip(
+                np.mean([e.displacement_cells for e in eligible]) / expected_clear_path_displacement,
+                0.0,
+                1.0,
+            )
         )
-    )
-    recent_contact = float(np.mean([1.0 if e.contact else 0.0 for e in eligible]))
-    return np.asarray([recent_progress, recent_contact], dtype=np.float32)
+        recent_contact = float(np.mean([1.0 if e.contact else 0.0 for e in eligible]))
+        temporal = np.asarray([recent_progress, recent_contact], dtype=np.float32)
+    return np.concatenate([temporal, previous_steering_one_hot(previous_steering)])
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,18 +143,21 @@ class NavigationStepEvidence:
 
 
 class NavigationHistoryWrapper(gym.Wrapper if gym is not None else object):
-    """Appends `[recent_progress, recent_contact]` to the observation.
+    """Appends `[recent_progress, recent_contact, prev_straight,
+    prev_left, prev_right]` to the observation.
 
     Statefulness only matters during this wrapper's own sequential
-    collection (rollout/DAgger/eval) -- once appended, the two values are
+    collection (rollout/DAgger/eval) -- once appended, the five values are
     ordinary numbers in the stored transition, safe under any downstream
     shuffled-minibatch replay.
 
-    EVA-cast ticks are excluded from both statistics, mirroring
+    EVA-cast ticks are excluded from both TEMPORAL statistics, mirroring
     RecoveryController._eva_history exactly. Only the single EVA-commanded
     tick is excluded by default; extending this to a multi-tick grace
     window requires measuring real post-cast displacement suppression
-    first (see plan Step 1) -- do not assume a longer window.
+    first (see plan Step 1) -- do not assume a longer window. The
+    previous-steering one-hot is an instantaneous state read (not
+    windowed), so EVA exclusion does not apply to it.
     """
 
     def __init__(
@@ -141,26 +186,28 @@ class NavigationHistoryWrapper(gym.Wrapper if gym is not None else object):
                 dtype=np.float32,
             )
 
-    def _sidecar_values(self) -> np.ndarray:
+    def _sidecar_values(self, previous_steering: "SteeringDirection | int") -> np.ndarray:
         return sidecar_values_from_history(
-            self._history, expected_clear_path_displacement=self.expected_clear_path_displacement,
+            self._history, previous_steering,
+            expected_clear_path_displacement=self.expected_clear_path_displacement,
         )
 
-    def _augment(self, observation: np.ndarray) -> np.ndarray:
+    def _augment(self, observation: np.ndarray, previous_steering: "SteeringDirection | int" = SteeringDirection.NONE) -> np.ndarray:
         raw = np.asarray(observation, dtype=np.float32).reshape(-1)
         if raw.shape[0] != RAW_OBSERVATION_SIZE:
             raise ValueError(
                 f"NavigationHistoryWrapper expects a {RAW_OBSERVATION_SIZE}-value raw observation, "
                 f"got {raw.shape[0]}"
             )
-        return np.concatenate([raw, self._sidecar_values()])
+        return np.concatenate([raw, self._sidecar_values(previous_steering)])
 
     def reset(self, **kwargs: Any) -> tuple[np.ndarray, dict[str, Any]]:
         observation, info = self.env.reset(**kwargs)
         self._history.clear()
         self._previous_distance = 0.0
         self._previous_contacts = 0
-        return self._augment(observation), info
+        previous_steering = info.get("previous_steering", int(SteeringDirection.NONE))
+        return self._augment(observation, previous_steering), info
 
     def step(self, action: Any) -> tuple[np.ndarray, float, bool, bool, dict[str, Any]]:
         action_array = np.asarray(action)
@@ -183,4 +230,5 @@ class NavigationHistoryWrapper(gym.Wrapper if gym is not None else object):
                 eva_attempted=eva_attempted,
             )
         )
-        return self._augment(observation), reward, terminated, truncated, info
+        previous_steering = info.get("previous_steering", int(SteeringDirection.NONE))
+        return self._augment(observation, previous_steering), reward, terminated, truncated, info
