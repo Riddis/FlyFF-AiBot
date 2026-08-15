@@ -1,0 +1,11 @@
+{
+  "simulator/kinodynamic_route_planner.py": "72965645081fa82d7e7f1066c0e6f141c5fd0c83ab1fe5b204d7d7a46fe28ed2",
+  "scratchpad_general_router_episode.py": "dc7ce7ff6940c1f4e98fad5b66fecb7f58c1616b3d0693935db2d7b3f4576f39",
+  "scratchpad_beginner_navigation_mix_pools.py": "dd9a4630c30059ce809ed8320c24b095eb9b3e4fe99b76a4e271a2404be84156",
+  "scratchpad_router_v2_qualification_pool.py": "a3d595c68e38fc7b369651dc090cb1d4f56e588f9e432a81706fc641e46a275c",
+  "scratchpad_router_v2_qualification_840M.py": "21dfd20e705861035fbc803573f6b23f8ef9209bcaf0d58e7ac617079b3bf8c7",
+  "scratchpad_router_v2_final_confirmation_820M.py": "c4c0b39c052a1edd58748ea05f4d170ca5b60b92856e41e7ead9af03f19faea8",
+  "models/generalized_waypoint_both_seed2_0051200.zip": "87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50",
+  "evaluations/router_mix_qualification_pool_840000000_manifest.json": "fcb1d03e24ba159470e3ef7e5ab7a46383b40d51e58404d390ac523169455ede",
+  "evaluations/router_mix_final_pool_820000000_manifest.json": "da8138b0873993d6283bdbab54365a7fa1f41165d71456682e39728a39c8b42d"
+}

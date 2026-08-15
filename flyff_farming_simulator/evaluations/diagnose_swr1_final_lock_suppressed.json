@@ -1,0 +1,364 @@
+{
+  "B_with_final_lock": {
+    "outcome": "collision",
+    "ticks": [
+      {
+        "tick": 0,
+        "pre_pose": [
+          0.0,
+          0.0,
+          -24.04
+        ],
+        "controller_target": [
+          12.005,
+          -5.355
+        ],
+        "controller_reason": "INITIAL",
+        "steering": "STRAIGHT",
+        "final_distance_cells": 12.099,
+        "contact": false
+      },
+      {
+        "tick": 1,
+        "pre_pose": [
+          4.002,
+          -1.785,
+          -24.04
+        ],
+        "controller_target": [
+          8.003,
+          -3.57
+        ],
+        "controller_reason": "CURRENT_UNSAFE",
+        "steering": "STRAIGHT",
+        "final_distance_cells": 9.804,
+        "contact": false
+      },
+      {
+        "tick": 2,
+        "pre_pose": [
+          8.003,
+          -3.57,
+          -24.04
+        ],
+        "controller_target": [
+          20.273,
+          -7.238
+        ],
+        "controller_reason": "CURRENT_REACHED_OR_PASSED",
+        "steering": "STRAIGHT",
+        "final_distance_cells": 7.8,
+        "contact": false
+      },
+      {
+        "tick": 3,
+        "pre_pose": [
+          12.005,
+          -5.355,
+          -24.04
+        ],
+        "controller_target": [
+          20.273,
+          -7.238
+        ],
+        "controller_reason": "KEEP_CURRENT",
+        "steering": "LEFT",
+        "final_distance_cells": 5.484,
+        "contact": false
+      },
+      {
+        "tick": 4,
+        "pre_pose": [
+          16.273,
+          -5.284,
+          21.4
+        ],
+        "controller_target": [
+          20.273,
+          -7.238
+        ],
+        "controller_reason": "KEEP_CURRENT",
+        "steering": "RIGHT",
+        "final_distance_cells": 3.87,
+        "contact": false
+      },
+      {
+        "tick": 5,
+        "pre_pose": [
+          20.533,
+          -5.551,
+          -24.04
+        ],
+        "controller_target": [
+          24.592,
+          -0.01
+        ],
+        "controller_reason": "CURRENT_REACHED_OR_PASSED",
+        "steering": "LEFT",
+        "final_distance_cells": 3.555,
+        "contact": false
+      },
+      {
+        "tick": 6,
+        "pre_pose": [
+          24.802,
+          -5.481,
+          21.4
+        ],
+        "controller_target": [
+          23.277,
+          0.0
+        ],
+        "controller_reason": "FINAL_TARGET_LOCK",
+        "steering": "LEFT",
+        "final_distance_cells": 3.049,
+        "contact": false
+      },
+      {
+        "tick": 7,
+        "pre_pose": [
+          27.591,
+          -2.281,
+          71.45
+        ],
+        "controller_target": [
+          23.277,
+          0.0
+        ],
+        "controller_reason": "FINAL_TARGET_LOCK",
+        "steering": "LEFT",
+        "final_distance_cells": 2.576,
+        "contact": false
+      },
+      {
+        "tick": 8,
+        "pre_pose": [
+          26.928,
+          1.912,
+          121.51
+        ],
+        "controller_target": [
+          23.277,
+          0.0
+        ],
+        "controller_reason": "FINAL_TARGET_LOCK",
+        "steering": "LEFT",
+        "final_distance_cells": 2.56,
+        "contact": false
+      },
+      {
+        "tick": 9,
+        "pre_pose": [
+          23.288,
+          4.096,
+          171.56
+        ],
+        "controller_target": [
+          23.277,
+          0.0
+        ],
+        "controller_reason": "FINAL_TARGET_LOCK",
+        "steering": "LEFT",
+        "final_distance_cells": 3.019,
+        "contact": false
+      },
+      {
+        "tick": 10,
+        "pre_pose": [
+          19.276,
+          2.707,
+          -138.38
+        ],
+        "controller_target": [
+          23.277,
+          0.0
+        ],
+        "controller_reason": "FINAL_TARGET_LOCK",
+        "steering": "LEFT",
+        "final_distance_cells": 3.133,
+        "contact": true
+      }
+    ]
+  },
+  "B_final_lock_SUPPRESSED": {
+    "outcome": "collision",
+    "ticks": [
+      {
+        "tick": 0,
+        "pre_pose": [
+          0.0,
+          0.0,
+          -24.04
+        ],
+        "controller_target": [
+          12.005,
+          -5.355
+        ],
+        "controller_reason": "INITIAL",
+        "steering": "STRAIGHT",
+        "final_distance_cells": 12.099,
+        "contact": false
+      },
+      {
+        "tick": 1,
+        "pre_pose": [
+          4.002,
+          -1.785,
+          -24.04
+        ],
+        "controller_target": [
+          8.003,
+          -3.57
+        ],
+        "controller_reason": "CURRENT_UNSAFE",
+        "steering": "STRAIGHT",
+        "final_distance_cells": 9.804,
+        "contact": false
+      },
+      {
+        "tick": 2,
+        "pre_pose": [
+          8.003,
+          -3.57,
+          -24.04
+        ],
+        "controller_target": [
+          20.273,
+          -7.238
+        ],
+        "controller_reason": "CURRENT_REACHED_OR_PASSED",
+        "steering": "STRAIGHT",
+        "final_distance_cells": 7.8,
+        "contact": false
+      },
+      {
+        "tick": 3,
+        "pre_pose": [
+          12.005,
+          -5.355,
+          -24.04
+        ],
+        "controller_target": [
+          20.273,
+          -7.238
+        ],
+        "controller_reason": "KEEP_CURRENT",
+        "steering": "LEFT",
+        "final_distance_cells": 5.484,
+        "contact": false
+      },
+      {
+        "tick": 4,
+        "pre_pose": [
+          16.273,
+          -5.284,
+          21.4
+        ],
+        "controller_target": [
+          20.273,
+          -7.238
+        ],
+        "controller_reason": "KEEP_CURRENT",
+        "steering": "RIGHT",
+        "final_distance_cells": 3.87,
+        "contact": false
+      },
+      {
+        "tick": 5,
+        "pre_pose": [
+          20.533,
+          -5.551,
+          -24.04
+        ],
+        "controller_target": [
+          24.592,
+          -0.01
+        ],
+        "controller_reason": "CURRENT_REACHED_OR_PASSED",
+        "steering": "LEFT",
+        "final_distance_cells": 3.555,
+        "contact": false
+      },
+      {
+        "tick": 6,
+        "pre_pose": [
+          24.802,
+          -5.481,
+          21.4
+        ],
+        "controller_target": [
+          24.592,
+          -0.01
+        ],
+        "controller_reason": "KEEP_CURRENT",
+        "steering": "LEFT",
+        "final_distance_cells": 3.049,
+        "contact": false
+      },
+      {
+        "tick": 7,
+        "pre_pose": [
+          27.591,
+          -2.281,
+          71.45
+        ],
+        "controller_target": [
+          23.277,
+          0.0
+        ],
+        "controller_reason": "CURRENT_REACHED_OR_PASSED",
+        "steering": "LEFT",
+        "final_distance_cells": 2.576,
+        "contact": false
+      },
+      {
+        "tick": 8,
+        "pre_pose": [
+          26.928,
+          1.912,
+          121.51
+        ],
+        "controller_target": [
+          23.277,
+          0.0
+        ],
+        "controller_reason": "CURRENT_REACHED_OR_PASSED",
+        "steering": "LEFT",
+        "final_distance_cells": 2.56,
+        "contact": false
+      },
+      {
+        "tick": 9,
+        "pre_pose": [
+          23.288,
+          4.096,
+          171.56
+        ],
+        "controller_target": [
+          23.277,
+          0.0
+        ],
+        "controller_reason": "CURRENT_REACHED_OR_PASSED",
+        "steering": "LEFT",
+        "final_distance_cells": 3.019,
+        "contact": false
+      },
+      {
+        "tick": 10,
+        "pre_pose": [
+          19.276,
+          2.707,
+          -138.38
+        ],
+        "controller_target": [
+          23.277,
+          0.0
+        ],
+        "controller_reason": "CURRENT_REACHED_OR_PASSED",
+        "steering": "LEFT",
+        "final_distance_cells": 3.133,
+        "contact": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,321 @@
+{
+  "rule": "Eligibility: (1) open_regression success==1.0,collision==0.0; (2) repaired-regressed>=3 AND candidate_collision_set subset-of baseline_collision_set; (3) timeout/contact classification diagnostic-only. Ranking: collision_rate asc, success_rate desc, mean_path_efficiency desc, mean_ticks_to_success asc, steps asc.",
+  "baseline_collisions": [
+    "('two_wall_left_then_right', 21)",
+    "('two_wall_left_then_right', 26)",
+    "('two_wall_right_then_left', 8)",
+    "('two_wall_right_then_left', 9)"
+  ],
+  "all_candidates": [
+    {
+      "seed": 100,
+      "steps": 56320,
+      "collision_rate": 0.016666666666666666,
+      "success_rate": 0.9833333333333333,
+      "mean_path_efficiency": 0.8405197508679991,
+      "mean_ticks_to_success": 11.915254237288135,
+      "collisions": [
+        "('two_wall_right_then_left', 8)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_left_then_right', 26)"
+      ],
+      "regressed": [],
+      "repaired_minus_regressed": 2,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": true,
+      "eligible": false
+    },
+    {
+      "seed": 100,
+      "steps": 61440,
+      "collision_rate": 0.025,
+      "success_rate": 0.975,
+      "mean_path_efficiency": 0.8439957555691883,
+      "mean_ticks_to_success": 11.82905982905983,
+      "collisions": [
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_right_then_left', 8)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 26)"
+      ],
+      "regressed": [],
+      "repaired_minus_regressed": 1,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": true,
+      "eligible": false
+    },
+    {
+      "seed": 100,
+      "steps": 66560,
+      "collision_rate": 0.016666666666666666,
+      "success_rate": 0.9833333333333333,
+      "mean_path_efficiency": 0.844175554863038,
+      "mean_ticks_to_success": 11.85593220338983,
+      "collisions": [
+        "('two_wall_right_then_left', 8)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_left_then_right', 26)"
+      ],
+      "regressed": [],
+      "repaired_minus_regressed": 2,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": true,
+      "eligible": false
+    },
+    {
+      "seed": 100,
+      "steps": 71680,
+      "collision_rate": 0.016666666666666666,
+      "success_rate": 0.9833333333333333,
+      "mean_path_efficiency": 0.841368285977934,
+      "mean_ticks_to_success": 11.90677966101695,
+      "collisions": [
+        "('two_wall_right_then_left', 8)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_left_then_right', 26)"
+      ],
+      "regressed": [],
+      "repaired_minus_regressed": 2,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": true,
+      "eligible": false
+    },
+    {
+      "seed": 102,
+      "steps": 56320,
+      "collision_rate": 0.075,
+      "success_rate": 0.925,
+      "mean_path_efficiency": 0.8512118902241573,
+      "mean_ticks_to_success": 11.981981981981981,
+      "collisions": [
+        "('single_wall_left', 11)",
+        "('single_wall_left', 12)",
+        "('single_wall_left', 4)",
+        "('single_wall_left', 8)",
+        "('single_wall_right', 4)",
+        "('single_wall_right', 6)",
+        "('two_wall_left_then_right', 27)",
+        "('two_wall_right_then_left', 8)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_left_then_right', 26)"
+      ],
+      "regressed": [
+        "('single_wall_left', 11)",
+        "('single_wall_left', 12)",
+        "('single_wall_left', 4)",
+        "('single_wall_left', 8)",
+        "('single_wall_right', 4)",
+        "('single_wall_right', 6)",
+        "('two_wall_left_then_right', 27)"
+      ],
+      "repaired_minus_regressed": -5,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": false,
+      "eligible": false
+    },
+    {
+      "seed": 102,
+      "steps": 61440,
+      "collision_rate": 0.041666666666666664,
+      "success_rate": 0.9583333333333334,
+      "mean_path_efficiency": 0.8422038877479344,
+      "mean_ticks_to_success": 11.843478260869565,
+      "collisions": [
+        "('single_wall_left', 8)",
+        "('two_wall_left_then_right', 25)",
+        "('two_wall_right_then_left', 6)",
+        "('two_wall_right_then_left', 8)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_left_then_right', 26)"
+      ],
+      "regressed": [
+        "('single_wall_left', 8)",
+        "('two_wall_left_then_right', 25)",
+        "('two_wall_right_then_left', 6)"
+      ],
+      "repaired_minus_regressed": -1,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": false,
+      "eligible": false
+    },
+    {
+      "seed": 102,
+      "steps": 66560,
+      "collision_rate": 0.03333333333333333,
+      "success_rate": 0.9666666666666667,
+      "mean_path_efficiency": 0.841271979863729,
+      "mean_ticks_to_success": 11.905172413793103,
+      "collisions": [
+        "('single_wall_left', 8)",
+        "('two_wall_left_then_right', 25)",
+        "('two_wall_right_then_left', 8)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_left_then_right', 26)"
+      ],
+      "regressed": [
+        "('single_wall_left', 8)",
+        "('two_wall_left_then_right', 25)"
+      ],
+      "repaired_minus_regressed": 0,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": false,
+      "eligible": false
+    },
+    {
+      "seed": 102,
+      "steps": 71680,
+      "collision_rate": 0.03333333333333333,
+      "success_rate": 0.9666666666666667,
+      "mean_path_efficiency": 0.8427834295543126,
+      "mean_ticks_to_success": 11.89655172413793,
+      "collisions": [
+        "('single_wall_left', 8)",
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_right_then_left', 8)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 26)"
+      ],
+      "regressed": [
+        "('single_wall_left', 8)"
+      ],
+      "repaired_minus_regressed": 0,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": false,
+      "eligible": false
+    },
+    {
+      "seed": 108,
+      "steps": 56320,
+      "collision_rate": 0.025,
+      "success_rate": 0.975,
+      "mean_path_efficiency": 0.838759513801726,
+      "mean_ticks_to_success": 11.897435897435898,
+      "collisions": [
+        "('two_wall_left_then_right', 0)",
+        "('two_wall_right_then_left', 8)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_left_then_right', 26)"
+      ],
+      "regressed": [
+        "('two_wall_left_then_right', 0)"
+      ],
+      "repaired_minus_regressed": 1,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": false,
+      "eligible": false
+    },
+    {
+      "seed": 108,
+      "steps": 61440,
+      "collision_rate": 0.025,
+      "success_rate": 0.975,
+      "mean_path_efficiency": 0.8360745070769339,
+      "mean_ticks_to_success": 11.923076923076923,
+      "collisions": [
+        "('two_wall_left_then_right', 0)",
+        "('two_wall_right_then_left', 8)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_left_then_right', 26)"
+      ],
+      "regressed": [
+        "('two_wall_left_then_right', 0)"
+      ],
+      "repaired_minus_regressed": 1,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": false,
+      "eligible": false
+    },
+    {
+      "seed": 108,
+      "steps": 66560,
+      "collision_rate": 0.025,
+      "success_rate": 0.975,
+      "mean_path_efficiency": 0.8361686376773856,
+      "mean_ticks_to_success": 11.957264957264957,
+      "collisions": [
+        "('two_wall_left_then_right', 0)",
+        "('two_wall_right_then_left', 8)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_left_then_right', 26)"
+      ],
+      "regressed": [
+        "('two_wall_left_then_right', 0)"
+      ],
+      "repaired_minus_regressed": 1,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": false,
+      "eligible": false
+    },
+    {
+      "seed": 108,
+      "steps": 71680,
+      "collision_rate": 0.025,
+      "success_rate": 0.975,
+      "mean_path_efficiency": 0.835386169733973,
+      "mean_ticks_to_success": 12.042735042735043,
+      "collisions": [
+        "('single_wall_left', 6)",
+        "('two_wall_left_then_right', 0)",
+        "('two_wall_right_then_left', 8)"
+      ],
+      "repaired": [
+        "('two_wall_left_then_right', 21)",
+        "('two_wall_left_then_right', 26)",
+        "('two_wall_right_then_left', 9)"
+      ],
+      "regressed": [
+        "('single_wall_left', 6)",
+        "('two_wall_left_then_right', 0)"
+      ],
+      "repaired_minus_regressed": 1,
+      "gate1_open_regression": true,
+      "gate2_margin_ge_3": false,
+      "gate2_strict_subset": false,
+      "eligible": false
+    }
+  ],
+  "ranked_eligible_candidates": [],
+  "selected": null
+}

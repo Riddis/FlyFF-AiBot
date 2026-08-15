@@ -1,0 +1,333 @@
+{
+  "obstacle": {
+    "A": {
+      "per_stratum": {
+        "single_wall_left": {
+          "n": 17,
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "timeout_rate": 0.0,
+          "planner_failure_rate": 0.0,
+          "mean_ticks_to_success": 7.764705882352941,
+          "mean_target_switches": 4.411764705882353,
+          "mean_route_length_nodes": 8.705882352941176,
+          "mean_min_clearance_cells": 2.990933753365846,
+          "min_min_clearance_cells": 2.0,
+          "mean_path_efficiency": 0.7888006728927694,
+          "failure_stage_counts": {
+            "success": 17
+          },
+          "contact_ticks": []
+        },
+        "single_wall_right": {
+          "n": 17,
+          "success_rate": 0.9411764705882353,
+          "collision_rate": 0.058823529411764705,
+          "timeout_rate": 0.0,
+          "planner_failure_rate": 0.0,
+          "mean_ticks_to_success": 8.125,
+          "mean_target_switches": 4.0,
+          "mean_route_length_nodes": 8.941176470588236,
+          "mean_min_clearance_cells": 2.8663629407071682,
+          "min_min_clearance_cells": 1.0,
+          "mean_path_efficiency": 0.8344054781630819,
+          "failure_stage_counts": {
+            "success": 16,
+            "failure_approaching_final_target": 1
+          },
+          "contact_ticks": [
+            11
+          ]
+        },
+        "single_wall_none": {
+          "n": 17,
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "timeout_rate": 0.0,
+          "planner_failure_rate": 0.0,
+          "mean_ticks_to_success": 6.823529411764706,
+          "mean_target_switches": 1.0,
+          "mean_route_length_nodes": 7.705882352941177,
+          "mean_min_clearance_cells": 7.0,
+          "min_min_clearance_cells": 7.0,
+          "mean_path_efficiency": 0.916769834562527,
+          "failure_stage_counts": {
+            "success": 17
+          },
+          "contact_ticks": []
+        },
+        "two_wall_left_then_right": {
+          "n": 25,
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "timeout_rate": 0.0,
+          "planner_failure_rate": 0.0,
+          "mean_ticks_to_success": 16.0,
+          "mean_target_switches": 6.0,
+          "mean_route_length_nodes": 16.76,
+          "mean_min_clearance_cells": 2.871914627320103,
+          "min_min_clearance_cells": 1.0,
+          "mean_path_efficiency": 0.8506553658920882,
+          "failure_stage_counts": {
+            "success": 25
+          },
+          "contact_ticks": []
+        },
+        "two_wall_right_then_left": {
+          "n": 25,
+          "success_rate": 0.96,
+          "collision_rate": 0.04,
+          "timeout_rate": 0.0,
+          "planner_failure_rate": 0.0,
+          "mean_ticks_to_success": 16.25,
+          "mean_target_switches": 5.84,
+          "mean_route_length_nodes": 17.16,
+          "mean_min_clearance_cells": 2.6597230080201153,
+          "min_min_clearance_cells": 1.0,
+          "mean_path_efficiency": 0.8613727530279082,
+          "failure_stage_counts": {
+            "success": 24,
+            "failure_early_in_route": 1
+          },
+          "contact_ticks": [
+            4
+          ]
+        }
+      },
+      "combined_summary": {
+        "n": 101,
+        "success_rate": 0.9801980198019802,
+        "collision_rate": 0.019801980198019802,
+        "timeout_rate": 0.0,
+        "planner_failure_rate": 0.0,
+        "mean_ticks_to_success": 11.797979797979798,
+        "mean_target_switches": 4.514851485148514,
+        "mean_route_length_nodes": 12.663366336633663,
+        "mean_min_clearance_cells": 3.5333166800271956,
+        "min_min_clearance_cells": 1.0,
+        "mean_path_efficiency": 0.8513587524981955,
+        "failure_stage_counts": {
+          "success": 99,
+          "failure_approaching_final_target": 1,
+          "failure_early_in_route": 1
+        },
+        "contact_ticks": [
+          11,
+          4
+        ]
+      },
+      "collision_episode_keys": [
+        "('single_wall_right', 5)",
+        "('two_wall_right_then_left', 2)"
+      ],
+      "planner_failure_episode_keys": [],
+      "timeout_episode_keys": [],
+      "n_total": 101
+    },
+    "D": {
+      "per_stratum": {
+        "single_wall_left": {
+          "n": 17,
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "timeout_rate": 0.0,
+          "planner_failure_rate": 0.0,
+          "mean_ticks_to_success": 7.764705882352941,
+          "mean_target_switches": 4.411764705882353,
+          "mean_route_length_nodes": 8.705882352941176,
+          "mean_min_clearance_cells": 2.990933753365846,
+          "min_min_clearance_cells": 2.0,
+          "mean_path_efficiency": 0.7888006728927694,
+          "failure_stage_counts": {
+            "success": 17
+          },
+          "contact_ticks": []
+        },
+        "single_wall_right": {
+          "n": 17,
+          "success_rate": 0.9411764705882353,
+          "collision_rate": 0.058823529411764705,
+          "timeout_rate": 0.0,
+          "planner_failure_rate": 0.0,
+          "mean_ticks_to_success": 8.125,
+          "mean_target_switches": 4.0,
+          "mean_route_length_nodes": 8.941176470588236,
+          "mean_min_clearance_cells": 2.8663629407071682,
+          "min_min_clearance_cells": 1.0,
+          "mean_path_efficiency": 0.8344054781630819,
+          "failure_stage_counts": {
+            "success": 16,
+            "failure_approaching_final_target": 1
+          },
+          "contact_ticks": [
+            11
+          ]
+        },
+        "single_wall_none": {
+          "n": 17,
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "timeout_rate": 0.0,
+          "planner_failure_rate": 0.0,
+          "mean_ticks_to_success": 6.823529411764706,
+          "mean_target_switches": 1.0,
+          "mean_route_length_nodes": 7.705882352941177,
+          "mean_min_clearance_cells": 7.0,
+          "min_min_clearance_cells": 7.0,
+          "mean_path_efficiency": 0.916769834562527,
+          "failure_stage_counts": {
+            "success": 17
+          },
+          "contact_ticks": []
+        },
+        "two_wall_left_then_right": {
+          "n": 25,
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "timeout_rate": 0.0,
+          "planner_failure_rate": 0.0,
+          "mean_ticks_to_success": 15.92,
+          "mean_target_switches": 6.04,
+          "mean_route_length_nodes": 16.76,
+          "mean_min_clearance_cells": 2.834866240013359,
+          "min_min_clearance_cells": 1.4142135623730951,
+          "mean_path_efficiency": 0.8543572063178456,
+          "failure_stage_counts": {
+            "success": 25
+          },
+          "contact_ticks": []
+        },
+        "two_wall_right_then_left": {
+          "n": 25,
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "timeout_rate": 0.0,
+          "planner_failure_rate": 0.0,
+          "mean_ticks_to_success": 16.28,
+          "mean_target_switches": 6.04,
+          "mean_route_length_nodes": 17.16,
+          "mean_min_clearance_cells": 2.6997230080201153,
+          "min_min_clearance_cells": 1.0,
+          "mean_path_efficiency": 0.8632233968144645,
+          "failure_stage_counts": {
+            "success": 25
+          },
+          "contact_ticks": []
+        }
+      },
+      "combined_summary": {
+        "n": 101,
+        "success_rate": 0.9900990099009901,
+        "collision_rate": 0.009900990099009901,
+        "timeout_rate": 0.0,
+        "planner_failure_rate": 0.0,
+        "mean_ticks_to_success": 11.83,
+        "mean_target_switches": 4.574257425742574,
+        "mean_route_length_nodes": 12.663366336633663,
+        "mean_min_clearance_cells": 3.5340472772284968,
+        "min_min_clearance_cells": 1.0,
+        "mean_path_efficiency": 0.8528470135565711,
+        "failure_stage_counts": {
+          "success": 100,
+          "failure_approaching_final_target": 1
+        },
+        "contact_ticks": [
+          11
+        ]
+      },
+      "collision_episode_keys": [
+        "('single_wall_right', 5)"
+      ],
+      "planner_failure_episode_keys": [],
+      "timeout_episode_keys": [],
+      "n_total": 101
+    }
+  },
+  "open": {
+    "A": {
+      "n": 20,
+      "successes": 20,
+      "collisions": 0,
+      "timeouts": 0,
+      "episode_outcomes": [
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success"
+      ],
+      "success_rate": 1.0,
+      "collision_rate": 0.0
+    },
+    "D": {
+      "n": 20,
+      "successes": 20,
+      "collisions": 0,
+      "timeouts": 0,
+      "episode_outcomes": [
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success",
+        "success"
+      ],
+      "success_rate": 1.0,
+      "collision_rate": 0.0
+    }
+  },
+  "rule_evaluation": {
+    "open_identical": true,
+    "open_both_perfect": true,
+    "zero_collisions_on_a": false,
+    "a_collisions": [
+      "('single_wall_right', 5)",
+      "('two_wall_right_then_left', 2)"
+    ],
+    "d_collisions": [
+      "('single_wall_right', 5)"
+    ],
+    "a_timeouts": [],
+    "d_timeouts": [],
+    "a_planner_failures": [],
+    "d_planner_failures": [],
+    "a_success": 99,
+    "d_success": 100,
+    "success_ok": true,
+    "collision_subset": true,
+    "collision_strict": true,
+    "nonsuccess_subset": true,
+    "timeout_subset": true,
+    "planner_subset": true,
+    "d_passes": true
+  }
+}

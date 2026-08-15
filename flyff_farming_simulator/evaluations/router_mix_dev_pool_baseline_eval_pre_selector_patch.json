@@ -1,0 +1,128 @@
+{
+  "per_stratum": {
+    "single_wall_left": {
+      "n": 20,
+      "success_rate": 1.0,
+      "collision_rate": 0.0,
+      "timeout_rate": 0.0,
+      "planner_failure_rate": 0.0,
+      "mean_ticks_to_success": 8.7,
+      "mean_target_switches": 4.5,
+      "mean_route_length_nodes": 9.6,
+      "mean_min_clearance_cells": 2.9023906959732573,
+      "min_min_clearance_cells": 1.0,
+      "mean_path_efficiency": 0.751907971164425,
+      "failure_stage_counts": {
+        "success": 20
+      },
+      "contact_ticks": []
+    },
+    "single_wall_right": {
+      "n": 20,
+      "success_rate": 1.0,
+      "collision_rate": 0.0,
+      "timeout_rate": 0.0,
+      "planner_failure_rate": 0.0,
+      "mean_ticks_to_success": 8.2,
+      "mean_target_switches": 4.9,
+      "mean_route_length_nodes": 8.85,
+      "mean_min_clearance_cells": 2.867688765058209,
+      "min_min_clearance_cells": 2.0,
+      "mean_path_efficiency": 0.7679622208244086,
+      "failure_stage_counts": {
+        "success": 20
+      },
+      "contact_ticks": []
+    },
+    "single_wall_none": {
+      "n": 20,
+      "success_rate": 1.0,
+      "collision_rate": 0.0,
+      "timeout_rate": 0.0,
+      "planner_failure_rate": 0.0,
+      "mean_ticks_to_success": 6.6,
+      "mean_target_switches": 1.0,
+      "mean_route_length_nodes": 7.55,
+      "mean_min_clearance_cells": 7.0,
+      "min_min_clearance_cells": 7.0,
+      "mean_path_efficiency": 0.9382587121321256,
+      "failure_stage_counts": {
+        "success": 20
+      },
+      "contact_ticks": []
+    },
+    "two_wall_left_then_right": {
+      "n": 30,
+      "success_rate": 0.9333333333333333,
+      "collision_rate": 0.06666666666666667,
+      "timeout_rate": 0.0,
+      "planner_failure_rate": 0.0,
+      "mean_ticks_to_success": 16.071428571428573,
+      "mean_target_switches": 6.033333333333333,
+      "mean_route_length_nodes": 16.833333333333332,
+      "mean_min_clearance_cells": 2.5978946411108383,
+      "min_min_clearance_cells": 1.0,
+      "mean_path_efficiency": 0.8552276222480318,
+      "failure_stage_counts": {
+        "success": 28,
+        "failure_mid_route_progression": 2
+      },
+      "contact_ticks": [
+        10,
+        8
+      ]
+    },
+    "two_wall_right_then_left": {
+      "n": 30,
+      "success_rate": 0.9333333333333333,
+      "collision_rate": 0.06666666666666667,
+      "timeout_rate": 0.0,
+      "planner_failure_rate": 0.0,
+      "mean_ticks_to_success": 16.321428571428573,
+      "mean_target_switches": 6.466666666666667,
+      "mean_route_length_nodes": 17.333333333333332,
+      "mean_min_clearance_cells": 2.6891314430280713,
+      "min_min_clearance_cells": 1.0,
+      "mean_path_efficiency": 0.8712813269869307,
+      "failure_stage_counts": {
+        "success": 28,
+        "failure_early_in_route": 2
+      },
+      "contact_ticks": [
+        4,
+        4
+      ]
+    }
+  },
+  "combined_summary": {
+    "n": 120,
+    "success_rate": 0.9666666666666667,
+    "collision_rate": 0.03333333333333333,
+    "timeout_rate": 0.0,
+    "planner_failure_rate": 0.0,
+    "mean_ticks_to_success": 11.870689655172415,
+    "mean_target_switches": 4.858333333333333,
+    "mean_route_length_nodes": 12.875,
+    "mean_min_clearance_cells": 3.450103097873305,
+    "min_min_clearance_cells": 1.0,
+    "mean_path_efficiency": 0.8405588677672252,
+    "failure_stage_counts": {
+      "success": 116,
+      "failure_mid_route_progression": 2,
+      "failure_early_in_route": 2
+    },
+    "contact_ticks": [
+      10,
+      8,
+      4,
+      4
+    ]
+  },
+  "collision_episode_keys": [
+    "('two_wall_left_then_right', 21)",
+    "('two_wall_left_then_right', 26)",
+    "('two_wall_right_then_left', 8)",
+    "('two_wall_right_then_left', 9)"
+  ],
+  "n_total": 120
+}

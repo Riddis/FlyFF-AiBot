@@ -1,0 +1,677 @@
+{
+  "single_wall_left_14": {
+    "label": "single_wall_left_14",
+    "stratum": "single_wall_left",
+    "seed": 830600014,
+    "real_outcome_A_old_selector": "collision",
+    "real_outcome_B_patched_selector": "success",
+    "critical_tick": {
+      "tick": 2,
+      "pre_pose": [
+        8.517,
+        -0.49,
+        19.42
+      ],
+      "old_tier": "ANY_FALLBACK",
+      "old_target": [
+        32.797,
+        3.197
+      ],
+      "old_target_segment_clear": false,
+      "old_target_direct_hop_clearance": 1.0,
+      "patched_tier": "COLLISION_FREE_LOW_MARGIN_FALLBACK",
+      "patched_target": [
+        12.397,
+        4.371
+      ],
+      "farthest_segment_clear_true_candidate": {
+        "route_index": 7,
+        "real_distance_cells": 13.189,
+        "direct_hop_min_clearance": 1.0,
+        "segment_clear": true,
+        "within_budget": true,
+        "meets_min_progress": true,
+        "eligible_best": false,
+        "eligible_safe_fallback": false
+      },
+      "max_clearance_segment_clear_true_candidate": {
+        "route_index": 3,
+        "real_distance_cells": 3.887,
+        "direct_hop_min_clearance": 2.236,
+        "segment_clear": true,
+        "within_budget": true,
+        "meets_min_progress": true,
+        "eligible_best": false,
+        "eligible_safe_fallback": false
+      },
+      "farthest_equals_max_clearance": false,
+      "farthest_equals_old_any_fallback_target": false,
+      "all_candidates_old_view": [
+        {
+          "route_index": 3,
+          "real_distance_cells": 3.887,
+          "direct_hop_min_clearance": 2.236,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 4,
+          "real_distance_cells": 6.377,
+          "direct_hop_min_clearance": 1.414,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 5,
+          "real_distance_cells": 9.013,
+          "direct_hop_min_clearance": 1.414,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 6,
+          "real_distance_cells": 11.282,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 7,
+          "real_distance_cells": 13.189,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 8,
+          "real_distance_cells": 15.349,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": false,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        }
+      ]
+    }
+  },
+  "single_wall_left_21": {
+    "label": "single_wall_left_21",
+    "stratum": "single_wall_left",
+    "seed": 830600021,
+    "real_outcome_A_old_selector": "collision",
+    "real_outcome_B_patched_selector": "success",
+    "critical_tick": {
+      "tick": 1,
+      "pre_pose": [
+        4.166,
+        0.932,
+        33.05
+      ],
+      "old_tier": "ANY_FALLBACK",
+      "old_target": [
+        37.14,
+        1.615
+      ],
+      "old_target_segment_clear": true,
+      "old_target_direct_hop_clearance": 1.0,
+      "patched_tier": "COLLISION_FREE_LOW_MARGIN_FALLBACK",
+      "patched_target": [
+        7.871,
+        3.156
+      ],
+      "farthest_segment_clear_true_candidate": {
+        "route_index": 9,
+        "real_distance_cells": 20.613,
+        "direct_hop_min_clearance": 1.0,
+        "segment_clear": true,
+        "within_budget": true,
+        "meets_min_progress": true,
+        "eligible_best": false,
+        "eligible_safe_fallback": false
+      },
+      "max_clearance_segment_clear_true_candidate": {
+        "route_index": 2,
+        "real_distance_cells": 2.701,
+        "direct_hop_min_clearance": 2.828,
+        "segment_clear": true,
+        "within_budget": true,
+        "meets_min_progress": true,
+        "eligible_best": false,
+        "eligible_safe_fallback": false
+      },
+      "farthest_equals_max_clearance": false,
+      "farthest_equals_old_any_fallback_target": true,
+      "all_candidates_old_view": [
+        {
+          "route_index": 2,
+          "real_distance_cells": 2.701,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 3,
+          "real_distance_cells": 5.438,
+          "direct_hop_min_clearance": 2.236,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 4,
+          "real_distance_cells": 7.978,
+          "direct_hop_min_clearance": 2.0,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 5,
+          "real_distance_cells": 10.291,
+          "direct_hop_min_clearance": 1.414,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 6,
+          "real_distance_cells": 12.773,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 7,
+          "real_distance_cells": 15.343,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 8,
+          "real_distance_cells": 17.963,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 9,
+          "real_distance_cells": 20.613,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        }
+      ]
+    }
+  },
+  "two_wall_right_then_left_16": {
+    "label": "two_wall_right_then_left_16",
+    "stratum": "two_wall_right_then_left",
+    "seed": 830600196,
+    "real_outcome_A_old_selector": "collision",
+    "real_outcome_B_patched_selector": "success",
+    "critical_tick": {
+      "tick": 1,
+      "pre_pose": [
+        3.998,
+        -1.495,
+        -40.94
+      ],
+      "old_tier": "ANY_FALLBACK",
+      "old_target": [
+        52.408,
+        -6.932
+      ],
+      "old_target_segment_clear": false,
+      "old_target_direct_hop_clearance": 1.0,
+      "patched_tier": "COLLISION_FREE_LOW_MARGIN_FALLBACK",
+      "patched_target": [
+        13.982,
+        -9.949
+      ],
+      "farthest_segment_clear_true_candidate": {
+        "route_index": 12,
+        "real_distance_cells": 28.264,
+        "direct_hop_min_clearance": 1.0,
+        "segment_clear": true,
+        "within_budget": true,
+        "meets_min_progress": true,
+        "eligible_best": false,
+        "eligible_safe_fallback": false
+      },
+      "max_clearance_segment_clear_true_candidate": {
+        "route_index": 4,
+        "real_distance_cells": 8.177,
+        "direct_hop_min_clearance": 2.828,
+        "segment_clear": true,
+        "within_budget": true,
+        "meets_min_progress": true,
+        "eligible_best": false,
+        "eligible_safe_fallback": false
+      },
+      "farthest_equals_max_clearance": false,
+      "farthest_equals_old_any_fallback_target": false,
+      "all_candidates_old_view": [
+        {
+          "route_index": 2,
+          "real_distance_cells": 2.701,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 3,
+          "real_distance_cells": 5.438,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 4,
+          "real_distance_cells": 8.177,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 5,
+          "real_distance_cells": 10.696,
+          "direct_hop_min_clearance": 2.236,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 6,
+          "real_distance_cells": 12.93,
+          "direct_hop_min_clearance": 2.236,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 7,
+          "real_distance_cells": 15.329,
+          "direct_hop_min_clearance": 2.0,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 8,
+          "real_distance_cells": 17.825,
+          "direct_hop_min_clearance": 2.0,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 9,
+          "real_distance_cells": 20.384,
+          "direct_hop_min_clearance": 2.0,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 10,
+          "real_distance_cells": 22.985,
+          "direct_hop_min_clearance": 1.414,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 11,
+          "real_distance_cells": 25.614,
+          "direct_hop_min_clearance": 1.414,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 12,
+          "real_distance_cells": 28.264,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 13,
+          "real_distance_cells": 30.446,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": false,
+          "within_budget": false,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        }
+      ]
+    }
+  },
+  "two_wall_right_then_left_5": {
+    "label": "two_wall_right_then_left_5",
+    "stratum": "two_wall_right_then_left",
+    "seed": 830600185,
+    "real_outcome_A_old_selector": "collision",
+    "real_outcome_B_patched_selector": "success",
+    "critical_tick": {
+      "tick": 2,
+      "pre_pose": [
+        8.199,
+        -3.093,
+        -20.67
+      ],
+      "old_tier": "ANY_FALLBACK",
+      "old_target": [
+        55.86,
+        -1.734
+      ],
+      "old_target_segment_clear": false,
+      "old_target_direct_hop_clearance": 1.0,
+      "patched_tier": "COLLISION_FREE_LOW_MARGIN_FALLBACK",
+      "patched_target": [
+        37.061,
+        -12.221
+      ],
+      "farthest_segment_clear_true_candidate": {
+        "route_index": 10,
+        "real_distance_cells": 21.025,
+        "direct_hop_min_clearance": 1.414,
+        "segment_clear": true,
+        "within_budget": true,
+        "meets_min_progress": true,
+        "eligible_best": false,
+        "eligible_safe_fallback": false
+      },
+      "max_clearance_segment_clear_true_candidate": {
+        "route_index": 9,
+        "real_distance_cells": 18.919,
+        "direct_hop_min_clearance": 2.828,
+        "segment_clear": true,
+        "within_budget": true,
+        "meets_min_progress": true,
+        "eligible_best": false,
+        "eligible_safe_fallback": false
+      },
+      "farthest_equals_max_clearance": false,
+      "farthest_equals_old_any_fallback_target": false,
+      "all_candidates_old_view": [
+        {
+          "route_index": 3,
+          "real_distance_cells": 2.738,
+          "direct_hop_min_clearance": 2.236,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 4,
+          "real_distance_cells": 5.477,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 5,
+          "real_distance_cells": 8.215,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 6,
+          "real_distance_cells": 10.954,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 7,
+          "real_distance_cells": 13.692,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 8,
+          "real_distance_cells": 16.431,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 9,
+          "real_distance_cells": 18.919,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 10,
+          "real_distance_cells": 21.025,
+          "direct_hop_min_clearance": 1.414,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 11,
+          "real_distance_cells": 23.264,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": false,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 12,
+          "real_distance_cells": 25.599,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": false,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 13,
+          "real_distance_cells": 28.008,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": false,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 14,
+          "real_distance_cells": 29.8,
+          "direct_hop_min_clearance": 1.0,
+          "segment_clear": false,
+          "within_budget": false,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        }
+      ]
+    }
+  },
+  "single_wall_right_1": {
+    "label": "single_wall_right_1",
+    "stratum": "single_wall_right",
+    "seed": 830600041,
+    "real_outcome_A_old_selector": "success",
+    "real_outcome_B_patched_selector": "collision",
+    "critical_tick": {
+      "tick": 2,
+      "pre_pose": [
+        8.003,
+        -3.57,
+        -24.04
+      ],
+      "old_tier": "ANY_FALLBACK",
+      "old_target": [
+        23.198,
+        -4.164
+      ],
+      "old_target_segment_clear": true,
+      "old_target_direct_hop_clearance": 2.0,
+      "patched_tier": "COLLISION_FREE_LOW_MARGIN_FALLBACK",
+      "patched_target": [
+        20.273,
+        -7.238
+      ],
+      "farthest_segment_clear_true_candidate": {
+        "route_index": 6,
+        "real_distance_cells": 9.504,
+        "direct_hop_min_clearance": 2.0,
+        "segment_clear": true,
+        "within_budget": false,
+        "meets_min_progress": true,
+        "eligible_best": false,
+        "eligible_safe_fallback": false
+      },
+      "max_clearance_segment_clear_true_candidate": {
+        "route_index": 5,
+        "real_distance_cells": 8.004,
+        "direct_hop_min_clearance": 2.828,
+        "segment_clear": true,
+        "within_budget": true,
+        "meets_min_progress": true,
+        "eligible_best": false,
+        "eligible_safe_fallback": false
+      },
+      "farthest_equals_max_clearance": false,
+      "farthest_equals_old_any_fallback_target": true,
+      "all_candidates_old_view": [
+        {
+          "route_index": 3,
+          "real_distance_cells": 2.738,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 4,
+          "real_distance_cells": 5.477,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 5,
+          "real_distance_cells": 8.004,
+          "direct_hop_min_clearance": 2.828,
+          "segment_clear": true,
+          "within_budget": true,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        },
+        {
+          "route_index": 6,
+          "real_distance_cells": 9.504,
+          "direct_hop_min_clearance": 2.0,
+          "segment_clear": true,
+          "within_budget": false,
+          "meets_min_progress": true,
+          "eligible_best": false,
+          "eligible_safe_fallback": false
+        }
+      ]
+    }
+  }
+}
