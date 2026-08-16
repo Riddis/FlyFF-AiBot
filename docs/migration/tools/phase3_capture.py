@@ -474,13 +474,13 @@ def capture_router(repo: Path, temporary: Path) -> bytes:
 def _config_worker(kind: str, root: Path, repo: Path, output_path: Path) -> None:
     sys.path.insert(0, str(root))
     from dataclasses import asdict
-    from position.MonsterConfig import NativeMonsterConfig
-    from position.PositionConfig import NativePositionConfig
+    from position.MonsterConfig import load_native_monster_config
+    from position.PositionConfig import load_native_position_config
     prefix = "foreground_vision_bot" if kind == "bot" else "flyff_farming_recorder"
     def record(class_name: str, value: Any, source: str, loader: str) -> dict[str, Any]:
         return {"class": class_name, "effective": asdict(value), "loader_module": {"exists": True, "path": loader, "sha256": sha256_file(repo / loader)}, "source": {"exists": True, "path": source, "sha256": sha256_file(repo / source)}}
     monster_source = f"{prefix}/position/native_monsters.json"; position_source = f"{prefix}/position/native_position.json"
-    result = {"import_root": prefix, "monster_config": record("position.MonsterConfig.NativeMonsterConfig", NativeMonsterConfig.load(repo / monster_source), monster_source, f"{prefix}/position/MonsterConfig.py"), "position_config": record("position.PositionConfig.NativePositionConfig", NativePositionConfig.load(repo / position_source), position_source, f"{prefix}/position/PositionConfig.py")}
+    result = {"import_root": prefix, "monster_config": record("position.MonsterConfig.NativeMonsterConfig", load_native_monster_config(repo / monster_source), monster_source, f"{prefix}/position/MonsterConfig.py"), "position_config": record("position.PositionConfig.NativePositionConfig", load_native_position_config(repo / position_source), position_source, f"{prefix}/position/PositionConfig.py")}
     if kind == "recorder":
         from recorder.config import RecorderConfig
         source = "flyff_farming_recorder/recorder_config.json"; loader = "flyff_farming_recorder/recorder/config.py"
