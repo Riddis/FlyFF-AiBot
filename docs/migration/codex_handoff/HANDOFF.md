@@ -595,3 +595,42 @@ gates and were not run.
 **G5: PENDING. G5-P2: PENDING.**
 
 **PHASE 6 SAFE TO CONSIDER: YES. PHASE 6 AUTHORIZED: NO.**
+
+# Phase 6 complete — two preserved Tower map profiles named
+
+Phase 6 began at exact clean base
+`a2cb9d35038a1c8e6aab2380d2e113fcc1bb450c`. Commit `2f2b6be` added the
+canonical immutable profiles at
+`flyff_farming_simulator/farming/map_profile.py`, wired only the existing live
+defaults and simulator packaged-load values, registered the behavior-free B1
+surface required by accepted isolated contexts, and advanced the active phase
+to 6.
+
+LIVE remains obstacle radius 2 / teleport radius 2.0. SIM remains obstacle
+radius 0 / teleport radius 2. The live runtime's explicit configured teleport
+value retains precedence; simulator directory and synthetic overrides are
+unchanged. Both raw Tower copies and all six hashes are exact. The separate
+G12 live and simulator fixtures reproduce byte-for-byte; MAP6 remains
+diagnostic-only at XOR 7,655. No equality requirement was added.
+
+The ruler remains `R6=0, R7a=0, R7b=0, R7c=168, R9=0, R10=0`. B1 and B2 stay
+installed and expire at Phase 7. G4/G10a/G11/G12, B1 origins, and the Phase-6
+checker are green. Tests: migration 52 passed; live focused 14 passed;
+simulator focused 55 passed; recorder 27 passed; expanded G8c 69 passed and
+one established skip. The broad bot result is 706 passed, one established
+skip, and exactly the same three inherited failures—no new failure.
+
+Exactly one read-only 0051200 load reproduced its SHA, split policy,
+Box(928,float32), MultiDiscrete([3,3]), and 923+5 ABI. No prediction, training,
+820M, client access, attachment, recording, telemetry, input, scientific
+artifact write, G5, or G5-P2 occurred. The original tree was used read-only
+only for the already-preserved G8c helper/curriculum; no runtime dependency was
+introduced.
+
+Read `PHASE6_REPORT.md` for the exact audit, signatures, commit paths, hashes,
+test handling, deviations, and preservation proof. Exact next action: STOP.
+Do not begin Phase 7 without separate coordinator authorization.
+
+**G5: PENDING. G5-P2: PENDING.**
+
+**PHASE 7 SAFE TO CONSIDER: YES. PHASE 7 AUTHORIZED: NO.**

@@ -1160,3 +1160,72 @@ repeated.
   corpus changed.
 - Final post-documentation migration suite: **48 passed in 77.47s**; ruler
   `ok=true` at R6=0, R7a=0, R7b=0, R7c=168, R9=0, R10=0.
+
+## Phase 6 implementation and final gates
+
+### Entry, audit, and pre-change map gates
+
+- Exact start: branch `refactor/consolidation-phase1`, HEAD
+  `a2cb9d35038a1c8e6aab2380d2e113fcc1bb450c`, clean worktree/index, no
+  upstream or remote branch, current phase 5, B1/B2 valid through Phase 6,
+  and all three protected refs exact.
+- Live and simulator loaders, production callers, precedence, directories,
+  coordinate frames, source bounds/trimming, forbidden behavior, raw files,
+  marker, and `visits.npy` assumptions were traced before editing.
+- Pre-change G11: zero failures, all six hashes and three pairs exact.
+- Pre-change direct map-only Phase-3 capture: live, simulator, and MAP6 fixture
+  bytes all exact.
+
+### Profiles, wiring, and B1 correction
+
+- Direct Phase-6 checker: `ok=true`. Canonical profile origin, exact typed
+  values, immutability, private loader references, explicit override
+  precedence, G11, both G12 fixtures, and MAP6 classification all pass.
+- Focused Phase-6 tests: **4 passed in 2.37s**.
+- First migration run: **51 passed, 1 failed**. The failure exposed that the
+  first repository-qualified live profile import was absent in two accepted
+  B1 isolation contexts.
+- Final solution added one registered behavior-free B1 profile shim, switched
+  the live loader to its private relative binding, and expanded B1 origin/API/
+  purity coverage. Direct B1 check passed in all five contexts.
+- Focused B1/Phase-6 retry: **9 passed in 23.91s**.
+- Complete migration suite: **52 passed in 77.88s**.
+
+### Preservation, product, and ABI gates
+
+- Formal ruler at current phase 6: `ok=true`; R6=0, R7a=0, R7b=0, R7c=168,
+  R9=0, R10=0; 313 checkpoints/317 references; bridge and ownership errors
+  empty; no Torch additions.
+- Phase-2 fingerprints all: `ok=true`; G4 exact; G10a 313/313 and 317/317;
+  G11 exact.
+- Focused live map/config: **14 passed in 2.78s**.
+- Focused simulator packaged-map/synthetic/basic integration: **55 passed in
+  200.71s**.
+- Recorder: **27 passed in 0.52s**. An earlier recorder-subdirectory
+  invocation failed collection due to repository package visibility; the
+  accepted root invocation is authoritative.
+- Broad bot: **706 passed, 3 failed, 1 skipped in 17.78s**. The three failures
+  are exactly the Phase-5 inherited set; no new failure or classification.
+- Phase-3 G8c selection: **56 passed, 1 skipped in 40.55s**. Latest expanded
+  six-file G8c: **69 passed, 1 skipped in 29.87s**. Current test paths were
+  absolute; the original simulator directory supplied only the preserved
+  read-only helper/curriculum fallback.
+- One read-only 0051200 `PPO.load(device="cpu")`: PASS; exact SHA, split policy,
+  Box `(928,)` float32, MultiDiscrete `[3,3]`, and 923+5=928.
+
+### Diagnostics and scope
+
+- A pre-staging ruler correctly treated the new Python file as untracked; the
+  tracked-set rerun passed.
+- One overly broad direct-MapModel selection timed out after five minutes; its
+  result was rejected and the two verified orphan pytest processes were
+  stopped. Focused affected coverage passed instead.
+- A first helper fallback used the wrong CWD and reproduced only the known
+  missing-curriculum failure. The accepted read-only working-directory run
+  passed.
+- No full Phase-3 regeneration, 820M, client, attach, telemetry, recording,
+  input, prediction, training, checkpoint write, or scientific artifact write.
+- Nine verified Phase-6 pytest scratch directories were removed exactly.
+- P6-A commit: `2f2b6be0dd765df5705be089dc07ac7c24af319a`.
+- Final post-report migration suite: **52 passed in 83.76s**; direct Phase-6
+  checker `ok=true`; ruler `ok=true` at 0/0/0/168 with R9/R10 zero.

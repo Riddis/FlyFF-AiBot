@@ -281,7 +281,7 @@
     "c4e34b2d6b922c2d7c34f320f2f2967f42fa23e5": "Phase 4: install shared farming bridge",
     "documentation commit containing this STATE.json": "Phase 4: report shared farming consolidation"
   },
-  "current_phase": 5,
+  "current_phase": 6,
   "phase5_authorized": true,
   "phase5_complete": true,
   "phase5_safe_to_consider": "SUPERSEDED - Phase 5 complete",
@@ -332,6 +332,30 @@
   "phase5_immutable_artifacts": "PASS - no checkpoint/model, archive, Tower/map source, Phase-2 baseline, Phase-3 fixture/manifest, evaluation, or backup path changed",
   "phase5_branch_push_status": "UNPUSHED; no upstream",
   "phase5_report": "docs/migration/codex_handoff/PHASE5_REPORT.md",
-  "phase6_safe_to_consider": "YES",
-  "phase6_authorized": false
+  "phase6_safe_to_consider": "SUPERSEDED - Phase 6 complete",
+  "phase6_authorized": true,
+  "phase6_complete": true,
+  "phase6_base_sha": "a2cb9d35038a1c8e6aab2380d2e113fcc1bb450c",
+  "phase6_implementation_head": "2f2b6be0dd765df5705be089dc07ac7c24af319a",
+  "phase6_commits": {
+    "2f2b6be0dd765df5705be089dc07ac7c24af319a": "Phase 6: name and preserve Tower map profiles",
+    "documentation commit containing this STATE.json": "Phase 6: report and handoff"
+  },
+  "canonical_map_profile_owner": "flyff_farming_simulator/farming/map_profile.py",
+  "live_tower_profile": "obstacle_radius_cells=2; teleport_radius_cells=2.0",
+  "sim_tower_profile": "obstacle_radius_cells=0; teleport_radius_cells=2",
+  "phase6_configuration_precedence": "unchanged - live FarmingRuntimeConfig teleport override remains explicit; simulator directory and from_arrays overrides remain explicit",
+  "phase6_G11_status": "PASS - six raw Tower hashes exact; three pairs byte-identical; .skip_legacy_import present",
+  "phase6_G12_status": "PASS - separate live 59818/49/52071 radius-2 and simulator 59818/49/59726 radius-0 goldens byte-identical; MAP6 diagnostic XOR 7655",
+  "phase6_ruler_status": "R6=0 R7a=0 R7b=0 R7c=168 R9=0 R10=0 failures; no baseline regeneration",
+  "phase6_B1_B2_status": "installed and valid through Phase 6; removal gate PHASE_7; map_profile B1 shim registered and origin/purity tested",
+  "phase6_G4_G10a_R10_status": "PASS - 313/313 checkpoints; 317/317 references; zero mismatches/failures",
+  "phase6_G8c_status": "PASS - expanded six current files 69 passed 1 established skip; Phase3 six-file set 56 passed 1 established skip; original helper/curriculum read-only only",
+  "phase6_model_0051200_status": "PASS - exactly one PPO.load; SHA 87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50; SplitSteeringNavigationPolicy; Box(928,float32); MultiDiscrete([3,3]); 923+5=928",
+  "phase6_tests": "migration 52 passed; Phase6 4 passed; focused B1/Phase6 9 passed; live 14 passed; simulator focused 55 passed; recorder 27 passed; full bot 706 passed, exact 3 inherited failures, 1 established skip; G8c expanded 69 passed 1 skip",
+  "phase6_immutable_artifacts": "PASS - no raw map, checkpoint/model, archive, evaluation, calibration, position, recorder schema, observation schema, router/history/movement/policy, baseline, or fixture path changed",
+  "phase6_branch_push_status": "UNPUSHED; no upstream",
+  "phase6_report": "docs/migration/codex_handoff/PHASE6_REPORT.md",
+  "phase7_safe_to_consider": "YES",
+  "phase7_authorized": false
 }
