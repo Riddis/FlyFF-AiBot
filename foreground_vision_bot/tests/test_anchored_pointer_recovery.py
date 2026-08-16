@@ -27,7 +27,7 @@ from position.policy import LIVE_ATTACH_POLICY
 _NativeProcessService = NativeProcessService
 
 
-def NativeProcessService(*args, **kwargs):  # type: ignore[misc]
+def _service(*args, **kwargs):  # type: ignore[misc]
     """Build the Layer-1 service through the test's explicit live boundary."""
 
     kwargs.setdefault("attach_policy", LIVE_ATTACH_POLICY)
@@ -506,7 +506,7 @@ def test_pointer_rich_world_can_use_a_stable_module_marker() -> None:
         player_current_hp=5000,
         player_max_hp=6000,
     )
-    service = NativeProcessService(memory, config, owns_memory=False)
+    service = _service(memory, config, owns_memory=False)
 
     first = service.recover_pointers(hints=hints, timeout_seconds=2.0)
 
@@ -971,7 +971,7 @@ def test_service_applies_one_level_player_chain_after_movement() -> None:
         player_current_hp=5000,
         player_max_hp=6000,
     )
-    service = NativeProcessService(memory, config, owns_memory=False)
+    service = _service(memory, config, owns_memory=False)
 
     first = service.recover_pointers(hints=hints, timeout_seconds=2.0)
 
@@ -1015,7 +1015,7 @@ def test_service_uses_confirmed_world_as_player_chain_root() -> None:
         player_current_hp=5000,
         player_max_hp=6000,
     )
-    service = NativeProcessService(memory, config, owns_memory=False)
+    service = _service(memory, config, owns_memory=False)
 
     first = service.recover_pointers(hints=hints, timeout_seconds=2.0)
 
@@ -1059,7 +1059,7 @@ def test_service_rejects_changed_world_identity_after_anchored_recovery() -> Non
         player_current_hp=5000,
         player_max_hp=6000,
     )
-    service = NativeProcessService(memory, config, owns_memory=False)
+    service = _service(memory, config, owns_memory=False)
 
     first = service.recover_pointers(hints=hints, timeout_seconds=2.0)
     assert first.outcome is NativeRecoveryOutcome.MOVEMENT_REQUIRED
@@ -1101,7 +1101,7 @@ def test_service_enforces_persisted_world_identity_after_restart() -> None:
         world_vtable_field_offset=displaced_field,
         self_pointer_offset=memory.new_self_offset,
     )
-    service = NativeProcessService(memory, persisted_config, owns_memory=False)
+    service = _service(memory, persisted_config, owns_memory=False)
 
     assert service.read_pointer_snapshot().world_base == memory.world_base
 
@@ -1138,7 +1138,7 @@ def test_service_applies_inferred_shifted_actor_layout() -> None:
         player_current_hp=5000,
         player_max_hp=6000,
     )
-    service = NativeProcessService(memory, stale, owns_memory=False)
+    service = _service(memory, stale, owns_memory=False)
 
     first = service.recover_pointers(hints=hints, timeout_seconds=2.0)
     assert first.outcome is NativeRecoveryOutcome.MOVEMENT_REQUIRED
@@ -1422,7 +1422,7 @@ def test_independent_recovery_drives_gui_selected_species_without_world_pointer(
         player_current_hp=5000,
         player_max_hp=6000,
     )
-    service = NativeProcessService(
+    service = _service(
         memory,
         config,
         owns_memory=False,
@@ -1584,7 +1584,7 @@ def test_independent_runtime_keeps_dynamically_discovered_hp_for_selected_specie
         monster_hp_by_species=((944, 1000),),
         require_verified_monster_hp=True,
     )
-    service = NativeProcessService(
+    service = _service(
         memory,
         config,
         owns_memory=False,
@@ -1643,7 +1643,7 @@ def test_independent_recovery_uses_structural_fallback_when_hp_ocr_is_missing() 
         player_spawn_x=253.0,
         player_spawn_z=86.0,
     )
-    service = NativeProcessService(
+    service = _service(
         memory,
         config,
         owns_memory=False,
@@ -1683,7 +1683,7 @@ def test_independent_fallback_does_not_require_a_world_hypothesis() -> None:
     memory.u32(memory.module_base_value + memory.world_slot_offset, 0)
     memory.world[:] = bytes(len(memory.world))
 
-    service = NativeProcessService(
+    service = _service(
         memory,
         config,
         owns_memory=False,

@@ -1,5 +1,5 @@
 schema_version = 1
-current_phase = 4
+current_phase = 5
 strategy = "C -> A, defer B"
 purpose = "Machine-consumed current/target ownership registry for behaviorally sensitive concepts"
 
@@ -130,19 +130,16 @@ id = "native_position_stack"
 rule = "R7a"
 symbols = ["NativeFlyffPositionProvider", "NativeFlyffMonsterProvider", "NativeProcessService"]
 current_owners = [
-  "flyff_farming_recorder/position/NativeFlyffMonsterProvider.py",
-  "flyff_farming_recorder/position/NativeFlyffPositionProvider.py",
-  "flyff_farming_recorder/position/native_process_service.py",
   "foreground_vision_bot/position/NativeFlyffMonsterProvider.py",
   "foreground_vision_bot/position/NativeFlyffPositionProvider.py",
   "foreground_vision_bot/position/native_process_service.py",
 ]
-target_owner = "shared position native stack with separate live, recording, and dev policies; physical path deferred until Phase 5"
-status = "accepted-pre-consolidation-debt"
-accepted_baseline_violation = true
+target_owner = "foreground_vision_bot/position with explicit live/recording attach policies and profiling subtree"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
 minimum_owners = 1
-permitted_bridge = "B2 when installed in a later phase"
-resolution_phase = "PHASE_5_AFTER_REAL_CLIENT_G5"
+permitted_bridge = "B2"
+resolution_phase = "PHASE_5"
 
 [[concept]]
 id = "qualified_persistent_waypoint_selector"
@@ -292,4 +289,60 @@ symbols = [
 canonical_owner = "flyff_farming_simulator/farming/map_features.py"
 reason = "B1 thin compatibility re-export of the simulator superset"
 bridge_id = "B1"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "flyff_farming_recorder/position/__init__.py"
+symbols = ["NativeFlyffMonsterProvider", "NativeFlyffPositionProvider", "NativeProcessService"]
+canonical_owner = "foreground_vision_bot/position/__init__.py"
+reason = "B2 package compatibility re-export"
+bridge_id = "B2"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "flyff_farming_recorder/position/attachment_factory.py"
+symbols = ["NativeFlyffMonsterProvider", "NativeFlyffPositionProvider", "NativeProcessService"]
+canonical_owner = "foreground_vision_bot/position/attachment_factory.py"
+reason = "B2 attachment compatibility re-export"
+bridge_id = "B2"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "flyff_farming_recorder/position/factory.py"
+symbols = ["NativeFlyffPositionProvider", "NativeProcessService"]
+canonical_owner = "foreground_vision_bot/position/factory.py"
+reason = "B2 position-factory compatibility re-export"
+bridge_id = "B2"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "flyff_farming_recorder/position/monster_factory.py"
+symbols = ["NativeFlyffMonsterProvider", "NativeProcessService"]
+canonical_owner = "foreground_vision_bot/position/monster_factory.py"
+reason = "B2 monster-factory compatibility re-export"
+bridge_id = "B2"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "flyff_farming_recorder/position/NativeFlyffMonsterProvider.py"
+symbols = ["NativeFlyffMonsterProvider", "NativeProcessService"]
+canonical_owner = "foreground_vision_bot/position/NativeFlyffMonsterProvider.py"
+reason = "B2 native-monster compatibility re-export"
+bridge_id = "B2"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "flyff_farming_recorder/position/NativeFlyffPositionProvider.py"
+symbols = ["NativeFlyffPositionProvider", "NativeProcessService"]
+canonical_owner = "foreground_vision_bot/position/NativeFlyffPositionProvider.py"
+reason = "B2 native-position compatibility re-export"
+bridge_id = "B2"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "flyff_farming_recorder/position/native_process_service.py"
+symbols = ["NativeProcessService"]
+canonical_owner = "foreground_vision_bot/position/native_process_service.py"
+reason = "B2 process-service compatibility re-export"
+bridge_id = "B2"
 removal_gate = "PHASE_7"

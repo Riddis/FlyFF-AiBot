@@ -49,7 +49,11 @@ import time
 from pathlib import Path
 from threading import Event
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+_APP_ROOT = Path(__file__).resolve().parent
+_CANONICAL_POSITION_PARENT = _APP_ROOT.parent / "foreground_vision_bot"
+# BRIDGE B2 — removed in Phase 7
+sys.path.insert(0, str(_APP_ROOT))
+sys.path.insert(0, str(_CANONICAL_POSITION_PARENT))
 
 from recorder.config import RecorderConfig
 from recorder.keyboard import KeyboardSampler

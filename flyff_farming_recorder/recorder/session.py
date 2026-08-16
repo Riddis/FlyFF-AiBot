@@ -25,6 +25,7 @@ from position.IndependentMonsterRediscovery import (
 from position.Win32ProcessMemory import Win32ProcessMemory
 
 from .active_field_profiler import ActiveFieldProfiler
+from position.profiling.presence_promotion import promote_validated_presence_offset
 from .config import RecorderConfig
 from .format import (
     PackedStreamWriter,
@@ -640,9 +641,12 @@ class RecorderController:
                     )
                     if not reader.presence_species_validated:
                         proven = active_profiler.best_validated_candidate()
-                        if proven is not None and reader.promote_validated_presence_offset(
+                        if proven is not None and promote_validated_presence_offset(
+                            reader,
+                            attached.memory,
                             int(proven["offset"]),
                             evidence=proven,
+                            selected_species_ids=self.config.selected_species,
                             source="session_longitudinal_profiler",
                         ):
                             active_profiler.mark_promoted(int(proven["offset"]))

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import csv
 import json
 import subprocess
 import sys
@@ -32,18 +33,26 @@ def _git(repo: Path, *args: str) -> str:
     ).stdout
 
 
-def _public_definitions(source: str) -> set[str]:
+def _top_level_bindings(source: str) -> set[str]:
     tree = ast.parse(source)
-    return {
-        node.name
-        for node in tree.body
-        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
-        and not node.name.startswith("_")
-    }
+    names: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Import):
+            names.update(alias.asname or alias.name.split(".", 1)[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module == "__future__":
+                continue
+            names.update(alias.asname or alias.name for alias in node.names if alias.name != "*")
+        elif isinstance(node, ast.Assign):
+            names.update(target.id for target in node.targets if isinstance(target, ast.Name))
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names.add(node.target.id)
+    return names
 
 
-def check_g1(repo: Path) -> tuple[list[str], dict[str, Any]]:
-    failures: list[str] = []
+def _historical_bindings(repo: Path) -> dict[str, set[str]]:
     old_paths = _git(
         repo,
         "ls-tree",
@@ -59,14 +68,20 @@ def check_g1(repo: Path) -> tuple[list[str], dict[str, Any]]:
             continue
         module = Path(relative).name
         source = _git(repo, "show", f"{PHASE4_ENTRY}:{relative}")
-        old_modules.setdefault(module, set()).update(_public_definitions(source))
+        old_modules.setdefault(module, set()).update(_top_level_bindings(source))
+    return old_modules
+
+
+def check_g1(repo: Path) -> tuple[list[str], dict[str, Any]]:
+    failures: list[str] = []
+    old_modules = _historical_bindings(repo)
     missing: dict[str, list[str]] = {}
     for module, expected in sorted(old_modules.items()):
         current = repo / BOT_POSITION / module
         if not current.is_file():
             missing[module] = sorted(expected)
             continue
-        absent = expected - _public_definitions(current.read_text(encoding="utf-8-sig"))
+        absent = expected - _top_level_bindings(current.read_text(encoding="utf-8-sig"))
         if absent:
             missing[module] = sorted(absent)
     if missing:
@@ -191,6 +206,59 @@ print(json.dumps({"bot_monster": bot_monster, "rec_monster": rec_monster, "recor
 
 def check_b2(repo: Path) -> tuple[list[str], dict[str, Any]]:
     failures: list[str] = []
+    manifest_path = repo / "docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv"
+    with manifest_path.open(encoding="utf-8", newline="") as handle:
+        rows = [
+            row
+            for row in csv.DictReader(
+                (line for line in handle if not line.startswith("#")),
+                delimiter="\t",
+            )
+            if row.get("path")
+        ]
+    manifest_paths = {row["path"] for row in rows}
+    actual_paths = {
+        path.relative_to(repo).as_posix()
+        for path in (repo / RECORDER_POSITION).glob("*.py")
+    }
+    if len(rows) != 23 or manifest_paths != actual_paths:
+        failures.append(
+            f"B2 manifest/files differ: rows={len(rows)}, "
+            f"missing={sorted(actual_paths - manifest_paths)}, "
+            f"extra={sorted(manifest_paths - actual_paths)}"
+        )
+    historical = _historical_bindings(repo)
+    shim_evidence: dict[str, Any] = {}
+    for relative in sorted(actual_paths):
+        path = repo / relative
+        source = path.read_text(encoding="utf-8-sig")
+        tree = ast.parse(source, filename=relative)
+        behavior = [
+            type(node).__name__
+            for node in tree.body
+            if not isinstance(node, (ast.Expr, ast.ImportFrom))
+        ]
+        imported = {
+            alias.asname or alias.name
+            for node in tree.body
+            if isinstance(node, ast.ImportFrom)
+            for alias in node.names
+        }
+        module_name = Path(relative).name
+        missing_bindings = historical[module_name] - imported
+        if "# BRIDGE B2 — removed in Phase 7" not in source:
+            failures.append(f"B2 marker missing: {relative}")
+        if behavior:
+            failures.append(f"B2 behavioral statements in {relative}: {behavior}")
+        if missing_bindings:
+            failures.append(
+                f"B2 historical bindings missing in {relative}: {sorted(missing_bindings)}"
+            )
+        shim_evidence[relative] = {
+            "behavioral_statements": behavior,
+            "historical_bindings": len(historical[module_name]),
+            "missing_bindings": sorted(missing_bindings),
+        }
     probe = r'''
 import importlib, json, pathlib, sys
 root = pathlib.Path(sys.argv[1])
@@ -215,7 +283,11 @@ print(json.dumps(origins, sort_keys=True))
     }
     if wrong:
         failures.append(f"B2 noncanonical origins: {wrong}")
-    return failures, {"origins": origins}
+    return failures, {
+        "origins": origins,
+        "manifest_rows": len(rows),
+        "shims": shim_evidence,
+    }
 
 
 def check_all(repo: Path) -> tuple[list[str], dict[str, Any]]:

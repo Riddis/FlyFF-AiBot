@@ -7,9 +7,10 @@ from time import monotonic
 from typing import Callable
 
 from position.IndependentNativeReader import IndependentNativeReader
-from position.MonsterConfig import DEFAULT_MONSTER_CONFIG_PATH, load_native_monster_config
+from position.MonsterConfig import load_native_monster_config
 from position.NativeTraceTargets import discover_trace_targets
 from position.PointerScanWorkflow import ReadableRegionIndex
+from position.policy import RECORDING_ATTACH_POLICY
 from position.RecoveredNativeProfile import (
     load_profile,
     profile_from_reader,
@@ -19,6 +20,15 @@ from position.RecoveredNativeProfile import (
 from position.Win32ProcessMemory import ModuleInfo, Win32ProcessMemory
 
 from .config import RecorderConfig
+from .config import application_root
+
+
+def recorder_monster_config_path() -> Path:
+    """Return the recorder-owned native resource in source and frozen layouts."""
+
+    source_path = Path(__file__).resolve().parents[1] / "position" / "native_monsters.json"
+    frozen_path = application_root() / "recorder_position" / "native_monsters.json"
+    return frozen_path if frozen_path.is_file() else source_path
 
 
 StatusCallback = Callable[[str], None]
@@ -174,14 +184,18 @@ def attach_native_client(
     config: RecorderConfig,
     cancellation: Event,
     status: StatusCallback,
-    monster_config_path: str | Path = DEFAULT_MONSTER_CONFIG_PATH,
+    monster_config_path: str | Path | None = None,
 ) -> AttachedNativeClient:
     if player_full_hp <= 0:
         raise ValueError("Player full HP must be positive")
     memory = Win32ProcessMemory.from_window_handle(int(hwnd))
     deadline = monotonic() + config.discovery_timeout_seconds
     try:
-        native_config = load_native_monster_config(monster_config_path)
+        native_config = load_native_monster_config(
+            recorder_monster_config_path()
+            if monster_config_path is None
+            else monster_config_path
+        )
         module = memory.module_info(native_config.module_name)
 
         restored = _reader_from_profile(
@@ -246,6 +260,7 @@ def attach_native_client(
                 maximum_scan_bytes=config.maximum_scan_mib << 20,
                 check=check,
                 progress=progress,
+                attach_policy=RECORDING_ATTACH_POLICY,
             )
             if discovery.outcome != "success" or discovery.player is None:
                 raise RuntimeError(

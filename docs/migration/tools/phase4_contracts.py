@@ -57,7 +57,7 @@ B1_PREIMPORT_ORDER = {
     "foreground_vision_bot/tools/run_observation_telemetry.py": "from assets.Assets import MobInfo",
     "flyff_farming_recorder/app.py": "from recorder.gui import run_gui",
     "flyff_farming_recorder/recorder/session.py": "from position.IndependentMonsterRediscovery import",
-    "flyff_farming_recorder/tests/conftest.py": "sys.path[:] = [str(CANONICAL_FARMING_PARENT)",
+    "flyff_farming_recorder/tests/conftest.py": "sys.path[:] = [",
     "flyff_farming_recorder/FlyffFarmingRecorder.spec": "a = Analysis(",
 }
 
@@ -313,7 +313,7 @@ recorder = repo / "flyff_farming_recorder"
 if mode.startswith("bot-"):
     sys.path[:0] = [str(sim), str(bot)]
 elif mode.startswith("recorder-"):
-    sys.path[:0] = [str(sim), str(recorder)]
+    sys.path[:0] = [str(sim), str(bot), str(recorder)]
 elif mode == "simulator":
     sys.path.insert(0, str(sim))
 else:
@@ -395,8 +395,15 @@ def check_b1(repo: Path) -> tuple[list[str], dict[str, Any]]:
         if not ordered:
             failures.append(f"B1 marker/bootstrap is not before the first consumer in {relative}")
     spec_source = (repo / "flyff_farming_recorder/FlyffFarmingRecorder.spec").read_text(encoding="utf-8")
-    if "pathex=[str(canonical_farming_parent), str(app_root)]" not in spec_source:
-        failures.append("B1 recorder PyInstaller pathex does not put canonical farming first")
+    expected_pathex = (
+        "pathex=[str(canonical_farming_parent), str(canonical_position_parent), "
+        "str(app_root)]"
+    )
+    if expected_pathex not in spec_source:
+        failures.append(
+            "B1/B2 recorder PyInstaller pathex does not put canonical farming and "
+            "position before the recorder root"
+        )
     for mode in ("bot-app", "bot-test", "recorder-app", "recorder-test", "simulator"):
         try:
             payload = _b1_probe(repo, mode)

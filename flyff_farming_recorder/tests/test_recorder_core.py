@@ -531,7 +531,17 @@ def test_recorder_profiles_and_uses_instantiated_field_as_verified_hint() -> Non
         Path(__file__).resolve().parents[1] / "recorder" / "native_capture.py"
     ).read_text(encoding="utf-8")
     reader_source = (
-        Path(__file__).resolve().parents[1] / "position" / "IndependentNativeReader.py"
+        Path(__file__).resolve().parents[2]
+        / "foreground_vision_bot"
+        / "position"
+        / "IndependentNativeReader.py"
+    ).read_text(encoding="utf-8")
+    promotion_source = (
+        Path(__file__).resolve().parents[2]
+        / "foreground_vision_bot"
+        / "position"
+        / "profiling"
+        / "presence_promotion.py"
     ).read_text(encoding="utf-8")
     assert 'RECORDER_VERSION = "1.11.0"' in source
     assert '"recording_provenance": recording_provenance' in source
@@ -544,6 +554,7 @@ def test_recorder_profiles_and_uses_instantiated_field_as_verified_hint() -> Non
     assert "restore_profile" in capture_source
     assert "persist_attached_profile" in capture_source
     assert "promote_validated_presence_offset" in source
+    assert "install_validated_presence_offset" in promotion_source
     assert "MovementControlClassifier" in source
     assert "presence_cold_verification_batch_size" in capture_source
     assert "_scan_monsters_presence_optimized" in reader_source
@@ -731,9 +742,15 @@ def test_quantizer_cannot_overflow_msgpack_on_stale_pointer_values() -> None:
 
 def test_player_discovery_does_not_gate_on_monster_instantiated_field() -> None:
     source = (
-        Path(__file__).resolve().parents[1] / "position" / "NativeTraceTargets.py"
+        Path(__file__).resolve().parents[2]
+        / "foreground_vision_bot"
+        / "position"
+        / "NativeTraceTargets.py"
+    ).read_text(encoding="utf-8")
+    capture_source = (
+        Path(__file__).resolve().parents[1] / "recorder" / "native_capture.py"
     ).read_text(encoding="utf-8")
     assert "exact_monster_bases = {int(item.base) for item in anchors}" in source
     assert "if base in exact_monster_bases:" in source
-    assert "if species > 0 and active == species:" not in source
-    assert "never be used as a mandatory player discriminator" in source
+    assert "PlayerDiscrimination.EXACT_MONSTER_ANCHORS" in source
+    assert "attach_policy=RECORDING_ATTACH_POLICY" in capture_source

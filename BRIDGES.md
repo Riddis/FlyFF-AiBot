@@ -3,7 +3,7 @@
 This file owns every temporary cross-root visibility mechanism used by the
 consolidation. The TOML block is consumed by the Phase-1 integrity test. A
 bridge must be registered before installation and must not survive its declared
-removal gate. Phase 1 installs no new bridge.
+removal gate.
 
 <!-- bridge-registry:begin -->
 ```toml
@@ -41,14 +41,45 @@ owner = "Phase-4 farming canonicalization"
 
 [[bridge]]
 id = "B2"
-status = "future"
-reason = "Temporary shared position visibility while physical roots remain separate"
-locations = []
-users = ["future live and recorder native-reader consumers"]
+status = "existing"
+reason = "Temporary canonical position visibility while recorder paths remain as compatibility shims"
+locations = [
+  "flyff_farming_recorder/app.py",
+  "flyff_farming_recorder/calibration_capture.py",
+  "flyff_farming_recorder/position/__init__.py",
+  "flyff_farming_recorder/position/AggregateMonsterRootScan.py",
+  "flyff_farming_recorder/position/AnchoredPointerDiscovery.py",
+  "flyff_farming_recorder/position/attachment_factory.py",
+  "flyff_farming_recorder/position/AuthoritativeActorDiscovery.py",
+  "flyff_farming_recorder/position/AutonomousPointerSelection.py",
+  "flyff_farming_recorder/position/factory.py",
+  "flyff_farming_recorder/position/IndependentMonsterRediscovery.py",
+  "flyff_farming_recorder/position/IndependentNativeReader.py",
+  "flyff_farming_recorder/position/monster_factory.py",
+  "flyff_farming_recorder/position/MonsterConfig.py",
+  "flyff_farming_recorder/position/native_diagnostics.py",
+  "flyff_farming_recorder/position/native_process_service.py",
+  "flyff_farming_recorder/position/NativeAccessTracer.py",
+  "flyff_farming_recorder/position/NativeFlyffMonsterProvider.py",
+  "flyff_farming_recorder/position/NativeFlyffPositionProvider.py",
+  "flyff_farming_recorder/position/NativePointerRecovery.py",
+  "flyff_farming_recorder/position/NativeTraceTargets.py",
+  "flyff_farming_recorder/position/PointerScanWorkflow.py",
+  "flyff_farming_recorder/position/PositionConfig.py",
+  "flyff_farming_recorder/position/PositionProvider.py",
+  "flyff_farming_recorder/position/RecoveredNativeProfile.py",
+  "flyff_farming_recorder/position/Win32ProcessMemory.py",
+  "flyff_farming_recorder/recorder/active_field_profiler.py",
+  "flyff_farming_recorder/recorder/native_capture.py",
+  "flyff_farming_recorder/recorder/session.py",
+  "flyff_farming_recorder/tests/conftest.py",
+  "flyff_farming_recorder/FlyffFarmingRecorder.spec",
+]
+users = ["standalone recorder", "recorder tests", "calibration capture", "recorder PyInstaller build"]
 protecting_rule = "R7c plus bridge expiry"
 removal_gate = "PHASE_7"
 live_closure_allowed = true
-owner = "future Phase-5 position canonicalization after real-client G5"
+owner = "Phase-5 position canonicalization"
 
 [[bridge]]
 id = "B3"

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from position.AuthoritativeActorDiscovery import discover_authoritative_actors
 from position.IndependentNativeReader import IndependentNativeReader
+from position.profiling.presence_promotion import promote_validated_presence_offset
 
 
 STRIDE = 0x2008
@@ -188,9 +189,12 @@ def test_session_profiler_can_promote_presence_without_reappearance_gate() -> No
         "unique_bases": 20,
         "species": [944, 948],
     }
-    assert reader.promote_validated_presence_offset(
+    assert promote_validated_presence_offset(
+        reader,
+        memory,
         MOVED_PRESENCE_OFFSET,
         evidence=evidence,
+        selected_species_ids={944, 948},
     ) is True
     assert reader._presence_species_offset == MOVED_PRESENCE_OFFSET
     assert reader._presence_species_validated is True

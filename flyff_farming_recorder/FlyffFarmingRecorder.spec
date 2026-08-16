@@ -9,8 +9,11 @@ entry_script = app_root / "app.py"
 
 # BRIDGE B1 — removed in Phase 7
 canonical_farming_parent = app_root.parent / "flyff_farming_simulator"
+canonical_position_parent = app_root.parent / "foreground_vision_bot"
 if not (canonical_farming_parent / "farming" / "observation_contract.py").is_file():
     raise RuntimeError(f"Canonical farming package is missing at {canonical_farming_parent}")
+if not (canonical_position_parent / "position" / "policy.py").is_file():
+    raise RuntimeError(f"Canonical position package is missing at {canonical_position_parent}")
 
 hidden = collect_submodules("position") + [
     "msgpack",
@@ -24,11 +27,13 @@ hidden = collect_submodules("position") + [
 
 a = Analysis(
     [str(entry_script)],
-    pathex=[str(canonical_farming_parent), str(app_root)],
+    # BRIDGE B2 — removed in Phase 7
+    pathex=[str(canonical_farming_parent), str(canonical_position_parent), str(app_root)],
     binaries=[],
     datas=[
-        (str(app_root / "position" / "native_monsters.json"), "position"),
-        (str(app_root / "position" / "native_position.json"), "position"),
+        (str(canonical_position_parent / "position" / "native_monsters.json"), "position"),
+        (str(canonical_position_parent / "position" / "native_position.json"), "position"),
+        (str(app_root / "position" / "native_monsters.json"), "recorder_position"),
     ],
     hiddenimports=hidden,
     hookspath=[],
