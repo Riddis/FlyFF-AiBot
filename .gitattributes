@@ -39,3 +39,46 @@ flyff_farming_simulator/evaluations/router_mix_qualification_pool_840000000_mani
 # Binary already, but stated explicitly so the hash contract does not depend on
 # git's binary auto-detection.
 flyff_farming_simulator/models/generalized_waypoint_both_seed2_0051200.zip -text
+
+# =============================================================================
+# Phase-2 preservation repair: exact Phase-0 artifact bytes; do not EOL-normalize
+# =============================================================================
+# Discovered by the Phase-2 G11 map-fingerprint gate. The Phase-0 preservation
+# checkpoint froze raw SHA-256 bytes for 27 tracked artifacts in
+# docs/migration/ARTIFACT_MANIFEST.tsv. In the ORIGINAL reference worktree and in
+# the external Phase-0 snapshot all 348 manifest entries still reproduce exactly.
+# In a FRESH worktree created after the `* text=auto eol=lf` rule above, 12 of
+# those 27 materialized with LF where the frozen bytes are CRLF, so their raw
+# SHA-256 no longer matched the manifest.
+#
+# This is the same defect class already handled for the historical-reproduction
+# guard set above (D7/D8) -- a checkout-time portability defect, NOT artifact
+# drift. Every one of the 12 was mechanically proven to differ from the frozen
+# Phase-0 bytes by line-ending representation ONLY (identical parsed JSON
+# structure / identical CSV rows); see
+# docs/migration/PHASE0_ARTIFACT_PORTABILITY_REPAIR.tsv. The exact frozen bytes
+# were restored from the verified external Phase-0 snapshot -- no content was
+# regenerated, reparsed, resaved, or converted.
+#
+# Scope is exactly the 12 demonstrated mismatches, derived mechanically from the
+# manifest rather than by directory. Note that of the six Tower map artifacts
+# only the two map.json copies were affected; occupancy.npy and
+# coordinate_frame.json already reproduced their frozen hashes and are
+# deliberately NOT listed here. The global `* text=auto eol=lf` policy above
+# remains in force for ordinary future text. `git add --renormalize` was NOT run.
+# -----------------------------------------------------------------------------
+
+flyff_farming_simulator/map_assets/map.json                       -text
+foreground_vision_bot/mapper/maps/tower_aoe/map.json              -text
+
+flyff_farming_simulator/recordings/INDEX.json                     -text
+flyff_farming_simulator/recordings/INDEX.md                       -text
+
+flyff_farming_recorder/calibration_holdout_ramp_results.csv       -text
+flyff_farming_recorder/calibration_holdout_step_results.csv       -text
+flyff_farming_recorder/calibration_steering_pulses.csv            -text
+flyff_farming_recorder/calibration_tick_extraction.csv            -text
+flyff_farming_recorder/calibration_tick_extraction_v2.csv         -text
+flyff_farming_recorder/calibration_trials.csv                     -text
+flyff_farming_recorder/movement_calibration.csv                   -text
+flyff_farming_recorder/movement_calibration_steering.csv          -text

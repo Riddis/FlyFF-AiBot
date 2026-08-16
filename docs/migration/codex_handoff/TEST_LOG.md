@@ -696,3 +696,51 @@ repeated.
 - `ls-remote` still returned no Phase-1 branch.
 - Producer exit code: **0**.
 - Classification: passed final hardening documentation gate before staging.
+
+## Phase-2 preservation repair: Phase-0 artifact portability (executor: Claude)
+
+### G11 mismatch derivation gate
+
+- Exact command shape: repository venv Python, standalone script recomputing
+  SHA-256 for every `docs/migration/ARTIFACT_MANIFEST.tsv` row against the
+  consolidation worktree, the original reference tree, and the external Phase-0
+  snapshot `C:\Users\Ridd\FlyffRL_Backups\pre_consolidation_20260815\Flyff RL\`.
+- Result: 348 manifest rows (27 tracked, 321 ignored). Reference tree
+  reproduced **348/348**; external snapshot reproduced **348/348**. The
+  consolidation worktree reproduced **15 of 27** tracked entries and failed
+  **12**.
+- The mechanically derived 12-path set was required to equal the expected set
+  before any repair was permitted; it did. No list was hard-coded into the
+  repair from memory.
+- Correct framing: only **2 of the 6** Tower map artifacts were affected (both
+  `map.json` copies). `occupancy.npy` and both `coordinate_frame.json` copies
+  already reproduced their frozen hashes and were deliberately left alone.
+- Producer exit code: **0**.
+
+### EOL-only difference gate
+
+- For each of the 12: CR-stripped byte comparison against the frozen Phase-0
+  bytes, plus a structural comparison (JSON parsed and re-serialized with sorted
+  keys; CSV parsed to row tuples).
+- Result: all 12 classified `line_endings_only`; every parsed structure
+  identical; no semantic/content difference anywhere. The two Tower `map.json`
+  snapshot sources were additionally proven byte-identical to each other before
+  staging.
+- Had any file shown a non-EOL difference the repair would have stopped without
+  overwriting it. None did.
+- Producer exit code: **0**.
+
+### Byte-restoration and storage gate
+
+- `.gitattributes` gained a documented `-text` section for exactly the 12
+  demonstrated paths. `git check-attr text` reports `unset` for all 12 and
+  `auto` for the unaffected Tower artifacts. The global `* text=auto eol=lf`
+  rule was left intact and `git add --renormalize` was NOT run.
+- Bytes were copied raw from the verified external Phase-0 snapshot. Nothing was
+  regenerated, reparsed, resaved, or programmatically line-ending-converted.
+- Every file was required to equal its manifest SHA-256 and size on disk BEFORE
+  staging, and every staged blob's content SHA-256 was then required to equal
+  the manifest value — confirming git stored the raw bytes rather than a
+  transformed copy.
+- Evidence: `docs/migration/PHASE0_ARTIFACT_PORTABILITY_REPAIR.tsv`.
+- Producer exit code: **0**.

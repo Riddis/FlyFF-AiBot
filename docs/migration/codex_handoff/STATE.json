@@ -1,6 +1,6 @@
 {
-  "phase": "Phase 1",
-  "task": "Phase-1 ruler-hardening amendment: close R7c, R10, B3/B4, and active-phase blind spots without product changes",
+  "phase": "Phase 2 (entry: Phase-0 artifact portability repair; current_phase stays 1 until proven)",
+  "task": "Phase-2 preservation repair: restore exact Phase-0 artifact bytes for the 12 fresh-checkout mismatches discovered by G11",
   "timestamp_local": "2026-08-16T04:08:50+02:00",
   "worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL - Phase1",
   "reference_worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL",
@@ -31,7 +31,15 @@
     "required_scope": "three-system bot/recorder/simulator consolidation Phase 1",
     "approved_strategy": "Alternative C then Alternative A; Alternative B deferred",
     "phase1_title": "PHASE 1 - BUILD THE RULER",
-    "authorized_rules": ["R6", "R7a", "R7b", "R7c", "D1", "R9", "R10"],
+    "authorized_rules": [
+      "R6",
+      "R7a",
+      "R7b",
+      "R7c",
+      "D1",
+      "R9",
+      "R10"
+    ],
     "hardening_amendment": "User review accepted Phase 1 and authorized only R7c/R10/B3/B4/phase-awareness corrections before Phase 2.",
     "searched_locations": [
       "docs/migration",
@@ -51,7 +59,7 @@
       "standalone farming recorder",
       "canonical position",
       "C -> A",
-      "C → A"
+      "C \u2192 A"
     ]
   },
   "phase1_preamble": {
@@ -105,8 +113,8 @@
     "Made CANONICAL_OWNERS.toml current_phase the single active migration-phase source of truth",
     "Committed the five-file ruler-hardening amendment as ad61b991e4af436eef8705b49978990464cc28f5"
   ],
-  "current_step": "Phase 1 complete; stopped at the Phase-2 authorization boundary",
-  "next_exact_action": "Review Phase-1 results and explicitly authorize Phase 2 before any product canonicalization begins.",
+  "current_step": "Portability repair staged; committing before fresh-worktree proof",
+  "next_exact_action": "Commit the repair, then prove it in a genuinely fresh disposable worktree, then set current_phase=2 and run G4/G11/G10a/G10b",
   "blocked": false,
   "stop_reason": "Phase-1 scope is complete; stop boundary is the explicit prohibition on Phase 2 and on pushing the Phase-1 branch.",
   "tests_and_gates": {
@@ -136,5 +144,28 @@
     "farming.sb3_training.TrainingBoundaryKind": "UNCHANGED"
   },
   "phase1_authorized": true,
-  "phase2_authorized": false
+  "phase2_authorized": true,
+  "executor": "Claude",
+  "phase1_verified": true,
+  "phase1_verified_by": "Claude - independent verification, ACCEPTED",
+  "phase3_authorized": false,
+  "artifact_portability_defect": {
+    "discovered_by": "Phase-2 G11 map fingerprint gate",
+    "manifest_rows": 348,
+    "tracked_rows": 27,
+    "tracked_reproducing_in_fresh_worktree": 15,
+    "tracked_not_reproducing": 12,
+    "reference_tree_reproduces": "348/348",
+    "external_snapshot_reproduces": "348/348",
+    "cause": "checkout-time CRLF/LF transformation from the global * text=auto eol=lf rule added in b8206bb; narrow -text exemptions at a90de59 never covered these 12",
+    "classification": "git portability defect in how the preserved checkpoint materializes on a fresh checkout; NOT artifact drift",
+    "difference_class": "line_endings_only for all 12",
+    "tower_map_artifacts_affected": "2 of 6 (both map.json); occupancy.npy and both coordinate_frame.json already correct",
+    "evidence": "docs/migration/PHASE0_ARTIFACT_PORTABILITY_REPAIR.tsv",
+    "protected_tags_rewritten": false
+  },
+  "G4_status": "verified green pre-repair; to be re-run after repair",
+  "G10a_status": "not yet run; precondition satisfied (snapshot reproduces 348/348)",
+  "G10b_status": "not yet run",
+  "G11_status": "blocked pre-repair (2 of 6 Tower hashes); repair in progress"
 }

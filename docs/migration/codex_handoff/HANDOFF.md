@@ -254,3 +254,47 @@ Get-Content "$wt/docs/migration/codex_handoff/PHASE1_REPORT.md" -Raw
 Expected current state: five modified post-commit handoff/report metadata files
 and an empty index. The exact next source action is **none** until the missing
 plan is supplied.
+
+# Phase-2 entry: Phase-0 artifact portability repair (executor: Claude)
+
+Claude independently verified Codex's Phase-1 work and **ACCEPTED** it (see
+`PHASE2_REPORT.md` for the full verification record).
+
+While executing the Phase-2 G11 map-fingerprint gate, Claude discovered a
+genuine **post-Phase-0 preservation-portability defect** — not artifact drift:
+
+- Of the 27 tracked entries in `docs/migration/ARTIFACT_MANIFEST.tsv`, 15
+  reproduce byte-identically in a fresh consolidation worktree and **12 do
+  not**.
+- The original reference tree and the external Phase-0 snapshot both still
+  reproduce **all 348** manifest entries exactly, so the frozen evidence itself
+  is intact.
+- Cause: the broad `* text=auto eol=lf` rule Phase 0 introduced
+  (`b8206bb`) transforms line endings at checkout time. The narrow `-text`
+  byte-preservation exemptions added at `a90de59` covered the eight
+  historical-guard files but never covered these twelve.
+- This is the same defect class already recorded as D7/D8 in
+  `docs/migration/DECISION_LOG.md`, recurring on a wider file set.
+
+The twelve: both Tower `map.json` copies, `flyff_farming_simulator/recordings/
+INDEX.json`, `flyff_farming_simulator/recordings/INDEX.md`, and the eight
+`flyff_farming_recorder` calibration CSVs. Note that only **2 of the 6** Tower
+map artifacts were affected — `occupancy.npy` and both `coordinate_frame.json`
+copies already reproduced correctly and were not touched.
+
+The repair adds narrow `-text` rules for exactly those twelve paths and restores
+their exact frozen bytes from the verified external Phase-0 snapshot. Every one
+was mechanically proven to differ by line-ending representation only, with
+identical parsed JSON structure and identical CSV rows.
+
+**This is not a product-behavior change and must never be described as modifying
+map or calibration content.** It stores already-frozen bytes without EOL
+transformation so that a fresh checkout can reproduce them.
+
+G11's raw-byte contract is unchanged: `occupancy.npy`
+`62fa3c9e…d789b`, `map.json` `faaf8633…fe815`, `coordinate_frame.json`
+`40339f6c…a0414` remain canonical. No protected tag was retargeted and no
+historical result was rewritten.
+
+`current_phase` deliberately remained `1` across the repair commit and advanced
+to `2` only after the repair passed its fresh-worktree proof.
