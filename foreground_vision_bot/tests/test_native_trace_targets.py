@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from position.NativeTraceTargets import discover_trace_targets
 from position.PointerScanWorkflow import ReadableRegionIndex
+from position.policy import AttachPolicy, LIVE_ATTACH_POLICY, RECORDING_ATTACH_POLICY
 from position.Win32ProcessMemory import MemoryRegion, ModuleInfo
 
 
@@ -49,7 +50,12 @@ def _write_actor(
     struct.pack_into("<I", heap, relative + self_offset, base)
 
 
-def _discover(*, monster_hp: int = 400236):
+def _discover(
+    *,
+    monster_hp: int = 400236,
+    player_species: int = 0,
+    attach_policy: AttachPolicy = LIVE_ATTACH_POLICY,
+):
     heap_base = 0x20000
     monster_a = heap_base
     monster_b = heap_base + 0x5000
@@ -84,7 +90,7 @@ def _discover(*, monster_hp: int = 400236):
         heap,
         heap_base,
         player_base,
-        species=0,
+        species=player_species,
         hp=38857,
         hp_offset=player_hp_offset,
         x=253.0,
@@ -125,6 +131,7 @@ def _discover(*, monster_hp: int = 400236):
         chunk_size=0x1000,
         maximum_scan_bytes=0x20000,
         stability_delay_seconds=0.0,
+        attach_policy=attach_policy,
     )
     return result, player_base, monster_a, monster_b, module_base
 
@@ -149,3 +156,16 @@ def test_exact_monster_hp_is_not_relaxed_during_dynamic_offset_search() -> None:
     assert result.outcome == "monster_consensus_not_found"
     assert result.evidence.monster_candidates == 0
     assert result.evidence.monster_hp_rejections >= 2
+
+
+def test_player_discrimination_is_selected_only_by_explicit_policy() -> None:
+    live, *_ = _discover(player_species=944, attach_policy=LIVE_ATTACH_POLICY)
+    recording, player_base, *_ = _discover(
+        player_species=944,
+        attach_policy=RECORDING_ATTACH_POLICY,
+    )
+
+    assert live.outcome == "player_not_found"
+    assert recording.outcome == "success"
+    assert recording.player is not None
+    assert recording.player.base == player_base

@@ -32,6 +32,7 @@ from position.NativeTraceTargets import (  # noqa: E402
     discover_trace_targets,
 )
 from position.PointerScanWorkflow import ReadableRegionIndex  # noqa: E402
+from position.policy import LIVE_ATTACH_POLICY  # noqa: E402
 from position.Win32ProcessMemory import Win32ProcessMemory  # noqa: E402
 
 
@@ -430,6 +431,7 @@ def main(argv: list[str] | None = None) -> int:
             maximum_scan_bytes=args.maximum_scan_mib << 20,
             check=check,
             progress=scan_progress,
+            attach_policy=LIVE_ATTACH_POLICY,
         )
         report["target_discovery"] = discovery.to_dict()
         report["status"] = f"target_discovery_{discovery.outcome}"

@@ -21,6 +21,17 @@ from position.NativePointerRecovery import (
     recover_local_player_pointer,
 )
 from position.Win32ProcessMemory import ModuleInfo
+from position.policy import LIVE_ATTACH_POLICY
+
+
+_NativeProcessService = NativeProcessService
+
+
+def NativeProcessService(*args, **kwargs):  # type: ignore[misc]
+    """Build the Layer-1 service through the test's explicit live boundary."""
+
+    kwargs.setdefault("attach_policy", LIVE_ATTACH_POLICY)
+    return _NativeProcessService(*args, **kwargs)
 
 
 @dataclass(frozen=True)

@@ -30,6 +30,7 @@ from position.MonsterConfig import (  # noqa: E402
 )
 from position.NativeTraceTargets import discover_trace_targets  # noqa: E402
 from position.PointerScanWorkflow import ReadableRegionIndex  # noqa: E402
+from position.policy import LIVE_ATTACH_POLICY  # noqa: E402
 from position.Win32ProcessMemory import Win32ProcessMemory  # noqa: E402
 
 
@@ -327,6 +328,7 @@ def main(argv: list[str] | None = None) -> int:
             maximum_scan_bytes=args.maximum_scan_mib << 20,
             check=check,
             progress=progress,
+            attach_policy=LIVE_ATTACH_POLICY,
         )
         report["discovery"] = discovery.to_dict()
         if discovery.outcome != "success" or discovery.player is None:

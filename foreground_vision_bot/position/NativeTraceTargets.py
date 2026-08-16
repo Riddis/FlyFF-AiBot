@@ -22,6 +22,7 @@ from .AnchoredPointerDiscovery import (
 )
 from .PointerScanWorkflow import ReadableRegionIndex
 from .Win32ProcessMemory import ModuleInfo
+from .policy import AttachPolicy, PlayerDiscrimination
 
 
 class TraceTargetMemory(Protocol):
@@ -301,6 +302,7 @@ def discover_trace_targets(
     stability_delay_seconds: float = 0.03,
     check: Callable[[], None] | None = None,
     progress: Callable[[int, int, Mapping[str, int]], None] | None = None,
+    attach_policy: AttachPolicy,
 ) -> TraceTargetDiscovery:
     """Find trace targets with the same dynamic layout proof as recovery.
 
@@ -425,6 +427,7 @@ def discover_trace_targets(
     player_self_rejections = 0
     expected_x = float(spawn_x)
     expected_z = float(spawn_z)
+    exact_monster_bases = {int(item.base) for item in anchors}
     for x_address in sorted(spawn_matches):
         check()
         base = int(x_address) - int(layout.x_offset)
@@ -476,14 +479,21 @@ def discover_trace_targets(
             hp_offsets,
             key=lambda offset: (abs(offset - layout.hp_offset), offset),
         )
-        try:
-            species = _i32(data, layout.species_offset)
-            active = _i32(data, layout.active_species_offset)
-        except Exception:
-            species = 0
-            active = 0
-        if species > 0 and active == species:
-            continue
+        if (
+            attach_policy.player_discrimination
+            is PlayerDiscrimination.EXACT_MONSTER_ANCHORS
+        ):
+            if base in exact_monster_bases:
+                continue
+        else:
+            try:
+                species = _i32(data, layout.species_offset)
+                active = _i32(data, layout.active_species_offset)
+            except Exception:
+                species = 0
+                active = 0
+            if species > 0 and active == species:
+                continue
 
         stable = True
         for sample in range(max(3, int(stability_samples))):

@@ -14,6 +14,7 @@ import pytest
 from position.MonsterConfig import NativeMonsterConfig
 from position.native_process_service import NativeProcessService
 from position.PositionConfig import NativePositionConfig
+from position.policy import LIVE_ATTACH_POLICY
 
 POSITION_BYTES = (
     b'{\r\n  "enabled": true,\r\n  "pointer_offset": "0x2000",\r\n'
@@ -482,6 +483,7 @@ def test_native_service_persists_to_its_injected_custom_config_paths(
         position_config=position_config,
         position_config_path=position_path,
         monster_config_path=monster_path,
+        attach_policy=LIVE_ATTACH_POLICY,
     )
 
     result = service.recover_pointers(

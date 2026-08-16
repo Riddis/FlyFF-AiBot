@@ -35,6 +35,7 @@ from .NativeTraceTargets import (
 )
 from .PointerScanWorkflow import ReadableRegionIndex
 from .PositionConfig import DEFAULT_POSITION_CONFIG_PATH
+from .policy import AttachPolicy, LIVE_ATTACH_POLICY
 
 
 class PointerRecoveryMemory(Protocol):
@@ -1943,6 +1944,7 @@ def _perform_recovery_attempt(
     hints: PointerRecoveryHints | None,
     pending_candidate: AnchoredPointerCandidate | None,
     allow_independent: bool,
+    attach_policy: AttachPolicy,
 ) -> tuple[
     PlayerPointerRecovery | None,
     str,
@@ -2325,6 +2327,7 @@ def _perform_recovery_attempt(
             stability_delay_seconds=stability_delay_seconds,
             check=control.check,
             progress=trace_progress,
+            attach_policy=attach_policy,
         )
         _record_trace_evidence(metrics, discovery.evidence)
         _notify(
@@ -2475,6 +2478,7 @@ def recover_local_player_pointer(
     stability_delay_seconds: float = 0.03,
     hints: PointerRecoveryHints | None = None,
     allow_independent: bool = False,
+    attach_policy: AttachPolicy = LIVE_ATTACH_POLICY,
 ) -> PlayerPointerRecovery | None:
     """Explicitly recover a shifted Neuz local-player global.
 
@@ -2706,6 +2710,7 @@ def recover_local_player_pointer(
             hints=hints,
             pending_candidate=pending_candidate,
             allow_independent=bool(allow_independent),
+            attach_policy=attach_policy,
         )
     except _AttemptStopped as stopped:
         outcome = stopped.outcome

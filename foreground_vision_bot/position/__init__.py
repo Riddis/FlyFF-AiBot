@@ -87,6 +87,12 @@ from .Win32ProcessMemory import (
     ProcessMemoryError,
     Win32ProcessMemory,
 )
+from .policy import (
+    AttachPolicy,
+    LIVE_ATTACH_POLICY,
+    PlayerDiscrimination,
+    RECORDING_ATTACH_POLICY,
+)
 
 __all__ = [
     "ActorCacheOutcome",
@@ -145,6 +151,10 @@ __all__ = [
     "PositionProviderError",
     "ProcessMemoryError",
     "Win32ProcessMemory",
+    "AttachPolicy",
+    "LIVE_ATTACH_POLICY",
+    "PlayerDiscrimination",
+    "RECORDING_ATTACH_POLICY",
     "create_native_monster_provider",
     "create_native_monster_provider_from_process_id",
     "create_native_provider_attachment",

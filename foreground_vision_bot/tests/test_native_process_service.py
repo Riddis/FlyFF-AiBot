@@ -19,6 +19,7 @@ from position.RecoveredNativeProfile import (
     save_profile,
 )
 from position.Win32ProcessMemory import ModuleInfo
+from position.policy import LIVE_ATTACH_POLICY
 
 
 @dataclass(frozen=True)
@@ -180,7 +181,9 @@ def test_coherent_snapshot_uses_six_bounded_reads_and_never_scans() -> None:
         player_slot=config.player_pointer_offset,
         world_slot=config.world_pointer_offset,
     )
-    service = NativeProcessService(memory, config, clock=lambda: 42.5)
+    service = NativeProcessService(
+        memory, config, clock=lambda: 42.5, attach_policy=LIVE_ATTACH_POLICY
+    )
 
     snapshot = service.read_pointer_snapshot()
 
@@ -219,7 +222,7 @@ def test_coherent_snapshot_accepts_a_world_rooted_player_chain() -> None:
     memory.actor_u32(0x2000 + 0x40, player)
     memory.actor_u32(config.self_pointer_offset, player)
     memory.actor_u32(config.world_offset, 0)
-    service = NativeProcessService(memory, config)
+    service = NativeProcessService(memory, config, attach_policy=LIVE_ATTACH_POLICY)
 
     snapshot = service.read_pointer_snapshot()
 
@@ -240,7 +243,7 @@ def test_explicit_recovery_returns_typed_metrics_and_applies_shifted_state() -> 
         player_slot=player_slot,
         world_slot=world_slot,
     )
-    service = NativeProcessService(memory, config)
+    service = NativeProcessService(memory, config, attach_policy=LIVE_ATTACH_POLICY)
 
     result = service.recover_pointers(timeout_seconds=1.0)
 
@@ -282,6 +285,7 @@ def test_both_providers_can_consume_one_shared_step_snapshot() -> None:
         memory,
         config,
         position_config=position_config,
+        attach_policy=LIVE_ATTACH_POLICY,
     )
     position_provider = NativeFlyffPositionProvider.from_native_service(
         service,
@@ -317,7 +321,7 @@ def test_both_providers_can_consume_one_shared_step_snapshot() -> None:
 def test_snapshot_is_not_blocked_by_inflight_recovery_enumeration() -> None:
     memory = _ServiceMemory()
     config = _config()
-    service = NativeProcessService(memory, config)
+    service = NativeProcessService(memory, config, attach_policy=LIVE_ATTACH_POLICY)
     memory.block_enumeration = True
     recovery_errors: list[BaseException] = []
     snapshot_errors: list[BaseException] = []
@@ -373,7 +377,9 @@ def test_snapshot_is_not_blocked_by_inflight_recovery_enumeration() -> None:
 
 def test_close_defers_handle_release_until_blocked_recovery_exits() -> None:
     memory = _ServiceMemory()
-    service = NativeProcessService(memory, _config())
+    service = NativeProcessService(
+        memory, _config(), attach_policy=LIVE_ATTACH_POLICY
+    )
     memory.block_enumeration = True
     results: list[object] = []
     errors: list[BaseException] = []
@@ -464,6 +470,7 @@ def test_persisted_independent_profile_is_validated_before_full_recovery(tmp_pat
         config,
         allow_independent_recovery=True,
         recovery_profile_path=profile_path,
+        attach_policy=LIVE_ATTACH_POLICY,
     )
 
     restored = service.try_restore_persisted_profile(

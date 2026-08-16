@@ -30,6 +30,7 @@ from .RecoveredNativeProfile import (
     save_profile,
 )
 from .PositionProvider import PositionProviderError
+from .policy import AttachPolicy
 from .Win32ProcessMemory import (
     MemorySearchCancelled,
     MemorySearchDeadline,
@@ -138,6 +139,7 @@ class NativeProcessService:
         clock: Callable[[], float] = monotonic,
         allow_independent_recovery: bool = False,
         recovery_profile_path: str | Path | None = None,
+        attach_policy: AttachPolicy,
     ) -> None:
         self._memory = memory
         self.monster_config = monster_config
@@ -147,6 +149,7 @@ class NativeProcessService:
         self._owns_memory = bool(owns_memory)
         self._clock = clock
         self._allow_independent_recovery = bool(allow_independent_recovery)
+        self.attach_policy = attach_policy
         self.recovery_profile_path = (
             default_profile_path()
             if recovery_profile_path is None
@@ -256,6 +259,7 @@ class NativeProcessService:
         clock: Callable[[], float] = monotonic,
         allow_independent_recovery: bool = True,
         recovery_profile_path: str | Path | None = None,
+        attach_policy: AttachPolicy,
     ) -> NativeProcessService:
         memory = Win32ProcessMemory.from_window_handle(
             window_handle,
@@ -272,6 +276,7 @@ class NativeProcessService:
                 clock=clock,
                 allow_independent_recovery=allow_independent_recovery,
                 recovery_profile_path=recovery_profile_path,
+                attach_policy=attach_policy,
             )
         except Exception:
             memory.close()
@@ -444,6 +449,8 @@ class NativeProcessService:
     ) -> None:
         """Apply the verified hot/cold actor-polling contract consistently."""
 
+        if not self.attach_policy.activate_presence_sampling_on_attach:
+            return
         config = self.monster_config
         reader.enable_presence_optimized_sampling(
             selected_species_ids=selected_species,
@@ -887,6 +894,7 @@ class NativeProcessService:
                 clock=self._clock,
                 hints=hints,
                 allow_independent=self._allow_independent_recovery,
+                attach_policy=self.attach_policy,
             )
             metrics = self._recovery_state.metrics_for(
                 int(getattr(self._memory, "pid", 0)),

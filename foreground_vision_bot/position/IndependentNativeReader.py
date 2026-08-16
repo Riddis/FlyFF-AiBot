@@ -380,6 +380,7 @@ class IndependentNativeReader:
         self._active_runtime_support: dict[int, list[int]] = {}
         self._recovered_presence_species_offset: int | None = None
         self._presence_species_validated = False
+        self._presence_validation_source = "unproven"
         self._authoritative_presence_candidates: tuple[PresenceFieldCandidate, ...] = ()
         self._presence_runtime_support: dict[int, dict[str, int]] = {}
         self._presence_runtime_previous: dict[tuple[int, int], tuple[int, int, int]] = {}
@@ -415,6 +416,11 @@ class IndependentNativeReader:
             )
             self._presence_species_validated = bool(
                 restored_authoritative.presence_species_validated
+            )
+            self._presence_validation_source = (
+                "restored_build_profile"
+                if self._presence_species_validated
+                else "unproven"
             )
             self._authoritative_presence_candidates = tuple(
                 restored_authoritative.presence_candidates
@@ -480,6 +486,11 @@ class IndependentNativeReader:
                     )
                     self._presence_species_validated = bool(
                         authoritative.presence_species_validated
+                    )
+                    self._presence_validation_source = (
+                        "authoritative_initial_discovery"
+                        if self._presence_species_validated
+                        else "unproven"
                     )
                     self._authoritative_presence_candidates = tuple(
                         authoritative.presence_candidates
@@ -685,8 +696,82 @@ class IndependentNativeReader:
         return self._presence_species_validated
 
     @property
+    def presence_validation_source(self) -> str:
+        return str(self._presence_validation_source)
+
+    @property
     def presence_candidates(self) -> tuple[PresenceFieldCandidate, ...]:
         return self._authoritative_presence_candidates
+
+    def install_validated_presence_offset(
+        self,
+        offset: int,
+        *,
+        source: str,
+    ) -> bool:
+        """Install an offset already proven by an external profiling gate.
+
+        This mode-agnostic operation deliberately does not evaluate longitudinal
+        evidence. Recording/development profiling owns that decision and must
+        revalidate current process memory before calling this method.
+        """
+
+        resolved = int(offset)
+        if resolved < 0 or resolved % 4:
+            return False
+        if self.actor_stride is None or resolved >= int(self.actor_stride):
+            return False
+        layout = self.monster_targets[0]
+        excluded = {
+            int(layout.species_offset),
+            int(self.monster_hp_offset),
+            int(layout.x_offset),
+            int(layout.y_offset),
+            int(layout.z_offset),
+            *(int(value) for value in layout.self_pointer_offsets),
+        }
+        if self._authoritative_relation_offset is not None:
+            excluded.add(int(self._authoritative_relation_offset))
+        if resolved in excluded:
+            return False
+
+        existing = next(
+            (
+                item
+                for item in self._authoritative_presence_candidates
+                if int(item.offset) == resolved
+            ),
+            None,
+        )
+        candidate = (
+            replace(existing, validated=True)
+            if existing is not None
+            else PresenceFieldCandidate(
+                offset=resolved,
+                selected_matches=0,
+                selected_samples=0,
+                zero_hp_matches=0,
+                zero_hp_samples=0,
+                dormant_clears=0,
+                dormant_samples=0,
+                cross_slot_alias_matches=0,
+                lifecycle_death_retained=0,
+                lifecycle_dormant_clears=0,
+                lifecycle_reappearances=0,
+                validated=True,
+            )
+        )
+        others = tuple(
+            item
+            for item in self._authoritative_presence_candidates
+            if int(item.offset) != resolved
+        )
+        self._authoritative_presence_candidates = (candidate, *others)
+        self._recovered_presence_species_offset = resolved
+        self._presence_species_validated = True
+        self._presence_validation_source = str(source or "external_validation")
+        self._activate_recovered_presence_sampling()
+        return True
 
     def enable_presence_optimized_sampling(
         self,
@@ -766,6 +851,7 @@ class IndependentNativeReader:
             ],
             "presence_species_offset": self._recovered_presence_species_offset,
             "presence_species_validated": self._presence_species_validated,
+            "presence_validation_source": self.presence_validation_source,
             "presence_candidates": [
                 item.to_dict() for item in self._authoritative_presence_candidates
             ],
@@ -1047,6 +1133,7 @@ class IndependentNativeReader:
                         refreshed.presence_species_offset
                     )
                     self._presence_species_validated = True
+                    self._presence_validation_source = "authoritative_refresh"
                     self._activate_recovered_presence_sampling()
                 self._last_authoritative_refresh_at = completed_at
                 self._authoritative_refreshes += 1
@@ -1400,6 +1487,7 @@ class IndependentNativeReader:
         if proven is not None:
             self._recovered_presence_species_offset = int(proven.offset)
             self._presence_species_validated = True
+            self._presence_validation_source = "runtime_lifecycle_validation"
             self._activate_recovered_presence_sampling()
 
     def read_actor_hp_states(

@@ -18,6 +18,7 @@ from .PositionConfig import (
     load_native_position_config,
 )
 from .Win32ProcessMemory import Win32MemoryBackend
+from .policy import LIVE_ATTACH_POLICY
 
 
 @dataclass(slots=True)
@@ -79,6 +80,7 @@ def create_native_provider_attachment(
         monster_config_path=monster_config_path,
         backend=backend,
         clock=clock,
+        attach_policy=LIVE_ATTACH_POLICY,
     )
     position_provider: NativeFlyffPositionProvider | None = None
     monster_provider: NativeFlyffMonsterProvider | None = None
