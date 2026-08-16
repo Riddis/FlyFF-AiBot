@@ -72,3 +72,228 @@ repeated.
   contract archive 1. Inventory 313; reference rows 317; closure 37; expected
   compatibility counts 275/5/2/2/2; 0 errors.
 - Classification: passed preservation gate.
+
+### WIP-baseline byte and partition verifier
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: prove exact byte preservation and intended membership before staging WIP.
+- Start/end: 2026-08-16 02:07 local; under one second.
+- Producer exit code: **0**.
+- Exact command: PowerShell parsed the 34 full SHA-256/path rows from
+  `docs/migration/WIP_BASELINE.md`, rehashed every working-tree file with
+  `Get-FileHash -Algorithm SHA256`, required all four historical-closure members
+  to be clean against HEAD, and set-compared current modified baseline paths with
+  the baseline minus those four.
+- Result: 34/34 hashes match; four files already preserved in `e4b269c`; 30 files
+  remain modified; excluding the explicitly out-of-scope `MISTAKES.md` leaves
+  exactly 29 approved WIP files; 0 errors.
+- Classification: passed preservation gate; preservation does not assert the WIP
+  is validated or known-good.
+
+### WIP staged-set/raw-byte verifier — expected text-filter finding
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: ensure the index contained only 29 intended files and detect filters.
+- Start/end: 2026-08-16 02:10 local; 2.2 seconds; repeated at 02:12.
+- Producer exit code: **1** on each of two runs.
+- Exact command: PowerShell exact-set comparison of the 29 paths, followed by
+  `git hash-object --no-filters -- <path>` versus `git rev-parse :<path>` and
+  `git diff --cached --check`.
+- Result: exact 29-path set and clean diff. Two files had different raw/staged
+  blob IDs: `RUN_CANONICAL_ADVANCED.py` and
+  `synthetic_curriculum_advanced_training_v1/curriculum.json`. A targeted
+  `git -c core.autocrlf=false add -- <two paths>` did not change Git's indexed
+  clean-filter result and did not alter working bytes.
+- Classification: expected existing Git EOL clean-filter behavior, investigated
+  and proven below; not a product regression or content drift.
+
+### WIP staging EOL-only proof
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: rule out any non-EOL staging-time difference.
+- Start/end: 2026-08-16 02:13 local; 0.6 seconds.
+- Producer exit code: **0**.
+- Exact command: read-only Python subprocess loaded each raw working file and its
+  staged blob via `git rev-parse :<path>` + `git cat-file blob <oid>`, then required
+  `working.replace(b'\r\n', b'\n') == staged`, at least one CRLF, and no lone CR.
+- Result: Python file 423 CRLF pairs; curriculum JSON 208 CRLF pairs; zero other
+  byte differences. Raw working hashes remain recorded in `WIP_BASELINE.md`.
+- Classification: passed EOL-only preservation explanation. No new `-text` rule
+  was added because Task E authorizes only the existing historical exceptions and
+  a general forward-looking rule.
+
+### Evaluation/curriculum classification — truncated first write
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: reject any incomplete or malformed classification before staging.
+- Start/end: 2026-08-16 02:31 local; one second.
+- Producer exit code: **1**.
+- Exact command: PowerShell imported the generated TSV, checked the four-column
+  schema, allowed categories/actions, nonempty evidence, existing paths, action
+  policy, and exact set against nontracked evaluation and curriculum files.
+- Result: rejected a command-transport-truncated file (168 parsed rows versus 425
+  expected file-level entries, with one truncated/malformed action). Nothing was
+  staged. The incomplete untracked file was deleted with `apply_patch`.
+- Classification: generation-transport failure, safely caught before commit.
+
+### Final evaluation/curriculum classification gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: prove the revised artifact-level TSV complete, conservative, and safe.
+- Start/end: 2026-08-16 02:37 local; 1.1 seconds.
+- Producer exit code: **0**.
+- Exact command: PowerShell rechecked header/uniqueness/allowed values/evidence,
+  required scientific/frozen rows to use `commit` and generated/redundant/unknown
+  rows to use `manifest_only`, independently enumerated every nontracked
+  evaluation file and every synthetic-curriculum root with nontracked children,
+  set-compared all paths, expanded commit directory rows, and summed exact bytes.
+- Result: 234/234 rows; categories scientific reference 35, frozen result 8,
+  generated intermediate 164, redundant 6, unknown 21. Actions: 43 commit rows
+  expanding to 234 files / 13,277,505 bytes; 191 manifest-only. Zero errors.
+- Classification: passed preservation gate.
+
+### Classified artifact staged-expansion gate — harness correction
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: prove directory rows expand only to classified files.
+- Start/end: 2026-08-16 02:43 local; 14.6 seconds.
+- Producer exit code: **1**.
+- Exact command: PowerShell constructed expected paths from `action=commit` rows,
+  subtracting `git ls-tree HEAD` children, then compared to cached names and blobs.
+- Result: a `HashSet[string]` constructor ambiguity on empty/single-result
+  directories made the expected set 25 paths short. The actual staged count and
+  byte count already matched 234 / 13,277,505. No file or index change occurred.
+- Classification: verifier-harness error; corrected immediately.
+
+### Classified artifact staged-expansion gate — final
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: prove exact membership, bytes, and patch hygiene before commit.
+- Start/end: 2026-08-16 02:44 local; 14.5 seconds.
+- Producer exit code: **0**.
+- Exact command: same expansion/set gate using plain arrays for HEAD children,
+  plus per-file `git hash-object -- <path>` versus `git rev-parse :<path>` and
+  `git diff --cached --check`.
+- Result: expected files 234; staged files 234; 13,277,505 bytes; zero unexpected
+  or missing paths; all blobs match Git-cleaned working content; diff check passed.
+- Classification: passed preservation gate.
+
+### Forward-looking attributes protected-byte gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: ensure the broad LF rule cannot supersede historical exceptions.
+- Start/end: 2026-08-16 02:50 local; 0.9 seconds.
+- Producer exit code: **0**.
+- Exact command: PowerShell rehashed the eight narrow `-text` paths with
+  `Get-FileHash -Algorithm SHA256`, compared against pre-edit hashes, ran
+  `git check-attr text eol -- <path>`, and required no protected working diff.
+- Result: 8/8 hashes unchanged; protected diff count 0; every path reports
+  `text: unset` (and inherited `eol: lf`, inactive under `-text`); zero errors.
+- Classification: passed protected scientific-byte gate.
+
+### Pytest ignore-hygiene gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: verify new patterns are narrow and do not disturb model policy/deletions.
+- Start/end: 2026-08-16 02:56 local; 0.6 seconds.
+- Producer exit code: **0**.
+- Exact command: `git check-ignore -v --no-index` for representative
+  `.pytest-temp-v17`, `.pytest-recorder-110`, and existing `.pytest_tmp` paths;
+  negative/positive model-ignore assertions; porcelain deletion recount.
+- Result: all three temp forms ignored; tracked 0051200 checkpoint exception stays
+  unignored; ordinary model stays ignored; exactly 122 tracked deletions remain.
+- Classification: passed hygiene gate.
+
+### Effective-config baseline isolated-load gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: prove the JSON records actual resolved values without cross-root imports.
+- Start/end: 2026-08-16 03:05 local; 1.0 seconds.
+- Producer exit code: **0**.
+- Exact command: a parent Python process launched two separate
+  `python -I -c <loader> <root> <component>` subprocesses, reloaded bot
+  Monster/Position config and recorder Monster/Position/Recorder config,
+  validated RecorderConfig, recomputed source and loader SHA-256 values, compared
+  full component objects to the JSON, and asserted the four ownership fields.
+- Result: 2/2 isolated subprocesses match exactly; 4/4 presence fields match;
+  recorder MonsterConfig does not own those fields; zero errors.
+- Classification: passed config-baseline gate.
+
+### Focused telemetry test — wrong interpreter
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot`
+- Exact command: `python -m pytest tests/test_farming_telemetry.py -q --basetemp=.pytest-temp-codex-telemetry`
+- Reason: focused validation for newly preserved telemetry source.
+- Start/end: 2026-08-16 03:11 local; 0.4 seconds.
+- Producer exit code: **1**.
+- Result: system `C:\Python314\python.exe` reported `No module named pytest`;
+  zero tests collected.
+- Classification: runner/environment selection error, not a product result.
+
+### Focused telemetry test — authoritative
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL\foreground_vision_bot`
+- Exact command: `..\.venv\Scripts\python.exe -m pytest tests/test_farming_telemetry.py -q --basetemp=.pytest-temp-codex-telemetry`
+- Reason: focused validation for newly preserved telemetry source.
+- Start/end: 2026-08-16 03:12 local; 3.5 seconds; pytest reported 1.72s.
+- Producer exit code: **0**.
+- Result: **19 passed**, 0 failed/errors/skipped. One `PytestCacheWarning`
+  occurred for the root `.pytest_cache` WinError 183 path; the explicit basetemp
+  itself worked.
+- Classification: passed focused product-code gate; warning is the already-known
+  pytest temp/cache environment issue.
+
+### Final Phase-0 integrity gate — rename reconciliation required
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: final pre-report scientific and worktree verification.
+- Start/end: 2026-08-16 03:24 local; 44 seconds.
+- Producer exit code: **1**.
+- Exact command: comprehensive PowerShell gate checking branch/HEAD/index/tags,
+  eight protected hashes/attributes, all 348 manifest rows and hashes/statuses,
+  327 external snapshot target paths/sizes, checkpoint/reference/closure counts,
+  classification action enforcement, MISTAKES/scratch/telemetry hashes, status,
+  and a generic `git diff --diff-filter=R 51dc25b..HEAD` no-rename assertion.
+- Result: every substantive preservation check passed. The sole failure was one
+  detected rename, investigated immediately below.
+- Classification: conservative gate stop pending mechanical reconciliation.
+
+### Final Phase-0 rename reconciliation
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Exact command: `git diff --name-status --find-renames --diff-filter=R 51dc25b..HEAD`
+  plus `git log --follow` for the destination.
+- Start/end: 2026-08-16 03:25 local; 0.6 seconds.
+- Producer exit code: **0**.
+- Result: exactly one R100 rename, the explicitly approved `f173177` preservation
+  move of `run_logs/OVERNIGHT_20260809_PIPELINE.md` to `run_logs/archive/`.
+  No package/source/Phase-1 structural rename exists.
+- Classification: reconciled expected preservation action; final integrity gate
+  is green when this sole approved exception replaces the generic assertion.
+
+### Final effective-config replay
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Exact command: parent Python launches fresh bot and recorder `python -I`
+  subprocesses and compares full resolved component objects to the baseline.
+- Start/end: 2026-08-16 03:26 local; 1.0 seconds.
+- Producer exit code: **0**.
+- Result: 2 isolated components; exact equality; 0 errors.
+- Classification: passed final config gate.
+
+### Final-report completeness gates
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Reason: ensure chunked generation cannot silently omit/reorder required evidence.
+- Producer exits: **1**, **1**, **1**, then authoritative **0**.
+- Exact checks: 16 ordered numbered sections; chronological equality with
+  `git log --reverse 51dc25b..HEAD`; every `git diff-tree` file path present;
+  every current deleted/untracked path present; no append sentinel; explicit
+  Phase-1 NO decision; exact resume tail.
+- Corrections caught before staging: ordinary-context chunk misordering; then the
+  report path appearing in its own status appendix mid-generation; finally a
+  validator-only terminal-blank line-count convention (1042 physical splitlines
+  versus 1043 generator entries).
+- Final result: 1042 physical lines; 16/16 sections; 15/15 commits in order; all
+  commit and remaining paths present; complete tail; zero errors.
+- Classification: passed final-documentation gate.

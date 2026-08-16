@@ -1,0 +1,1042 @@
+# Final Phase-0 Preservation Report
+
+## 1. Final branch and HEAD
+
+- Branch: `feature/standalone-farming-recorder-simulator`
+- Report-generation HEAD (final preservation-content HEAD before the final documentation commit): `be7ac8c24682a1e13bbdd46ba5f240f5c5b16b54`
+- Final tagged documentation HEAD: `PENDING FINAL DOCUMENTATION COMMIT` (updated after tag creation).
+- Phase: `Phase 0`; Phase 1 authorized: **false**.
+
+## 2. Phase-0 preservation commits since 51dc25b
+
+### `531ce54edeccd3804a9efcb6d483bc2d21498430` - Preservation checkpoint: commit load-bearing simulator modules that tracked source already imports but that were never tracked (movement_kernel, route_waypoint_generator, static_waypoint_env, single_obstacle_env + their tests). Fixes the fact that HEAD could not previously import the qualified router or reproduce the historical baseline.
+
+Files (11):
+
+- `flyff_farming_simulator/simulator/movement_kernel.py`
+- `flyff_farming_simulator/simulator/route_waypoint_generator.py`
+- `flyff_farming_simulator/simulator/single_obstacle_env.py`
+- `flyff_farming_simulator/simulator/static_waypoint_env.py`
+- `flyff_farming_simulator/tests/test_environment_planner_kernel_agreement.py`
+- `flyff_farming_simulator/tests/test_kinodynamic_arc_edge_check.py`
+- `flyff_farming_simulator/tests/test_kinodynamic_transition_fidelity.py`
+- `flyff_farming_simulator/tests/test_movement_kernel.py`
+- `flyff_farming_simulator/tests/test_physics_version_tag_provenance_only.py`
+- `flyff_farming_simulator/tests/test_reward_ablation_wrapper_contract.py`
+- `flyff_farming_simulator/tests/test_single_obstacle_feature_representability.py`
+
+### `ee5b89836582d0a926a7285de0f80d700baa1d32` - Preservation checkpoint: track the one checkpoint required by scratchpad_historical_reproduction_guard.py's REQUIRED_FILES, so the historical router qualification has a git-addressable reproduction point. This is a single targeted exception, not a policy change for models/ in general.
+
+Files (2):
+
+- `.gitignore`
+- `flyff_farming_simulator/models/generalized_waypoint_both_seed2_0051200.zip`
+
+### `e53814290b39e51e63cbd97ecb4070fabe37f5dc` - Preservation checkpoint: complete dirty-state inventory and test baseline, captured before any execution-dependency file is staged.
+
+Files (1):
+
+- `docs/migration/WIP_BASELINE.md`
+
+### `e4b269cbef23ad7149649478ffa9220f4873083d` - Historical reproduction environment preservation commit: track the execution closure of the 2026-08-15 820M router evaluation.
+
+Files (8):
+
+- `flyff_farming_simulator/scratchpad_beginner_routing_randomized_walls.py`
+- `flyff_farming_simulator/scratchpad_beginner_routing_two_wall_s_route.py`
+- `flyff_farming_simulator/scratchpad_routing_regression_fixtures.py`
+- `flyff_farming_simulator/scratchpad_single_obstacle_transfer_eval_calibrated_arc.py`
+- `flyff_farming_simulator/simulator/environment.py`
+- `flyff_farming_simulator/simulator/navigation_history.py`
+- `flyff_farming_simulator/simulator/split_branch_policy.py`
+- `flyff_farming_simulator/simulator/world_model.py`
+
+### `a90de59232b81753c1b2ea35b8990325c26674e5` - Preservation checkpoint: narrow .gitattributes byte-preservation for guard-hash-sensitive files.
+
+Files (4):
+
+- `.gitattributes`
+- `flyff_farming_simulator/evaluations/router_mix_final_pool_820000000_manifest.json`
+- `flyff_farming_simulator/evaluations/router_mix_qualification_pool_840000000_manifest.json`
+- `flyff_farming_simulator/scratchpad_general_router_episode.py`
+
+### `5b5ef54b358fc65e775e40d07b022bbe87b82683` - Preservation checkpoint: commit the movement-calibration corpus and specs that movement_kernel.py's docstring cites as its provenance.
+
+Files (24):
+
+- `flyff_farming_recorder/calibration_analysis.py`
+- `flyff_farming_recorder/calibration_analysis_output.txt`
+- `flyff_farming_recorder/calibration_capture.py`
+- `flyff_farming_recorder/calibration_holdout_ramp_results.csv`
+- `flyff_farming_recorder/calibration_holdout_step_results.csv`
+- `flyff_farming_recorder/calibration_holdout_validation.py`
+- `flyff_farming_recorder/calibration_holdout_validation_output.txt`
+- `flyff_farming_recorder/calibration_local_frame_analysis.py`
+- `flyff_farming_recorder/calibration_local_frame_analysis_output.txt`
+- `flyff_farming_recorder/calibration_steering_analysis.py`
+- `flyff_farming_recorder/calibration_steering_analysis_output.txt`
+- `flyff_farming_recorder/calibration_steering_pulses.csv`
+- `flyff_farming_recorder/calibration_tick_extraction.csv`
+- `flyff_farming_recorder/calibration_tick_extraction.py`
+- `flyff_farming_recorder/calibration_tick_extraction_output.txt`
+- `flyff_farming_recorder/calibration_tick_extraction_v2.csv`
+- `flyff_farming_recorder/calibration_tick_extraction_v2.py`
+- `flyff_farming_recorder/calibration_tick_extraction_v2_output.txt`
+- `flyff_farming_recorder/calibration_trials.csv`
+- `flyff_farming_recorder/movement_calibration.csv`
+- `flyff_farming_recorder/movement_calibration_steering.csv`
+- `flyff_farming_simulator/run_logs/MOVEMENT_CALIBRATION_PROTOCOL_2026-08-12.md`
+- `flyff_farming_simulator/run_logs/OVERNIGHT_20260813_OBSTACLE_TRANSFER_REQUALIFICATION.md`
+- `flyff_farming_simulator/run_logs/REPLACEMENT_MOVEMENT_MODEL_SPEC_2026-08-13.md`
+
+### `f173177b7b1134f68cdd43ec96417f1dc6725647` - Preservation checkpoint: restore and archive OVERNIGHT_20260809_PIPELINE.md, cited by static_waypoint_env.py:17, instead of letting the deletion orphan that citation.
+
+Files (2):
+
+- `flyff_farming_simulator/run_logs/OVERNIGHT_20260809_PIPELINE.md`
+- `flyff_farming_simulator/run_logs/archive/OVERNIGHT_20260809_PIPELINE.md`
+
+### `b83e774855649a3084b265c7e60bc5da278e5e5a` - Preservation checkpoint: record Phase-0 artifact and compatibility evidence
+
+Files (9):
+
+- `docs/migration/ARTIFACT_MANIFEST.tsv`
+- `docs/migration/CHECKPOINT_INVENTORY.tsv`
+- `docs/migration/CHECKPOINT_MODULE_REFERENCES.tsv`
+- `docs/migration/DECISION_LOG.md`
+- `docs/migration/HISTORICAL_REPRODUCTION_CLOSURE.tsv`
+- `docs/migration/codex_handoff/COMMAND_LOG.tsv`
+- `docs/migration/codex_handoff/HANDOFF.md`
+- `docs/migration/codex_handoff/STATE.json`
+- `docs/migration/codex_handoff/TEST_LOG.md`
+
+### `a332cfbb0138e0d8e3d5580bc46e0eef22ba6a4f` - Preservation checkpoint: save remaining WIP (NOT validated; see WIP_BASELINE)
+
+Files (29):
+
+- `flyff_farming_simulator/RUN_CANONICAL_ADVANCED.py`
+- `flyff_farming_simulator/RUN_CANONICAL_BEGINNER.py`
+- `flyff_farming_simulator/RUN_CANONICAL_INTERMEDIATE.py`
+- `flyff_farming_simulator/scratchpad_ppo_pure_navigation_v2.py`
+- `flyff_farming_simulator/simulator/basic_environment.py`
+- `flyff_farming_simulator/simulator/basic_training.py`
+- `flyff_farming_simulator/simulator/beginner_transition.py`
+- `flyff_farming_simulator/simulator/milestone_evaluator.py`
+- `flyff_farming_simulator/simulator/navigation_dataset.py`
+- `flyff_farming_simulator/simulator/navigation_ppo.py`
+- `flyff_farming_simulator/simulator/progress_reporting.py`
+- `flyff_farming_simulator/simulator/pure_navigation_env.py`
+- `flyff_farming_simulator/simulator/run_provenance.py`
+- `flyff_farming_simulator/simulator/steering_oracle.py`
+- `flyff_farming_simulator/simulator/synthetic.py`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/curriculum.json`
+- `flyff_farming_simulator/tests/test_basic_environment.py`
+- `flyff_farming_simulator/tests/test_basic_training_pipeline.py`
+- `flyff_farming_simulator/tests/test_deep_review.py`
+- `flyff_farming_simulator/tests/test_fine_tune_steering_branch.py`
+- `flyff_farming_simulator/tests/test_navigation_dataset.py`
+- `flyff_farming_simulator/tests/test_navigation_history.py`
+- `flyff_farming_simulator/tests/test_pure_navigation_env.py`
+- `flyff_farming_simulator/tests/test_run_provenance.py`
+- `flyff_farming_simulator/tests/test_steering_expansion_transplant.py`
+- `flyff_farming_simulator/tests/test_steering_oracle_escape_robust.py`
+- `flyff_farming_simulator/tests/test_steering_oracle_v3_terminal_gate.py`
+- `flyff_farming_simulator/tests/test_synthetic_layout_validation.py`
+- `flyff_farming_simulator/tests/test_temporal_sidecar_parity.py`
+
+### `6308a643abf8a52262046fffdb5fe8f55b1b582a` - Preservation checkpoint: classify evaluation and curriculum artifacts
+
+Files (1):
+
+- `docs/migration/EVALUATION_ARTIFACT_CLASSIFICATION.tsv`
+
+### `e9efe55b3ee077669baae80ce543f8a98fa05307` - Preservation checkpoint: preserve classified scientific evaluation artifacts
+
+Files (234):
+
+- `flyff_farming_simulator/evaluations/beginner_routing_randomized_walls_eval.json`
+- `flyff_farming_simulator/evaluations/beginner_routing_two_wall_s_route_eval.json`
+- `flyff_farming_simulator/evaluations/beginner_routing_two_wall_s_route_eval_corrected_previous_steering.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_run_summary.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_zero_shot_diagnostic.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_bootstrap_dataset.npz`
+- `flyff_farming_simulator/evaluations/canonical_basic_human_demos.npz`
+- `flyff_farming_simulator/evaluations/canonical_basic_run_summary.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_teacher_dataset.npz`
+- `flyff_farming_simulator/evaluations/canonical_beginner_run_summary.json`
+- `flyff_farming_simulator/evaluations/canonical_beginner_zero_shot_diagnostic.json`
+- `flyff_farming_simulator/evaluations/canonical_intermediate_run_summary.json`
+- `flyff_farming_simulator/evaluations/canonical_intermediate_zero_shot_diagnostic.json`
+- `flyff_farming_simulator/evaluations/checkpoint_selection_result.json`
+- `flyff_farming_simulator/evaluations/coarse_route_proof_of_mechanism.json`
+- `flyff_farming_simulator/evaluations/coarse_route_proof_of_mechanism_v2.json`
+- `flyff_farming_simulator/evaluations/coarse_route_rollout_verification.json`
+- `flyff_farming_simulator/evaluations/final_confirmation_eval.json`
+- `flyff_farming_simulator/evaluations/general_router_bridge_check_corrected_previous_steering.json`
+- `flyff_farming_simulator/evaluations/matched_eval_target_hysteresis.json`
+- `flyff_farming_simulator/evaluations/oracle_fresh_confirmation_onset_diagnosis.json`
+- `flyff_farming_simulator/evaluations/oracle_fresh_confirmation_qualification.json`
+- `flyff_farming_simulator/evaluations/oracle_robust_origin_at_onset_diagnosis.json`
+- `flyff_farming_simulator/evaluations/oracle_v3_terminal_gate_onset_diagnosis.json`
+- `flyff_farming_simulator/evaluations/paired_ab_selector_test.json`
+- `flyff_farming_simulator/evaluations/routing_regression_fixtures_result.json`
+- `flyff_farming_simulator/evaluations/routing_regression_fixtures_result_postpatch.json`
+- `flyff_farming_simulator/evaluations/routing_regression_fixtures_result_pre_selector_patch.json`
+- `flyff_farming_simulator/evaluations/single_obstacle_calibrated_arc_transfer_eval.json`
+- `flyff_farming_simulator/evaluations/single_obstacle_qualified_checkpoint_transfer_eval.json`
+- `flyff_farming_simulator/evaluations/steering_oracle_qualification.json`
+- `flyff_farming_simulator/evaluations/steering_oracle_v3_TERMINAL_GATE_qualification_sigma1.5.json`
+- `flyff_farming_simulator/evaluations/steering_oracle_v3_qualification_sigma1.0.json`
+- `flyff_farming_simulator/evaluations/steering_oracle_v3_qualification_sigma1.5.json`
+- `flyff_farming_simulator/evaluations/steering_oracle_v3_qualification_sigma2.0.json`
+- `flyff_farming_simulator/evaluations/steering_oracle_v3_terminal_gate_matched.json`
+- `flyff_farming_simulator/evaluations/target_thrashing_measurement_shard_missing.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/curriculum.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/01_advanced_wide_neck_high_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/01_advanced_wide_neck_high_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/01_advanced_wide_neck_high_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/01_advanced_wide_neck_high_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/02_advanced_wide_neck_shifting_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/02_advanced_wide_neck_shifting_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/02_advanced_wide_neck_shifting_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/02_advanced_wide_neck_shifting_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/03_advanced_split_field_high_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/03_advanced_split_field_high_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/03_advanced_split_field_high_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/03_advanced_split_field_high_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/04_advanced_split_field_shifting_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/04_advanced_split_field_shifting_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/04_advanced_split_field_shifting_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/04_advanced_split_field_shifting_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/05_advanced_broad_lobes_high_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/05_advanced_broad_lobes_high_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/05_advanced_broad_lobes_high_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/05_advanced_broad_lobes_high_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/06_advanced_open_field_shifting_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/06_advanced_open_field_shifting_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/06_advanced_open_field_shifting_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_challenge/variants/06_advanced_open_field_shifting_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/13_advanced_wide_neck_shifting_variable/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/13_advanced_wide_neck_shifting_variable/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/13_advanced_wide_neck_shifting_variable/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/13_advanced_wide_neck_shifting_variable/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/14_advanced_wide_neck_uneven_slow/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/14_advanced_wide_neck_uneven_slow/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/14_advanced_wide_neck_uneven_slow/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/14_advanced_wide_neck_uneven_slow/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/15_advanced_split_field_shifting_variable/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/15_advanced_split_field_shifting_variable/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/15_advanced_split_field_shifting_variable/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/15_advanced_split_field_shifting_variable/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/16_advanced_split_field_uneven_slow/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/16_advanced_split_field_uneven_slow/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/16_advanced_split_field_uneven_slow/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/variants/16_advanced_split_field_uneven_slow/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/curriculum.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/01_advanced_open_field_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/01_advanced_open_field_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/01_advanced_open_field_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/01_advanced_open_field_typical_fast/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/02_advanced_irregular_plain_typical_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/02_advanced_irregular_plain_typical_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/02_advanced_irregular_plain_typical_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/02_advanced_irregular_plain_typical_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/03_advanced_broad_lobes_typical_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/03_advanced_broad_lobes_typical_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/03_advanced_broad_lobes_typical_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/03_advanced_broad_lobes_typical_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/04_advanced_wide_neck_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/04_advanced_wide_neck_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/04_advanced_wide_neck_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/04_advanced_wide_neck_typical_fast/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/05_advanced_split_field_typical_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/05_advanced_split_field_typical_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/05_advanced_split_field_typical_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/05_advanced_split_field_typical_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/06_advanced_open_center_typical_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/06_advanced_open_center_typical_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/06_advanced_open_center_typical_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_advanced_unseen_profiles/variants/06_advanced_open_center_typical_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/curriculum.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/01_early_open_field_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/01_early_open_field_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/01_early_open_field_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/01_early_open_field_typical_fast/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/02_early_wide_neck_high_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/02_early_wide_neck_high_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/02_early_wide_neck_high_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/02_early_wide_neck_high_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/03_early_open_field_low_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/03_early_open_field_low_fast/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/03_early_open_field_low_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/03_early_open_field_low_fast/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/04_early_wide_neck_typical_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/04_early_wide_neck_typical_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/04_early_wide_neck_typical_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/04_early_wide_neck_typical_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/05_intermediate_irregular_plain_uneven_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/05_intermediate_irregular_plain_uneven_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/05_intermediate_irregular_plain_uneven_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/05_intermediate_irregular_plain_uneven_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/06_intermediate_split_field_typical_variable/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/06_intermediate_split_field_typical_variable/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/06_intermediate_split_field_typical_variable/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/06_intermediate_split_field_typical_variable/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/07_intermediate_irregular_plain_high_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/07_intermediate_irregular_plain_high_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/07_intermediate_irregular_plain_high_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/07_intermediate_irregular_plain_high_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/08_intermediate_split_field_shifting_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/08_intermediate_split_field_shifting_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/08_intermediate_split_field_shifting_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/08_intermediate_split_field_shifting_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/09_advanced_broad_lobes_shifting_variable/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/09_advanced_broad_lobes_shifting_variable/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/09_advanced_broad_lobes_shifting_variable/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/09_advanced_broad_lobes_shifting_variable/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/10_advanced_open_center_uneven_slow/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/10_advanced_open_center_uneven_slow/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/10_advanced_open_center_uneven_slow/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/10_advanced_open_center_uneven_slow/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/11_advanced_broad_lobes_low_variable/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/11_advanced_broad_lobes_low_variable/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/11_advanced_broad_lobes_low_variable/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/11_advanced_broad_lobes_low_variable/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/12_advanced_open_center_high_slow/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/12_advanced_open_center_high_slow/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/12_advanced_open_center_high_slow/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_calibrated_arc_v1/variants/12_advanced_open_center_high_slow/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/curriculum.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/01_intermediate_open_field_typical_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/01_intermediate_open_field_typical_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/01_intermediate_open_field_typical_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/01_intermediate_open_field_typical_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/02_intermediate_open_field_uneven_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/02_intermediate_open_field_uneven_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/02_intermediate_open_field_uneven_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/02_intermediate_open_field_uneven_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/03_intermediate_broad_lobes_typical_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/03_intermediate_broad_lobes_typical_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/03_intermediate_broad_lobes_typical_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/03_intermediate_broad_lobes_typical_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/04_intermediate_broad_lobes_uneven_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/04_intermediate_broad_lobes_uneven_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/04_intermediate_broad_lobes_uneven_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/04_intermediate_broad_lobes_uneven_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/05_intermediate_wide_neck_typical_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/05_intermediate_wide_neck_typical_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/05_intermediate_wide_neck_typical_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/05_intermediate_wide_neck_typical_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/06_intermediate_wide_neck_uneven_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/06_intermediate_wide_neck_uneven_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/06_intermediate_wide_neck_uneven_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/06_intermediate_wide_neck_uneven_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/07_intermediate_open_center_typical_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/07_intermediate_open_center_typical_typical/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/07_intermediate_open_center_typical_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/07_intermediate_open_center_typical_typical/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/08_intermediate_open_center_uneven_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/08_intermediate_open_center_uneven_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/08_intermediate_open_center_uneven_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_intermediate_unseen_templates/variants/08_intermediate_open_center_uneven_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/curriculum.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/01_early_open_field_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/01_early_open_field_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/01_early_open_field_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/01_early_open_field_typical_fast/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/02_early_open_field_high_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/02_early_open_field_high_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/02_early_open_field_high_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/02_early_open_field_high_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/03_early_irregular_plain_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/03_early_irregular_plain_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/03_early_irregular_plain_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/03_early_irregular_plain_typical_fast/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/04_early_irregular_plain_high_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/04_early_irregular_plain_high_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/04_early_irregular_plain_high_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/04_early_irregular_plain_high_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/05_early_broad_lobes_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/05_early_broad_lobes_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/05_early_broad_lobes_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/05_early_broad_lobes_typical_fast/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/06_early_broad_lobes_high_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/06_early_broad_lobes_high_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/06_early_broad_lobes_high_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/06_early_broad_lobes_high_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/07_early_split_field_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/07_early_split_field_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/07_early_split_field_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/07_early_split_field_typical_fast/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/08_early_split_field_high_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/08_early_split_field_high_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/08_early_split_field_high_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/08_early_split_field_high_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/09_early_wide_neck_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/09_early_wide_neck_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/09_early_wide_neck_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/09_early_wide_neck_typical_fast/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/10_early_wide_neck_high_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/10_early_wide_neck_high_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/10_early_wide_neck_high_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/10_early_wide_neck_high_bursty/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/11_early_open_center_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/11_early_open_center_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/11_early_open_center_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/11_early_open_center_typical_fast/world.json.gz`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/12_early_open_center_high_bursty/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/12_early_open_center_high_bursty/map_assets/map.json`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/12_early_open_center_high_bursty/map_assets/occupancy.npy`
+- `flyff_farming_simulator/synthetic_curriculum_oracle_fresh_confirmation/variants/12_early_open_center_high_bursty/world.json.gz`
+
+### `b8206bb5300a672eaaa7cf8b7ca8387713e289af` - Preservation checkpoint: set forward-looking LF text policy
+
+Files (1):
+
+- `.gitattributes`
+
+### `296e63b81a439134c536d485d1e3887da3aaaacc` - Preservation checkpoint: ignore observed pytest scratch directories
+
+Files (1):
+
+- `.gitignore`
+
+### `092427a87386b8c163299c732d2ab48d5f9f5e78` - Preservation checkpoint: effective-config baseline for the future position/ merge.
+
+Files (1):
+
+- `docs/migration/EFFECTIVE_CONFIG_BASELINE.json`
+
+### `be7ac8c24682a1e13bbdd46ba5f240f5c5b16b54` - Preservation checkpoint: retain observation-only telemetry work
+
+Files (3):
+
+- `foreground_vision_bot/farming/telemetry.py`
+- `foreground_vision_bot/tests/test_farming_telemetry.py`
+- `foreground_vision_bot/tools/run_observation_telemetry.py`
+
+## 3. Tags and exact targets
+
+- `pre-consolidation-head` -> `51dc25b2be0aafb091e22a17505767c1bec79552`
+- `historical-reproduction-baseline-20260815` -> `a90de59232b81753c1b2ea35b8990325c26674e5`
+- `pre-consolidation-complete` -> `PENDING FINAL DOCUMENTATION COMMIT`
+
+## 4. External snapshot
+
+- Location: `C:\Users\Ridd\FlyffRL_Backups\pre_consolidation_20260815\Flyff RL\`.
+- Prior verified hash gate: 327/327 targeted artifacts (313 checkpoint ZIPs, 8 recording archives, 6 map artifacts), 0 missing, 0 SHA-256 mismatches.
+- Targeted bytes: 559,200,812. Final size/existence recheck: 327/327 present, 0 size mismatches.
+- Prior whole copied-file-set comparison: 0 missing source files and 0 size mismatches; destination extras were stale pytest scratch only.
+
+## 5. Artifact manifest
+
+- `ARTIFACT_MANIFEST.tsv`: 348 rows, 708,385,568 bytes.
+- Categories: checkpoint 313; recording archive 8; recording metadata 3; dataset 9; map asset 6; calibration corpus 8; scratch contract archive 1.
+- Git status: tracked 27; ignored 321; untracked 0.
+- Final verification rehashed all 348 files and recomputed status with forward-slash repo-relative paths: 0 errors.
+
+## 6. Checkpoint inventory and compatibility
+
+- Checkpoints: 313.
+- `simulator.split_branch_policy.SplitSteeringNavigationPolicy`: 275.
+- `simulator.split_branch_policy.SplitSteeringEventPolicy`: 5.
+- `farming.sb3_training.TerminalPrefixRolloutBuffer`: 2.
+- `farming.sb3_training.TrainingBoundary`: 2.
+- `farming.sb3_training.TrainingBoundaryKind`: 2.
+- The three non-policy `farming.sb3_training` paths are hard compatibility constraints with equal preservation weight.
+
+## 7. WIP baseline disposition
+
+- Original modified files: 34.
+- Historical closure commit `e4b269c`: 4.
+- Remaining-WIP commit `a332cfb` (explicitly NOT validated/known-good): 29.
+- Deliberately left dirty: `flyff_farming_simulator/MISTAKES.md` (1), per user instruction.
+
+| path | disposition |
+|---|---|
+| `flyff_farming_simulator/MISTAKES.md` | left dirty/excluded by instruction |
+| `flyff_farming_simulator/RUN_CANONICAL_ADVANCED.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/RUN_CANONICAL_BEGINNER.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/RUN_CANONICAL_INTERMEDIATE.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/scratchpad_ppo_pure_navigation_v2.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/basic_environment.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/basic_training.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/beginner_transition.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/environment.py` | historical closure `e4b269c` |
+| `flyff_farming_simulator/simulator/milestone_evaluator.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/navigation_dataset.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/navigation_history.py` | historical closure `e4b269c` |
+| `flyff_farming_simulator/simulator/navigation_ppo.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/progress_reporting.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/pure_navigation_env.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/run_provenance.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/split_branch_policy.py` | historical closure `e4b269c` |
+| `flyff_farming_simulator/simulator/steering_oracle.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/synthetic.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/simulator/world_model.py` | historical closure `e4b269c` |
+| `flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/curriculum.json` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_basic_environment.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_basic_training_pipeline.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_deep_review.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_fine_tune_steering_branch.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_navigation_dataset.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_navigation_history.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_pure_navigation_env.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_run_provenance.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_steering_expansion_transplant.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_steering_oracle_escape_robust.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_steering_oracle_v3_terminal_gate.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_synthetic_layout_validation.py` | remaining WIP `a332cfb` (not validated) |
+| `flyff_farming_simulator/tests/test_temporal_sidecar_parity.py` | remaining WIP `a332cfb` (not validated) |
+
+## 8. Test baseline
+
+- `foreground_vision_bot`: 709 collected; 705 passed; 3 genuine pre-existing failures; 1 skipped.
+- `flyff_farming_simulator`: 357 collected; 355 passed; 0 failed/errors; 2 skipped under writable basetemp.
+- `flyff_farming_recorder`: 24 passed under writable basetemp.
+- Default pytest temp caused 66 simulator + 3 recorder WinError 5 setup errors; all disappeared with writable basetemp.
+- Focused newly preserved telemetry suite: 19 passed, producer exit 0; one known pytest-cache ACL warning.
+
+Exact genuine pre-existing bot failures:
+
+1. `tests/test_farming_environment_lifecycle.py::test_focus_loss_during_eva_discards_kill_and_transition`
+2. `tests/test_farming_training_session.py::test_normal_training_status_is_concise_and_uses_total_model_steps`
+3. `tests/test_farming_training_session.py::test_training_callback_publishes_structured_session_statistics`
+
+## 9. Complete G8b history
+
+- Initial baseline tag target `ee5b898` failed from a clean worktree and was recorded invalid.
+- The diagnostic retry budget deviation is fully recorded in `DECISION_LOG.md` D5: four progressively broader diagnostic executions exceeded the authorized one-file/one-retry budget, with no repository/reference damage.
+- Static traversal plus runtime tracing discovered the incomplete closure, including pickle-only `simulator.split_branch_policy`.
+- Truthful closure: 37 rows (34 modules + 3 resources), including four formerly untracked scratchpad modules and four tracked-but-WIP runtime modules.
+- Clean candidate: `a90de59232b81753c1b2ea35b8990325c26674e5`; no copied source, overlay, or manual EOL repair.
+- Full run: 121 episodes (101 obstacle + 20 open), Python producer exit 0.
+- Semantic checks: 34/34 passed.
+- Fresh/reference SHA-256: `f30f63e4ef5ab97648e19c499b82fdb9cae537962097a52bcf2423e00c21bb30`.
+- Tag retarget: old `ee5b89836582d0a926a7285de0f80d700baa1d32` -> proven `a90de59232b81753c1b2ea35b8990325c26674e5`.
+- Provenance caveat: this is a post-hoc verified reproduction environment, not a claim to reconstruct an original commit that never existed; validity comes from frozen byte hashes and the byte-identical clean-checkout rerun.
+
+## 10. Evaluation and curriculum classification
+
+- Artifact-level rows: 234 (228 evaluation files + 6 curriculum directories).
+- Categories: scientific reference 35; frozen result 8; generated intermediate 164; redundant 6; unknown 21.
+- Actions: commit 43 rows; manifest-only 191 rows.
+- Commit rows expanded to exactly 234 files / 13,277,505 bytes and were committed as `e9efe55`.
+- Manifest-only remainder: 185 visible untracked evaluation artifacts + 6 ignored artifacts.
+
+## 11. Effective config baseline
+
+- `EFFECTIVE_CONFIG_BASELINE.json` was loaded and replayed through separate bot and recorder `python -I` subprocesses; final replay matched exactly.
+- Bot MonsterConfig/PositionConfig and recorder MonsterConfig/PositionConfig/RecorderConfig are fully dumped with config-input and loader-module SHA-256 provenance.
+- Equal values with different owners: clear confirmation samples 3; cold poll batch 1024; cold verification batch 256; dead-read grace 2.0 seconds.
+- Live bot owner: `foreground_vision_bot/position/native_monsters.json`.
+- Recorder owner: `flyff_farming_recorder/recorder_config.json`; recorder MonsterConfig intentionally does not own these fields.
+
+## 12. Telemetry preservation
+
+- Status: preserved unchanged in `be7ac8c`.
+- Paths: `foreground_vision_bot/farming/telemetry.py`, `foreground_vision_bot/tests/test_farming_telemetry.py`, `foreground_vision_bot/tools/run_observation_telemetry.py`.
+- Focused validation: 19/19 passed, producer exit 0.
+
+## 13. Remaining working-tree state
+
+- Staged: none.
+- Modified tracked before final documentation staging: 5 (four handoff journal files plus intentionally excluded `MISTAKES.md`).
+- Deleted tracked: 122 (119 pytest scratch phantoms + 3 substantive scratchpad deletions).
+- Visible untracked: 297.
+- Ignored noteworthy artifacts: 6 classification manifest-only evaluation artifacts; 321 ignored artifact-manifest rows; 112,749,676-byte scratch contract ZIP.
+
+### Modified tracked paths
+
+- `docs/migration/codex_handoff/COMMAND_LOG.tsv`
+- `docs/migration/codex_handoff/HANDOFF.md`
+- `docs/migration/codex_handoff/STATE.json`
+- `docs/migration/codex_handoff/TEST_LOG.md`
+- `flyff_farming_simulator/MISTAKES.md`
+
+### Deleted tracked paths
+
+#### pytest scratch phantom
+
+- `flyff_farming_recorder/.pytest-recorder-110/test_packed_stream_round_trip0/stream.msgpack.gz`
+- `flyff_farming_recorder/.pytest-recorder-110/test_packed_stream_round_tripcurrent`
+- `flyff_farming_recorder/.pytest-recorder-110/test_selected_species_are_sepa0/recorder_config.json`
+- `flyff_farming_recorder/.pytest-recorder-110/test_selected_species_are_sepacurrent`
+- `flyff_farming_simulator/.pytest-temp-v16/test_behavior_clone_rejects_wr0/wrong_contract.npz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_behavior_clone_rejects_wrcurrent`
+- `flyff_farming_simulator/.pytest-temp-v16/test_checkpoint_spec_parsercurrent`
+- `flyff_farming_simulator/.pytest-temp-v16/test_duplicate_recordings_are_0/session/events.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_duplicate_recordings_are_0/session/frames.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_duplicate_recordings_are_0/session/inputs.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_duplicate_recordings_are_0/session/manifest.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_duplicate_recordings_are_current`
+- `flyff_farming_simulator/.pytest-temp-v16/test_recording_fit_and_demo_ex0/demos.npz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_recording_fit_and_demo_ex0/session/events.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_recording_fit_and_demo_ex0/session/frames.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_recording_fit_and_demo_ex0/session/inputs.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_recording_fit_and_demo_ex0/session/manifest.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_recording_fit_and_demo_excurrent`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/curriculum.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/01_early_open_field_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/01_early_open_field_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/01_early_open_field_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/01_early_open_field_typical_fast/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_gene0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_synthetic_curriculum_genecurrent`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/curriculum.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/01_early_open_field_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/01_early_open_field_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/01_early_open_field_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/01_early_open_field_typical_fast/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_variant_filter_and_fixed_current`
+- `flyff_farming_simulator/.pytest-temp-v16/test_world_model_round_trip0/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v16/test_world_model_round_tripcurrent`
+- `flyff_farming_simulator/.pytest-temp-v17/test_atomic_policy_save_leavescurrent`
+- `flyff_farming_simulator/.pytest-temp-v17/test_behavior_clone_rejects_on0/one_session.npz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_behavior_clone_rejects_oncurrent`
+- `flyff_farming_simulator/.pytest-temp-v17/test_behavior_clone_rejects_wr0/wrong_contract.npz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_behavior_clone_rejects_wrcurrent`
+- `flyff_farming_simulator/.pytest-temp-v17/test_checkpoint_spec_parsercurrent`
+- `flyff_farming_simulator/.pytest-temp-v17/test_duplicate_recordings_are_0/session/events.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_duplicate_recordings_are_0/session/frames.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_duplicate_recordings_are_0/session/inputs.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_duplicate_recordings_are_0/session/manifest.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_duplicate_recordings_are_current`
+- `flyff_farming_simulator/.pytest-temp-v17/test_recording_fit_and_demo_ex0/demos.npz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_recording_fit_and_demo_ex0/eva_only.npz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_recording_fit_and_demo_ex0/session/events.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_recording_fit_and_demo_ex0/session/frames.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_recording_fit_and_demo_ex0/session/inputs.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_recording_fit_and_demo_ex0/session/manifest.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_recording_fit_and_demo_excurrent`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/curriculum.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/01_early_open_field_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/01_early_open_field_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/01_early_open_field_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/01_early_open_field_typical_fast/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_gene0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_synthetic_curriculum_genecurrent`
+- `flyff_farming_simulator/.pytest-temp-v17/test_unproven_presence_and_mis0/legacy.npz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_unproven_presence_and_mis0/session/events.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_unproven_presence_and_mis0/session/frames.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_unproven_presence_and_mis0/session/inputs.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_unproven_presence_and_mis0/session/manifest.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_unproven_presence_and_mis0/unproven/events.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_unproven_presence_and_mis0/unproven/frames.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_unproven_presence_and_mis0/unproven/inputs.msgpack.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_unproven_presence_and_mis0/unproven/manifest.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_unproven_presence_and_miscurrent`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/curriculum.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/01_early_open_field_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/01_early_open_field_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/01_early_open_field_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/01_early_open_field_typical_fast/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_0/curriculum/variants/03_advanced_broad_lobes_shifting_variable/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/curriculum.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/01_early_open_field_typical_fast/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/01_early_open_field_typical_fast/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/01_early_open_field_typical_fast/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/01_early_open_field_typical_fast/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/02_intermediate_irregular_plain_uneven_typical/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/coordinate_frame.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/map.json`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/03_advanced_broad_lobes_shifting_variable/map_assets/occupancy.npy`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_1/curriculum/variants/03_advanced_broad_lobes_shifting_variable/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_variant_filter_and_fixed_current`
+- `flyff_farming_simulator/.pytest-temp-v17/test_world_model_round_trip0/world.json.gz`
+- `flyff_farming_simulator/.pytest-temp-v17/test_world_model_round_tripcurrent`
+
+#### substantive scratchpad deletion
+
+- `flyff_farming_simulator/scratchpad_aggregate_target_thrashing.py`
+- `flyff_farming_simulator/scratchpad_measure_target_thrashing.py`
+- `flyff_farming_simulator/scratchpad_measure_target_thrashing_missing.py`
+
+### Visible untracked paths
+
+#### archive (6)
+
+- `flyff_farming_simulator/archive/ARCHIVE_MANIFEST.md`
+- `flyff_farming_simulator/archive/router_mix_flawed_reload_run_20260814/README.md`
+- `flyff_farming_simulator/archive/router_mix_flawed_reload_run_20260814/generalized_waypoint_router_mix_seed100_checkpoint_evals.json`
+- `flyff_farming_simulator/archive/router_mix_flawed_reload_run_20260814/generalized_waypoint_router_mix_seed102_checkpoint_evals.json`
+- `flyff_farming_simulator/archive/router_mix_flawed_reload_run_20260814/generalized_waypoint_router_mix_seed108_checkpoint_evals.json`
+- `flyff_farming_simulator/archive/router_mix_flawed_reload_run_20260814/router_mix_checkpoint_selection_result.json`
+
+#### evaluation manifest-only (185)
+
+- `flyff_farming_simulator/evaluations/_quarantine/canonical_beginner_graduation_report_PROVISIONAL_OLD_COLLISION_BAR_20260808.json`
+- `flyff_farming_simulator/evaluations/_quarantine/canonical_intermediate_graduation_report_PROVISIONAL_OLD_COLLISION_BAR_20260808.json`
+- `flyff_farming_simulator/evaluations/beginner_routing_two_wall_s_route_eval_postpatch.json`
+- `flyff_farming_simulator/evaluations/beginner_routing_two_wall_s_route_eval_pre_fix_previous_steering_bug.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_010k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_010k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_020k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_020k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_030k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_030k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_040k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_040k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_050k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_050k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_060k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_060k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_070k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_070k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_080k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_080k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_090k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_090k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_100k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_100k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_110k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_110k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_120k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_120k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_130k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_130k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_140k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_140k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_150k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_150k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_160k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_160k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_170k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_170k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_180k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_180k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_190k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_190k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_200k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_200k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_210k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_210k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_220k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_advanced_ppo_220k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_collision_event_audit.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_dagger_round001.npz`
+- `flyff_farming_simulator/evaluations/canonical_basic_dagger_round002.npz`
+- `flyff_farming_simulator/evaluations/canonical_basic_dagger_round003.npz`
+- `flyff_farming_simulator/evaluations/canonical_basic_dagger_round004.npz`
+- `flyff_farming_simulator/evaluations/canonical_basic_dagger_round005.npz`
+- `flyff_farming_simulator/evaluations/canonical_basic_dagger_round006.npz`
+- `flyff_farming_simulator/evaluations/canonical_basic_graduation_report.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_001_raw_diagnostic.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_001_report.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_002_raw_diagnostic.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_002_report.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_003_raw_diagnostic.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_003_report.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_004_raw_diagnostic.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_004_report.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_005_raw_diagnostic.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_005_report.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_006_raw_diagnostic.json`
+- `flyff_farming_simulator/evaluations/canonical_basic_milestone_006_report.json`
+- `flyff_farming_simulator/evaluations/canonical_beginner_collision_event_audit.json`
+- `flyff_farming_simulator/evaluations/canonical_intermediate_collision_event_audit.json`
+- `flyff_farming_simulator/evaluations/canonical_intermediate_ppo_010k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_intermediate_ppo_010k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_intermediate_ppo_020k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_intermediate_ppo_020k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_intermediate_unseen_templates_report.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_010k_post_rehearsal_challenge.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_010k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_010k_post_rehearsal_unseen.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_010k_pre_rehearsal_challenge.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_010k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_010k_pre_rehearsal_unseen.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_020k_post_rehearsal_challenge.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_020k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_020k_post_rehearsal_unseen.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_020k_pre_rehearsal_challenge.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_020k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_020k_pre_rehearsal_unseen.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_030k_post_rehearsal_challenge.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_030k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_030k_post_rehearsal_unseen.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_030k_pre_rehearsal_challenge.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_030k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_030k_pre_rehearsal_unseen.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_040k_post_rehearsal_challenge.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_040k_post_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_040k_post_rehearsal_unseen.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_040k_pre_rehearsal_challenge.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_040k_pre_rehearsal_heldout.json`
+- `flyff_farming_simulator/evaluations/canonical_ppo_040k_pre_rehearsal_unseen.json`
+- `flyff_farming_simulator/evaluations/combined_remaining_failure_classification.json`
+- `flyff_farming_simulator/evaluations/general_router_bridge_check.json`
+- `flyff_farming_simulator/evaluations/general_router_bridge_check_postpatch.json`
+- `flyff_farming_simulator/evaluations/general_router_bridge_check_pre_fix_previous_steering_bug.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_both_seed0_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_both_seed1_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_both_seed2_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_both_seed3_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_both_seed5_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_both_seed8_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_calibrated_arc_confirmation_eval.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_calibrated_arc_seed0_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_calibrated_arc_seed2_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_calibrated_arc_seed8_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_combined_discount_consistent_progress_seed4_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_combined_discount_consistent_progress_seed6_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_combined_discount_consistent_progress_seed7_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_living_cost_only_seed0_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_living_cost_only_seed2_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_living_cost_only_seed8_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_router_mix_seed100_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_router_mix_seed102_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_router_mix_seed108_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_seed0_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_seed2_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_seed8_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_timeout_failure_only_seed0_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_timeout_failure_only_seed2_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/generalized_waypoint_timeout_failure_only_seed8_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/goal_stable_plateau_diagnosis.json`
+- `flyff_farming_simulator/evaluations/hysteresis_regression_diagnosis.json`
+- `flyff_farming_simulator/evaluations/manifests/advanced_challenge.json`
+- `flyff_farming_simulator/evaluations/manifests/advanced_unseen_profiles.json`
+- `flyff_farming_simulator/evaluations/manifests/intermediate_unseen_templates.json`
+- `flyff_farming_simulator/evaluations/open_waypoint_confirmation_failure_diagnosis.json`
+- `flyff_farming_simulator/evaluations/oracle_contact_diagnosis.json`
+- `flyff_farming_simulator/evaluations/oracle_lookback_sweep.json`
+- `flyff_farming_simulator/evaluations/oracle_movement_sample_instrumentation.json`
+- `flyff_farming_simulator/evaluations/oracle_onset_diagnosis.json`
+- `flyff_farming_simulator/evaluations/oracle_run_severity.json`
+- `flyff_farming_simulator/evaluations/oracle_v3_differential_diagnosis.json`
+- `flyff_farming_simulator/evaluations/orbit_one_intervention_diagnostic.json`
+- `flyff_farming_simulator/evaluations/orbit_policy_probability_diagnosis.json`
+- `flyff_farming_simulator/evaluations/orbit_reward_discount_audit.json`
+- `flyff_farming_simulator/evaluations/paired_ab_selector_test_corrected_previous_steering.json`
+- `flyff_farming_simulator/evaluations/paired_ab_selector_test_pre_fix_previous_steering_bug.json`
+- `flyff_farming_simulator/evaluations/persistence_controller_pool_rerun.json`
+- `flyff_farming_simulator/evaluations/potential_shaping_audit.json`
+- `flyff_farming_simulator/evaluations/procedural_waypoint_recorded_seed0_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/procedural_waypoint_recorded_seed2_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/procedural_waypoint_recorded_seed8_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/procedural_waypoint_symmetric_seed0_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/procedural_waypoint_symmetric_seed2_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/procedural_waypoint_symmetric_seed8_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/pure_nav_v2_goal_normal_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/pure_nav_v2_goal_stable_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/pure_nav_v2_safety_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/pure_nav_v2_smoketest_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/pure_nav_v4_greedy_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/pure_nav_v4_sticky_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/reward_ablation_850m_targeted_eval.json`
+- `flyff_farming_simulator/evaluations/reward_ablation_new_failure_classification.json`
+- `flyff_farming_simulator/evaluations/route_follower_pool_rerun.json`
+- `flyff_farming_simulator/evaluations/route_follower_selector_audit.json`
+- `flyff_farming_simulator/evaluations/routing_regression_fixtures_result_corrected_previous_steering.json`
+- `flyff_farming_simulator/evaluations/routing_regression_fixtures_result_pre_fix_previous_steering_bug.json`
+- `flyff_farming_simulator/evaluations/single_obstacle_seed0_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/single_obstacle_seed2_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/single_obstacle_seed8_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/single_obstacle_transfer_seed0_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/single_obstacle_transfer_seed2_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/single_obstacle_transfer_seed8_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/static_waypoint_seed0_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/static_waypoint_seed1_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/static_waypoint_seed2_checkpoint_evals.json`
+- `flyff_farming_simulator/evaluations/steering_oracle_v3_PLAIN_no_terminal_gate_sigma1.5.json`
+- `flyff_farming_simulator/evaluations/steering_oracle_v3_TERMINAL_GATE_PRE_DEPTH4_FIX_sigma1.5.json`
+- `flyff_farming_simulator/evaluations/target_thrashing_measurement_shard0.json`
+- `flyff_farming_simulator/evaluations/target_thrashing_measurement_shard1.json`
+- `flyff_farming_simulator/evaluations/target_thrashing_measurement_shard2.json`
+- `flyff_farming_simulator/evaluations/target_thrashing_measurement_shard3.json`
+- `flyff_farming_simulator/evaluations/target_thrashing_measurement_shard4.json`
+- `flyff_farming_simulator/evaluations/target_thrashing_measurement_shard5.json`
+- `flyff_farming_simulator/evaluations/target_thrashing_measurement_shard6.json`
+- `flyff_farming_simulator/evaluations/target_thrashing_measurement_shard7.json`
+- `flyff_farming_simulator/evaluations/teacher_collision_event_audit.json`
+
+#### experimental source (56)
+
+- `flyff_farming_simulator/scratchpad_audit_basic_collision.py`
+- `flyff_farming_simulator/scratchpad_audit_teacher_collision.py`
+- `flyff_farming_simulator/scratchpad_build_advanced_generalization_pools.py`
+- `flyff_farming_simulator/scratchpad_build_intermediate_unseen_templates.py`
+- `flyff_farming_simulator/scratchpad_build_trace_viewer.py`
+- `flyff_farming_simulator/scratchpad_calibrate_pure_nav_reward.py`
+- `flyff_farming_simulator/scratchpad_calibrated_arc_worlds_validation.py`
+- `flyff_farming_simulator/scratchpad_checkpoint_selection.py`
+- `flyff_farming_simulator/scratchpad_classify_basic_dagger.py`
+- `flyff_farming_simulator/scratchpad_combined_remaining_failure_classification.py`
+- `flyff_farming_simulator/scratchpad_diagnose_goal_stable_plateau.py`
+- `flyff_farming_simulator/scratchpad_diagnose_hysteresis_regressions.py`
+- `flyff_farming_simulator/scratchpad_diagnose_oracle_contacts.py`
+- `flyff_farming_simulator/scratchpad_diagnose_v3_differential.py`
+- `flyff_farming_simulator/scratchpad_export_episode_trace.py`
+- `flyff_farming_simulator/scratchpad_export_teacher_trace.py`
+- `flyff_farming_simulator/scratchpad_final_confirmation_eval.py`
+- `flyff_farming_simulator/scratchpad_freeze_evaluation_harness_checksums.py`
+- `flyff_farming_simulator/scratchpad_general_router_bridge_check.py`
+- `flyff_farming_simulator/scratchpad_generalized_waypoint_confirmation_eval_calibrated_arc.py`
+- `flyff_farming_simulator/scratchpad_generalized_waypoint_train_calibrated_arc.py`
+- `flyff_farming_simulator/scratchpad_generalized_waypoint_train_discount_consistent_progress.py`
+- `flyff_farming_simulator/scratchpad_generalized_waypoint_train_reward_ablation.py`
+- `flyff_farming_simulator/scratchpad_generalized_waypoint_train_reward_ablation_replication.py`
+- `flyff_farming_simulator/scratchpad_generalized_waypoint_train_reward_ablation_resume.py`
+- `flyff_farming_simulator/scratchpad_matched_diagnostic_terminal_gate.py`
+- `flyff_farming_simulator/scratchpad_open_waypoint_failure_diagnosis.py`
+- `flyff_farming_simulator/scratchpad_orbit_one_intervention_diagnostic.py`
+- `flyff_farming_simulator/scratchpad_orbit_policy_probability_diagnosis.py`
+- `flyff_farming_simulator/scratchpad_orbit_reward_discount_audit.py`
+- `flyff_farming_simulator/scratchpad_paired_ab_selector_test.py`
+- `flyff_farming_simulator/scratchpad_persistence_controller_replay_and_pools.py`
+- `flyff_farming_simulator/scratchpad_planner_environment_multistep_parity.py`
+- `flyff_farming_simulator/scratchpad_potential_shaping_audit.py`
+- `flyff_farming_simulator/scratchpad_ppo_advantage_audit.py`
+- `flyff_farming_simulator/scratchpad_ppo_mechanics_audit.py`
+- `flyff_farming_simulator/scratchpad_ppo_multiseed_init_audit.py`
+- `flyff_farming_simulator/scratchpad_ppo_pure_navigation_v4.py`
+- `flyff_farming_simulator/scratchpad_ppo_steering_bandit.py`
+- `flyff_farming_simulator/scratchpad_procedural_waypoint_ablation.py`
+- `flyff_farming_simulator/scratchpad_qualify_steering_oracle.py`
+- `flyff_farming_simulator/scratchpad_qualify_steering_oracle_v3.py`
+- `flyff_farming_simulator/scratchpad_reeval_collision_metric.py`
+- `flyff_farming_simulator/scratchpad_reward_ablation_850m_combined_51200_eval.py`
+- `flyff_farming_simulator/scratchpad_reward_ablation_850m_discount_consistent_eval.py`
+- `flyff_farming_simulator/scratchpad_reward_ablation_850m_replication_eval.py`
+- `flyff_farming_simulator/scratchpad_reward_ablation_850m_targeted_eval.py`
+- `flyff_farming_simulator/scratchpad_reward_ablation_combined_failure_overlap.py`
+- `flyff_farming_simulator/scratchpad_reward_ablation_new_failure_classification.py`
+- `flyff_farming_simulator/scratchpad_route_follower_known_failure_replay.py`
+- `flyff_farming_simulator/scratchpad_route_follower_pool_rerun.py`
+- `flyff_farming_simulator/scratchpad_route_follower_selector_audit.py`
+- `flyff_farming_simulator/scratchpad_seed0_bearing_sign_contract_test.py`
+- `flyff_farming_simulator/scratchpad_single_obstacle_train.py`
+- `flyff_farming_simulator/scratchpad_single_obstacle_transfer_eval_qualified_checkpoint.py`
+- `flyff_farming_simulator/scratchpad_test_intermediate_generalization.py`
+
+#### local settings (1)
+
+- `.claude/settings.local.json`
+
+#### root overnight log (1)
+
+- `OVERNIGHT_LOG_2026-08-08.md`
+
+#### run log (14)
+
+- `flyff_farming_simulator/run_logs/archive/OVERNIGHT_20260813_COMBINED_WAYPOINT_OBJECTIVE.md`
+- `flyff_farming_simulator/run_logs/archive/movement_calibration_holdout_validation_output.txt`
+- `flyff_farming_simulator/run_logs/archive/movement_calibration_live_analysis_output.txt`
+- `flyff_farming_simulator/run_logs/archive/movement_calibration_local_frame_analysis_output.txt`
+- `flyff_farming_simulator/run_logs/archive/movement_calibration_raw.csv`
+- `flyff_farming_simulator/run_logs/archive/movement_calibration_steering_analysis_output.txt`
+- `flyff_farming_simulator/run_logs/archive/movement_calibration_steering_raw.csv`
+- `flyff_farming_simulator/run_logs/archive/movement_calibration_tick_extraction_output.txt`
+- `flyff_farming_simulator/run_logs/archive/movement_calibration_tick_extraction_v2_output.txt`
+- `flyff_farming_simulator/run_logs/archive/movement_provenance_analysis_output.txt`
+- `flyff_farming_simulator/run_logs/archive/movement_provenance_onset_samples.csv`
+- `flyff_farming_simulator/run_logs/archive/movement_provenance_onset_test_output.txt`
+- `flyff_farming_simulator/run_logs/archive/movement_provenance_raw_samples.csv`
+- `flyff_farming_simulator/run_logs/archive/robust_kinodynamic_eval_output.txt`
+
+#### scratchpad archive (31)
+
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_aggregate_target_thrashing.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_calibration_holdout_validation_reference.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_calibration_local_frame_analysis_reference.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_calibration_tick_extraction_reference.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_calibration_tick_extraction_v2_reference.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_generalized_waypoint_train.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_instrument_movement_samples.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_kinodynamic_seed0_left_counterfactual.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_measure_target_thrashing.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_measure_target_thrashing_missing.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_movement_provenance_analysis.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_movement_provenance_onset_test.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_movement_provenance_reparse.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_feature_check.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_general_router_eval.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_kinodynamic_eval.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_movement_symmetry_control.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_remaining_failures_diagnosis.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_reward_audit.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_robust_kinodynamic_eval.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_route_failure_diagnosis.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_route_subgoal_control.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_single_condition_train.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_subgoal_sweep.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_symmetry_check.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_single_obstacle_transfer_train.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_static_waypoint_symmetry_check.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_static_waypoint_train.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_substep_convergence_study.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_sweep_collision_lookback.py`
+- `flyff_farming_simulator/scratchpad_archive/scratchpad_test_onset_indexing.py`
+
+#### trace (3)
+
+- `scratchpad_traces/basic_wide_neck_seed0.json`
+- `scratchpad_traces/beginner_wide_neck_seed0.json`
+- `scratchpad_traces/teacher_split_field_seed0.json`
+
+## 14. Known unresolved issues and risks
+
+- `MISTAKES.md` remains modified by explicit instruction and is not part of any preservation commit.
+- Three substantive tracked scratchpad deletions remain unstaged alongside 119 tracked pytest scratch phantoms.
+- 191 evaluation artifacts remain manifest-only by evidence policy; 56 experimental source files and other archives/logs/traces remain untracked and are inventoried above.
+- Three bot tests remain genuinely failing at the frozen baseline; no attempt was made to repair them.
+- Pytest default cache/temp ACL issues remain environmental.
+- Two WIP files were stored through Git's existing CRLF-to-LF clean filter; the difference was proven EOL-only and raw working hashes remain in `WIP_BASELINE.md`.
+- No protected historical artifact changed, and the expensive 820M gate was deliberately not rerun.
+
+## 15. Can Phase 1 safely begin?
+
+**NO - not until review explicitly authorizes it.** Phase 0 preservation itself is complete and the rollback tag will exist, but Phase 1 remains unauthorized by scope. A reviewer must accept the remaining dirty/deleted/untracked inventory, especially `MISTAKES.md`, the three substantive scratchpad deletions, and 56 untracked experimental source files, before structural moves begin.
+
+## 16. CLAUDE RESUME SECTION
+
+- Exact report-generation HEAD: `be7ac8c24682a1e13bbdd46ba5f240f5c5b16b54`.
+- Exact final tagged HEAD: `PENDING FINAL DOCUMENTATION COMMIT`; resolve with `git rev-list -n 1 pre-consolidation-complete` after this report is committed/tagged.
+- First commands:
+
+```powershell
+git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' rev-parse HEAD
+git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' branch --show-current
+git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' status --porcelain=v1 -uall
+git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' diff --cached --name-status
+git -c safe.directory='C:/Users/Ridd/Documents/Repos/Flyff RL' rev-list -n 1 pre-consolidation-complete
+Get-Content docs/migration/codex_handoff/STATE.json -Raw
+Get-Content docs/migration/codex_handoff/HANDOFF.md -Raw
+```
+
+- Do not repeat: the 820M reproduction, historical tag retarget, broad suites, artifact classification, WIP staging, or protected-byte work.
+- Next phase awaiting review: Phase 1 consolidation planning/execution; it is not authorized by this report.
+- Decision still needed: user/reviewer acceptance of the final inventory and explicit Phase-1 authorization.
