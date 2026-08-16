@@ -145,3 +145,10 @@ self_reproduction = "regenerate candidate manifest from candidate fixtures and c
 
 [determinism]
 proof = "generate twice into distinct fresh temporary directories; require every fixture and manifest byte-identical; check mode regenerates in temp and never writes expected fixtures"
+
+[amendment.A2]
+reason = "forward compliance amendment before any golden commit: generator review found literal np.array_equal, authoritative manifest parsing, and already-required replan/controller/collision sweep coverage were not mechanically realized"
+outcome_independence = "cases are derived from the coordinator contract and existing single_wall_detour/open kernel families; no captured pass/fail value selected them"
+router_additional_cases = ["replan_from_single_wall_route_midpoint"]
+controller_cases = ["INITIAL", "KEEP_CURRENT", "CURRENT_UNSAFE", "CURRENT_REACHED_OR_PASSED", "BETTER_FORWARD_TARGET", "FINAL_TARGET_LOCK"]
+kernel_collision_cases = ["straight_into_wall", "left_near_wall", "right_near_wall"]

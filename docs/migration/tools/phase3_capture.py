@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import csv
 import dataclasses
 import gzip
 import hashlib
@@ -238,7 +239,8 @@ def capture_observations(repo: Path, temporary: Path) -> tuple[dict[str, bytes],
         metas.append(json.loads(meta.read_text(encoding="utf-8")))
     bot = np.memmap(outputs[0], mode="r", dtype="<f4", shape=(len(rows), OBSERVATION_SIZE))
     simulator = np.memmap(outputs[1], mode="r", dtype="<f4", shape=(len(rows), OBSERVATION_SIZE))
-    differing = np.flatnonzero(np.any(bot != simulator, axis=1)).tolist()
+    equal_rows = [np.array_equal(bot[index], simulator[index]) for index in range(len(rows))]
+    differing = [index for index, equal in enumerate(equal_rows) if not equal]
     first_differences = []
     for row_index in differing[:32]:
         columns = np.flatnonzero(bot[row_index] != simulator[row_index])
@@ -455,14 +457,28 @@ def _router_worker(root: Path, output_path: Path) -> None:
                 for current in SteeringDirection:
                     turn = resolve_signed_turn_radians(current, previous)
                     movement.append({"heading": heading, "scale": scale, "previous": previous.name, "current": current.name, "signed_turn": turn, "local_endpoint": arc_endpoint_local(2.738491 * scale, turn * scale), "world_endpoint": arc_endpoint_world(0.0, 0.0, heading, 2.738491 * scale, turn * scale, 1.6), "advance": advance_player_tick(open_model, 0.0, 0.0, heading, previous, current, distance_scale=scale)})
+    collision_model = make("single_wall")
+    for name, steering in (("straight_into_wall", SteeringDirection.NONE), ("left_near_wall", SteeringDirection.LEFT), ("right_near_wall", SteeringDirection.RIGHT)):
+        position = collision_model.layout_to_native(center + 6, center)
+        movement.append({"name": name, "previous": SteeringDirection.NONE.name, "current": steering.name, "advance": advance_player_tick(collision_model, position[0], position[1], 0.0, SteeringDirection.NONE, steering)})
     model, start, destination = map_objects["single_wall_detour"]; route = route_objects["single_wall_detour"]
-    controller = TargetPersistenceController(model, destination[0], destination[1])
-    candidates = [(route[min(1, len(route)-1)].x, route[min(1, len(route)-1)].z), (route[min(1, len(route)-1)].x, route[min(1, len(route)-1)].z), (route[min(2, len(route)-1)].x, route[min(2, len(route)-1)].z), (route[-1].x, route[-1].z)]
-    controller_rows = []
-    for index, candidate in enumerate(candidates):
-        player = start if index < 3 else destination
+    midpoint = route[len(route) // 2]
+    replan_stats = {}
+    replan = plan_route(model, start_x=midpoint.x, start_z=midpoint.z, start_heading=midpoint.heading, destination_x=destination[0], destination_z=destination[1], max_distance_cells=80.0, stats=replan_stats)
+    routes.append({"name": "replan_from_single_wall_route_midpoint", "kind": "single_wall", "start": (midpoint.x, midpoint.z), "destination": destination, "stats": replan_stats, "route": replan, "edges": annotate_route_edges(model, replan), "waypoint": select_persistent_waypoint(model, replan, player_x=midpoint.x, player_z=midpoint.z, heading=midpoint.heading)})
+    def controller_case(name: str, previous: tuple[float, float] | None, candidate: tuple[float, float], player: tuple[float, float]) -> dict[str, Any]:
+        controller = TargetPersistenceController(model, destination[0], destination[1]); controller.previous_target = previous
         target = controller.update(candidate, player_x=player[0], player_z=player[1], route=route)
-        controller_rows.append({"index": index, "candidate": candidate, "player": player, "target": target, "reason": None if controller.last_switch_reason is None else controller.last_switch_reason.value, "switches": controller.target_switches, "locked": controller.locked_onto_final})
+        return {"name": name, "previous_target": previous, "candidate": candidate, "player": player, "target": target, "reason": None if controller.last_switch_reason is None else controller.last_switch_reason.value, "switches": controller.target_switches, "locked": controller.locked_onto_final}
+    first = (route[1].x, route[1].z); later = (route[min(3, len(route)-1)].x, route[min(3, len(route)-1)].z)
+    controller_rows = [
+        controller_case("INITIAL", None, first, start),
+        controller_case("KEEP_CURRENT", first, first, start),
+        controller_case("CURRENT_UNSAFE", destination, first, start),
+        controller_case("CURRENT_REACHED_OR_PASSED", start, later, start),
+        controller_case("BETTER_FORWARD_TARGET", first, later, start),
+        controller_case("FINAL_TARGET_LOCK", first, later, destination),
+    ]
     payload = {"fixture_format_version": FORMAT_VERSION, "route_case_count": len(routes), "movement_case_count": len(movement), "controller_case_count": len(controller_rows), "routes": routes, "movement": movement, "controller": controller_rows}
     output_path.write_bytes(json_bytes(_typed_json(payload)))
 
@@ -523,10 +539,13 @@ def _recording_worker(root: Path, archive_path: Path, output_path: Path) -> None
 
 
 def capture_recordings(repo: Path, corpus: Path, temporary: Path) -> bytes:
-    manifest_rows = {row[0]: (int(row[1]), row[2].lower()) for row in ARCHIVES}
+    with (repo / "docs/migration/ARTIFACT_MANIFEST.tsv").open("r", encoding="utf-8", newline="") as handle:
+        manifest_rows = {row["path"]: (int(row["size_bytes"]), row["sha256"].lower()) for row in csv.DictReader(handle, delimiter="\t") if row["category"] == "recording_archive"}
+    if set(manifest_rows) != {row[0] for row in ARCHIVES}:
+        raise RuntimeError("Phase-0 artifact manifest recording-archive path set is not the preregistered all-eight set")
     output_rows = []
     for index, (relative, expected_size, expected_sha) in enumerate(ARCHIVES):
-        if manifest_rows[relative] != (expected_size, expected_sha): raise RuntimeError(f"internal archive manifest mismatch: {relative}")
+        if manifest_rows[relative] != (expected_size, expected_sha): raise RuntimeError(f"Phase-0 artifact manifest mismatch: {relative}")
         source = corpus / Path(relative)
         if not source.is_file() or source.stat().st_size != expected_size or sha256_file(source).lower() != expected_sha:
             raise RuntimeError(f"Phase-0 archive source mismatch: {relative}")

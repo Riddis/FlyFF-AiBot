@@ -48,3 +48,11 @@ def test_manifest_is_sorted_and_complete_for_supplied_fixture_set(tmp_path: Path
     paths = [line.split("\t", 1)[0] for line in rendered[1:]]
     assert paths == sorted(paths)
     assert len(paths) == len(names)
+
+
+def test_preregistered_archive_constants_match_phase0_manifest() -> None:
+    repo = Path(__file__).resolve().parents[3]
+    import csv
+    with (repo / "docs/migration/ARTIFACT_MANIFEST.tsv").open("r", encoding="utf-8", newline="") as handle:
+        rows = {row["path"]: (int(row["size_bytes"]), row["sha256"].lower()) for row in csv.DictReader(handle, delimiter="\t") if row["category"] == "recording_archive"}
+    assert rows == {path: (size, digest) for path, size, digest in module.ARCHIVES}
