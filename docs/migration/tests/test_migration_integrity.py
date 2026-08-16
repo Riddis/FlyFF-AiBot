@@ -228,6 +228,22 @@ owner = "fixture"
     assert "Bridge B1 expired at PHASE_7" in at_boundary
 
 
+def test_actual_bridge_removal_schedule_is_exact() -> None:
+    bridges = integrity._extract_bridge_toml(REPO / "BRIDGES.md")["bridge"]
+    gates = {bridge["id"]: bridge["removal_gate"] for bridge in bridges}
+    assert gates == {
+        "B1": "PHASE_7",
+        "B2": "PHASE_7",
+        "B3": "PHASE_8",
+        "B4": "NEVER",
+    }
+    assert integrity.removal_gate_expired(gates["B1"], 7)
+    assert integrity.removal_gate_expired(gates["B2"], 7)
+    assert not integrity.removal_gate_expired(gates["B3"], 7)
+    assert integrity.removal_gate_expired(gates["B3"], 8)
+    assert not integrity.removal_gate_expired(gates["B4"], 999)
+
+
 def test_b3_source_evidence_includes_registered_module_and_symbol() -> None:
     source = (REPO / "flyff_farming_simulator/tools/inventory_recordings.py").read_text(encoding="utf-8")
     assert integrity._b3_source_matches(

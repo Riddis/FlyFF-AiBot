@@ -90,7 +90,7 @@ reason = "Simulator recording inventory imports the recorder movement classifier
 locations = ["flyff_farming_simulator/tools/inventory_recordings.py"]
 users = ["recorder.movement_classification.MovementControlClassifier"]
 protecting_rule = "bridge source-evidence check and R7b"
-removal_gate = "PHASE_7"
+removal_gate = "PHASE_8"
 live_closure_allowed = false
 owner = "simulator recording-inventory development tool"
 target_module = "recorder.movement_classification"
@@ -116,13 +116,16 @@ expected_target = "a90de59232b81753c1b2ea35b8990325c26674e5"
 |---|---|---|---|---|
 | B1 | INSTALLED / VERIFIED | canonical package path extension; bot/recorder pre-import bootstraps; bot facades; recorder consumer/build | Phase 7 root collapse | yes, explicitly registered and origin-tested |
 | B2 | INSTALLED / VERIFIED | canonical position path bootstraps; recorder facades/callers/build; migration config worker | Phase 7 root collapse | yes, explicitly registered and origin-tested |
-| B3 | EXISTING / VERIFIED | `flyff_farming_simulator/tools/inventory_recordings.py` | Phase 7 archive/root consolidation | no |
+| B3 | EXISTING / VERIFIED | `flyff_farming_simulator/tools/inventory_recordings.py` | Phase 8 archive/historical-reader extraction | no |
 | B4 | PERMANENT HISTORICAL | protected Git tag | NEVER | no |
 
 B3 was verified in Phase 1: the tool still computes `_RECORDER_ROOT` from the
 repository layout, inserts it into `sys.path`, and imports
-`recorder.movement_classification.MovementControlClassifier`. It is not removed
-or normalized in this phase.
+`recorder.movement_classification.MovementControlClassifier`. Before Phase 7,
+its removal gate was prospectively corrected from `PHASE_7` to `PHASE_8`.
+The accepted detailed sequence assigns only physical root collapse and B1/B2
+retirement to Phase 7; archive/historical-reader extraction, which owns B3's
+removal, is Phase 8. The correction changes no B3 source behavior or evidence.
 
 The single active-phase source of truth is `current_phase` in
 `CANONICAL_OWNERS.toml`. At the opening checkpoint of every later migration
