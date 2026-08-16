@@ -172,8 +172,14 @@ def test_g10a_is_deterministic_across_runs() -> None:
     assert first == second
 
 
-def test_representative_selection_was_frozen_before_execution() -> None:
-    """G10b's file list must be reproducible from the plan + Phase-0 inventory."""
+def test_provisional_representative_selection_is_internally_consistent() -> None:
+    """PROVISIONAL EVIDENCE ONLY -- this does NOT assert that G10b passes.
+
+    G10b is currently BLOCKED_PENDING_AUTHORIZED_SELECTION: its file selection was
+    not source-backed (see docs/migration/PHASE2_G10B_SELECTION_AMENDMENT.md). This
+    test only checks that the superseded provisional artifacts remain internally
+    consistent as retained diagnostic evidence.
+    """
     selection = REPO / "docs/migration/PHASE2_REPRESENTATIVE_SELECTION.tsv"
     baseline = REPO / "docs/migration/PHASE2_REPRESENTATIVE_LOAD_BASELINE.tsv"
     assert selection.is_file() and baseline.is_file()
@@ -188,7 +194,8 @@ def test_representative_selection_was_frozen_before_execution() -> None:
     assert len(declared) == 17
 
 
-def test_representative_load_outcomes_are_internally_consistent() -> None:
+def test_provisional_load_outcomes_are_internally_consistent() -> None:
+    """PROVISIONAL EVIDENCE ONLY -- does NOT constitute a valid G10b baseline."""
     baseline = REPO / "docs/migration/PHASE2_REPRESENTATIVE_LOAD_BASELINE.tsv"
     with baseline.open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
