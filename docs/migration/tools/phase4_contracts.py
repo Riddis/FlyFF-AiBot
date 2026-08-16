@@ -34,6 +34,7 @@ SHARED_MODULES = (
     "observation",
     "map_features",
     "observation_contract",
+    "map_profile",
 )
 BOT_ONLY_MODULES = (
     "config",
@@ -422,7 +423,16 @@ def check_b1(repo: Path) -> tuple[list[str], dict[str, Any]]:
         if payload["blocked"]:
             failures.append(f"B1 {mode} recorder metadata import loaded heavy modules: {payload['blocked']}")
 
-    shim_names = ("actions", "model_contract", "map_masks", "reward", "session", "observation", "map_features")
+    shim_names = (
+        "actions",
+        "model_contract",
+        "map_masks",
+        "reward",
+        "session",
+        "observation",
+        "map_features",
+        "map_profile",
+    )
     for name in shim_names:
         relative = f"foreground_vision_bot/farming/{name}.py"
         imported, exported, has_behavior = _shim_api(repo, relative)

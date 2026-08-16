@@ -28,6 +28,7 @@ locations = [
   "foreground_vision_bot/farming/session.py",
   "foreground_vision_bot/farming/observation.py",
   "foreground_vision_bot/farming/map_features.py",
+  "foreground_vision_bot/farming/map_profile.py",
   "flyff_farming_recorder/app.py",
   "flyff_farming_recorder/recorder/session.py",
   "flyff_farming_recorder/tests/conftest.py",
@@ -137,7 +138,7 @@ B4 is continuously protected by the bridge checker itself: it resolves
 B1 was installed in Phase 4 with visible source bootstraps only. The canonical
 simulator parent is placed first before any supported bot or recorder import of
 `farming`; the canonical package extends only its package search path so bot-only
-`farming.*` modules remain visible. The seven shared bot modules and bot package
+`farming.*` modules remain visible. The eight shared bot modules and bot package
 facade are registered re-export shims. Recorder metadata imports the dependency-
 free canonical observation contract. No `.pth`, `sitecustomize`, environment-only
 `PYTHONPATH`, system setting, or hidden monkeypatch is used.

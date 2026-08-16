@@ -1,5 +1,5 @@
 schema_version = 1
-current_phase = 5
+current_phase = 6
 strategy = "C -> A, defer B"
 purpose = "Machine-consumed current/target ownership registry for behaviorally sensitive concepts"
 
@@ -16,6 +16,19 @@ status = "active-ratcheted-current-layout"
 legacy_path_segments = ["legacy", "archives", "_quarantine"]
 allowed_importer_prefixes = ["archives/", "legacy/", "research/"]
 activation_note = "Future physical legacy/archive/research boundaries do not yet all exist; exact current violations are frozen and growth fails."
+
+[[concept]]
+id = "tower_map_profiles"
+rule = "R7a"
+symbols = ["TowerMapProfile", "LIVE_TOWER_PROFILE", "SIM_TOWER_PROFILE"]
+current_owners = [
+  "flyff_farming_simulator/farming/map_profile.py",
+]
+target_owner = "flyff_farming_simulator/farming/map_profile.py"
+status = "green-canonical-named-consumer-profiles"
+accepted_baseline_violation = false
+minimum_owners = 1
+resolution_phase = "PHASE_6"
 
 [[concept]]
 id = "observation_schema_id"
@@ -253,6 +266,14 @@ symbols = [
 ]
 canonical_owner = "flyff_farming_simulator/farming/session.py"
 reason = "B1 thin compatibility re-export"
+bridge_id = "B1"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "foreground_vision_bot/farming/map_profile.py"
+symbols = ["LIVE_TOWER_PROFILE", "SIM_TOWER_PROFILE", "TowerMapProfile"]
+canonical_owner = "flyff_farming_simulator/farming/map_profile.py"
+reason = "B1 thin compatibility re-export of the named Tower map profiles"
 bridge_id = "B1"
 removal_gate = "PHASE_7"
 

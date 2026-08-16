@@ -15,6 +15,7 @@ from mapper.rl.LayoutSources import load_real_map
 
 from .map_features import Cell, FarmingMapFeatures
 from .map_masks import inflate_map_masks
+from .map_profile import LIVE_TOWER_PROFILE as _LIVE_TOWER_PROFILE
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,8 +35,10 @@ class FarmingMapContext:
         cls,
         map_name: str,
         *,
-        obstacle_buffer_radius_cells: int = 2,
-        teleport_buffer_radius_cells: float = 2.0,
+        obstacle_buffer_radius_cells: int = _LIVE_TOWER_PROFILE.obstacle_radius_cells,
+        teleport_buffer_radius_cells: float = (
+            _LIVE_TOWER_PROFILE.teleport_radius_cells
+        ),
         require_forbidden: bool = True,
         catalog: MapCatalog | None = None,
     ) -> FarmingMapContext:

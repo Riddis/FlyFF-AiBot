@@ -9,6 +9,7 @@ import numpy as np
 
 from farming.map_features import FarmingMapFeatures
 from farming.map_masks import inflate_map_masks
+from farming.map_profile import SIM_TOWER_PROFILE as _SIM_TOWER_PROFILE
 
 FREE = 1
 FORBIDDEN = 3
@@ -106,14 +107,16 @@ class MapModel:
             # See from_arrays' obstacle_radius_cells comment: the traced real
             # map boundary already is the collision edge (manually verified
             # by driving up to it), so no additional software margin here.
-            obstacle_radius_cells=0,
-            teleport_radius_cells=2,
+            obstacle_radius_cells=_SIM_TOWER_PROFILE.obstacle_radius_cells,
+            teleport_radius_cells=int(_SIM_TOWER_PROFILE.teleport_radius_cells),
         )
         features = FarmingMapFeatures(
             traversable=traversable,
             forbidden=forbidden,
             safe_traversable=masks.safe_traversable,
-            teleport_buffer_radius_cells=2.0,
+            teleport_buffer_radius_cells=float(
+                _SIM_TOWER_PROFILE.teleport_radius_cells
+            ),
         )
         size = int(metadata.get("size", occupancy.shape[0]))
         return cls(
