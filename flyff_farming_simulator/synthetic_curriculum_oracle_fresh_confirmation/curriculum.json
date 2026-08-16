@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "name": "Oracle fresh confirmation pool (2026-08-09, untouched by tuning)",
+  "generated_seed": 23000000,
+  "variants": [
+    {
+      "name": "01_early_open_field_typical_fast",
+      "stage": "early",
+      "template": "open_field",
+      "density_profile": "typical",
+      "respawn_profile": "fast",
+      "map_assets": "variants/01_early_open_field_typical_fast/map_assets",
+      "world_model": "variants/01_early_open_field_typical_fast/world.json.gz",
+      "weight": 1.0,
+      "seed": 23007919,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "02_early_open_field_high_bursty",
+      "stage": "early",
+      "template": "open_field",
+      "density_profile": "high",
+      "respawn_profile": "bursty",
+      "map_assets": "variants/02_early_open_field_high_bursty/map_assets",
+      "world_model": "variants/02_early_open_field_high_bursty/world.json.gz",
+      "weight": 1.0,
+      "seed": 23015838,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "03_early_irregular_plain_typical_fast",
+      "stage": "early",
+      "template": "irregular_plain",
+      "density_profile": "typical",
+      "respawn_profile": "fast",
+      "map_assets": "variants/03_early_irregular_plain_typical_fast/map_assets",
+      "world_model": "variants/03_early_irregular_plain_typical_fast/world.json.gz",
+      "weight": 1.0,
+      "seed": 23023757,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "04_early_irregular_plain_high_bursty",
+      "stage": "early",
+      "template": "irregular_plain",
+      "density_profile": "high",
+      "respawn_profile": "bursty",
+      "map_assets": "variants/04_early_irregular_plain_high_bursty/map_assets",
+      "world_model": "variants/04_early_irregular_plain_high_bursty/world.json.gz",
+      "weight": 1.0,
+      "seed": 23031676,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "05_early_broad_lobes_typical_fast",
+      "stage": "early",
+      "template": "broad_lobes",
+      "density_profile": "typical",
+      "respawn_profile": "fast",
+      "map_assets": "variants/05_early_broad_lobes_typical_fast/map_assets",
+      "world_model": "variants/05_early_broad_lobes_typical_fast/world.json.gz",
+      "weight": 1.0,
+      "seed": 23039595,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "06_early_broad_lobes_high_bursty",
+      "stage": "early",
+      "template": "broad_lobes",
+      "density_profile": "high",
+      "respawn_profile": "bursty",
+      "map_assets": "variants/06_early_broad_lobes_high_bursty/map_assets",
+      "world_model": "variants/06_early_broad_lobes_high_bursty/world.json.gz",
+      "weight": 1.0,
+      "seed": 23047514,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "07_early_split_field_typical_fast",
+      "stage": "early",
+      "template": "split_field",
+      "density_profile": "typical",
+      "respawn_profile": "fast",
+      "map_assets": "variants/07_early_split_field_typical_fast/map_assets",
+      "world_model": "variants/07_early_split_field_typical_fast/world.json.gz",
+      "weight": 1.0,
+      "seed": 23055433,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "08_early_split_field_high_bursty",
+      "stage": "early",
+      "template": "split_field",
+      "density_profile": "high",
+      "respawn_profile": "bursty",
+      "map_assets": "variants/08_early_split_field_high_bursty/map_assets",
+      "world_model": "variants/08_early_split_field_high_bursty/world.json.gz",
+      "weight": 1.0,
+      "seed": 23063352,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "09_early_wide_neck_typical_fast",
+      "stage": "early",
+      "template": "wide_neck",
+      "density_profile": "typical",
+      "respawn_profile": "fast",
+      "map_assets": "variants/09_early_wide_neck_typical_fast/map_assets",
+      "world_model": "variants/09_early_wide_neck_typical_fast/world.json.gz",
+      "weight": 1.0,
+      "seed": 23071271,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "10_early_wide_neck_high_bursty",
+      "stage": "early",
+      "template": "wide_neck",
+      "density_profile": "high",
+      "respawn_profile": "bursty",
+      "map_assets": "variants/10_early_wide_neck_high_bursty/map_assets",
+      "world_model": "variants/10_early_wide_neck_high_bursty/world.json.gz",
+      "weight": 1.0,
+      "seed": 23079190,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "11_early_open_center_typical_fast",
+      "stage": "early",
+      "template": "open_center",
+      "density_profile": "typical",
+      "respawn_profile": "fast",
+      "map_assets": "variants/11_early_open_center_typical_fast/map_assets",
+      "world_model": "variants/11_early_open_center_typical_fast/world.json.gz",
+      "weight": 1.0,
+      "seed": 23087109,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "12_early_open_center_high_bursty",
+      "stage": "early",
+      "template": "open_center",
+      "density_profile": "high",
+      "respawn_profile": "bursty",
+      "map_assets": "variants/12_early_open_center_high_bursty/map_assets",
+      "world_model": "variants/12_early_open_center_high_bursty/world.json.gz",
+      "weight": 1.0,
+      "seed": 23095028,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    }
+  ],
+  "design_rules": [
+    "Episodes start at one designated spawn point per map.",
+    "Maps are large and mostly open.",
+    "Walls are partial and openings remain broad.",
+    "Scattered obstacles are sparse.",
+    "No maze, dungeon-room chain, long corridor, or precision-navigation layout is generated.",
+    "Monster populations use loose spatial clusters and varied regional density.",
+    "Respawn timing and redistribution vary across layouts.",
+    "Every layout is validated so the bot's real latched-forward controls can regain meaningful movement from any sampled obstacle-adjacent position and heading within a stage-appropriate tick budget; unescapable pockets are rejected and regenerated, never shipped."
+  ]
+}

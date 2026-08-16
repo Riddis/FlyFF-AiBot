@@ -1,0 +1,45 @@
+[
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 0,
+    "check_tick": 162,
+    "fallback_entered_at": 163,
+    "onset_ticks": [
+      183,
+      188,
+      191
+    ],
+    "coarse_route_choice": "RIGHT",
+    "coarse_route_angle": -2.287282649263518,
+    "historical_beam_choice": "STRAIGHT",
+    "agrees": false
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "check_tick": 52,
+    "fallback_entered_at": 53,
+    "onset_ticks": [
+      70
+    ],
+    "coarse_route_choice": "LEFT",
+    "coarse_route_angle": 1.77156709578718,
+    "historical_beam_choice": "STRAIGHT",
+    "agrees": false
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "check_tick": 518,
+    "fallback_entered_at": 519,
+    "onset_ticks": [
+      531,
+      535,
+      538
+    ],
+    "coarse_route_choice": "LEFT",
+    "coarse_route_angle": 3.0264105830153345,
+    "historical_beam_choice": "LEFT",
+    "agrees": true
+  }
+]

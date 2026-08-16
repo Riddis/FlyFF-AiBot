@@ -1,0 +1,238 @@
+[
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "seed": 0,
+    "n_ticks": 567,
+    "total_switches": 197,
+    "switches_per_100_ticks": 34.74426807760141,
+    "material_switches": 157,
+    "material_switches_per_100_ticks": 27.689594356261022,
+    "dead_target_switches": 59,
+    "live_target_switches": 137,
+    "n_onsets": 7,
+    "n_fallback_streaks": 5,
+    "onset_lookback_switches": {
+      "5": [
+        3,
+        0,
+        2,
+        2,
+        2,
+        1,
+        2
+      ],
+      "10": [
+        5,
+        0,
+        2,
+        4,
+        2,
+        1,
+        5
+      ],
+      "20": [
+        10,
+        4,
+        5,
+        8,
+        2,
+        3,
+        12
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        3,
+        0,
+        2,
+        0,
+        1,
+        1,
+        2
+      ],
+      "10": [
+        5,
+        0,
+        2,
+        1,
+        1,
+        1,
+        5
+      ],
+      "20": [
+        9,
+        4,
+        5,
+        4,
+        1,
+        3,
+        10
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        3,
+        1,
+        1,
+        0,
+        3
+      ],
+      "10": [
+        5,
+        1,
+        3,
+        2,
+        7
+      ],
+      "20": [
+        9,
+        4,
+        8,
+        4,
+        11
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        3,
+        1,
+        0,
+        0,
+        3
+      ],
+      "10": [
+        5,
+        1,
+        2,
+        2,
+        5
+      ],
+      "20": [
+        8,
+        4,
+        6,
+        3,
+        9
+      ]
+    },
+    "fallback_streak_durations": [
+      19,
+      2,
+      33,
+      18,
+      21
+    ]
+  },
+  {
+    "layout": "09_early_wide_neck_typical_fast",
+    "seed": 0,
+    "n_ticks": 591,
+    "total_switches": 183,
+    "switches_per_100_ticks": 30.96446700507614,
+    "material_switches": 154,
+    "material_switches_per_100_ticks": 26.057529610829103,
+    "dead_target_switches": 52,
+    "live_target_switches": 130,
+    "n_onsets": 5,
+    "n_fallback_streaks": 5,
+    "onset_lookback_switches": {
+      "5": [
+        1,
+        2,
+        2,
+        1,
+        3
+      ],
+      "10": [
+        1,
+        4,
+        5,
+        1,
+        4
+      ],
+      "20": [
+        5,
+        9,
+        10,
+        3,
+        10
+      ]
+    },
+    "onset_lookback_material_switches": {
+      "5": [
+        1,
+        2,
+        2,
+        0,
+        3
+      ],
+      "10": [
+        1,
+        4,
+        5,
+        0,
+        4
+      ],
+      "20": [
+        4,
+        6,
+        10,
+        2,
+        10
+      ]
+    },
+    "streak_lookback_switches": {
+      "5": [
+        0,
+        2,
+        1,
+        3,
+        2
+      ],
+      "10": [
+        2,
+        5,
+        2,
+        5,
+        3
+      ],
+      "20": [
+        7,
+        7,
+        6,
+        11,
+        9
+      ]
+    },
+    "streak_lookback_material_switches": {
+      "5": [
+        0,
+        2,
+        1,
+        3,
+        2
+      ],
+      "10": [
+        1,
+        3,
+        1,
+        5,
+        3
+      ],
+      "20": [
+        5,
+        4,
+        5,
+        11,
+        9
+      ]
+    },
+    "fallback_streak_durations": [
+      20,
+      14,
+      1,
+      21,
+      21
+    ]
+  }
+]

@@ -1,0 +1,126 @@
+{
+  "rule": "eligible: 100/100 deterministic success AND zero collisions on 850M pool; rank by highest path_efficiency, tie->lower mean_steps_to_success, tie->earlier checkpoint",
+  "all_eligible_candidates": [
+    {
+      "seed": 2,
+      "checkpoint": 40960,
+      "path_efficiency": 0.7600487532743386,
+      "mean_steps_to_success": 7.0,
+      "checkpoint_file": "generalized_waypoint_both_seed2_0040960.zip"
+    },
+    {
+      "seed": 2,
+      "checkpoint": 51200,
+      "path_efficiency": 0.762704524582542,
+      "mean_steps_to_success": 6.98,
+      "checkpoint_file": "generalized_waypoint_both_seed2_0051200.zip"
+    },
+    {
+      "seed": 2,
+      "checkpoint": 61440,
+      "path_efficiency": 0.7615811779815412,
+      "mean_steps_to_success": 6.96,
+      "checkpoint_file": "generalized_waypoint_both_seed2_0061440.zip"
+    },
+    {
+      "seed": 3,
+      "checkpoint": 40960,
+      "path_efficiency": 0.7294623908226845,
+      "mean_steps_to_success": 7.44,
+      "checkpoint_file": "generalized_waypoint_both_seed3_0040960.zip"
+    },
+    {
+      "seed": 3,
+      "checkpoint": 51200,
+      "path_efficiency": 0.740866582842426,
+      "mean_steps_to_success": 7.21,
+      "checkpoint_file": "generalized_waypoint_both_seed3_0051200.zip"
+    },
+    {
+      "seed": 5,
+      "checkpoint": 51200,
+      "path_efficiency": 0.7408896278282591,
+      "mean_steps_to_success": 7.26,
+      "checkpoint_file": "generalized_waypoint_both_seed5_0051200.zip"
+    },
+    {
+      "seed": 5,
+      "checkpoint": 61440,
+      "path_efficiency": 0.7469553542936092,
+      "mean_steps_to_success": 7.12,
+      "checkpoint_file": "generalized_waypoint_both_seed5_0061440.zip"
+    },
+    {
+      "seed": 8,
+      "checkpoint": 61440,
+      "path_efficiency": 0.7411406158123311,
+      "mean_steps_to_success": 7.26,
+      "checkpoint_file": "generalized_waypoint_both_seed8_0061440.zip"
+    }
+  ],
+  "ranked_candidates": [
+    {
+      "seed": 2,
+      "checkpoint": 51200,
+      "path_efficiency": 0.762704524582542,
+      "mean_steps_to_success": 6.98,
+      "checkpoint_file": "generalized_waypoint_both_seed2_0051200.zip"
+    },
+    {
+      "seed": 2,
+      "checkpoint": 61440,
+      "path_efficiency": 0.7615811779815412,
+      "mean_steps_to_success": 6.96,
+      "checkpoint_file": "generalized_waypoint_both_seed2_0061440.zip"
+    },
+    {
+      "seed": 2,
+      "checkpoint": 40960,
+      "path_efficiency": 0.7600487532743386,
+      "mean_steps_to_success": 7.0,
+      "checkpoint_file": "generalized_waypoint_both_seed2_0040960.zip"
+    },
+    {
+      "seed": 5,
+      "checkpoint": 61440,
+      "path_efficiency": 0.7469553542936092,
+      "mean_steps_to_success": 7.12,
+      "checkpoint_file": "generalized_waypoint_both_seed5_0061440.zip"
+    },
+    {
+      "seed": 8,
+      "checkpoint": 61440,
+      "path_efficiency": 0.7411406158123311,
+      "mean_steps_to_success": 7.26,
+      "checkpoint_file": "generalized_waypoint_both_seed8_0061440.zip"
+    },
+    {
+      "seed": 5,
+      "checkpoint": 51200,
+      "path_efficiency": 0.7408896278282591,
+      "mean_steps_to_success": 7.26,
+      "checkpoint_file": "generalized_waypoint_both_seed5_0051200.zip"
+    },
+    {
+      "seed": 3,
+      "checkpoint": 51200,
+      "path_efficiency": 0.740866582842426,
+      "mean_steps_to_success": 7.21,
+      "checkpoint_file": "generalized_waypoint_both_seed3_0051200.zip"
+    },
+    {
+      "seed": 3,
+      "checkpoint": 40960,
+      "path_efficiency": 0.7294623908226845,
+      "mean_steps_to_success": 7.44,
+      "checkpoint_file": "generalized_waypoint_both_seed3_0040960.zip"
+    }
+  ],
+  "selected": {
+    "seed": 2,
+    "checkpoint": 51200,
+    "path_efficiency": 0.762704524582542,
+    "mean_steps_to_success": 6.98,
+    "checkpoint_file": "generalized_waypoint_both_seed2_0051200.zip"
+  }
+}

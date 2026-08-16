@@ -1,0 +1,371 @@
+{
+  "heldout": {
+    "01_early_open_field_typical_fast": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 7.0,
+      "max_consecutive_contact_ticks": 26,
+      "total_contact_ticks_sum": 134,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 10656.000000000004,
+      "median_unique_cells": 571.0
+    },
+    "02_early_wide_neck_high_typical": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 15.0,
+      "max_consecutive_contact_ticks": 18,
+      "total_contact_ticks_sum": 150,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 17700.0,
+      "median_unique_cells": 539.5
+    },
+    "03_early_open_field_low_fast": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 12.0,
+      "max_consecutive_contact_ticks": 19,
+      "total_contact_ticks_sum": 173,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 8304.000000000002,
+      "median_unique_cells": 527.0
+    },
+    "04_early_wide_neck_typical_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 14.5,
+      "max_consecutive_contact_ticks": 16,
+      "total_contact_ticks_sum": 187,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 11040.0,
+      "median_unique_cells": 534.5
+    },
+    "05_early_open_field_typical_fast": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 10.0,
+      "max_consecutive_contact_ticks": 19,
+      "total_contact_ticks_sum": 116,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 10116.00000000001,
+      "median_unique_cells": 543.0
+    },
+    "06_early_wide_neck_high_typical": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 11.0,
+      "max_consecutive_contact_ticks": 22,
+      "total_contact_ticks_sum": 151,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 10392.0,
+      "median_unique_cells": 557.0
+    },
+    "07_early_open_field_low_fast": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 5.0,
+      "max_consecutive_contact_ticks": 19,
+      "total_contact_ticks_sum": 60,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 5340.0,
+      "median_unique_cells": 575.5
+    },
+    "08_early_wide_neck_typical_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 16.5,
+      "max_consecutive_contact_ticks": 15,
+      "total_contact_ticks_sum": 171,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 9504.0,
+      "median_unique_cells": 535.0
+    }
+  },
+  "unseen_templates": {
+    "01_early_irregular_plain_typical_fast": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 12.0,
+      "max_consecutive_contact_ticks": 19,
+      "total_contact_ticks_sum": 146,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 11424.0,
+      "median_unique_cells": 545.5
+    },
+    "03_early_split_field_typical_fast": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 8.0,
+      "max_consecutive_contact_ticks": 18,
+      "total_contact_ticks_sum": 83,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 12288.000000000004,
+      "median_unique_cells": 544.5
+    },
+    "04_early_split_field_high_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 13.5,
+      "max_consecutive_contact_ticks": 16,
+      "total_contact_ticks_sum": 170,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 15576.000000000013,
+      "median_unique_cells": 532.5
+    },
+    "05_early_broad_lobes_typical_fast": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 19.0,
+      "max_consecutive_contact_ticks": 20,
+      "total_contact_ticks_sum": 213,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 9564.000000000013,
+      "median_unique_cells": 519.0
+    },
+    "06_early_broad_lobes_low_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 9.0,
+      "max_consecutive_contact_ticks": 21,
+      "total_contact_ticks_sum": 126,
+      "physical_stagnation_episodes": 1,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 5808.000000000005,
+      "median_unique_cells": 563.5
+    },
+    "07_early_open_center_typical_fast": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 11.0,
+      "max_consecutive_contact_ticks": 14,
+      "total_contact_ticks_sum": 95,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 13680.000000000004,
+      "median_unique_cells": 545.0
+    },
+    "08_early_open_center_high_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 14.5,
+      "max_consecutive_contact_ticks": 24,
+      "total_contact_ticks_sum": 188,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 11640.0,
+      "median_unique_cells": 527.5
+    }
+  },
+  "challenge": {
+    "01_early_irregular_plain_low_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 9.0,
+      "max_consecutive_contact_ticks": 20,
+      "total_contact_ticks_sum": 138,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 10788.000000000002,
+      "median_unique_cells": 552.0
+    },
+    "02_early_irregular_plain_low_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 8.0,
+      "max_consecutive_contact_ticks": 16,
+      "total_contact_ticks_sum": 123,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 7488.000000000002,
+      "median_unique_cells": 540.0
+    },
+    "03_early_irregular_plain_low_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 20.0,
+      "max_consecutive_contact_ticks": 16,
+      "total_contact_ticks_sum": 181,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 6360.0000000000055,
+      "median_unique_cells": 556.0
+    },
+    "04_early_irregular_plain_low_typical": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 9.5,
+      "max_consecutive_contact_ticks": 33,
+      "total_contact_ticks_sum": 99,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 7056.0000000000055,
+      "median_unique_cells": 549.0
+    },
+    "05_early_irregular_plain_low_typical": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 4.5,
+      "max_consecutive_contact_ticks": 18,
+      "total_contact_ticks_sum": 73,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 10164.000000000004,
+      "median_unique_cells": 536.5
+    },
+    "06_early_irregular_plain_low_typical": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 12.0,
+      "max_consecutive_contact_ticks": 23,
+      "total_contact_ticks_sum": 124,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 9456.000000000004,
+      "median_unique_cells": 562.5
+    },
+    "07_early_irregular_plain_typical_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 12.0,
+      "max_consecutive_contact_ticks": 16,
+      "total_contact_ticks_sum": 146,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 10884.0,
+      "median_unique_cells": 537.5
+    },
+    "08_early_irregular_plain_typical_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 7.5,
+      "max_consecutive_contact_ticks": 23,
+      "total_contact_ticks_sum": 169,
+      "physical_stagnation_episodes": 1,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 9612.0,
+      "median_unique_cells": 540.0
+    },
+    "09_early_irregular_plain_typical_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 13.0,
+      "max_consecutive_contact_ticks": 17,
+      "total_contact_ticks_sum": 158,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 8736.000000000002,
+      "median_unique_cells": 527.0
+    },
+    "10_early_irregular_plain_typical_typical": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 15.0,
+      "max_consecutive_contact_ticks": 24,
+      "total_contact_ticks_sum": 214,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 12336.000000000004,
+      "median_unique_cells": 518.5
+    },
+    "11_early_irregular_plain_typical_typical": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 13.5,
+      "max_consecutive_contact_ticks": 20,
+      "total_contact_ticks_sum": 210,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 7092.000000000004,
+      "median_unique_cells": 532.0
+    },
+    "12_early_irregular_plain_typical_typical": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 13.5,
+      "max_consecutive_contact_ticks": 20,
+      "total_contact_ticks_sum": 177,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 8496.000000000004,
+      "median_unique_cells": 556.5
+    },
+    "13_early_open_field_low_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 10.5,
+      "max_consecutive_contact_ticks": 16,
+      "total_contact_ticks_sum": 110,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 6840.000000000004,
+      "median_unique_cells": 556.5
+    },
+    "14_early_open_field_low_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 6.5,
+      "max_consecutive_contact_ticks": 20,
+      "total_contact_ticks_sum": 91,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 7680.000000000001,
+      "median_unique_cells": 544.5
+    },
+    "15_early_open_field_low_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 8.5,
+      "max_consecutive_contact_ticks": 22,
+      "total_contact_ticks_sum": 100,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 8172.000000000008,
+      "median_unique_cells": 551.5
+    },
+    "16_early_broad_lobes_low_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 20.5,
+      "max_consecutive_contact_ticks": 19,
+      "total_contact_ticks_sum": 240,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 5388.000000000003,
+      "median_unique_cells": 574.5
+    },
+    "17_early_broad_lobes_low_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 22.0,
+      "max_consecutive_contact_ticks": 24,
+      "total_contact_ticks_sum": 243,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 4512.0,
+      "median_unique_cells": 525.0
+    },
+    "18_early_broad_lobes_low_bursty": {
+      "n_episodes": 2,
+      "episodes_with_any_contact": 2,
+      "median_distinct_contact_events": 23.0,
+      "max_consecutive_contact_ticks": 16,
+      "total_contact_ticks_sum": 260,
+      "physical_stagnation_episodes": 0,
+      "zero_kill_episodes": 0,
+      "median_kills_per_hour": 8184.0,
+      "median_unique_cells": 518.0
+    }
+  }
+}

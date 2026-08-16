@@ -1,0 +1,268 @@
+{
+  "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\generalized_waypoint_both_seed2_0051200.zip",
+  "n_fixtures": 26,
+  "a_matches": 26,
+  "b_matches": 26,
+  "results": [
+    {
+      "name": "bridge_left_11",
+      "source": "original selector-instability audit; large-index-jump collision, still fails under B",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "bridge_left_15",
+      "source": "original selector-instability audit; destination-flicker orbit, fixed under B",
+      "expected_a": "timeout",
+      "actual_a": "timeout",
+      "match_a": true,
+      "expected_b": "success",
+      "actual_b": "success",
+      "match_b": true
+    },
+    {
+      "name": "step2_ltr_17",
+      "source": "original selector-instability audit; also the 'stable-target-still-collides' case under the rejected follower -- fixed under B",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "success",
+      "actual_b": "success",
+      "match_b": true
+    },
+    {
+      "name": "step2_rtl_9",
+      "source": "original selector-instability audit; destination-flicker orbit, fixed under B",
+      "expected_a": "timeout",
+      "actual_a": "timeout",
+      "match_a": true,
+      "expected_b": "success",
+      "actual_b": "success",
+      "match_b": true
+    },
+    {
+      "name": "step2_rtl_17",
+      "source": "original selector-instability audit; large-index-jump collision, still fails under B",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "step2_rtl_19",
+      "source": "original selector-instability audit; large-index-jump collision, still fails under B",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "step2_rtl_20_planner_budget",
+      "source": "40,000-expansion search budget exhausted; separate from selector choice, plan_route's own search",
+      "expected_a": "planner_failure_no_route_found",
+      "actual_a": "planner_failure_no_route_found",
+      "match_a": true,
+      "expected_b": "planner_failure_no_route_found",
+      "actual_b": "planner_failure_no_route_found",
+      "match_b": true
+    },
+    {
+      "name": "fresh_swl_5",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_swl_13",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_swl_21",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_swr_11",
+      "source": "fresh paired A/B test, 2026-08-14 -- B's one remaining timeout (B had 1 total timeout in this pool, not 2)",
+      "expected_a": "timeout",
+      "actual_a": "timeout",
+      "match_a": true,
+      "expected_b": "timeout",
+      "actual_b": "timeout",
+      "match_b": true
+    },
+    {
+      "name": "fresh_ltr_9",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_ltr_19",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_ltr_32",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_ltr_39_planner_budget",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "planner_failure_no_route_found",
+      "actual_a": "planner_failure_no_route_found",
+      "match_a": true,
+      "expected_b": "planner_failure_no_route_found",
+      "actual_b": "planner_failure_no_route_found",
+      "match_b": true
+    },
+    {
+      "name": "fresh_ltr_75_planner_budget",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "planner_failure_no_route_found",
+      "actual_a": "planner_failure_no_route_found",
+      "match_a": true,
+      "expected_b": "planner_failure_no_route_found",
+      "actual_b": "planner_failure_no_route_found",
+      "match_b": true
+    },
+    {
+      "name": "fresh_rtl_8",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_rtl_12",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_rtl_19",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_rtl_27",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_rtl_28",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_rtl_38",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_rtl_42",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_rtl_62",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    },
+    {
+      "name": "fresh_rtl_63_planner_budget",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "planner_failure_no_route_found",
+      "actual_a": "planner_failure_no_route_found",
+      "match_a": true,
+      "expected_b": "planner_failure_no_route_found",
+      "actual_b": "planner_failure_no_route_found",
+      "match_b": true
+    },
+    {
+      "name": "fresh_rtl_67",
+      "source": "fresh paired A/B test, 2026-08-14",
+      "expected_a": "collision",
+      "actual_a": "collision",
+      "match_a": true,
+      "expected_b": "collision",
+      "actual_b": "collision",
+      "match_b": true
+    }
+  ]
+}

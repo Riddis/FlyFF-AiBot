@@ -1,0 +1,40 @@
+[
+  {
+    "round": 1,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_intermediate_ppo_010k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_intermediate_ppo_010k_rehearsed.zip",
+    "round_passed_absolute_bar": true,
+    "bar_failure_reasons": [],
+    "consecutive_passes": 1,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6322212873386223,
+      "max_layout_contacts_per_100_distance": 10.735841012072534,
+      "min_unique_cells_median": 589.5,
+      "min_kills_per_hour_median": 6528.0,
+      "total_physical_stagnation_episodes": 0,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 12
+    }
+  },
+  {
+    "round": 2,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_intermediate_ppo_020k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_intermediate_ppo_020k_rehearsed.zip",
+    "round_passed_absolute_bar": true,
+    "bar_failure_reasons": [],
+    "consecutive_passes": 2,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6488175775858757,
+      "max_layout_contacts_per_100_distance": 13.936206334728258,
+      "min_unique_cells_median": 566.5,
+      "min_kills_per_hour_median": 5532.000000000001,
+      "total_physical_stagnation_episodes": 0,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 12
+    }
+  }
+]

@@ -1,0 +1,117 @@
+[
+  {
+    "round": 4,
+    "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_basic_milestone_004.zip",
+    "dagger_bc_result_summary": {
+      "steering_accuracy_after": 0.7619047619047619,
+      "event_accuracy_after": 0.2857142857142857
+    },
+    "alarms": [
+      "event-head accuracy collapsed to 0.286"
+    ],
+    "eval_report_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_004_report.json",
+    "eval_diagnostic_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_004_raw_diagnostic.json"
+  },
+  {
+    "round": 1,
+    "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_basic_milestone_001.zip",
+    "steering_result_summary": {
+      "accuracy_after": 1.0
+    },
+    "event_result_summary": {
+      "accuracy_after": 0.7649739583333334,
+      "macro_f1": 0.7309419603169176,
+      "gate_passed": true,
+      "epochs_run": 21,
+      "pool_sources": 2
+    },
+    "alarms": [],
+    "eval_report_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_001_report.json",
+    "eval_diagnostic_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_001_raw_diagnostic.json"
+  },
+  {
+    "round": 2,
+    "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_basic_milestone_002.zip",
+    "steering_result_summary": {
+      "accuracy_after": 0.85
+    },
+    "event_result_summary": {
+      "accuracy_after": 0.7587971849008317,
+      "macro_f1": 0.7261178652379972,
+      "gate_passed": true,
+      "epochs_run": 15,
+      "pool_sources": 3
+    },
+    "alarms": [],
+    "eval_report_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_002_report.json",
+    "eval_diagnostic_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_002_raw_diagnostic.json"
+  },
+  {
+    "round": 3,
+    "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_basic_milestone_003.zip",
+    "steering_result_summary": {
+      "accuracy_after": 1.0
+    },
+    "event_result_summary": {
+      "accuracy_after": 0.7684542586750789,
+      "macro_f1": 0.7314708673725738,
+      "gate_passed": true,
+      "epochs_run": 27,
+      "pool_sources": 4
+    },
+    "alarms": [],
+    "eval_report_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_003_report.json",
+    "eval_diagnostic_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_003_raw_diagnostic.json"
+  },
+  {
+    "round": 4,
+    "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_basic_milestone_004.zip",
+    "steering_result_summary": {
+      "accuracy_after": 0.9523809523809523
+    },
+    "event_result_summary": {
+      "accuracy_after": 0.7428571428571429,
+      "macro_f1": 0.7064628646330897,
+      "gate_passed": true,
+      "epochs_run": 16,
+      "pool_sources": 5
+    },
+    "alarms": [],
+    "eval_report_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_004_report.json",
+    "eval_diagnostic_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_004_raw_diagnostic.json"
+  },
+  {
+    "round": 5,
+    "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_basic_milestone_005.zip",
+    "steering_result_summary": {
+      "accuracy_after": 0.8695652173913043
+    },
+    "event_result_summary": {
+      "accuracy_after": 0.7628361858190709,
+      "macro_f1": 0.7223353714922132,
+      "gate_passed": true,
+      "epochs_run": 13,
+      "pool_sources": 6
+    },
+    "alarms": [],
+    "eval_report_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_005_report.json",
+    "eval_diagnostic_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_005_raw_diagnostic.json"
+  },
+  {
+    "round": 6,
+    "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_basic_milestone_006.zip",
+    "steering_result_summary": {
+      "accuracy_after": 0.9523809523809523
+    },
+    "event_result_summary": {
+      "accuracy_after": 0.7805171377029465,
+      "macro_f1": 0.7406911342980294,
+      "gate_passed": true,
+      "epochs_run": 15,
+      "pool_sources": 7
+    },
+    "alarms": [],
+    "eval_report_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_006_report.json",
+    "eval_diagnostic_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\evaluations\\canonical_basic_milestone_006_raw_diagnostic.json"
+  }
+]

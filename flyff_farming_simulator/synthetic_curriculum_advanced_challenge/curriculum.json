@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "name": "Advanced challenge pool (concentrated on diagnosed wide_neck/split_field weakness)",
+  "generated_seed": 20600000,
+  "variants": [
+    {
+      "name": "01_advanced_wide_neck_high_bursty",
+      "stage": "advanced",
+      "template": "wide_neck",
+      "density_profile": "high",
+      "respawn_profile": "bursty",
+      "map_assets": "variants/01_advanced_wide_neck_high_bursty/map_assets",
+      "world_model": "variants/01_advanced_wide_neck_high_bursty/world.json.gz",
+      "weight": 1.0,
+      "seed": 20607919,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "02_advanced_wide_neck_shifting_typical",
+      "stage": "advanced",
+      "template": "wide_neck",
+      "density_profile": "shifting",
+      "respawn_profile": "typical",
+      "map_assets": "variants/02_advanced_wide_neck_shifting_typical/map_assets",
+      "world_model": "variants/02_advanced_wide_neck_shifting_typical/world.json.gz",
+      "weight": 1.0,
+      "seed": 20615838,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "03_advanced_split_field_high_bursty",
+      "stage": "advanced",
+      "template": "split_field",
+      "density_profile": "high",
+      "respawn_profile": "bursty",
+      "map_assets": "variants/03_advanced_split_field_high_bursty/map_assets",
+      "world_model": "variants/03_advanced_split_field_high_bursty/world.json.gz",
+      "weight": 1.0,
+      "seed": 20623757,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "04_advanced_split_field_shifting_typical",
+      "stage": "advanced",
+      "template": "split_field",
+      "density_profile": "shifting",
+      "respawn_profile": "typical",
+      "map_assets": "variants/04_advanced_split_field_shifting_typical/map_assets",
+      "world_model": "variants/04_advanced_split_field_shifting_typical/world.json.gz",
+      "weight": 1.0,
+      "seed": 20631676,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "05_advanced_broad_lobes_high_bursty",
+      "stage": "advanced",
+      "template": "broad_lobes",
+      "density_profile": "high",
+      "respawn_profile": "bursty",
+      "map_assets": "variants/05_advanced_broad_lobes_high_bursty/map_assets",
+      "world_model": "variants/05_advanced_broad_lobes_high_bursty/world.json.gz",
+      "weight": 1.0,
+      "seed": 20639595,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "06_advanced_open_field_shifting_typical",
+      "stage": "advanced",
+      "template": "open_field",
+      "density_profile": "shifting",
+      "respawn_profile": "typical",
+      "map_assets": "variants/06_advanced_open_field_shifting_typical/map_assets",
+      "world_model": "variants/06_advanced_open_field_shifting_typical/world.json.gz",
+      "weight": 1.0,
+      "seed": 20647514,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    }
+  ],
+  "design_rules": [
+    "Episodes start at one designated spawn point per map.",
+    "Maps are large and mostly open.",
+    "Walls are partial and openings remain broad.",
+    "Scattered obstacles are sparse.",
+    "No maze, dungeon-room chain, long corridor, or precision-navigation layout is generated.",
+    "Monster populations use loose spatial clusters and varied regional density.",
+    "Respawn timing and redistribution vary across layouts.",
+    "Every layout is validated so the bot's real latched-forward controls can regain meaningful movement from any sampled obstacle-adjacent position and heading within a stage-appropriate tick budget; unescapable pockets are rejected and regenerated, never shipped."
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "size": 223,
+  "shape": [
+    223,
+    223
+  ],
+  "free_cells": 26257,
+  "forbidden_cells": 0,
+  "template": "wide_neck",
+  "free_fraction": 0.5280017695911842,
+  "safe_fraction_of_free": 1.0,
+  "spawn_cell": [
+    111,
+    156
+  ],
+  "design": "large_open_farming_area",
+  "corridor_generation": false,
+  "escapability_validated": true,
+  "escapability_stage_budget_ticks": 40,
+  "escapability_attempts": 1,
+  "variant": "02_advanced_wide_neck_shifting_typical",
+  "stage": "advanced",
+  "density_profile": "shifting",
+  "respawn_profile": "typical",
+  "seed": 20615838
+}

@@ -1,0 +1,26 @@
+{
+  "size": 213,
+  "shape": [
+    213,
+    213
+  ],
+  "free_cells": 22706,
+  "forbidden_cells": 0,
+  "template": "broad_lobes",
+  "free_fraction": 0.500473891864489,
+  "safe_fraction_of_free": 1.0,
+  "spawn_cell": [
+    106,
+    149
+  ],
+  "design": "large_open_farming_area",
+  "corridor_generation": false,
+  "escapability_validated": true,
+  "escapability_stage_budget_ticks": 24,
+  "escapability_attempts": 1,
+  "variant": "05_early_broad_lobes_typical_fast",
+  "stage": "early",
+  "density_profile": "typical",
+  "respawn_profile": "fast",
+  "seed": 23039595
+}
