@@ -1030,3 +1030,53 @@ repeated.
 - Tests: **38 passed in 44.77s**.
 - Classification: all existing migration gates passed; no product tests were
   required because product code did not change.
+
+## Phase 4 implementation and final gates
+
+### P4-A canonical semantics
+
+- Revised G3/G-GEO plus Phase-2 fingerprint tests: 18 passed.
+- Focused simulator farming tests: 43 passed.
+- Direct revised G3: 10,016/10,016 live-target vectors; aggregate SHA-256
+  `9ba2bb96051d89aff243fcfe9070631636b7cf46ee0963b70ac38c286f565ca1`;
+  4,126 direct hypot cases exact.
+- G-GEO: 526 comparisons, both APIs independently exact, retained cross-split
+  418/108 (105 one ULP, 1 two ULP, 2 reachability).
+
+### P4-B B1 and canonical consumers
+
+- B1 isolated origin/shadowing probe: all five contexts canonical for shared
+  modules; all 13 bot-only modules available; no reference/external origin or
+  circular import.
+- Focused migration tests: 37 passed.
+- Recorder: 25 passed.
+- Bot farming-focused: 117 passed; exact three inherited Phase-0 failures and
+  no new failure.
+- Ruler after deterministic baseline shrink: R6=0, R7a=6, R7b=0, R7c=180,
+  R9=0, R10=0; 313 checkpoints/317 references; no Torch import.
+
+### Final Phase 4 gates
+
+- Complete migration suite: 44 passed in 74.75s.
+- Six router/controller/kernel files: 56 passed, 1 skipped in 38.28s.
+- Simulator subsystem-root run: 354 passed, 1 skipped, 1 expected xfail, plus
+  one absent-fixture failure for `models/split_branch_pilot_15000.zip`.
+  Targeted rerun of that current-tree test against the exact original read-only
+  fixture: 1 passed in 112.23s. Accepted combined coverage: 355 passed, 1 skip,
+  1 expected xfail, 0 real failures. The earlier repository-root invocation
+  was rejected because relative fixture paths were invalid.
+- Direct Phase 4 checker: `ok=true`; G3, G-GEO, B1 all green.
+- Phase 2 fingerprints: `ok=true`; G4, G11, G10a zero failures.
+- Direct ruler: `ok=true`; R6/R7/R9/R10 values above.
+- Dedicated 0051200 `PPO.load(device="cpu")`: PASS; exact SHA, policy class,
+  Box(928,float32), MultiDiscrete([3,3]), and 923+5=928.
+- Committed Phase-3 CHECK: completed in 1,145.8s; expected mismatches only
+  `neighbour_boundary.json` and `observation_expected.json`; every other
+  fixture exact; pre/post Git status identical and clean. Initial 15-minute
+  attempt timed out during archive decoding and its four verified orphan
+  workers were stopped before the accepted clean rerun.
+- No 820M, live game, input, recording, prediction, training, checkpoint write,
+  fixture regeneration, archive repack, or branch push.
+- Final post-documentation migration suite: **44 passed in 67.88s**; STATE
+  parsed with 114 unique keys and all required Phase 4 values; `diff --check`
+  clean.

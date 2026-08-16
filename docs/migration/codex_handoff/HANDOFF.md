@@ -509,3 +509,39 @@ Exact next action: coordinator review. Do not begin Phase 4, install B1, change
 product source, or alter any frozen fixture without separate authorization.
 
 **REVISED PHASE 4 SAFE TO CONSIDER: YES. PHASE 4 AUTHORIZED: NO.**
+
+# Phase 4 complete — canonical shared farming installed
+
+Phase 4 began at exact base `71a2cec5083a16061f9595a97da58cc143591e33`.
+Commit `d2473312a9c6fe2e3a48c4ef970aa26fc6af8ec8` established canonical
+farming semantics and dependency-free observation metadata; commit
+`c4e34b2d6b922c2d7c34f320f2f2967f42fa23e5` installed B1 across bot and
+recorder contexts. The one canonical owner is `flyff_farming_simulator/farming`.
+
+The revised G3 gate is exact for all 10,016 live-target vectors and all 4,126
+direct hypot cases. Point and field geodesic APIs remain independently exact,
+with the frozen 418-equal/108-unequal classification retained. G4, G10a, G11,
+G12, G7, G8c, the ruler, and B1 origin/shadowing checks are green. Ruler debt
+is now R6=0, R7a=6 position-only, R7b=0, and R7c=180; R9/R10 remain zero.
+
+Final tests: migration 44 passed; recorder 25 passed; bot focused 117 passed
+with only the exact three inherited Phase-0 failures; simulator coverage is
+355 passed with one skip and one expected xfail and zero real failures; router
+56 passed and one skipped. The single dedicated 0051200 load reproduced SHA
+`87bd8d3e...115cda50`, the split steering policy class, Box(928,float32),
+MultiDiscrete([3,3]), and 923+5=928.
+
+Committed Phase-3 CHECK left Git status unchanged and differed only at the two
+intentionally superseded observation fixtures (`neighbour_boundary.json` and
+`observation_expected.json`). All other fixtures, including maps, router,
+config, and eight archive semantics, were byte-identical. No frozen fixture,
+manifest, model/checkpoint, archive, Tower source, evaluation, movement/router,
+navigation-history, or split-policy file changed.
+
+Read `PHASE4_REPORT.md` for exact commit paths, bridge locations, test handling,
+immutable-artifact proof, and stop boundary. The branch remains unpushed.
+
+Exact next action: STOP. Do not start Phase 5 or install B2 without separate
+coordinator authorization.
+
+**PHASE 5 SAFE TO CONSIDER: YES. PHASE 5 AUTHORIZED: NO.**

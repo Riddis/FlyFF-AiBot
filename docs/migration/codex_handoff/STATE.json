@@ -1,7 +1,7 @@
 {
-  "phase": "Phase 3 complete",
-  "task": "PHASE 3 COMPLETE - narrow Phase-4 contract amendment complete; implementation unauthorized",
-  "timestamp_local": "2026-08-16T18:48:06+02:00",
+  "phase": "Phase 4 complete",
+  "task": "PHASE 4 COMPLETE - canonical shared farming and B1 installed; Phase 5 unauthorized",
+  "timestamp_local": "2026-08-16T21:00:00+02:00",
   "worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL - Phase1",
   "reference_worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL",
   "branch": "refactor/consolidation-phase1",
@@ -113,8 +113,8 @@
     "Made CANONICAL_OWNERS.toml current_phase the single active migration-phase source of truth",
     "Committed the five-file ruler-hardening amendment as ad61b991e4af436eef8705b49978990464cc28f5"
   ],
-  "current_step": "Phase 3 complete: Phase-4 contract amendment proves independent point/field preservation is source-safe; Phase 4 remains inactive and unauthorized",
-  "next_exact_action": "Coordinator review of PHASE4_PLAN_AMENDMENT.md and PHASE4_GEODESIC_CONTRACT_ANALYSIS.tsv. Do not begin Phase 4 or install B1 without separate authorization.",
+  "current_step": "Phase 4 complete: canonical shared farming and registered B1 are installed and fully preservation-gated",
+  "next_exact_action": "STOP. Coordinator review of PHASE4_REPORT.md. Do not begin Phase 5 without separate authorization.",
   "blocked": false,
   "stop_reason": "None. Corrected per coordinator decision: option (b), deterministic hash-stratified selection (G10b-v2), not an extension of checkpoint_selection_result.json's performance-ranking methodology. See docs/migration/codex_handoff/PHASE2_REPORT.md sections 16-18.",
   "tests_and_gates": {
@@ -149,7 +149,7 @@
   "phase1_verified": true,
   "phase1_verified_by": "Claude - independent verification, ACCEPTED",
   "phase3_authorized": true,
-  "phase4_authorized": false,
+  "phase4_authorized": true,
   "artifact_portability_defect": {
     "discovered_by": "Phase-2 G11 map fingerprint gate",
     "manifest_rows": 348,
@@ -272,5 +272,34 @@
   "phase4_plan_amendment_start_sha": "c4c018b80be3bb083b16b7cf4ba98b36583ade8d",
   "phase4_plan_amendment_evidence": "docs/migration/PHASE4_PLAN_AMENDMENT.md and docs/migration/PHASE4_GEODESIC_CONTRACT_ANALYSIS.tsv",
   "phase4_plan_amendment_next_action": "coordinator review",
-  "phase4_plan_amendment_constraints": "current_phase remains 3; phase4_authorized remains false; no product source, Phase-3 fixture, or frozen Phase-0/Phase-2 evidence changed"
+  "phase4_plan_amendment_constraints": "superseded by authorized Phase 4 implementation; the frozen amendment evidence remains unchanged",
+  "phase4_complete": true,
+  "phase4_base_sha": "71a2cec5083a16061f9595a97da58cc143591e33",
+  "phase4_implementation_head": "c4e34b2d6b922c2d7c34f320f2f2967f42fa23e5",
+  "phase4_commits": {
+    "d2473312a9c6fe2e3a48c4ef970aa26fc6af8ec8": "Phase 4: establish canonical farming semantics",
+    "c4e34b2d6b922c2d7c34f320f2f2967f42fa23e5": "Phase 4: install shared farming bridge",
+    "documentation commit containing this STATE.json": "Phase 4: report shared farming consolidation"
+  },
+  "current_phase": 4,
+  "phase5_authorized": false,
+  "phase5_safe_to_consider": "YES",
+  "canonical_farming_owner": "flyff_farming_simulator/farming",
+  "B1_status": "installed through Phase 6; removal gate PHASE_7",
+  "observation_contract_owner": "flyff_farming_simulator/farming/observation_contract.py",
+  "observation_canonical_semantics": "live_hypot_boundary",
+  "geodesic_contract": "separate-independent-APIs",
+  "latest_navigation_preservation": "0051200 targeted load PASS + router-v2 G8c PASS",
+  "phase4_ruler_status": "R6=0 R7a=6 position-only R7b=0 R7c=180 R9=0 R10=0 failures; D1=114 exact/25 AST-similar",
+  "phase4_G3_status": "PASS - 10016/10016 exact live-target vectors; aggregate 9ba2bb96051d89aff243fcfe9070631636b7cf46ee0963b70ac38c286f565ca1; 4126 direct hypot cases exact",
+  "phase4_GGEO_status": "PASS - point and field APIs independently exact; cross-classification retained at 418 exact/108 unequal (105 one ULP, 1 two ULP, 2 reachability)",
+  "phase4_G7_status": "PASS - all 8 source archive pins and ordered typed semantics byte-identical to Phase 3",
+  "phase4_G8c_status": "PASS - frozen router/controller/kernel bytes exact; 56 passed, 1 skipped",
+  "phase4_G11_G12_status": "PASS - six Tower source hashes exact; separate live radius-2 and simulator radius-0 derived-map goldens exact; MAP6 diagnostic unchanged",
+  "phase4_model_0051200_status": "PASS - SHA 87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50; SplitSteeringNavigationPolicy; Box(928,float32); MultiDiscrete([3,3]); 923+5=928",
+  "phase4_tests": "migration 44 passed; recorder 25 passed; bot focused 117 passed plus exact 3 inherited failures; simulator 355 passed equivalent coverage with 1 skip and 1 expected xfail; no real failures",
+  "phase3_check_after_phase4": "expected nonzero only for neighbour_boundary.json and observation_expected.json; every other fixture exact; Git status unchanged; frozen fixtures/manifest not rewritten",
+  "phase4_immutable_artifacts": "PASS - no Phase2/Phase3 frozen evidence, checkpoint/model, archive, Tower source, evaluation, router/kernel, navigation-history, or split-policy path changed",
+  "phase4_branch_push_status": "UNPUSHED",
+  "phase4_report": "docs/migration/codex_handoff/PHASE4_REPORT.md"
 }
