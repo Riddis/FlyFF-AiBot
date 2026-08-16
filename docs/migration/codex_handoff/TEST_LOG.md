@@ -1080,3 +1080,83 @@ repeated.
 - Final post-documentation migration suite: **44 passed in 67.88s**; STATE
   parsed with 114 unique keys and all required Phase 4 values; `diff --check`
   clean.
+
+## Phase 5 implementation and final gates
+
+### Canonical mechanism, policies, and B2
+
+- Pre-mutation inventory: 25 tracked files in each position tree; 18
+  byte-identical, seven exact expected divergences, zero tracked one-sided
+  files. The two named `.bak` files were ignored/untracked and absent.
+- Direct Phase-5 checker: `ok=true`. G1 covers all historical top-level
+  bindings of all 23 modules with no missing public/private name; NP live
+  closure contains no profiling importer; G9 live/recording/config ownership
+  comparisons are all true; B2 has 23 pure shim rows and canonical origins.
+- Real B2 caller fake-memory tests: LIVE legacy discrimination and attach-time
+  presence activation exact; RECORDING exact-anchor discrimination and no
+  attach-time activation exact.
+- First complete migration run: 47 passed, 1 failed. The failure was accepted
+  diagnostic evidence: isolated recorder probes exposed that the first shim
+  form relied on repository-root visibility. The exact 23 imports were changed
+  to canonical top-level `position`; no behavior/API changed.
+- Focused isolated B1/B2/G2 retry: 7 passed.
+- Final complete migration suite: **48 passed in 66.79s**.
+- Direct revised Phase-4 checker: G3 10,016/10,016 and 4,126/4,126 exact;
+  G-GEO independent APIs exact; all five B1 contexts green.
+- Phase-2 fingerprints: G4/G11/G10a `ok=true`; 313/313 checkpoint rows and
+  317/317 references exact.
+- Ruler: `ok=true`; R6=0, R7a=0, R7b=0, R7c=168, R9=0, R10=0. The exact six
+  Phase-4 position R7a entries are reported as resolved.
+
+### Product tests
+
+- Mechanically enumerated 26 bot files matching position/native/pointer/
+  provider/recovery: **180 passed in 6.10s**.
+- Complete recorder suite: **27 passed in 0.39s**.
+- Focused observation-only telemetry: **19 passed in 1.78s**.
+- Full bot suite: **706 passed, 3 failed, 1 skipped in 14.47s**. The failures
+  are exactly the frozen inherited set and their implementation/test paths are
+  unchanged from Phase-5 base `210e4e9`:
+  `test_focus_loss_during_eva_discards_kill_and_transition`,
+  `test_normal_training_status_is_concise_and_uses_total_model_steps`, and
+  `test_training_callback_publishes_structured_session_statistics`. No fourth
+  failure, new skip, or xfail occurred.
+
+### Navigation, maps, archives, and frozen evidence
+
+- G8c first current-only run: 67 passed, 1 skipped, 1 failed solely because the
+  clean consolidation tree lacks preserved untracked helper
+  `scratchpad_single_obstacle_train.py`.
+- Accepted G8c run pinned current `simulator`/`farming` origins and used the
+  original tree only as the read-only helper root: **68 passed, 1 skipped in
+  29.96s**. Frozen router/kernel candidate capture later reproduced exactly.
+- Exactly one successful `PPO.load(device="cpu")` of 0051200: PASS; exact
+  SHA-256, split policy, Box `(928,)` float32, MultiDiscrete `[3,3]`, and
+  923+5=928. A preceding command failed importing a verification constant
+  before reaching `PPO.load`, so it did not load the checkpoint.
+- First Phase-3 check attempt after B2: stopped after 23.6s when the isolated
+  recorder config worker entered the shim package without B2. Pre/post Git
+  status was clean and no fixture changed.
+- Phase-3 config worker probe after correction: authoritative SHA
+  `197dd7df...00e9e2`, effective parity true, ownership difference preserved.
+  Focused Phase3/Phase5 tests passed and ruler returned to R7c=168 after making
+  a tracked test import private rather than a public ownership claim.
+- Final committed Phase-3 CHECK: completed in **1,148.1s**. Expected mismatch
+  only `neighbour_boundary.json` and `observation_expected.json`; every other
+  candidate—G7 all-eight archive semantics, effective config, G12/MAP6,
+  G8c/router, and remaining fixtures—was exact. Git status was empty before and
+  after.
+- No full simulator suite was required because simulator production/test code
+  does not import the changed position boundary and no simulator product source
+  changed.
+
+### Scope and prohibitions
+
+- No live client, pointer recovery, input, recording, telemetry session,
+  prediction, training, model write, archive repack, map regeneration, 820M,
+  deletion, push, G5, or G5-P2.
+- No checkpoint/model, archive, evaluation, Tower/map source, `.npy`, `.bak`,
+  Phase-2 baseline, Phase-3 fixture/manifest, router snapshot, or calibration
+  corpus changed.
+- Final post-documentation migration suite: **48 passed in 77.47s**; ruler
+  `ok=true` at R6=0, R7a=0, R7b=0, R7c=168, R9=0, R10=0.

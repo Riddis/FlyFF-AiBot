@@ -545,3 +545,53 @@ Exact next action: STOP. Do not start Phase 5 or install B2 without separate
 coordinator authorization.
 
 **PHASE 5 SAFE TO CONSIDER: YES. PHASE 5 AUTHORIZED: NO.**
+
+# Phase 5 complete — canonical shared position installed
+
+Phase 5 began at exact clean base
+`210e4e91a1cce8f6f7db56b8f4b77f4522f56d73`. Commit `05f36ee` established
+the canonical mechanism, explicit LIVE/RECORDING attach policies, and the
+recording/development-only profiling layer. Commit `39ce147` converted the
+exact frozen 23 recorder position Python implementations to explicit B2
+compatibility shims and cut recorder callers/build/tests over. Commit
+`fb3e918` covered the isolated Phase-3 config worker through the same registered
+B2 path. The canonical physical owner is `foreground_vision_bot/position`.
+
+G1, G2, NP1-NP5, G9, B2 origin/shadowing, and B1 preservation gates are green.
+Every historical public/private top-level binding resolves, both policy modes
+retain their fake-memory behavior, and the live closure imports no profiling.
+LIVE remains `legacy_species_active` with attach-time presence sampling and no
+longitudinal profiling. RECORDING remains `exact_monster_anchors` without
+attach-time sampling and with deliberate longitudinal profiling. G5-P2 is not
+consumed.
+
+The ruler is `R6=0, R7a=0, R7b=0, R7c=168, R9=0, R10=0`; the exact six former
+position-owner rows are resolved by removing the recorder definitions, not by
+weakening or expanding the baseline. Revised G3 is 10,016/10,016 exact;
+G4/G10a/G11/G12/MAP6/G7/G8c are preserved. The single successful read-only
+0051200 load reproduced its exact SHA, split policy, Box(928,float32),
+MultiDiscrete([3,3]), and 923+5 ABI.
+
+Final tests: migration 48 passed; mechanically enumerated bot native/position
+180 passed; recorder 27 passed; telemetry 19 passed; router 68 passed and one
+established skip. The full bot suite is 706 passed, the exact three inherited
+failures, and one established skip—no new failure or classification. The
+1,148.1-second Phase-3 check left Git status unchanged and differed only at the
+two Phase-4-superseded observation fixtures; every other fixture, including all
+eight archive semantics, was exact.
+
+Both historical physical position paths remain. The B2 shims carry rollback
+commit/blob provenance and expire at Phase 7. No scientific artifact, JSON,
+backup, map, checkpoint, archive, fixture, or evaluation changed. The branch
+remains unpushed and has no upstream.
+
+Read `PHASE5_REPORT.md` for the exact source audit, commit paths, policy values,
+divergence dispositions, bridge locations, origin evidence, tests, and stop
+boundary.
+
+Exact next action: STOP. Do not begin Phase 6. G5 and G5-P2 remain live-client
+gates and were not run.
+
+**G5: PENDING. G5-P2: PENDING.**
+
+**PHASE 6 SAFE TO CONSIDER: YES. PHASE 6 AUTHORIZED: NO.**
