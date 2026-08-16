@@ -31,3 +31,16 @@
 - This is an explicit forward compliance amendment, not an outcome-driven case
   selection. Seeds, randomized inputs, archive list, map settings, comparison
   semantics, and all prior declared cases remain unchanged.
+
+## A3 — controller-case realization correction
+
+- Discovered after the A2 candidate run and before any golden commit.
+- The fixed case labelled `BETTER_FORWARD_TARGET` used route index 3, whose
+  progress gain did not reach the controller's existing frozen two-cell margin;
+  the API correctly classified it as `KEEP_CURRENT`.
+- The case now uses the same preregistered route's endpoint, an
+  outcome-independent realization of a meaningfully farther-forward target.
+- The worker now fails closed unless every named controller case produces its
+  corresponding current `TargetSwitchReason`.
+- No seed, random corpus, product code, threshold, or expected output was
+  changed.

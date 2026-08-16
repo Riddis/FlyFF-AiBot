@@ -476,9 +476,12 @@ def _router_worker(root: Path, output_path: Path) -> None:
         controller_case("KEEP_CURRENT", first, first, start),
         controller_case("CURRENT_UNSAFE", destination, first, start),
         controller_case("CURRENT_REACHED_OR_PASSED", start, later, start),
-        controller_case("BETTER_FORWARD_TARGET", first, later, start),
+        controller_case("BETTER_FORWARD_TARGET", first, (route[-1].x, route[-1].z), start),
         controller_case("FINAL_TARGET_LOCK", first, later, destination),
     ]
+    wrong_reasons = [(row["name"], row["reason"]) for row in controller_rows if row["name"] != row["reason"]]
+    if wrong_reasons:
+        raise RuntimeError(f"controller case realization mismatch: {wrong_reasons}")
     payload = {"fixture_format_version": FORMAT_VERSION, "route_case_count": len(routes), "movement_case_count": len(movement), "controller_case_count": len(controller_rows), "routes": routes, "movement": movement, "controller": controller_rows}
     output_path.write_bytes(json_bytes(_typed_json(payload)))
 
