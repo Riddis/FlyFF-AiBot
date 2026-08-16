@@ -1,5 +1,5 @@
 schema_version = 1
-current_phase = 3
+current_phase = 4
 strategy = "C -> A, defer B"
 purpose = "Machine-consumed current/target ownership registry for behaviorally sensitive concepts"
 

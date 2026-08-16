@@ -478,12 +478,11 @@ class FarmingMapFeatures:
         maximum_distance_cells: float,
         maximum_expansions: int | None = None,
     ) -> dict[Cell, float]:
-        """Return all safe geodesic distances reachable within one bounded search.
+        """Return safe distances from one bounded all-goal Dijkstra search.
 
-        Recorded simulation needs distances to many actors from the same player
-        cell. Running one Dijkstra expansion is exactly equivalent to issuing
-        many bounded point queries, but avoids repeating the same exploration
-        dozens of times per frame.
+        This field API intentionally has independent expansion-order and
+        floating-addition semantics from goal-directed bounded point queries.
+        Recorded simulation uses it to avoid repeating exploration per actor.
         """
 
         limit = float(maximum_distance_cells)

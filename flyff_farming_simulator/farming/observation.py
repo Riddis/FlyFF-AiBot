@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 from json import dumps
-from math import cos, floor, hypot, isfinite, sin
+from math import cos, hypot, isfinite, sin
 from numbers import Integral
 from typing import Final
 
@@ -24,10 +24,10 @@ from .map_features import (
     LOCAL_MAP_TELEPORT_BUFFER,
     LOCAL_MAP_TELEPORT_TRIGGER,
 )
+from .observation_contract import OBSERVATION_SCHEMA_HASH, OBSERVATION_SCHEMA_ID
 
 FloatArray = NDArray[np.float32]
 
-OBSERVATION_SCHEMA_ID: Final = "native-unified-923-v4"
 LEGACY_ACTOR_SLOTS: Final = 32
 ACTOR_FEATURES: Final = 7
 LEGACY_AGGREGATE_FEATURES: Final = 5
@@ -458,9 +458,8 @@ def observation_schema_hash(scales: ObservationScales | None = None) -> str:
     return sha256(payload).hexdigest().upper()
 
 
-OBSERVATION_SCHEMA_HASH: Final = (
-    "F2D568C1C4A4B5F577C9C2E36A37B1C5533C2CE28D415846C3B68EC293C84609"
-)
+if observation_schema_hash() != OBSERVATION_SCHEMA_HASH:
+    raise RuntimeError("Canonical observation schema descriptor does not match its metadata hash")
 
 
 class ObservationBuilder:
@@ -606,36 +605,14 @@ class ObservationBuilder:
         self,
         positions: dict[int, tuple[float, float]],
     ) -> dict[int, int]:
-        """Count neighbors exactly with a radius-sized spatial hash.
-
-        The previous quadratic implementation was harmless for the live bot's
-        small visible cohort but made recorded-map simulation unnecessarily
-        expensive. Bucketing preserves the exact inclusive-radius semantics
-        while examining only the current and eight adjacent buckets.
-        """
-
         radius = self.scales.eva_radius_cells
-        inverse = 1.0 / radius
-        buckets: dict[tuple[int, int], list[tuple[int, float, float]]] = {}
-        for actor_id, (x, y) in positions.items():
-            key = (int(floor(x * inverse)), int(floor(y * inverse)))
-            buckets.setdefault(key, []).append((actor_id, x, y))
-
-        radius_squared = radius * radius
-        counts: dict[int, int] = {}
-        for actor_id, (actor_x, actor_y) in positions.items():
-            bx = int(floor(actor_x * inverse))
-            by = int(floor(actor_y * inverse))
-            count = 0
-            for dx in (-1, 0, 1):
-                for dy in (-1, 0, 1):
-                    for _other_id, other_x, other_y in buckets.get((bx + dx, by + dy), ()):
-                        delta_x = other_x - actor_x
-                        delta_y = other_y - actor_y
-                        if delta_x * delta_x + delta_y * delta_y <= radius_squared:
-                            count += 1
-            counts[actor_id] = count
-        return counts
+        return {
+            actor_id: sum(
+                hypot(other_x - actor_x, other_y - actor_y) <= radius
+                for other_x, other_y in positions.values()
+            )
+            for actor_id, (actor_x, actor_y) in positions.items()
+        }
 
     def _select_legacy_actors(
         self,
