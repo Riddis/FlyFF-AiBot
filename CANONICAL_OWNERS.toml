@@ -1,0 +1,190 @@
+schema_version = 1
+current_phase = 1
+strategy = "C -> A, defer B"
+purpose = "Machine-consumed current/target ownership registry for behaviorally sensitive concepts"
+
+[repository]
+python_roots = [
+  "foreground_vision_bot",
+  "flyff_farming_simulator",
+  "flyff_farming_recorder",
+  ".",
+]
+
+[rules.R7b]
+status = "active-ratcheted-current-layout"
+legacy_path_segments = ["legacy", "archives", "_quarantine"]
+allowed_importer_prefixes = ["archives/", "legacy/", "research/"]
+activation_note = "Future physical legacy/archive/research boundaries do not yet all exist; exact current violations are frozen and growth fails."
+
+[[concept]]
+id = "observation_schema_id"
+rule = "R6"
+symbols = ["OBSERVATION_SCHEMA_ID"]
+current_owners = [
+  "flyff_farming_recorder/recorder/session.py",
+  "flyff_farming_simulator/farming/observation.py",
+  "foreground_vision_bot/farming/observation.py",
+]
+target_owner = "shared farming pure core; physical path deferred until Phase 4"
+status = "accepted-pre-consolidation-debt"
+accepted_baseline_violation = true
+minimum_owners = 1
+permitted_bridge = "B1 when installed in a later phase"
+resolution_phase = "PHASE_4"
+
+[[concept]]
+id = "observation_size"
+rule = "R6"
+symbols = ["OBSERVATION_SIZE"]
+current_owners = [
+  "flyff_farming_simulator/farming/observation.py",
+  "foreground_vision_bot/farming/observation.py",
+]
+target_owner = "shared farming pure core; physical path deferred until Phase 4"
+status = "accepted-pre-consolidation-debt"
+accepted_baseline_violation = true
+minimum_owners = 1
+permitted_bridge = "B1 when installed in a later phase"
+resolution_phase = "PHASE_4"
+
+[[concept]]
+id = "policy_action_nvecs"
+rule = "R6"
+symbols = ["POLICY_ACTION_NVECS"]
+current_owners = [
+  "flyff_farming_simulator/farming/actions.py",
+  "foreground_vision_bot/farming/actions.py",
+]
+target_owner = "shared farming pure core; physical path deferred until Phase 4"
+status = "accepted-pre-consolidation-debt"
+accepted_baseline_violation = true
+minimum_owners = 1
+permitted_bridge = "B1 when installed in a later phase"
+resolution_phase = "PHASE_4"
+
+[[concept]]
+id = "farming_action_contract"
+rule = "R7a"
+symbols = ["FarmingAction", "SteeringAction", "FarmingEvent", "POLICY_ACTION_NVECS"]
+current_owners = [
+  "flyff_farming_simulator/farming/actions.py",
+  "foreground_vision_bot/farming/actions.py",
+]
+target_owner = "shared farming pure core; physical path deferred until Phase 4"
+status = "accepted-pre-consolidation-debt"
+accepted_baseline_violation = true
+minimum_owners = 1
+resolution_phase = "PHASE_4"
+
+[[concept]]
+id = "farming_observation_contract"
+rule = "R7a"
+symbols = ["OBSERVATION_SCHEMA_ID", "OBSERVATION_SIZE", "ObservationBuilder"]
+current_owners = [
+  "flyff_farming_recorder/recorder/session.py",
+  "flyff_farming_simulator/farming/observation.py",
+  "foreground_vision_bot/farming/observation.py",
+]
+target_owner = "shared farming pure core; recorder archive metadata remains a consumer"
+status = "accepted-pre-consolidation-debt"
+accepted_baseline_violation = true
+minimum_owners = 1
+resolution_phase = "PHASE_4"
+
+[[concept]]
+id = "farming_model_contract"
+rule = "R7a"
+symbols = ["CURRENT_MODEL_CONTRACT", "ModelContractMetadata", "validate_model_contract"]
+current_owners = [
+  "flyff_farming_simulator/farming/model_contract.py",
+  "foreground_vision_bot/farming/model_contract.py",
+]
+target_owner = "shared farming pure core; physical path deferred until Phase 4"
+status = "accepted-pre-consolidation-debt"
+accepted_baseline_violation = true
+minimum_owners = 1
+resolution_phase = "PHASE_4"
+
+[[concept]]
+id = "farming_reward_contract"
+rule = "R7a"
+symbols = ["RewardCalculator", "RewardComponents"]
+current_owners = [
+  "flyff_farming_simulator/farming/reward.py",
+  "foreground_vision_bot/farming/reward.py",
+]
+target_owner = "shared farming pure core; physical path deferred until Phase 4"
+status = "accepted-pre-consolidation-debt"
+accepted_baseline_violation = true
+minimum_owners = 1
+resolution_phase = "PHASE_4"
+
+[[concept]]
+id = "farming_session_contract"
+rule = "R7a"
+symbols = ["SessionOutcome", "SessionEndReason"]
+current_owners = [
+  "flyff_farming_simulator/farming/session.py",
+  "foreground_vision_bot/farming/session.py",
+]
+target_owner = "shared farming pure core; physical path deferred until Phase 4"
+status = "accepted-pre-consolidation-debt"
+accepted_baseline_violation = true
+minimum_owners = 1
+resolution_phase = "PHASE_4"
+
+[[concept]]
+id = "native_position_stack"
+rule = "R7a"
+symbols = ["NativeFlyffPositionProvider", "NativeFlyffMonsterProvider", "NativeProcessService"]
+current_owners = [
+  "flyff_farming_recorder/position/NativeFlyffMonsterProvider.py",
+  "flyff_farming_recorder/position/NativeFlyffPositionProvider.py",
+  "flyff_farming_recorder/position/native_process_service.py",
+  "foreground_vision_bot/position/NativeFlyffMonsterProvider.py",
+  "foreground_vision_bot/position/NativeFlyffPositionProvider.py",
+  "foreground_vision_bot/position/native_process_service.py",
+]
+target_owner = "shared position native stack with separate live, recording, and dev policies; physical path deferred until Phase 5"
+status = "accepted-pre-consolidation-debt"
+accepted_baseline_violation = true
+minimum_owners = 1
+permitted_bridge = "B2 when installed in a later phase"
+resolution_phase = "PHASE_5_AFTER_REAL_CLIENT_G5"
+
+[[concept]]
+id = "qualified_persistent_waypoint_selector"
+rule = "R7a"
+symbols = ["select_persistent_waypoint"]
+current_owners = ["flyff_farming_simulator/simulator/kinodynamic_route_planner.py"]
+target_owner = "future shared production navigation owner after validated closure preservation"
+status = "green-current-single-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+resolution_phase = "LATER_NAVIGATION_PHASE"
+
+[[concept]]
+id = "serialized_split_policy_api"
+rule = "R7a"
+symbols = ["SplitSteeringNavigationPolicy", "SplitSteeringEventPolicy"]
+current_owners = ["flyff_farming_simulator/simulator/split_branch_policy.py"]
+target_owner = "simulator namespace retained as checkpoint ABI unless a separately gated compatibility shim is introduced"
+status = "green-frozen-checkpoint-abi"
+accepted_baseline_violation = false
+minimum_owners = 1
+resolution_phase = "NEVER_WITHOUT_CHECKPOINT_GATE"
+
+[[concept]]
+id = "serialized_farming_training_api"
+rule = "R7a"
+symbols = ["TerminalPrefixRolloutBuffer", "TrainingBoundary", "TrainingBoundaryKind"]
+current_owners = ["foreground_vision_bot/farming/sb3_training.py"]
+target_owner = "farming.sb3_training namespace retained as checkpoint ABI unless a separately gated compatibility shim is introduced"
+status = "green-frozen-checkpoint-abi"
+accepted_baseline_violation = false
+minimum_owners = 1
+resolution_phase = "NEVER_WITHOUT_CHECKPOINT_GATE"
+
+# No migration shim is installed in Phase 1. Future [[shim]] entries must contain:
+# location, symbols, canonical_owner, reason, bridge_id, and removal_gate.
