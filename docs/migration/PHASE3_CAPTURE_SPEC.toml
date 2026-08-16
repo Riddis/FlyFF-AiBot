@@ -1,0 +1,147 @@
+schema_version = 1
+fixture_format_version = "flyffrl-phase3-v1"
+phase3_base_sha = "82e908d6028d5869a6ff6d6bb27d5a2aeaaebc46"
+fixture_root = "tests/fixtures/migration"
+manifest = "docs/migration/PHASE3_FIXTURE_MANIFEST.tsv"
+seed_label_format = "FlyffRL-Phase3-v1|<suite-name>"
+seed_derivation = "int(SHA256(UTF8(seed_label)).hexdigest()[:16], 16)"
+float_vector_normalization = "little-endian float32, C order"
+json_normalization = "UTF-8, sorted keys, compact separators, LF terminator"
+compressed_input_format = "gzip(mtime=0) over canonical MessagePack"
+comparison_semantics = "exact bytes and exact typed values unless explicitly stated"
+
+[observation]
+suite_name = "observation-corpus"
+random_count = 10000
+edge_case_count = 16
+total_count = 10016
+source_apis = [
+  "foreground_vision_bot/farming/observation.py:ObservationBuilder.build_vector",
+  "flyff_farming_simulator/farming/observation.py:ObservationBuilder.build_vector",
+]
+import_isolation = "separate python -I subprocess for each product root"
+input_representation = "complete canonical MessagePack corpus compressed with deterministic gzip"
+expected_representation = "per-row SHA-256, aggregate row-byte SHA-256, and rows 0,1,2,15,16,9999,10015 as full sentinels"
+required_shape = [923]
+required_dtype = "float32"
+require_finite = true
+cross_implementation_comparison = "numpy.array_equal over every complete vector"
+edge_cases = [
+  "zero_actors", "one_self_actor", "many_actors", "dead_actors_filtered",
+  "eva_axis_exact", "eva_axis_nextbelow", "eva_axis_nextabove",
+  "eva_diagonal_exact", "eva_diagonal_nextbelow", "eva_diagonal_nextabove",
+  "negative_quadrant_boundary", "translated_bucket_boundary",
+  "actor_order_forward", "actor_order_reverse", "blocked_far_actor",
+  "normalization_extremes",
+]
+
+[neighbour_boundary]
+suite_name = "neighbour-boundary"
+source_api = "ObservationBuilder._nearby_counts"
+radius = 8.0
+comparison = "exact integer dictionaries plus exact full vectors"
+known_difference = "bot hypot(dx,dy)<=radius versus simulator squared-distance<=radius^2"
+case_families = [
+  "positive_axes_exact_nextbelow_nextabove",
+  "negative_axes_exact_nextbelow_nextabove",
+  "diagonals_exact_nextbelow_nextabove",
+  "four_quadrants", "bucket_boundaries", "translated_geometry",
+  "actor_order_permutations", "self_count", "zero_one_many",
+  "deterministic_random_fuzz_4096",
+]
+classification_rule = "only exact-boundary hypot-vs-squared mismatches are accepted as a documented Phase-4 constraint; broader divergence blocks"
+
+[geodesic]
+suite_name = "bounded-geodesic"
+source_api = "flyff_farming_simulator/farming/map_features.py:FarmingMapFeatures.bounded_geodesic_field and geodesic_distance"
+comparison = "exact Python float equality; unreachable point result is infinity and absent field entry"
+case_families = [
+  "ordinary_reachable", "unreachable_start", "blocked_start", "blocked_goal",
+  "out_of_map", "maximum_distance_exact", "maximum_distance_inside_outside",
+  "expansion_limits_1_2_8_32_256", "diagonal_corner_cut",
+  "narrow_obstacle", "repeated_cache", "random_safe_512",
+]
+maps = ["open_17", "corner_cut_17", "narrow_obstacle_25", "disconnected_17"]
+tolerance = "none"
+
+[maps]
+suite_name = "derived-maps"
+g11_precondition = "phase2_fingerprints.py g11 must pass before loading"
+live_api = "FarmingMapContext.load(\"Tower AoE\")"
+live_obstacle_radius_cells = 2
+simulator_api = "MapModel.load()"
+simulator_obstacle_radius_cells = 0
+teleport_radius_cells = 2
+arrays = ["traversable", "forbidden", "safe_traversable"]
+metadata = ["source_bounds", "grid_origin", "content_hash"]
+array_encoding = "shape/dtype plus numpy.packbits(bitorder=big) base64 and SHA-256 of C-order bool bytes"
+cross_loader_equality = "intentionally not required"
+map6 = "diagnostic only; cell counts, safe-mask XOR when aligned, source bounds/frame; never a gate or radius-unification authority"
+
+[router]
+suite_name = "router-kernel"
+source_apis = ["plan_route", "select_persistent_waypoint", "TargetPersistenceController", "movement_kernel"]
+route_cases = [
+  "open_straight", "open_left", "open_right", "single_wall_detour",
+  "two_wall_s", "narrow_passage",
+]
+selector_cases = ["open_direct_hop", "wall_path", "tight_first_edge"]
+controller_sequence = ["INITIAL", "KEEP_CURRENT", "BETTER_FORWARD_TARGET", "CURRENT_REACHED_OR_PASSED", "FINAL_TARGET_LOCK"]
+kernel_headings = [0.0, 0.7, -2.2]
+kernel_distance_scales = [0.0, 0.5, 1.0]
+kernel_previous_steering = ["NONE", "LEFT", "RIGHT"]
+kernel_current_steering = ["NONE", "LEFT", "RIGHT"]
+existing_tests = [
+  "flyff_farming_simulator/tests/test_kinodynamic_route_planner.py",
+  "flyff_farming_simulator/tests/test_router_waypoint_env.py",
+  "flyff_farming_simulator/tests/test_target_hysteresis.py",
+  "flyff_farming_simulator/tests/test_kinodynamic_arc_edge_check.py",
+  "flyff_farming_simulator/tests/test_kinodynamic_transition_fidelity.py",
+  "flyff_farming_simulator/tests/test_environment_planner_kernel_agreement.py",
+]
+qualification_exclusion = "not historical 820M qualification; never run scratchpad_router_v2_final_confirmation_820M.py and never write evaluations/"
+
+[effective_config]
+suite_name = "effective-config"
+authority = "docs/migration/EFFECTIVE_CONFIG_BASELINE.json"
+comparison = "exact normalized JSON object equality after isolated current recomputation"
+fixture = "provenance descriptor containing authoritative path/SHA and equality result"
+preserve_owner_difference = true
+
+[recordings]
+suite_name = "recording-archives"
+corpus = "C:/Users/Ridd/FlyffRL_Backups/pre_consolidation_20260815/Flyff RL"
+decoder = "flyff_farming_simulator/simulator/schema.py:RecordingArchive"
+typed_encoding = "None/bool/int/IEEE754-float/UTF8-str/list/tuple/canonical-key-sorted-mapping/dataclass-type-and-fields; bool distinct from int"
+stream_block_items = 1024
+archive_paths = [
+  "flyff_farming_simulator/recordings/eva_only/SEND_TO_RIDDIMS_WetFartChan_20260804T013220.661349Z.zip",
+  "flyff_farming_simulator/recordings/eva_only/SEND_TO_RIDDIMS_WetFartChan_20260804T015033.737143Z.zip",
+  "flyff_farming_simulator/recordings/eva_only/SEND_TO_RIDDIMS_WetFartChan_20260804T020125.838396Z.zip",
+  "flyff_farming_simulator/recordings/eva_only/SEND_TO_RIDDIMS_poot_20260804T163533.542137Z.zip",
+  "flyff_farming_simulator/recordings/eva_only/SEND_TO_RIDDIMS_poot_20260804T163750.567290Z.zip",
+  "flyff_farming_simulator/recordings/eva_only/SEND_TO_RIDDIMS_poot_20260804T164942.048891Z.zip",
+  "flyff_farming_simulator/recordings/training/SEND_TO_RIDDIMS_Riddims_20260803T212218.573109Z.zip",
+  "flyff_farming_simulator/recordings/training/SEND_TO_RIDDIMS_Riddims_20260805T172406.597517Z.zip",
+]
+archive_sha256 = [
+  "f791348deae2bd3b0086b4256a0c902403dbfc8a9ec9d3f66124f54bb0ea3d0c",
+  "bb68a68f27343221d5268a85bc14accbe4fb4e9ea00568977dbad36214c2a40a",
+  "c46c320a6b479e1fe4f4aae93b162672f72eddd25c5855f6b4bd589f4a17c496",
+  "63b44bafcb687e5035d1af4256cb8deaa0465fda4b17a9bdd7a2ede8b5d0e287",
+  "902f2a014ac0524087157f1ec416c524b3bc304f345d7adb7fa91b97ba83f699",
+  "b377f2e8da92442bd8e0dca0a04f0c58f293d1c6c838d8bdafc01f3b1e061fcb",
+  "27934e5167c8f4a03e7b376f2106c714b7e7d187ed96a080e49ce7e1ff7bfccb",
+  "352e59177c2a9850c87116deeb8e2301fd6e22938468ffa313dc5db8614fe92c",
+]
+archive_sizes = [5165181, 2838153, 6110924, 462321, 4342092, 6554870, 5425884, 6425583]
+archive_versions = ["1.9.0", "1.9.0", "1.9.0", "1.9.0", "1.9.0", "1.9.0", "1.7.0", "1.11.0"]
+archive_handling = "read-only; verify Phase-0 manifest path/size/SHA before decode; no copy, repack, or rewrite"
+
+[manifest]
+columns = ["path", "size_bytes", "sha256", "gate", "generator_tool", "fixture_format_version", "seed_or_case_spec", "source_provenance", "source_sha256", "semantic_role"]
+sort = "path ascending by Unicode code point"
+self_reproduction = "regenerate candidate manifest from candidate fixtures and compare byte-identically"
+
+[determinism]
+proof = "generate twice into distinct fresh temporary directories; require every fixture and manifest byte-identical; check mode regenerates in temp and never writes expected fixtures"
