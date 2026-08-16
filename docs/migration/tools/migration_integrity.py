@@ -30,7 +30,6 @@ import tomllib
 
 
 SCHEMA_VERSION = 1
-PHASE = 1
 BASE_SHA = "dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34"
 DEFAULT_OWNERS = "CANONICAL_OWNERS.toml"
 DEFAULT_BRIDGES = "BRIDGES.md"
@@ -151,19 +150,19 @@ def registered_reexports(files: dict[str, str], symbols: Iterable[str]) -> list[
     for path, source in sorted(files.items()):
         tree = ast.parse(source, filename=path)
         exported = _literal_all(tree)
-        if not exported:
-            continue
-        imported: dict[str, str] = {}
         for node in tree.body:
             if isinstance(node, ast.ImportFrom):
                 origin = "." * node.level + (node.module or "")
                 for alias in node.names:
-                    imported[alias.asname or alias.name] = f"{origin}:{alias.name}"
-            elif isinstance(node, ast.Import):
-                for alias in node.names:
-                    imported[alias.asname or alias.name.split(".")[0]] = alias.name
-        for symbol in sorted(wanted & exported & imported.keys()):
-            findings.append(Finding("R7c", symbol, path, f"reexport_from={imported[symbol]}"))
+                    binding = alias.asname or alias.name
+                    if alias.name not in wanted:
+                        continue
+                    if binding.startswith("_") and binding not in exported:
+                        continue
+                    alias_evidence = "" if binding == alias.name else f";binding={binding}"
+                    findings.append(
+                        Finding("R7c", alias.name, path, f"reexport_from={origin}:{alias.name}{alias_evidence}")
+                    )
     return findings
 
 
@@ -173,6 +172,13 @@ def load_registry(repo: Path, relative: str = DEFAULT_OWNERS) -> dict[str, Any]:
     if registry.get("schema_version") != SCHEMA_VERSION:
         raise ValueError(f"Unsupported owner registry schema: {registry.get('schema_version')!r}")
     return registry
+
+
+def active_phase(registry: dict[str, Any]) -> int:
+    phase = registry.get("current_phase")
+    if not isinstance(phase, int) or phase < 1:
+        raise ValueError(f"Invalid current_phase in {DEFAULT_OWNERS}: {phase!r}")
+    return phase
 
 
 def python_roots(repo: Path, registry: dict[str, Any]) -> list[Path]:
@@ -336,8 +342,57 @@ def _extract_bridge_toml(path: Path) -> dict[str, Any]:
     return tomllib.loads(payload)
 
 
-def bridge_errors(repo: Path, registry: dict[str, Any], current_phase: int = PHASE) -> list[str]:
+def removal_gate_expired(removal_gate: str, current_phase: int) -> bool:
+    match = re.fullmatch(r"PHASE_(\d+)", removal_gate)
+    return bool(match and current_phase >= int(match.group(1)))
+
+
+def git_tag_target(repo: Path, tag: str) -> str | None:
+    try:
+        return _run_git(repo, "rev-parse", f"refs/tags/{tag}^{{}}").decode().strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
+def _b3_source_matches(source: str, target_module: str, target_symbol: str) -> bool:
+    tree = ast.parse(source)
+    imports_target = any(
+        isinstance(node, ast.ImportFrom)
+        and node.level == 0
+        and node.module == target_module
+        and any(alias.name == target_symbol for alias in node.names)
+        for node in tree.body
+    )
+    defines_root = any(
+        isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "_RECORDER_ROOT" for target in node.targets)
+        for node in tree.body
+    )
+    inserts_root = any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "insert"
+        and isinstance(node.func.value, ast.Attribute)
+        and isinstance(node.func.value.value, ast.Name)
+        and node.func.value.value.id == "sys"
+        and node.func.value.attr == "path"
+        and len(node.args) >= 2
+        and isinstance(node.args[0], ast.Constant)
+        and node.args[0].value == 0
+        and isinstance(node.args[1], ast.Call)
+        and isinstance(node.args[1].func, ast.Name)
+        and node.args[1].func.id == "str"
+        and len(node.args[1].args) == 1
+        and isinstance(node.args[1].args[0], ast.Name)
+        and node.args[1].args[0].id == "_RECORDER_ROOT"
+        for node in ast.walk(tree)
+    )
+    return imports_target and defines_root and inserts_root
+
+
+def bridge_errors(repo: Path, registry: dict[str, Any], current_phase: int | None = None) -> list[str]:
     errors: list[str] = []
+    current_phase = active_phase(registry) if current_phase is None else current_phase
     bridges = _extract_bridge_toml(repo / DEFAULT_BRIDGES).get("bridge", [])
     ids = {bridge["id"] for bridge in bridges}
     mandatory = {"B1", "B2", "B3", "B4"}
@@ -349,8 +404,9 @@ def bridge_errors(repo: Path, registry: dict[str, Any], current_phase: int = PHA
         if missing:
             errors.append(f"Bridge {bridge.get('id', '?')} missing fields: {sorted(missing)}")
             continue
-        match = re.fullmatch(r"PHASE_(\d+)", str(bridge["removal_gate"]))
-        if bridge["status"] == "existing" and match and int(match.group(1)) <= current_phase:
+        if bridge["status"] in {"future", "existing"} and removal_gate_expired(
+            str(bridge["removal_gate"]), current_phase
+        ):
             errors.append(f"Bridge {bridge['id']} expired at {bridge['removal_gate']}")
         if bridge["status"] == "future" and bridge["locations"]:
             errors.append(f"Future bridge {bridge['id']} claims installed locations")
@@ -366,9 +422,25 @@ def bridge_errors(repo: Path, registry: dict[str, Any], current_phase: int = PHA
             errors.append(f"Shim {shim.get('location', '?')} references unknown bridge {shim.get('bridge_id')}")
     b3 = next((bridge for bridge in bridges if bridge["id"] == "B3"), None)
     if b3 and b3["status"] == "existing":
-        source = (repo / "flyff_farming_simulator/tools/inventory_recordings.py").read_text(encoding="utf-8")
-        if "_RECORDER_ROOT" not in source or "sys.path.insert(0, str(_RECORDER_ROOT))" not in source:
+        required_b3 = {"target_module", "target_symbol"}
+        missing = required_b3 - b3.keys()
+        if missing:
+            errors.append(f"Bridge B3 missing source-evidence fields: {sorted(missing)}")
+        source_path = repo / "flyff_farming_simulator/tools/inventory_recordings.py"
+        source = source_path.read_text(encoding="utf-8") if source_path.is_file() else ""
+        if missing or not _b3_source_matches(source, b3.get("target_module", ""), b3.get("target_symbol", "")):
             errors.append("B3 source evidence no longer matches inventory_recordings.py")
+    b4 = next((bridge for bridge in bridges if bridge["id"] == "B4"), None)
+    if b4 and b4["status"] == "permanent-historical":
+        expected = b4.get("expected_target")
+        tag_locations = [location for location in b4["locations"] if location.startswith("git-tag:")]
+        if not isinstance(expected, str) or len(tag_locations) != 1:
+            errors.append("B4 permanent tag evidence is incomplete")
+        else:
+            tag = tag_locations[0].split(":", 1)[1]
+            actual = git_tag_target(repo, tag)
+            if actual != expected:
+                errors.append(f"B4 tag target mismatch: {tag} expected {expected} got {actual}")
     return sorted(errors)
 
 
@@ -417,6 +489,47 @@ def _source_symbols(path: Path) -> set[str]:
     return top_level_definitions(parse_python(path))
 
 
+def _module_candidate_relatives(repo: Path, module: str, roots: Sequence[Path]) -> set[str]:
+    relatives: set[str] = set()
+    for candidate in _module_candidates(module, roots):
+        try:
+            relatives.add(candidate.resolve().relative_to(repo.resolve()).as_posix())
+        except ValueError:
+            continue
+    return relatives
+
+
+def classify_r10_modules(
+    repo: Path,
+    roots: Sequence[Path],
+    inventory: Sequence[dict[str, str]],
+    references: Sequence[dict[str, str]],
+) -> dict[str, str]:
+    modules = {
+        *(row["policy_class_module"] for row in inventory),
+        *(row["module_reference"] for row in references if row["module_reference"] != "NONE"),
+    }
+    inventory_markers: dict[str, set[str]] = defaultdict(set)
+    for row in inventory:
+        inventory_markers[row["policy_class_module"]].add(row.get("loadable_under_current_source", ""))
+    phase0_paths: set[str] = set()
+    if (repo / ".git").exists():
+        try:
+            phase0_paths = set(_run_git(repo, "ls-tree", "-r", "--name-only", BASE_SHA).decode().splitlines())
+        except subprocess.CalledProcessError:
+            phase0_paths = set()
+    classification: dict[str, str] = {}
+    for module in sorted(modules):
+        if any("third_party" in marker for marker in inventory_markers[module]):
+            classification[module] = "external"
+            continue
+        candidates = _module_candidate_relatives(repo, module, roots)
+        present_now = any((repo / candidate).is_file() for candidate in candidates)
+        present_at_phase0 = bool(candidates & phase0_paths)
+        classification[module] = "repository-local" if present_now or present_at_phase0 else "external"
+    return classification
+
+
 def r10_result(repo: Path, roots: Sequence[Path]) -> dict[str, Any]:
     torch_before = {name for name in sys.modules if name == "torch" or name.startswith("torch.")}
     with (repo / "docs/migration/CHECKPOINT_INVENTORY.tsv").open(encoding="utf-8", newline="") as handle:
@@ -425,6 +538,13 @@ def r10_result(repo: Path, roots: Sequence[Path]) -> dict[str, Any]:
         references = list(csv.DictReader(handle, delimiter="\t"))
     policy_modules = sorted({row["policy_class_module"] for row in inventory})
     serialized = sorted({(row["module_reference"], row["qualname_if_found"]) for row in references if row["module_reference"] != "NONE"})
+    expected_symbols = {
+        (row["policy_class_module"], row["policy_class_qualname"].split(".", 1)[0])
+        for row in inventory
+        if row.get("policy_class_qualname")
+    }
+    expected_symbols.update((module, symbol.split(".", 1)[0]) for module, symbol in serialized if symbol)
+    module_classification = classify_r10_modules(repo, roots, inventory, references)
     failures: list[str] = []
     resolutions: dict[str, str] = {}
     for module in sorted(set(policy_modules) | {module for module, _ in serialized}):
@@ -432,8 +552,13 @@ def r10_result(repo: Path, roots: Sequence[Path]) -> dict[str, Any]:
         if spec is None or not spec.origin:
             failures.append(f"unresolvable_module:{module}")
         else:
-            resolutions[module] = str(Path(spec.origin).resolve())
-    for module, symbol in serialized:
+            origin = Path(spec.origin).resolve()
+            resolutions[module] = str(origin)
+            if module_classification[module] == "repository-local" and not origin.is_relative_to(repo.resolve()):
+                failures.append(f"repository_local_module_outside_repo:{module}:{origin}")
+    for module, symbol in sorted(expected_symbols):
+        if module_classification[module] != "repository-local":
+            continue
         origin = resolutions.get(module)
         if not origin:
             continue
@@ -448,6 +573,7 @@ def r10_result(repo: Path, roots: Sequence[Path]) -> dict[str, Any]:
         "module_reference_rows": len(references),
         "policy_modules": policy_modules,
         "serialized_references": [f"{module}.{symbol}" for module, symbol in serialized],
+        "module_classification": dict(sorted(module_classification.items())),
         "resolutions": dict(sorted(resolutions.items())),
         "torch_modules_added": sorted(torch_after - torch_before),
         "failures": sorted(failures),
@@ -501,21 +627,21 @@ def write_d1(path: Path, rows: Sequence[dict[str, str]]) -> None:
         writer.writerows(rows)
 
 
-def _baseline_payload(findings: Sequence[Finding]) -> dict[str, Any]:
+def _baseline_payload(findings: Sequence[Finding], phase: int) -> dict[str, Any]:
     grouped: dict[str, list[dict[str, str]]] = defaultdict(list)
     for finding in sorted(findings):
         grouped[finding.rule].append(finding.as_dict())
     return {
         "schema_version": SCHEMA_VERSION,
-        "phase": PHASE,
+        "phase": phase,
         "base_sha": BASE_SHA,
         "policy": "exact known debt may shrink but may not grow",
         "violations": {rule: grouped.get(rule, []) for rule in ("R6", "R7a", "R7b", "R7c")},
     }
 
 
-def write_baseline_json(path: Path, findings: Sequence[Finding]) -> None:
-    path.write_text(json.dumps(_baseline_payload(findings), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+def write_baseline_json(path: Path, findings: Sequence[Finding], phase: int) -> None:
+    path.write_text(json.dumps(_baseline_payload(findings, phase), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def load_baseline(path: Path) -> dict[str, Any]:
@@ -536,6 +662,7 @@ def write_baseline_markdown(
     d1_rows: Sequence[dict[str, str]],
     r9: Sequence[Finding],
     r10: dict[str, Any],
+    phase: int,
 ) -> None:
     grouped: dict[str, list[Finding]] = defaultdict(list)
     for finding in findings:
@@ -548,7 +675,7 @@ def write_baseline_markdown(
         "> Generated deterministically by `docs/migration/tools/migration_integrity.py snapshot`.",
         "> Do not normalize this debt away by hand. Later phases may deliberately shrink it; growth fails.",
         "",
-        f"Base: `{BASE_SHA}`. Phase: {PHASE}.",
+        f"Base: `{BASE_SHA}`. Phase: {phase} (from `{DEFAULT_OWNERS}`).",
         "",
         "## 1. ACCEPTED PRE-EXISTING MIGRATION DEBT",
         "",
@@ -567,6 +694,9 @@ def write_baseline_markdown(
             f"- R9: **GREEN** ({len(r9)} violations).",
             f"- R10 policy-class modules: **{'GREEN' if not r10['failures'] else 'RED'}** across {r10['checkpoint_count']} inventory rows.",
             f"- R10 full serialized references: **{'GREEN' if not r10['failures'] else 'RED'}** across {r10['module_reference_rows']} reference rows.",
+            f"- R10 module classification: `{json.dumps(r10['module_classification'], sort_keys=True)}`.",
+            "- Phase-1 R10 protects the frozen Phase-0 checkpoint corpus described by `CHECKPOINT_INVENTORY.tsv` and `CHECKPOINT_MODULE_REFERENCES.tsv`.",
+            "- Phase-2 G10a independently regenerates that corpus inventory against preserved artifacts.",
             "",
             "## 3. DIAGNOSTIC-ONLY FINDINGS",
             "",
@@ -608,11 +738,13 @@ def collect(repo: Path, registry: dict[str, Any]) -> dict[str, Any]:
 
 
 def snapshot(repo: Path) -> dict[str, Any]:
-    result = collect(repo, load_registry(repo))
+    registry = load_registry(repo)
+    phase = active_phase(registry)
+    result = collect(repo, registry)
     d1_rows = duplicate_diagnostic(repo)
     write_d1(repo / DEFAULT_D1, d1_rows)
-    write_baseline_json(repo / DEFAULT_BASELINE, result["findings"])
-    write_baseline_markdown(repo / DEFAULT_BASELINE_MD, result["findings"], d1_rows, result["r9"], result["r10"])
+    write_baseline_json(repo / DEFAULT_BASELINE, result["findings"], phase)
+    write_baseline_markdown(repo / DEFAULT_BASELINE_MD, result["findings"], d1_rows, result["r9"], result["r10"], phase)
     return summary(result, d1_rows=d1_rows)
 
 
@@ -625,6 +757,7 @@ def summary(result: dict[str, Any], *, d1_rows: Sequence[dict[str, str]] | None 
         "r9_violations": len(result["r9"]),
         "r10_checkpoint_count": result["r10"]["checkpoint_count"],
         "r10_module_reference_rows": result["r10"]["module_reference_rows"],
+        "r10_module_classification": result["r10"]["module_classification"],
         "r10_failures": result["r10"]["failures"],
         "torch_modules_added": result["r10"]["torch_modules_added"],
         "ownership_errors": result["ownership_errors"],

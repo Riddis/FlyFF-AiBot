@@ -55,7 +55,27 @@ def test_r7a_rejects_unregistered_extra_owner() -> None:
     assert errors == ["R7a contract unregistered owners: ['rogue.py']"]
 
 
-def test_r7c_catches_unregistered_reexport() -> None:
+def test_r7c_catches_public_from_import_without_all() -> None:
+    findings = integrity.registered_reexports(
+        {"api.py": "from .owner import OBSERVATION_SIZE\n"},
+        ["OBSERVATION_SIZE"],
+    )
+    assert [finding.key for finding in findings] == [
+        "R7c|OBSERVATION_SIZE|api.py|reexport_from=.owner:OBSERVATION_SIZE"
+    ]
+
+
+def test_r7c_catches_public_alias_without_all() -> None:
+    findings = integrity.registered_reexports(
+        {"api.py": "from .owner import OBSERVATION_SIZE as PublicObservationSize\n"},
+        ["OBSERVATION_SIZE"],
+    )
+    assert [finding.key for finding in findings] == [
+        "R7c|OBSERVATION_SIZE|api.py|reexport_from=.owner:OBSERVATION_SIZE;binding=PublicObservationSize"
+    ]
+
+
+def test_r7c_catches_reexport_with_literal_all() -> None:
     findings = integrity.registered_reexports(
         {"api.py": 'from .owner import OBSERVATION_SIZE\n__all__ = ["OBSERVATION_SIZE"]\n'},
         ["OBSERVATION_SIZE"],
@@ -63,6 +83,37 @@ def test_r7c_catches_unregistered_reexport() -> None:
     assert [finding.key for finding in findings] == [
         "R7c|OBSERVATION_SIZE|api.py|reexport_from=.owner:OBSERVATION_SIZE"
     ]
+
+
+def test_r7c_registered_shim_passes() -> None:
+    files = {
+        "owner.py": "class Contract: pass\n",
+        "shim.py": "from owner import Contract\n",
+    }
+    registry = {
+        "concept": [
+            {
+                "id": "contract",
+                "rule": "R7a",
+                "symbols": ["Contract"],
+                "current_owners": ["owner.py"],
+                "minimum_owners": 1,
+                "accepted_baseline_violation": False,
+            }
+        ],
+        "shim": [{"location": "shim.py", "symbols": ["Contract"]}],
+    }
+    findings, errors = integrity._concept_findings(files, registry)
+    assert findings == []
+    assert errors == []
+
+
+def test_r7c_private_alias_is_not_public_laundering() -> None:
+    findings = integrity.registered_reexports(
+        {"internal.py": "from .owner import OBSERVATION_SIZE as _ObservationSize\n"},
+        ["OBSERVATION_SIZE"],
+    )
+    assert findings == []
 
 
 def test_r9_flags_local_untracked_module_but_ignores_external(tmp_path: Path) -> None:
@@ -84,6 +135,37 @@ def test_r10_unresolvable_module_fails_without_importing_torch(tmp_path: Path) -
     assert integrity.find_spec_without_import("definitely_missing_package.module", [tmp_path]) is None
     after = {name for name in integrity.sys.modules if name == "torch" or name.startswith("torch.")}
     assert after == before
+
+
+def test_r10_repo_local_module_rejects_external_fallback(tmp_path: Path, monkeypatch) -> None:
+    repo = tmp_path / "repo"
+    source = repo / "localpkg" / "abi.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("class ExpectedSymbol: pass\n", encoding="utf-8")
+    evidence = repo / "docs" / "migration"
+    evidence.mkdir(parents=True)
+    (evidence / "CHECKPOINT_INVENTORY.tsv").write_text(
+        "policy_class_module\tpolicy_class_qualname\tloadable_under_current_source\n"
+        "localpkg.abi\tExpectedSymbol\tyes_module_and_class_present\n",
+        encoding="utf-8",
+    )
+    (evidence / "CHECKPOINT_MODULE_REFERENCES.tsv").write_text(
+        "checkpoint_path\tmodule_reference\tqualname_if_found\n"
+        "model.zip\tlocalpkg.abi\tExpectedSymbol\n",
+        encoding="utf-8",
+    )
+    external = tmp_path / "site-packages" / "localpkg" / "abi.py"
+    external.parent.mkdir(parents=True)
+    external.write_text("class ExpectedSymbol: pass\n", encoding="utf-8")
+
+    def external_spec(module: str, _roots):
+        return integrity.importlib.machinery.ModuleSpec(module, loader=None, origin=str(external))
+
+    monkeypatch.setattr(integrity, "find_spec_without_import", external_spec)
+    result = integrity.r10_result(repo, [repo])
+    assert result["module_classification"] == {"localpkg.abi": "repository-local"}
+    assert any(error.startswith("repository_local_module_outside_repo:localpkg.abi:") for error in result["failures"])
+    assert result["torch_modules_added"] == []
 
 
 def test_d1_reports_duplicate_and_never_raises(tmp_path: Path) -> None:
@@ -119,9 +201,61 @@ owner = "fixture"
     assert "Bridge B1 expired at PHASE_1" in errors
 
 
+def test_phase_7_bridge_allowed_before_and_expired_at_boundary(tmp_path: Path) -> None:
+    (tmp_path / "bridge.py").write_text("# bridge\n", encoding="utf-8")
+    payload = '''
+<!-- bridge-registry:begin -->
+```toml
+schema_version = 1
+
+[[bridge]]
+id = "B1"
+status = "existing"
+reason = "fixture"
+locations = ["bridge.py"]
+users = ["fixture"]
+protecting_rule = "fixture"
+removal_gate = "PHASE_7"
+live_closure_allowed = false
+owner = "fixture"
+```
+<!-- bridge-registry:end -->
+'''
+    (tmp_path / "BRIDGES.md").write_text(payload, encoding="utf-8")
+    before = integrity.bridge_errors(tmp_path, {"current_phase": 6, "shim": []})
+    at_boundary = integrity.bridge_errors(tmp_path, {"current_phase": 7, "shim": []})
+    assert "Bridge B1 expired at PHASE_7" not in before
+    assert "Bridge B1 expired at PHASE_7" in at_boundary
+
+
+def test_b3_source_evidence_includes_registered_module_and_symbol() -> None:
+    source = (REPO / "flyff_farming_simulator/tools/inventory_recordings.py").read_text(encoding="utf-8")
+    assert integrity._b3_source_matches(
+        source,
+        "recorder.movement_classification",
+        "MovementControlClassifier",
+    )
+    assert not integrity._b3_source_matches(
+        source,
+        "recorder.movement_classification",
+        "DifferentClassifier",
+    )
+
+
+def test_b4_permanent_historical_tag_is_mechanically_protected() -> None:
+    assert integrity.git_tag_target(REPO, "historical-reproduction-baseline-20260815") == (
+        "a90de59232b81753c1b2ea35b8990325c26674e5"
+    )
+
+
 def test_actual_repository_integrity_gate_is_green() -> None:
     payload, errors = integrity.check(REPO)
     assert errors == [], json.dumps(payload, indent=2, sort_keys=True)
     assert payload["r9_violations"] == 0
     assert payload["r10_failures"] == []
     assert payload["torch_modules_added"] == []
+    assert payload["r10_module_classification"] == {
+        "farming.sb3_training": "repository-local",
+        "simulator.split_branch_policy": "repository-local",
+        "stable_baselines3.common.policies": "external",
+    }

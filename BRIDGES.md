@@ -8,7 +8,6 @@ removal gate. Phase 1 installs no new bridge.
 <!-- bridge-registry:begin -->
 ```toml
 schema_version = 1
-current_phase = 1
 
 [[bridge]]
 id = "B1"
@@ -42,6 +41,8 @@ protecting_rule = "bridge source-evidence check and R7b"
 removal_gate = "PHASE_7"
 live_closure_allowed = false
 owner = "simulator recording-inventory development tool"
+target_module = "recorder.movement_classification"
+target_symbol = "MovementControlClassifier"
 
 [[bridge]]
 id = "B4"
@@ -53,6 +54,7 @@ protecting_rule = "protected tag SHA gate"
 removal_gate = "NEVER"
 live_closure_allowed = false
 owner = "Phase-0 historical reproduction record"
+expected_target = "a90de59232b81753c1b2ea35b8990325c26674e5"
 ```
 <!-- bridge-registry:end -->
 
@@ -69,6 +71,17 @@ B3 was verified in Phase 1: the tool still computes `_RECORDER_ROOT` from the
 repository layout, inserts it into `sys.path`, and imports
 `recorder.movement_classification.MovementControlClassifier`. It is not removed
 or normalized in this phase.
+
+The single active-phase source of truth is `current_phase` in
+`CANONICAL_OWNERS.toml`. At the opening checkpoint of every later migration
+phase, advance that value in the same commit that updates the phase plan. The
+integrity tool uses it for bridge expiry and generated-baseline metadata. A
+`PHASE_N` bridge is expired at the start of Phase N; future as well as installed
+temporary bridges must be removed or explicitly transitioned before that gate.
+
+B4 is continuously protected by the bridge checker itself: it resolves
+`historical-reproduction-baseline-20260815` and requires the exact target
+`a90de59232b81753c1b2ea35b8990325c26674e5` on every integrity run.
 
 No `.pth`, bootstrap hook, re-export shim, B1 bridge, or B2 bridge was installed
 by Phase 1.
