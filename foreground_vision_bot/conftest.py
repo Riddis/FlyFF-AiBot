@@ -5,12 +5,25 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
-import pytest
-
 
 APP_ROOT = Path(__file__).resolve().parent
-if str(APP_ROOT) not in sys.path:
-    sys.path.insert(0, str(APP_ROOT))
+CANONICAL_FARMING_PARENT = APP_ROOT.parent / "flyff_farming_simulator"
+if not (CANONICAL_FARMING_PARENT / "farming" / "observation_contract.py").is_file():
+    raise RuntimeError(f"Canonical farming package is missing at {CANONICAL_FARMING_PARENT}")
+
+# BRIDGE B1 — removed in Phase 7
+bridge_keys = {
+    os.path.normcase(str(APP_ROOT.resolve())),
+    os.path.normcase(str(CANONICAL_FARMING_PARENT.resolve())),
+}
+remaining_paths = [
+    entry
+    for entry in sys.path
+    if os.path.normcase(str(Path(entry or ".").resolve())) not in bridge_keys
+]
+sys.path[:] = [str(CANONICAL_FARMING_PARENT), str(APP_ROOT), *remaining_paths]
+
+import pytest
 
 
 @pytest.hookimpl(tryfirst=True)

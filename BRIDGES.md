@@ -11,14 +11,33 @@ schema_version = 1
 
 [[bridge]]
 id = "B1"
-status = "future"
-reason = "Temporary shared farming visibility while physical roots remain separate"
-locations = []
-users = ["future bot/simulator/recorder farming consumers"]
+status = "existing"
+reason = "Temporary canonical farming visibility and re-export facades while physical roots remain separate"
+locations = [
+  "flyff_farming_simulator/farming/__init__.py",
+  "flyff_farming_simulator/farming/observation.py",
+  "foreground_vision_bot/foreground_vision_farm.py",
+  "foreground_vision_bot/conftest.py",
+  "foreground_vision_bot/tests/conftest.py",
+  "foreground_vision_bot/tools/run_observation_telemetry.py",
+  "foreground_vision_bot/farming/__init__.py",
+  "foreground_vision_bot/farming/actions.py",
+  "foreground_vision_bot/farming/model_contract.py",
+  "foreground_vision_bot/farming/map_masks.py",
+  "foreground_vision_bot/farming/reward.py",
+  "foreground_vision_bot/farming/session.py",
+  "foreground_vision_bot/farming/observation.py",
+  "foreground_vision_bot/farming/map_features.py",
+  "flyff_farming_recorder/app.py",
+  "flyff_farming_recorder/recorder/session.py",
+  "flyff_farming_recorder/tests/conftest.py",
+  "flyff_farming_recorder/FlyffFarmingRecorder.spec",
+]
+users = ["live bot", "bot tests", "observation telemetry", "standalone recorder", "recorder tests", "recorder PyInstaller build"]
 protecting_rule = "R7c plus bridge expiry"
 removal_gate = "PHASE_7"
 live_closure_allowed = true
-owner = "future Phase-4 farming canonicalization"
+owner = "Phase-4 farming canonicalization"
 
 [[bridge]]
 id = "B2"
@@ -62,7 +81,7 @@ expected_target = "a90de59232b81753c1b2ea35b8990325c26674e5"
 
 | ID | Phase-1 state | Installed location | Removal gate | Live closure |
 |---|---|---|---|---|
-| B1 | FUTURE / NOT INSTALLED | none | Phase 7 root collapse | allowed only when explicitly installed and audited |
+| B1 | INSTALLED / VERIFIED | canonical package path extension; bot/recorder pre-import bootstraps; bot facades; recorder consumer/build | Phase 7 root collapse | yes, explicitly registered and origin-tested |
 | B2 | FUTURE / NOT INSTALLED | none | Phase 7 root collapse | allowed only when explicitly installed and audited |
 | B3 | EXISTING / VERIFIED | `flyff_farming_simulator/tools/inventory_recordings.py` | Phase 7 archive/root consolidation | no |
 | B4 | PERMANENT HISTORICAL | protected Git tag | NEVER | no |
@@ -83,5 +102,10 @@ B4 is continuously protected by the bridge checker itself: it resolves
 `historical-reproduction-baseline-20260815` and requires the exact target
 `a90de59232b81753c1b2ea35b8990325c26674e5` on every integrity run.
 
-No `.pth`, bootstrap hook, re-export shim, B1 bridge, or B2 bridge was installed
-by Phase 1.
+B1 was installed in Phase 4 with visible source bootstraps only. The canonical
+simulator parent is placed first before any supported bot or recorder import of
+`farming`; the canonical package extends only its package search path so bot-only
+`farming.*` modules remain visible. The seven shared bot modules and bot package
+facade are registered re-export shims. Recorder metadata imports the dependency-
+free canonical observation contract. No `.pth`, `sitecustomize`, environment-only
+`PYTHONPATH`, system setting, or hidden monkeypatch is used. B2 remains future.

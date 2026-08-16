@@ -1,264 +1,11 @@
 {
   "base_sha": "dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34",
-  "phase": 1,
+  "phase": 4,
   "policy": "exact known debt may shrink but may not grow",
   "schema_version": 1,
   "violations": {
-    "R6": [
-      {
-        "concept": "observation_schema_id",
-        "detail": "duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "key": "R6|observation_schema_id|flyff_farming_recorder/recorder/session.py|duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "path": "flyff_farming_recorder/recorder/session.py",
-        "rule": "R6"
-      },
-      {
-        "concept": "observation_schema_id",
-        "detail": "duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "key": "R6|observation_schema_id|flyff_farming_simulator/farming/observation.py|duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "path": "flyff_farming_simulator/farming/observation.py",
-        "rule": "R6"
-      },
-      {
-        "concept": "observation_schema_id",
-        "detail": "duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "key": "R6|observation_schema_id|foreground_vision_bot/farming/observation.py|duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "path": "foreground_vision_bot/farming/observation.py",
-        "rule": "R6"
-      },
-      {
-        "concept": "observation_size",
-        "detail": "duplicate_definition=OBSERVATION_SIZE",
-        "key": "R6|observation_size|flyff_farming_simulator/farming/observation.py|duplicate_definition=OBSERVATION_SIZE",
-        "path": "flyff_farming_simulator/farming/observation.py",
-        "rule": "R6"
-      },
-      {
-        "concept": "observation_size",
-        "detail": "duplicate_definition=OBSERVATION_SIZE",
-        "key": "R6|observation_size|foreground_vision_bot/farming/observation.py|duplicate_definition=OBSERVATION_SIZE",
-        "path": "foreground_vision_bot/farming/observation.py",
-        "rule": "R6"
-      },
-      {
-        "concept": "policy_action_nvecs",
-        "detail": "duplicate_definition=POLICY_ACTION_NVECS",
-        "key": "R6|policy_action_nvecs|flyff_farming_simulator/farming/actions.py|duplicate_definition=POLICY_ACTION_NVECS",
-        "path": "flyff_farming_simulator/farming/actions.py",
-        "rule": "R6"
-      },
-      {
-        "concept": "policy_action_nvecs",
-        "detail": "duplicate_definition=POLICY_ACTION_NVECS",
-        "key": "R6|policy_action_nvecs|foreground_vision_bot/farming/actions.py|duplicate_definition=POLICY_ACTION_NVECS",
-        "path": "foreground_vision_bot/farming/actions.py",
-        "rule": "R6"
-      }
-    ],
+    "R6": [],
     "R7a": [
-      {
-        "concept": "farming_action_contract",
-        "detail": "duplicate_definition=FarmingAction",
-        "key": "R7a|farming_action_contract|flyff_farming_simulator/farming/actions.py|duplicate_definition=FarmingAction",
-        "path": "flyff_farming_simulator/farming/actions.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_action_contract",
-        "detail": "duplicate_definition=FarmingEvent",
-        "key": "R7a|farming_action_contract|flyff_farming_simulator/farming/actions.py|duplicate_definition=FarmingEvent",
-        "path": "flyff_farming_simulator/farming/actions.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_action_contract",
-        "detail": "duplicate_definition=POLICY_ACTION_NVECS",
-        "key": "R7a|farming_action_contract|flyff_farming_simulator/farming/actions.py|duplicate_definition=POLICY_ACTION_NVECS",
-        "path": "flyff_farming_simulator/farming/actions.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_action_contract",
-        "detail": "duplicate_definition=SteeringAction",
-        "key": "R7a|farming_action_contract|flyff_farming_simulator/farming/actions.py|duplicate_definition=SteeringAction",
-        "path": "flyff_farming_simulator/farming/actions.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_action_contract",
-        "detail": "duplicate_definition=FarmingAction",
-        "key": "R7a|farming_action_contract|foreground_vision_bot/farming/actions.py|duplicate_definition=FarmingAction",
-        "path": "foreground_vision_bot/farming/actions.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_action_contract",
-        "detail": "duplicate_definition=FarmingEvent",
-        "key": "R7a|farming_action_contract|foreground_vision_bot/farming/actions.py|duplicate_definition=FarmingEvent",
-        "path": "foreground_vision_bot/farming/actions.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_action_contract",
-        "detail": "duplicate_definition=POLICY_ACTION_NVECS",
-        "key": "R7a|farming_action_contract|foreground_vision_bot/farming/actions.py|duplicate_definition=POLICY_ACTION_NVECS",
-        "path": "foreground_vision_bot/farming/actions.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_action_contract",
-        "detail": "duplicate_definition=SteeringAction",
-        "key": "R7a|farming_action_contract|foreground_vision_bot/farming/actions.py|duplicate_definition=SteeringAction",
-        "path": "foreground_vision_bot/farming/actions.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_model_contract",
-        "detail": "duplicate_definition=CURRENT_MODEL_CONTRACT",
-        "key": "R7a|farming_model_contract|flyff_farming_simulator/farming/model_contract.py|duplicate_definition=CURRENT_MODEL_CONTRACT",
-        "path": "flyff_farming_simulator/farming/model_contract.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_model_contract",
-        "detail": "duplicate_definition=ModelContractMetadata",
-        "key": "R7a|farming_model_contract|flyff_farming_simulator/farming/model_contract.py|duplicate_definition=ModelContractMetadata",
-        "path": "flyff_farming_simulator/farming/model_contract.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_model_contract",
-        "detail": "duplicate_definition=validate_model_contract",
-        "key": "R7a|farming_model_contract|flyff_farming_simulator/farming/model_contract.py|duplicate_definition=validate_model_contract",
-        "path": "flyff_farming_simulator/farming/model_contract.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_model_contract",
-        "detail": "duplicate_definition=CURRENT_MODEL_CONTRACT",
-        "key": "R7a|farming_model_contract|foreground_vision_bot/farming/model_contract.py|duplicate_definition=CURRENT_MODEL_CONTRACT",
-        "path": "foreground_vision_bot/farming/model_contract.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_model_contract",
-        "detail": "duplicate_definition=ModelContractMetadata",
-        "key": "R7a|farming_model_contract|foreground_vision_bot/farming/model_contract.py|duplicate_definition=ModelContractMetadata",
-        "path": "foreground_vision_bot/farming/model_contract.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_model_contract",
-        "detail": "duplicate_definition=validate_model_contract",
-        "key": "R7a|farming_model_contract|foreground_vision_bot/farming/model_contract.py|duplicate_definition=validate_model_contract",
-        "path": "foreground_vision_bot/farming/model_contract.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_observation_contract",
-        "detail": "duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "key": "R7a|farming_observation_contract|flyff_farming_recorder/recorder/session.py|duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "path": "flyff_farming_recorder/recorder/session.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_observation_contract",
-        "detail": "duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "key": "R7a|farming_observation_contract|flyff_farming_simulator/farming/observation.py|duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "path": "flyff_farming_simulator/farming/observation.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_observation_contract",
-        "detail": "duplicate_definition=OBSERVATION_SIZE",
-        "key": "R7a|farming_observation_contract|flyff_farming_simulator/farming/observation.py|duplicate_definition=OBSERVATION_SIZE",
-        "path": "flyff_farming_simulator/farming/observation.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_observation_contract",
-        "detail": "duplicate_definition=ObservationBuilder",
-        "key": "R7a|farming_observation_contract|flyff_farming_simulator/farming/observation.py|duplicate_definition=ObservationBuilder",
-        "path": "flyff_farming_simulator/farming/observation.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_observation_contract",
-        "detail": "duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "key": "R7a|farming_observation_contract|foreground_vision_bot/farming/observation.py|duplicate_definition=OBSERVATION_SCHEMA_ID",
-        "path": "foreground_vision_bot/farming/observation.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_observation_contract",
-        "detail": "duplicate_definition=OBSERVATION_SIZE",
-        "key": "R7a|farming_observation_contract|foreground_vision_bot/farming/observation.py|duplicate_definition=OBSERVATION_SIZE",
-        "path": "foreground_vision_bot/farming/observation.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_observation_contract",
-        "detail": "duplicate_definition=ObservationBuilder",
-        "key": "R7a|farming_observation_contract|foreground_vision_bot/farming/observation.py|duplicate_definition=ObservationBuilder",
-        "path": "foreground_vision_bot/farming/observation.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_reward_contract",
-        "detail": "duplicate_definition=RewardCalculator",
-        "key": "R7a|farming_reward_contract|flyff_farming_simulator/farming/reward.py|duplicate_definition=RewardCalculator",
-        "path": "flyff_farming_simulator/farming/reward.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_reward_contract",
-        "detail": "duplicate_definition=RewardComponents",
-        "key": "R7a|farming_reward_contract|flyff_farming_simulator/farming/reward.py|duplicate_definition=RewardComponents",
-        "path": "flyff_farming_simulator/farming/reward.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_reward_contract",
-        "detail": "duplicate_definition=RewardCalculator",
-        "key": "R7a|farming_reward_contract|foreground_vision_bot/farming/reward.py|duplicate_definition=RewardCalculator",
-        "path": "foreground_vision_bot/farming/reward.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_reward_contract",
-        "detail": "duplicate_definition=RewardComponents",
-        "key": "R7a|farming_reward_contract|foreground_vision_bot/farming/reward.py|duplicate_definition=RewardComponents",
-        "path": "foreground_vision_bot/farming/reward.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_session_contract",
-        "detail": "duplicate_definition=SessionEndReason",
-        "key": "R7a|farming_session_contract|flyff_farming_simulator/farming/session.py|duplicate_definition=SessionEndReason",
-        "path": "flyff_farming_simulator/farming/session.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_session_contract",
-        "detail": "duplicate_definition=SessionOutcome",
-        "key": "R7a|farming_session_contract|flyff_farming_simulator/farming/session.py|duplicate_definition=SessionOutcome",
-        "path": "flyff_farming_simulator/farming/session.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_session_contract",
-        "detail": "duplicate_definition=SessionEndReason",
-        "key": "R7a|farming_session_contract|foreground_vision_bot/farming/session.py|duplicate_definition=SessionEndReason",
-        "path": "foreground_vision_bot/farming/session.py",
-        "rule": "R7a"
-      },
-      {
-        "concept": "farming_session_contract",
-        "detail": "duplicate_definition=SessionOutcome",
-        "key": "R7a|farming_session_contract|foreground_vision_bot/farming/session.py|duplicate_definition=SessionOutcome",
-        "path": "foreground_vision_bot/farming/session.py",
-        "rule": "R7a"
-      },
       {
         "concept": "native_position_stack",
         "detail": "duplicate_definition=NativeFlyffMonsterProvider",
@@ -304,13 +51,6 @@
     ],
     "R7b": [],
     "R7c": [
-      {
-        "concept": "CURRENT_MODEL_CONTRACT",
-        "detail": "reexport_from=.model_contract:CURRENT_MODEL_CONTRACT",
-        "key": "R7c|CURRENT_MODEL_CONTRACT|foreground_vision_bot/farming/__init__.py|reexport_from=.model_contract:CURRENT_MODEL_CONTRACT",
-        "path": "foreground_vision_bot/farming/__init__.py",
-        "rule": "R7c"
-      },
       {
         "concept": "CURRENT_MODEL_CONTRACT",
         "detail": "reexport_from=farming.model_contract:CURRENT_MODEL_CONTRACT",
@@ -440,13 +180,6 @@
       {
         "concept": "FarmingAction",
         "detail": "reexport_from=.actions:FarmingAction",
-        "key": "R7c|FarmingAction|foreground_vision_bot/farming/__init__.py|reexport_from=.actions:FarmingAction",
-        "path": "foreground_vision_bot/farming/__init__.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "FarmingAction",
-        "detail": "reexport_from=.actions:FarmingAction",
         "key": "R7c|FarmingAction|foreground_vision_bot/farming/control.py|reexport_from=.actions:FarmingAction",
         "path": "foreground_vision_bot/farming/control.py",
         "rule": "R7c"
@@ -456,13 +189,6 @@
         "detail": "reexport_from=.actions:FarmingAction",
         "key": "R7c|FarmingAction|foreground_vision_bot/farming/environment.py|reexport_from=.actions:FarmingAction",
         "path": "foreground_vision_bot/farming/environment.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "FarmingAction",
-        "detail": "reexport_from=.actions:FarmingAction",
-        "key": "R7c|FarmingAction|foreground_vision_bot/farming/observation.py|reexport_from=.actions:FarmingAction",
-        "path": "foreground_vision_bot/farming/observation.py",
         "rule": "R7c"
       },
       {
@@ -622,13 +348,6 @@
       {
         "concept": "FarmingEvent",
         "detail": "reexport_from=.actions:FarmingEvent",
-        "key": "R7c|FarmingEvent|foreground_vision_bot/farming/__init__.py|reexport_from=.actions:FarmingEvent",
-        "path": "foreground_vision_bot/farming/__init__.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "FarmingEvent",
-        "detail": "reexport_from=.actions:FarmingEvent",
         "key": "R7c|FarmingEvent|foreground_vision_bot/farming/control.py|reexport_from=.actions:FarmingEvent",
         "path": "foreground_vision_bot/farming/control.py",
         "rule": "R7c"
@@ -715,13 +434,6 @@
         "detail": "reexport_from=farming.model_contract:ModelContractMetadata",
         "key": "R7c|ModelContractMetadata|flyff_farming_simulator/tests/test_split_branch_policy.py|reexport_from=farming.model_contract:ModelContractMetadata",
         "path": "flyff_farming_simulator/tests/test_split_branch_policy.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "ModelContractMetadata",
-        "detail": "reexport_from=.model_contract:ModelContractMetadata",
-        "key": "R7c|ModelContractMetadata|foreground_vision_bot/farming/__init__.py|reexport_from=.model_contract:ModelContractMetadata",
-        "path": "foreground_vision_bot/farming/__init__.py",
         "rule": "R7c"
       },
       {
@@ -1048,20 +760,6 @@
       },
       {
         "concept": "OBSERVATION_SCHEMA_ID",
-        "detail": "reexport_from=.observation:OBSERVATION_SCHEMA_ID",
-        "key": "R7c|OBSERVATION_SCHEMA_ID|foreground_vision_bot/farming/__init__.py|reexport_from=.observation:OBSERVATION_SCHEMA_ID",
-        "path": "foreground_vision_bot/farming/__init__.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "OBSERVATION_SCHEMA_ID",
-        "detail": "reexport_from=.observation:OBSERVATION_SCHEMA_ID",
-        "key": "R7c|OBSERVATION_SCHEMA_ID|foreground_vision_bot/farming/model_contract.py|reexport_from=.observation:OBSERVATION_SCHEMA_ID",
-        "path": "foreground_vision_bot/farming/model_contract.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "OBSERVATION_SCHEMA_ID",
         "detail": "reexport_from=farming.observation:OBSERVATION_SCHEMA_ID",
         "key": "R7c|OBSERVATION_SCHEMA_ID|foreground_vision_bot/tests/test_farming_observation_contract.py|reexport_from=farming.observation:OBSERVATION_SCHEMA_ID",
         "path": "foreground_vision_bot/tests/test_farming_observation_contract.py",
@@ -1072,20 +770,6 @@
         "detail": "reexport_from=.observation:OBSERVATION_SIZE",
         "key": "R7c|OBSERVATION_SIZE|flyff_farming_simulator/farming/model_contract.py|reexport_from=.observation:OBSERVATION_SIZE",
         "path": "flyff_farming_simulator/farming/model_contract.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "OBSERVATION_SIZE",
-        "detail": "reexport_from=.observation:OBSERVATION_SIZE",
-        "key": "R7c|OBSERVATION_SIZE|foreground_vision_bot/farming/__init__.py|reexport_from=.observation:OBSERVATION_SIZE",
-        "path": "foreground_vision_bot/farming/__init__.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "OBSERVATION_SIZE",
-        "detail": "reexport_from=.observation:OBSERVATION_SIZE",
-        "key": "R7c|OBSERVATION_SIZE|foreground_vision_bot/farming/model_contract.py|reexport_from=.observation:OBSERVATION_SIZE",
-        "path": "foreground_vision_bot/farming/model_contract.py",
         "rule": "R7c"
       },
       {
@@ -1114,13 +798,6 @@
         "detail": "reexport_from=farming.observation:ObservationBuilder",
         "key": "R7c|ObservationBuilder|flyff_farming_simulator/simulator/environment.py|reexport_from=farming.observation:ObservationBuilder",
         "path": "flyff_farming_simulator/simulator/environment.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "ObservationBuilder",
-        "detail": "reexport_from=.observation:ObservationBuilder",
-        "key": "R7c|ObservationBuilder|foreground_vision_bot/farming/__init__.py|reexport_from=.observation:ObservationBuilder",
-        "path": "foreground_vision_bot/farming/__init__.py",
         "rule": "R7c"
       },
       {
@@ -1175,29 +852,8 @@
       {
         "concept": "POLICY_ACTION_NVECS",
         "detail": "reexport_from=.actions:POLICY_ACTION_NVECS",
-        "key": "R7c|POLICY_ACTION_NVECS|foreground_vision_bot/farming/__init__.py|reexport_from=.actions:POLICY_ACTION_NVECS",
-        "path": "foreground_vision_bot/farming/__init__.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "POLICY_ACTION_NVECS",
-        "detail": "reexport_from=.actions:POLICY_ACTION_NVECS",
-        "key": "R7c|POLICY_ACTION_NVECS|foreground_vision_bot/farming/model_contract.py|reexport_from=.actions:POLICY_ACTION_NVECS",
-        "path": "foreground_vision_bot/farming/model_contract.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "POLICY_ACTION_NVECS",
-        "detail": "reexport_from=.actions:POLICY_ACTION_NVECS",
         "key": "R7c|POLICY_ACTION_NVECS|foreground_vision_bot/farming/sb3_adapter.py|reexport_from=.actions:POLICY_ACTION_NVECS",
         "path": "foreground_vision_bot/farming/sb3_adapter.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "RewardCalculator",
-        "detail": "reexport_from=.reward:RewardCalculator",
-        "key": "R7c|RewardCalculator|foreground_vision_bot/farming/__init__.py|reexport_from=.reward:RewardCalculator",
-        "path": "foreground_vision_bot/farming/__init__.py",
         "rule": "R7c"
       },
       {
@@ -1212,13 +868,6 @@
         "detail": "reexport_from=farming.reward:RewardCalculator",
         "key": "R7c|RewardCalculator|foreground_vision_bot/tests/test_farming_reward_and_session.py|reexport_from=farming.reward:RewardCalculator",
         "path": "foreground_vision_bot/tests/test_farming_reward_and_session.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "RewardComponents",
-        "detail": "reexport_from=.reward:RewardComponents",
-        "key": "R7c|RewardComponents|foreground_vision_bot/farming/__init__.py|reexport_from=.reward:RewardComponents",
-        "path": "foreground_vision_bot/farming/__init__.py",
         "rule": "R7c"
       },
       {
@@ -1238,22 +887,8 @@
       {
         "concept": "SessionEndReason",
         "detail": "reexport_from=.session:SessionEndReason",
-        "key": "R7c|SessionEndReason|foreground_vision_bot/farming/__init__.py|reexport_from=.session:SessionEndReason",
-        "path": "foreground_vision_bot/farming/__init__.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "SessionEndReason",
-        "detail": "reexport_from=.session:SessionEndReason",
         "key": "R7c|SessionEndReason|foreground_vision_bot/farming/environment.py|reexport_from=.session:SessionEndReason",
         "path": "foreground_vision_bot/farming/environment.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "SessionEndReason",
-        "detail": "reexport_from=.session:SessionEndReason",
-        "key": "R7c|SessionEndReason|foreground_vision_bot/farming/reward.py|reexport_from=.session:SessionEndReason",
-        "path": "foreground_vision_bot/farming/reward.py",
         "rule": "R7c"
       },
       {
@@ -1287,22 +922,8 @@
       {
         "concept": "SessionOutcome",
         "detail": "reexport_from=.session:SessionOutcome",
-        "key": "R7c|SessionOutcome|foreground_vision_bot/farming/__init__.py|reexport_from=.session:SessionOutcome",
-        "path": "foreground_vision_bot/farming/__init__.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "SessionOutcome",
-        "detail": "reexport_from=.session:SessionOutcome",
         "key": "R7c|SessionOutcome|foreground_vision_bot/farming/environment.py|reexport_from=.session:SessionOutcome",
         "path": "foreground_vision_bot/farming/environment.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "SessionOutcome",
-        "detail": "reexport_from=.session:SessionOutcome",
-        "key": "R7c|SessionOutcome|foreground_vision_bot/farming/reward.py|reexport_from=.session:SessionOutcome",
-        "path": "foreground_vision_bot/farming/reward.py",
         "rule": "R7c"
       },
       {
@@ -1546,13 +1167,6 @@
       {
         "concept": "SteeringAction",
         "detail": "reexport_from=.actions:SteeringAction",
-        "key": "R7c|SteeringAction|foreground_vision_bot/farming/__init__.py|reexport_from=.actions:SteeringAction",
-        "path": "foreground_vision_bot/farming/__init__.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "SteeringAction",
-        "detail": "reexport_from=.actions:SteeringAction",
         "key": "R7c|SteeringAction|foreground_vision_bot/farming/environment.py|reexport_from=.actions:SteeringAction",
         "path": "foreground_vision_bot/farming/environment.py",
         "rule": "R7c"
@@ -1681,13 +1295,6 @@
         "detail": "reexport_from=farming.model_contract:validate_model_contract",
         "key": "R7c|validate_model_contract|flyff_farming_simulator/tests/test_factorized_actions_v19.py|reexport_from=farming.model_contract:validate_model_contract",
         "path": "flyff_farming_simulator/tests/test_factorized_actions_v19.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "validate_model_contract",
-        "detail": "reexport_from=.model_contract:validate_model_contract",
-        "key": "R7c|validate_model_contract|foreground_vision_bot/farming/__init__.py|reexport_from=.model_contract:validate_model_contract",
-        "path": "foreground_vision_bot/farming/__init__.py",
         "rule": "R7c"
       },
       {

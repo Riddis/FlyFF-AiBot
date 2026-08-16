@@ -7,6 +7,11 @@ spec_path = Path(SPEC).resolve()
 app_root = spec_path.parent
 entry_script = app_root / "app.py"
 
+# BRIDGE B1 — removed in Phase 7
+canonical_farming_parent = app_root.parent / "flyff_farming_simulator"
+if not (canonical_farming_parent / "farming" / "observation_contract.py").is_file():
+    raise RuntimeError(f"Canonical farming package is missing at {canonical_farming_parent}")
+
 hidden = collect_submodules("position") + [
     "msgpack",
     "win32api",
@@ -14,11 +19,12 @@ hidden = collect_submodules("position") + [
     "win32process",
     "pywintypes",
     "pythoncom",
+    "farming.observation_contract",
 ]
 
 a = Analysis(
     [str(entry_script)],
-    pathex=[str(app_root)],
+    pathex=[str(canonical_farming_parent), str(app_root)],
     binaries=[],
     datas=[
         (str(app_root / "position" / "native_monsters.json"), "position"),

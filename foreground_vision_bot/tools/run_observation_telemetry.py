@@ -17,10 +17,28 @@ Stop early with Ctrl+C -- the writer flushes and closes cleanly either way.
 """
 
 import argparse
+import os
 import signal
 import sys
 import threading
 import time
+from pathlib import Path
+
+# BRIDGE B1 — removed in Phase 7
+_APP_ROOT = Path(__file__).resolve().parents[1]
+_CANONICAL_FARMING_PARENT = _APP_ROOT.parent / "flyff_farming_simulator"
+if not (_CANONICAL_FARMING_PARENT / "farming" / "observation_contract.py").is_file():
+    raise RuntimeError(f"Canonical farming package is missing at {_CANONICAL_FARMING_PARENT}")
+_bridge_keys = {
+    os.path.normcase(str(_APP_ROOT.resolve())),
+    os.path.normcase(str(_CANONICAL_FARMING_PARENT.resolve())),
+}
+_remaining_paths = [
+    entry
+    for entry in sys.path
+    if os.path.normcase(str(Path(entry or ".").resolve())) not in _bridge_keys
+]
+sys.path[:] = [str(_CANONICAL_FARMING_PARENT), str(_APP_ROOT), *_remaining_paths]
 
 from assets.Assets import MobInfo
 from farming.map_context import FarmingMapContext

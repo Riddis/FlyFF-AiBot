@@ -61,6 +61,20 @@ print(json.dumps({'id': OBSERVATION_SCHEMA_ID, 'hash': OBSERVATION_SCHEMA_HASH, 
     }
 
 
+def test_b1_origins_bot_only_visibility_and_shim_api() -> None:
+    failures, evidence = contracts.check_b1(REPO)
+    assert failures == [], json.dumps(failures, indent=2)
+    assert set(evidence["contexts"]) == {
+        "bot-app",
+        "bot-test",
+        "recorder-app",
+        "recorder-test",
+        "simulator",
+    }
+    assert set(evidence["contexts"]["bot-app"]["bot_only"]) == set(contracts.BOT_ONLY_MODULES)
+    assert all(not item["has_behavior_definitions"] for item in evidence["shims"].values())
+
+
 def test_canonical_package_preserves_bot_public_api_lazily() -> None:
     tree = ast.parse(
         (REPO / "foreground_vision_bot/farming/__init__.py").read_text(encoding="utf-8")

@@ -149,6 +149,18 @@ def _ast_constants(path: Path, names: Iterable[str]) -> dict[str, Any]:
     return found
 
 
+def _ast_imports(path: Path, module: str, names: Iterable[str]) -> dict[str, str]:
+    wanted, found = set(names), {}
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in tree.body:
+        if not isinstance(node, ast.ImportFrom) or node.level != 0 or node.module != module:
+            continue
+        for alias in node.names:
+            if alias.name in wanted:
+                found[alias.name] = alias.asname or alias.name
+    return found
+
+
 def check_g4(repo: Path, fp: dict[str, Any]) -> tuple[list[str], dict[str, Any]]:
     g4 = fp["g4"]
     failures: list[str] = []
@@ -202,13 +214,25 @@ def check_g4(repo: Path, fp: dict[str, Any]) -> tuple[list[str], dict[str, Any]]
             for const in ("PATH_LENGTH_CELLS_PER_TICK", "ONSET_TURN_RADIANS", "STEADY_TURN_RADIANS", "DEFAULT_SUBSTEPS"):
                 expect(f"{root}.{const}", probe[const], g4["physics_constants"][const])
 
-    # Recorder carries the schema id/hash as archive metadata only (no builder).
-    recorder = _ast_constants(
+    # Recorder consumes dependency-free canonical metadata and defines no copy.
+    recorder_imports = _ast_imports(
+        repo / "flyff_farming_recorder/recorder/session.py",
+        "farming.observation_contract",
+        ("OBSERVATION_SCHEMA_ID", "OBSERVATION_SCHEMA_HASH"),
+    )
+    expect(
+        "recorder.canonical_metadata_imports",
+        recorder_imports,
+        {
+            "OBSERVATION_SCHEMA_ID": "_OBSERVATION_SCHEMA_ID",
+            "OBSERVATION_SCHEMA_HASH": "_OBSERVATION_SCHEMA_HASH",
+        },
+    )
+    recorder_literals = _ast_constants(
         repo / "flyff_farming_recorder/recorder/session.py",
         ("OBSERVATION_SCHEMA_ID", "OBSERVATION_SCHEMA_HASH"),
     )
-    expect("recorder.OBSERVATION_SCHEMA_ID", recorder.get("OBSERVATION_SCHEMA_ID"), g4["observation_schema_id"]["value"])
-    expect("recorder.OBSERVATION_SCHEMA_HASH", recorder.get("OBSERVATION_SCHEMA_HASH"), g4["observation_schema_hash"]["value"])
+    expect("recorder.schema_literal_copies", recorder_literals, {})
     return failures, evidence
 
 

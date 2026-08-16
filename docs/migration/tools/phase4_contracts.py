@@ -25,6 +25,41 @@ PHASE3_TOOL = Path("docs/migration/tools/phase3_capture.py")
 EXPECTED_OBSERVATION_COUNT = 10_016
 EXPECTED_OBSERVATION_SIZE = 923
 EXPECTED_DIRECT_CASES = 4_126
+SHARED_MODULES = (
+    "actions",
+    "model_contract",
+    "map_masks",
+    "reward",
+    "session",
+    "observation",
+    "map_features",
+    "observation_contract",
+)
+BOT_ONLY_MODULES = (
+    "config",
+    "control",
+    "debug_validation",
+    "environment",
+    "kills",
+    "map_context",
+    "native_world",
+    "reporting",
+    "sb3_adapter",
+    "sb3_training",
+    "startup",
+    "telemetry",
+    "trainer",
+)
+B1_PREIMPORT_ORDER = {
+    "foreground_vision_bot/foreground_vision_farm.py": "from Bot import Bot",
+    "foreground_vision_bot/conftest.py": "import pytest",
+    "foreground_vision_bot/tests/conftest.py": "sys.path[:] = [str(CANONICAL_FARMING_PARENT)",
+    "foreground_vision_bot/tools/run_observation_telemetry.py": "from assets.Assets import MobInfo",
+    "flyff_farming_recorder/app.py": "from recorder.gui import run_gui",
+    "flyff_farming_recorder/recorder/session.py": "from position.IndependentMonsterRediscovery import",
+    "flyff_farming_recorder/tests/conftest.py": "sys.path[:] = [str(CANONICAL_FARMING_PARENT)",
+    "flyff_farming_recorder/FlyffFarmingRecorder.spec": "a = Analysis(",
+}
 
 EXPECTED_CALL_SITES = {
     "bounded_geodesic_field": {
@@ -268,9 +303,142 @@ def check_geodesic(repo: Path) -> tuple[list[str], dict[str, Any]]:
     }
 
 
+_B1_PROBE = r"""
+import importlib, json, pathlib, sys
+mode, repo_raw = sys.argv[1:3]
+repo = pathlib.Path(repo_raw)
+sim = repo / "flyff_farming_simulator"
+bot = repo / "foreground_vision_bot"
+recorder = repo / "flyff_farming_recorder"
+if mode.startswith("bot-"):
+    sys.path[:0] = [str(sim), str(bot)]
+elif mode.startswith("recorder-"):
+    sys.path[:0] = [str(sim), str(recorder)]
+elif mode == "simulator":
+    sys.path.insert(0, str(sim))
+else:
+    raise RuntimeError(mode)
+shared = {}
+bot_only = {}
+if mode.startswith("bot-") or mode == "simulator":
+    package = importlib.import_module("farming")
+    for name in json.loads(sys.argv[3]):
+        shared[name] = str(pathlib.Path(importlib.import_module(f"farming.{name}").__file__).resolve())
+    if mode.startswith("bot-"):
+        for name in json.loads(sys.argv[4]):
+            bot_only[name] = str(pathlib.Path(importlib.import_module(f"farming.{name}").__file__).resolve())
+    package_origin = str(pathlib.Path(package.__file__).resolve())
+else:
+    contract = importlib.import_module("farming.observation_contract")
+    importlib.import_module("recorder.session")
+    shared["observation_contract"] = str(pathlib.Path(contract.__file__).resolve())
+    package_origin = str(pathlib.Path(importlib.import_module("farming").__file__).resolve())
+blocked = sorted(name for name in sys.modules if mode.startswith("recorder-") and (name == "numpy" or name.startswith(("numpy.", "gymnasium", "stable_baselines3", "torch"))))
+print(json.dumps({"package": package_origin, "shared": shared, "bot_only": bot_only, "blocked": blocked}, sort_keys=True))
+"""
+
+
+def _b1_probe(repo: Path, mode: str) -> dict[str, Any]:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-c",
+            _B1_PROBE,
+            mode,
+            str(repo),
+            json.dumps(SHARED_MODULES),
+            json.dumps(BOT_ONLY_MODULES),
+        ],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=120,
+    )
+    if result.returncode:
+        raise RuntimeError(f"B1 {mode} probe failed:\n{result.stdout}\n{result.stderr}")
+    return json.loads(result.stdout)
+
+
+def _shim_api(repo: Path, relative: str) -> tuple[set[str], set[str], bool]:
+    tree = ast.parse((repo / relative).read_text(encoding="utf-8"), filename=relative)
+    imported: set[str] = set()
+    exported: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and (
+            (node.module or "").startswith("flyff_farming_simulator.farming")
+        ):
+            imported.update(alias.asname or alias.name for alias in node.names)
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets
+        ):
+            exported.update(ast.literal_eval(node.value))
+    has_behavior = any(isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) for node in ast.walk(tree))
+    return imported, exported, has_behavior
+
+
+def check_b1(repo: Path) -> tuple[list[str], dict[str, Any]]:
+    """Prove canonical origins, bot-only package visibility, shim API, and purity."""
+    failures: list[str] = []
+    sim_root = (repo / "flyff_farming_simulator").resolve()
+    bot_root = (repo / "foreground_vision_bot").resolve()
+    evidence: dict[str, Any] = {"contexts": {}, "shims": {}}
+    marker = "# BRIDGE B1 — removed in Phase 7"
+    evidence["preimport_order"] = {}
+    for relative, first_consumer in B1_PREIMPORT_ORDER.items():
+        source = (repo / relative).read_text(encoding="utf-8")
+        marker_index = source.find(marker)
+        consumer_index = source.find(first_consumer)
+        ordered = marker_index >= 0 and consumer_index >= 0 and marker_index < consumer_index
+        evidence["preimport_order"][relative] = ordered
+        if not ordered:
+            failures.append(f"B1 marker/bootstrap is not before the first consumer in {relative}")
+    spec_source = (repo / "flyff_farming_recorder/FlyffFarmingRecorder.spec").read_text(encoding="utf-8")
+    if "pathex=[str(canonical_farming_parent), str(app_root)]" not in spec_source:
+        failures.append("B1 recorder PyInstaller pathex does not put canonical farming first")
+    for mode in ("bot-app", "bot-test", "recorder-app", "recorder-test", "simulator"):
+        try:
+            payload = _b1_probe(repo, mode)
+        except RuntimeError as error:
+            failures.append(str(error))
+            continue
+        evidence["contexts"][mode] = payload
+        if not Path(payload["package"]).is_relative_to(sim_root):
+            failures.append(f"B1 {mode} farming package origin is not canonical: {payload['package']}")
+        for name, origin in payload["shared"].items():
+            if not Path(origin).is_relative_to(sim_root):
+                failures.append(f"B1 {mode} farming.{name} origin is not canonical: {origin}")
+        for name, origin in payload["bot_only"].items():
+            if not Path(origin).is_relative_to(bot_root):
+                failures.append(f"B1 {mode} bot-only farming.{name} is hidden: {origin}")
+        if payload["blocked"]:
+            failures.append(f"B1 {mode} recorder metadata import loaded heavy modules: {payload['blocked']}")
+
+    shim_names = ("actions", "model_contract", "map_masks", "reward", "session", "observation", "map_features")
+    for name in shim_names:
+        relative = f"foreground_vision_bot/farming/{name}.py"
+        imported, exported, has_behavior = _shim_api(repo, relative)
+        evidence["shims"][name] = {
+            "imported": sorted(imported),
+            "exported": sorted(exported),
+            "has_behavior_definitions": has_behavior,
+        }
+        expected_imported = set(exported)
+        if name == "observation":
+            expected_imported.add("_DIRECT_ACTOR_FIELD_NAMES")
+        if imported != expected_imported:
+            failures.append(f"B1 {relative} import/export parity differs")
+        if has_behavior:
+            failures.append(f"B1 {relative} still defines behavioral classes/functions")
+    if "_DIRECT_ACTOR_FIELD_NAMES" not in evidence["shims"]["observation"]["imported"]:
+        failures.append("B1 observation shim lost depended-on private _DIRECT_ACTOR_FIELD_NAMES")
+    return failures, evidence
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("g3", "ggeo", "all"))
+    parser.add_argument("command", choices=("g3", "ggeo", "b1", "all"))
     parser.add_argument("--repo", type=Path, default=REPO_DEFAULT)
     args = parser.parse_args()
     repo = args.repo.resolve()
@@ -281,6 +449,9 @@ def main() -> int:
         failures.extend(current)
     if args.command in ("ggeo", "all"):
         current, evidence["ggeo"] = check_geodesic(repo)
+        failures.extend(current)
+    if args.command in ("b1", "all"):
+        current, evidence["b1"] = check_b1(repo)
         failures.extend(current)
     print(json.dumps({"ok": not failures, "failures": failures, "evidence": evidence}, indent=2, sort_keys=True))
     return 0 if not failures else 1

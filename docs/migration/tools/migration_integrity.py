@@ -420,6 +420,29 @@ def bridge_errors(repo: Path, registry: dict[str, Any], current_phase: int | Non
             errors.append(f"Shim {shim.get('location', '?')} missing fields: {sorted(missing)}")
         if shim.get("bridge_id") not in ids:
             errors.append(f"Shim {shim.get('location', '?')} references unknown bridge {shim.get('bridge_id')}")
+    b1 = next((bridge for bridge in bridges if bridge["id"] == "B1"), None)
+    if current_phase >= 4 and (b1 is None or b1.get("status") != "existing"):
+        errors.append("B1 must be installed while Phase 4 is active")
+    if b1 and b1.get("status") == "existing":
+        marker = "# BRIDGE B1 — removed in Phase 7"
+        locations = set(b1["locations"])
+        b1_shims = [shim for shim in registry.get("shim", []) if shim.get("bridge_id") == "B1"]
+        for shim in b1_shims:
+            location = shim.get("location", "")
+            if location not in locations:
+                errors.append(f"B1 shim is absent from bridge locations: {location}")
+            if shim.get("removal_gate") != b1.get("removal_gate"):
+                errors.append(f"B1 shim removal gate differs from bridge: {location}")
+            owner = shim.get("canonical_owner", "")
+            if not owner or not (repo / owner).is_file():
+                errors.append(f"B1 shim canonical owner missing: {location} -> {owner}")
+        for location in sorted(locations):
+            path = repo / location
+            if path.suffix not in {".py", ".spec"}:
+                continue
+            source = path.read_text(encoding="utf-8") if path.is_file() else ""
+            if marker not in source:
+                errors.append(f"B1 source marker missing: {location}")
     b3 = next((bridge for bridge in bridges if bridge["id"] == "B3"), None)
     if b3 and b3["status"] == "existing":
         required_b3 = {"target_module", "target_symbol"}
@@ -687,6 +710,21 @@ def write_baseline_markdown(
         if not items:
             lines.append("| _none_ | _none_ | rule currently green |")
         lines.append("")
+    unresolved = (
+        [
+            "- Shared farming ownership is canonical under `flyff_farming_simulator/farming`; R6 and farming R7a are green.",
+            "- Native position ownership debt resolves during Phase 5 after its real-client gate.",
+            "- R7b remains active with current-layout semantics and tightens as legacy/archive boundaries appear.",
+            "- R7c contains current repository re-exports; every Phase-4 B1 re-export is explicitly registered through Phase 6.",
+        ]
+        if phase >= 4
+        else [
+            "- R6/R7a farming ownership debt resolves during Phase 4 canonical farming.",
+            "- Native position ownership debt resolves during Phase 5 after its real-client gate.",
+            "- R7b remains active with current-layout semantics and tightens as legacy/archive boundaries appear.",
+            "- R7c baseline re-exports must shrink or become explicit registered shims; none was installed in Phase 1.",
+        ]
+    )
     lines.extend(
         (
             "## 2. RULES ALREADY GREEN",
@@ -707,17 +745,10 @@ def write_baseline_markdown(
             "",
             "## 4. UNRESOLVED/REQUIRES LATER PHASE",
             "",
-            "- R6/R7a farming ownership debt resolves during Phase 4 canonical farming.",
-            "- Native position ownership debt resolves during Phase 5 after its real-client gate.",
-            "- R7b remains active with current-layout semantics and tightens as legacy/archive boundaries appear.",
-            "- R7c baseline re-exports must shrink or become explicit registered shims; none was installed in Phase 1.",
-            "",
-            "## 5. NEW BLOCKING VIOLATIONS",
-            "",
-            "None at snapshot time.",
-            "",
         )
     )
+    lines.extend(unresolved)
+    lines.extend(("", "## 5. NEW BLOCKING VIOLATIONS", "", "None at snapshot time.", ""))
     path.write_text("\n".join(lines), encoding="utf-8")
 
 

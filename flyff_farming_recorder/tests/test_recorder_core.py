@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from farming.observation_contract import (
+    OBSERVATION_SCHEMA_HASH as _CANONICAL_OBSERVATION_SCHEMA_HASH,
+    OBSERVATION_SCHEMA_ID as _CANONICAL_OBSERVATION_SCHEMA_ID,
+)
 from position.IndependentNativeReader import IndependentActorSlotRead
 from recorder.config import RecorderConfig
 from recorder.format import PackedStreamWriter, read_packed_stream
@@ -13,6 +17,7 @@ from recorder.keyboard import (
 )
 from recorder.movement_classification import MovementControlClassifier
 from recorder.lifecycle import LifecycleTracker
+from recorder.session import _OBSERVATION_SCHEMA_HASH, _OBSERVATION_SCHEMA_ID
 
 
 def actor(
@@ -50,6 +55,13 @@ def test_config_defaults_are_valid() -> None:
     assert config.presence_cold_verification_batch_size == 256
     assert not hasattr(config, "recording_role")
     assert not hasattr(config, "movement_control_scheme")
+
+
+def test_recorder_archive_metadata_uses_the_canonical_observation_contract() -> None:
+    assert _OBSERVATION_SCHEMA_ID == _CANONICAL_OBSERVATION_SCHEMA_ID == "native-unified-923-v4"
+    assert _OBSERVATION_SCHEMA_HASH == _CANONICAL_OBSERVATION_SCHEMA_HASH == (
+        "F2D568C1C4A4B5F577C9C2E36A37B1C5533C2CE28D415846C3B68EC293C84609"
+    )
 
 
 def test_legacy_hidden_classification_keys_are_ignored(tmp_path: Path) -> None:

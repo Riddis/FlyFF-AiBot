@@ -75,6 +75,16 @@ def test_g4_covers_every_current_owner_not_one_convenient_copy() -> None:
             assert (REPO / owner).is_file(), owner
 
 
+def test_g4_recorder_consumes_canonical_metadata_without_literal_copies() -> None:
+    failures, evidence = fingerprints.check_g4(REPO, FP)
+    assert failures == [], json.dumps(failures, indent=2)
+    assert evidence["recorder.canonical_metadata_imports"] == {
+        "OBSERVATION_SCHEMA_ID": "_OBSERVATION_SCHEMA_ID",
+        "OBSERVATION_SCHEMA_HASH": "_OBSERVATION_SCHEMA_HASH",
+    }
+    assert evidence["recorder.schema_literal_copies"] == {}
+
+
 def test_g4_physics_version_is_pinned_from_source_not_from_a_prompt() -> None:
     physics = FP["g4"]["physics_version"]
     source = (REPO / physics["owners"][0]).read_text(encoding="utf-8")

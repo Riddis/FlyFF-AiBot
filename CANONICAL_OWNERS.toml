@@ -22,15 +22,13 @@ id = "observation_schema_id"
 rule = "R6"
 symbols = ["OBSERVATION_SCHEMA_ID"]
 current_owners = [
-  "flyff_farming_recorder/recorder/session.py",
-  "flyff_farming_simulator/farming/observation.py",
-  "foreground_vision_bot/farming/observation.py",
+  "flyff_farming_simulator/farming/observation_contract.py",
 ]
-target_owner = "shared farming pure core; physical path deferred until Phase 4"
-status = "accepted-pre-consolidation-debt"
-accepted_baseline_violation = true
+target_owner = "flyff_farming_simulator/farming/observation_contract.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
 minimum_owners = 1
-permitted_bridge = "B1 when installed in a later phase"
+permitted_bridge = "B1 installed through Phase 6"
 resolution_phase = "PHASE_4"
 
 [[concept]]
@@ -39,13 +37,12 @@ rule = "R6"
 symbols = ["OBSERVATION_SIZE"]
 current_owners = [
   "flyff_farming_simulator/farming/observation.py",
-  "foreground_vision_bot/farming/observation.py",
 ]
-target_owner = "shared farming pure core; physical path deferred until Phase 4"
-status = "accepted-pre-consolidation-debt"
-accepted_baseline_violation = true
+target_owner = "flyff_farming_simulator/farming/observation.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
 minimum_owners = 1
-permitted_bridge = "B1 when installed in a later phase"
+permitted_bridge = "B1 installed through Phase 6"
 resolution_phase = "PHASE_4"
 
 [[concept]]
@@ -54,13 +51,12 @@ rule = "R6"
 symbols = ["POLICY_ACTION_NVECS"]
 current_owners = [
   "flyff_farming_simulator/farming/actions.py",
-  "foreground_vision_bot/farming/actions.py",
 ]
-target_owner = "shared farming pure core; physical path deferred until Phase 4"
-status = "accepted-pre-consolidation-debt"
-accepted_baseline_violation = true
+target_owner = "flyff_farming_simulator/farming/actions.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
 minimum_owners = 1
-permitted_bridge = "B1 when installed in a later phase"
+permitted_bridge = "B1 installed through Phase 6"
 resolution_phase = "PHASE_4"
 
 [[concept]]
@@ -69,11 +65,10 @@ rule = "R7a"
 symbols = ["FarmingAction", "SteeringAction", "FarmingEvent", "POLICY_ACTION_NVECS"]
 current_owners = [
   "flyff_farming_simulator/farming/actions.py",
-  "foreground_vision_bot/farming/actions.py",
 ]
-target_owner = "shared farming pure core; physical path deferred until Phase 4"
-status = "accepted-pre-consolidation-debt"
-accepted_baseline_violation = true
+target_owner = "flyff_farming_simulator/farming/actions.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
 minimum_owners = 1
 resolution_phase = "PHASE_4"
 
@@ -82,13 +77,12 @@ id = "farming_observation_contract"
 rule = "R7a"
 symbols = ["OBSERVATION_SCHEMA_ID", "OBSERVATION_SIZE", "ObservationBuilder"]
 current_owners = [
-  "flyff_farming_recorder/recorder/session.py",
+  "flyff_farming_simulator/farming/observation_contract.py",
   "flyff_farming_simulator/farming/observation.py",
-  "foreground_vision_bot/farming/observation.py",
 ]
-target_owner = "shared farming pure core; recorder archive metadata remains a consumer"
-status = "accepted-pre-consolidation-debt"
-accepted_baseline_violation = true
+target_owner = "flyff_farming_simulator/farming; recorder archive metadata is a consumer"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
 minimum_owners = 1
 resolution_phase = "PHASE_4"
 
@@ -98,11 +92,10 @@ rule = "R7a"
 symbols = ["CURRENT_MODEL_CONTRACT", "ModelContractMetadata", "validate_model_contract"]
 current_owners = [
   "flyff_farming_simulator/farming/model_contract.py",
-  "foreground_vision_bot/farming/model_contract.py",
 ]
-target_owner = "shared farming pure core; physical path deferred until Phase 4"
-status = "accepted-pre-consolidation-debt"
-accepted_baseline_violation = true
+target_owner = "flyff_farming_simulator/farming/model_contract.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
 minimum_owners = 1
 resolution_phase = "PHASE_4"
 
@@ -112,11 +105,10 @@ rule = "R7a"
 symbols = ["RewardCalculator", "RewardComponents"]
 current_owners = [
   "flyff_farming_simulator/farming/reward.py",
-  "foreground_vision_bot/farming/reward.py",
 ]
-target_owner = "shared farming pure core; physical path deferred until Phase 4"
-status = "accepted-pre-consolidation-debt"
-accepted_baseline_violation = true
+target_owner = "flyff_farming_simulator/farming/reward.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
 minimum_owners = 1
 resolution_phase = "PHASE_4"
 
@@ -126,11 +118,10 @@ rule = "R7a"
 symbols = ["SessionOutcome", "SessionEndReason"]
 current_owners = [
   "flyff_farming_simulator/farming/session.py",
-  "foreground_vision_bot/farming/session.py",
 ]
-target_owner = "shared farming pure core; physical path deferred until Phase 4"
-status = "accepted-pre-consolidation-debt"
-accepted_baseline_violation = true
+target_owner = "flyff_farming_simulator/farming/session.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
 minimum_owners = 1
 resolution_phase = "PHASE_4"
 
@@ -186,5 +177,119 @@ accepted_baseline_violation = false
 minimum_owners = 1
 resolution_phase = "NEVER_WITHOUT_CHECKPOINT_GATE"
 
-# No migration shim is installed in Phase 1. Future [[shim]] entries must contain:
-# location, symbols, canonical_owner, reason, bridge_id, and removal_gate.
+[[shim]]
+location = "flyff_farming_simulator/farming/observation.py"
+symbols = ["OBSERVATION_SCHEMA_HASH", "OBSERVATION_SCHEMA_ID"]
+canonical_owner = "flyff_farming_simulator/farming/observation_contract.py"
+reason = "Canonical observation API compatibility re-export of dependency-free metadata"
+bridge_id = "B1"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "foreground_vision_bot/farming/__init__.py"
+symbols = [
+  "ACTION_COUNT", "ACTION_NAMES", "ACTIVE_METADATALESS_MODEL_CONTRACT_HASH",
+  "ACTIVE_METADATALESS_MODEL_SHA256", "CURRENT_MODEL_CONTRACT", "MODEL_CONTRACT_HASH",
+  "OBSERVATION_FIELDS", "OBSERVATION_SCHEMA_HASH", "OBSERVATION_SCHEMA_ID",
+  "OBSERVATION_SIZE", "ActorObservation", "DirectPathState", "FarmingAction",
+  "EVENT_NAMES", "POLICY_ACTION_HEAD_NAMES", "POLICY_ACTION_NVECS", "STEERING_NAMES",
+  "FarmingCommand", "FarmingEvent", "SteeringAction", "FarmingMapFeatures",
+  "ModelContractError", "ModelContractMetadata", "ModelContractValidation",
+  "ModelSpaceSignature", "ObservationBuilder", "ObservationFrame", "ObservationScales",
+  "PlayerObservation", "RewardCalculator", "RewardComponents", "RewardConfig",
+  "RewardEvidence", "RewardResult", "SessionClassification", "SessionEndReason",
+  "SessionEvidence", "SessionOutcome", "classify_session_outcome",
+  "coerce_farming_action", "coerce_farming_command", "validate_model_contract",
+]
+canonical_owner = "flyff_farming_simulator/farming/__init__.py"
+reason = "B1 fallback facade for the canonical shared farming public API"
+bridge_id = "B1"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "foreground_vision_bot/farming/actions.py"
+symbols = [
+  "ACTION_COUNT", "ACTION_NAMES", "EVENT_NAMES", "POLICY_ACTION_HEAD_NAMES",
+  "POLICY_ACTION_NVECS", "STEERING_NAMES", "FarmingAction", "FarmingCommand",
+  "FarmingEvent", "SteeringAction", "coerce_event", "coerce_farming_action",
+  "coerce_farming_command", "coerce_steering", "command_from_legacy_action",
+]
+canonical_owner = "flyff_farming_simulator/farming/actions.py"
+reason = "B1 thin compatibility re-export"
+bridge_id = "B1"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "foreground_vision_bot/farming/model_contract.py"
+symbols = [
+  "ACTIVE_METADATALESS_MODEL_CONTRACT_HASH", "ACTIVE_METADATALESS_MODEL_SHA256",
+  "CURRENT_MODEL_CONTRACT", "MODEL_CONTRACT_HASH", "MODEL_CONTRACT_METADATA_VERSION",
+  "ModelContract", "ModelContractError", "ModelContractMetadata", "ModelContractSource",
+  "ModelContractValidation", "ModelSpaceSignature", "sha256_file", "validate_model_contract",
+]
+canonical_owner = "flyff_farming_simulator/farming/model_contract.py"
+reason = "B1 thin compatibility re-export"
+bridge_id = "B1"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "foreground_vision_bot/farming/map_masks.py"
+symbols = ["InflatedMapMasks", "dilate_mask", "inflate_map_masks"]
+canonical_owner = "flyff_farming_simulator/farming/map_masks.py"
+reason = "B1 thin compatibility re-export"
+bridge_id = "B1"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "foreground_vision_bot/farming/reward.py"
+symbols = ["RewardCalculator", "RewardComponents", "RewardConfig", "RewardEvidence", "RewardResult"]
+canonical_owner = "flyff_farming_simulator/farming/reward.py"
+reason = "B1 thin compatibility re-export"
+bridge_id = "B1"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "foreground_vision_bot/farming/session.py"
+symbols = [
+  "SessionClassification", "SessionEndReason", "SessionEvidence", "SessionOutcome",
+  "classify_session_outcome",
+]
+canonical_owner = "flyff_farming_simulator/farming/session.py"
+reason = "B1 thin compatibility re-export"
+bridge_id = "B1"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "foreground_vision_bot/farming/observation.py"
+symbols = [
+  "ACTOR_FEATURES", "CONTEXT_MAP_RADIUS_CELLS", "CONTEXT_MAP_SIDE", "CONTEXT_MAP_START",
+  "CONTEXT_MAP_STOP", "DIRECT_ACTOR_SLOTS", "DIRECT_ACTOR_START", "DIRECT_ACTOR_STOP",
+  "LEGACY_ACTOR_SLOTS", "LEGACY_ACTOR_START", "LEGACY_ACTOR_STOP",
+  "LEGACY_AGGREGATE_FEATURES", "LEGACY_AGGREGATE_START", "LEGACY_AGGREGATE_STOP",
+  "LEGACY_MASK_START", "LEGACY_MASK_STOP", "LEGACY_NEAREST_QUOTA",
+  "LEGACY_UTILITY_DISTANCE_WEIGHT", "LOCAL_MAP_SIDE", "LOCAL_MAP_START", "LOCAL_MAP_STOP",
+  "OBSERVATION_FIELDS", "OBSERVATION_SCHEMA_HASH", "OBSERVATION_SCHEMA_ID",
+  "OBSERVATION_SIZE", "UNIFIED_STATE_FEATURES", "UNIFIED_STATE_START", "UNIFIED_STATE_STOP",
+  "ActorObservation", "BuiltObservation", "FloatArray", "ObservationBuilder",
+  "ObservationFrame", "ObservationScales", "PlayerObservation", "_DIRECT_ACTOR_FIELD_NAMES",
+  "observation_schema_descriptor", "observation_schema_hash",
+]
+canonical_owner = "flyff_farming_simulator/farming/observation.py"
+reason = "B1 thin compatibility re-export including the depended-on private actor-field tuple"
+bridge_id = "B1"
+removal_gate = "PHASE_7"
+
+[[shim]]
+location = "foreground_vision_bot/farming/map_features.py"
+symbols = [
+  "DEFAULT_CONTEXT_MAP_RADIUS_CELLS", "DEFAULT_CONTEXT_MAP_SIDE",
+  "DEFAULT_GEODESIC_CACHE_SIZE", "DEFAULT_MAXIMUM_GEODESIC_EXPANSIONS",
+  "DEFAULT_TELEPORT_BUFFER_RADIUS_CELLS", "LOCAL_MAP_OBSTACLE",
+  "LOCAL_MAP_OBSTACLE_BUFFER", "LOCAL_MAP_OUTSIDE_OR_UNKNOWN", "LOCAL_MAP_SAFE",
+  "LOCAL_MAP_TELEPORT_BUFFER", "LOCAL_MAP_TELEPORT_TRIGGER", "BoolArray", "Cell",
+  "DirectPathState", "FarmingMapFeatures", "FloatArray", "MapCellRisk", "bresenham_cells",
+]
+canonical_owner = "flyff_farming_simulator/farming/map_features.py"
+reason = "B1 thin compatibility re-export of the simulator superset"
+bridge_id = "B1"
+removal_gate = "PHASE_7"

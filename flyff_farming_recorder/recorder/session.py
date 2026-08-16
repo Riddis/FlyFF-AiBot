@@ -13,6 +13,11 @@ from statistics import median
 from time import monotonic
 from typing import Any
 
+# BRIDGE B1 — removed in Phase 7
+from farming.observation_contract import (
+    OBSERVATION_SCHEMA_HASH as _OBSERVATION_SCHEMA_HASH,
+    OBSERVATION_SCHEMA_ID as _OBSERVATION_SCHEMA_ID,
+)
 from position.IndependentMonsterRediscovery import (
     SelectedSpeciesRediscoveryResult,
     rediscover_selected_layout_monsters,
@@ -49,12 +54,6 @@ POLICY_ACTION_NAMES = (
     "CAST_EVA",
     "RUN_FORWARD_JUMP",
 )
-OBSERVATION_SCHEMA_ID = "native-unified-923-v4"
-OBSERVATION_SCHEMA_HASH = (
-    "F2D568C1C4A4B5F577C9C2E36A37B1C5533C2CE28D415846C3B68EC293C84609"
-)
-
-
 @dataclass(frozen=True, slots=True)
 class SessionStats:
     elapsed_seconds: float
@@ -976,8 +975,8 @@ class RecorderController:
                 },
                 "policy_contract": {
                     "action_names": list(POLICY_ACTION_NAMES),
-                    "observation_schema_id": OBSERVATION_SCHEMA_ID,
-                    "observation_schema_hash": OBSERVATION_SCHEMA_HASH,
+                    "observation_schema_id": _OBSERVATION_SCHEMA_ID,
+                    "observation_schema_hash": _OBSERVATION_SCHEMA_HASH,
                 },
                 "species": {
                     "selected_ids": sorted(self.config.selected_species),

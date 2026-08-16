@@ -1,6 +1,11 @@
 """Canonical farming domain primitives with dependency-lazy public exports."""
 
 from importlib import import_module
+from pkgutil import extend_path
+
+
+# BRIDGE B1 — removed in Phase 7
+__path__ = extend_path(__path__, __name__)
 
 __all__ = [
     "ACTION_COUNT",
