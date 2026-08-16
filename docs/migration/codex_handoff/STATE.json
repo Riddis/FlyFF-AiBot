@@ -1,106 +1,103 @@
 {
-  "phase": "Phase 0",
-  "task": "Continue Phase-0 consolidation preservation; repository reconciliation complete, Step 10 evidence validation in progress",
-  "timestamp_local": "2026-08-16T03:45:00+02:00",
-  "branch": "feature/standalone-farming-recorder-simulator",
-  "head_sha": "be7ac8c24682a1e13bbdd46ba5f240f5c5b16b54",
-  "head_message": "Preservation checkpoint: retain observation-only telemetry work",
-  "pre_consolidation_head_tag": "51dc25b2be0aafb091e22a17505767c1bec79552",
-  "historical_reproduction_tag": "a90de59232b81753c1b2ea35b8990325c26674e5",
-  "pre_consolidation_complete_tag": null,
-  "last_verified_good_commit": "be7ac8c24682a1e13bbdd46ba5f240f5c5b16b54",
-  "staged_files": [],
-  "dirty_tracked_files": {
-    "modified_count": 5,
-    "modified": [
-      "flyff_farming_simulator/MISTAKES.md",
-      "docs/migration/codex_handoff/STATE.json",
-      "docs/migration/codex_handoff/COMMAND_LOG.tsv",
-      "docs/migration/codex_handoff/TEST_LOG.md",
-      "docs/migration/codex_handoff/HANDOFF.md"
+  "phase": "Phase 1",
+  "task": "Reconcile Phase 0, push preservation refs, recover the authoritative consolidation plan, and execute only its Phase-1 scope",
+  "timestamp_local": "2026-08-16T03:07:00+02:00",
+  "worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL - Phase1",
+  "reference_worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL",
+  "branch": "refactor/consolidation-phase1",
+  "head_sha": "dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34",
+  "head_message": "Preservation checkpoint: finalize Phase-0 report and handoff",
+  "phase0_base_sha": "dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34",
+  "preservation_tags": {
+    "pre-consolidation-head": "51dc25b2be0aafb091e22a17505767c1bec79552",
+    "historical-reproduction-baseline-20260815": "a90de59232b81753c1b2ea35b8990325c26674e5",
+    "pre-consolidation-complete": "dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34"
+  },
+  "remote_preservation": {
+    "remote": "origin",
+    "url": "https://github.com/Riddis/FlyFFCV.git",
+    "branch_target": "dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34",
+    "all_three_tags_verified": true,
+    "force_used": false
+  },
+  "staged_paths": [],
+  "modified_paths": [
+    "docs/migration/codex_handoff/COMMAND_LOG.tsv",
+    "docs/migration/codex_handoff/HANDOFF.md",
+    "docs/migration/codex_handoff/STATE.json",
+    "docs/migration/codex_handoff/TEST_LOG.md"
+  ],
+  "untracked_paths": [
+    "docs/migration/codex_handoff/PHASE1_REPORT.md"
+  ],
+  "authoritative_plan": {
+    "status": "missing",
+    "required_scope": "three-system bot/recorder/simulator consolidation Phase 1",
+    "searched_locations": [
+      "docs/migration",
+      "docs",
+      "refactor_logs",
+      "all current tracked and visible untracked text documentation",
+      "all local Git refs and history",
+      "remote branch/tag refs"
     ],
-    "deleted_count": 122,
-    "deleted_groups": {
-      "flyff_farming_recorder/.pytest-recorder-110": 4,
-      "flyff_farming_simulator/.pytest-temp-v16": 44,
-      "flyff_farming_simulator/.pytest-temp-v17": 71,
-      "substantive_scratchpad_deletions": 3
-    },
-    "substantive_deleted": [
-      "flyff_farming_simulator/scratchpad_aggregate_target_thrashing.py",
-      "flyff_farming_simulator/scratchpad_measure_target_thrashing.py",
-      "flyff_farming_simulator/scratchpad_measure_target_thrashing_missing.py"
+    "rejected_candidate": "refactor_logs/audits/target_architecture_and_refactor_plan.md",
+    "rejection_reason": "This is the older foreground_vision_bot-only July 31 refactor. Its Phase 01 stabilization was completed in 63651e97d6d013ac41364d912e98b70ac5c76b88 and its PLAN.md marks Phases 01-08 complete. It does not define the current bot/recorder/simulator consolidation or an authorized first canonicalization boundary.",
+    "conflict_terms_absent": [
+      "Alternative C",
+      "Alternative A",
+      "one canonical source tree",
+      "development application/tooling",
+      "standalone farming recorder",
+      "canonical position",
+      "C -> A",
+      "C → A"
     ]
   },
-  "untracked_files_grouped": {
-    "visible_total": 297,
-    "migration_evidence": 0,
-    "codex_handoff_journal": 0,
-    "evaluation_manifest_only_visible": 185,
-    "evaluation_manifest_only_ignored": 6,
-    "synthetic_curriculum_files": 0,
-    "scratchpad_archive_files": 31,
-    "run_log_files": 14,
-    "archive_files": 6,
-    "untracked_simulator_source_and_other_singletons": 55,
-    "telemetry_source_test_tool": 0,
-    "scratchpad_traces": 3,
-    "local_claude_settings": 1,
-    "overnight_log": 1,
-    "ignored_scratch_contract_archive": 1
+  "phase1_preamble": {
+    "objective": null,
+    "authoritative_plan_path_and_section": null,
+    "allowed_packages_files_subsystems": [],
+    "explicit_exclusions": "All product source, tests, configs, assets, checkpoints, archives, maps, simulator, recorder, telemetry, and live-control files until the authoritative Phase-1 definition is supplied.",
+    "starting_commit": "dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34",
+    "planned_atomic_commits": [
+      "Documentation-only blocked-state checkpoint"
+    ],
+    "entry_gates": "Phase-0 refs/history, remote push, clean sibling worktree, empty index, and zero untracked files all passed before documentation edits.",
+    "exit_parity_gates": null,
+    "rollback_reference": "pre-consolidation-complete",
+    "behavior_preservation_reason": "No product source or scientific artifact was modified."
   },
-  "completed_steps": [
-    "Verified branch, HEAD, seven-commit preservation chain, and empty index",
-    "Verified pre-consolidation-head and historical-reproduction tags; verified pre-consolidation-complete absent",
-    "Verified external snapshot directory and 112749676-byte scratch contract archive exist",
-    "Verified DECISION_LOG D9 records historical tag retarget and clean-checkout proof",
-    "Verified 37-row historical closure, 313-row checkpoint inventory, and checkpoint module references",
-    "Mechanically reconciled WIP_BASELINE: four closure files committed and 30 original files still modified",
-    "Verified every artifact-manifest path, byte size, SHA-256, and Git status: 348 rows, 708385568 bytes, 27 tracked, 321 ignored, 0 errors",
-    "Independently enumerated the artifact corpus and matched the manifest set/categories exactly; verified 313-row inventory, 317 module-reference rows, and 37-row historical closure",
-    "Committed Step-10 migration evidence as b83e774855649a3084b265c7e60bc5da278e5e5a",
-    "Rehashed all 34 WIP_BASELINE files: all current bytes match; four are clean at HEAD, 30 remained modified, and 29 remained after deliberately excluding MISTAKES.md",
-    "Committed exactly 29 remaining WIP files as a332cfbb0138e0d8e3d5580bc46e0eef22ba6a4f with explicit NOT validated/known-good labeling",
-    "Final WIP partition: 4 historical-closure files, 29 remaining-WIP files, 1 deliberately excluded dirty MISTAKES.md",
-    "Generated and validated artifact-level evaluation/curriculum classification: 234 rows; categories 35 scientific_reference, 8 frozen_result, 164 generated_intermediate, 6 redundant, 21 unknown",
-    "Classification actions: 43 commit rows expanding to 234 files / 13277505 bytes; 191 manifest_only rows; no missing, duplicate, invalid, or unclassified entries",
-    "Committed classification TSV alone as 6308a64",
-    "Committed exactly the classified action=commit expansion (234 files, 13277505 bytes) as e9efe55; 191 manifest-only artifacts remain unstaged",
-    "Added and committed the forward-looking '* text=auto eol=lf' rule before narrow overrides as b8206bb",
-    "Verified all eight protected hashes unchanged and all eight protected paths still resolve to text: unset",
-    "Added only .pytest-temp-*/ and .pytest-recorder-*/ and committed .gitignore alone as 296e63b; 122 tracked phantom deletions remain untouched",
-    "Generated effective config baseline via separate isolated bot/recorder subprocesses and verified it exactly against fresh reloads",
-    "Verified presence fields share values 3/1024/256/2.0 but are owned by bot native_monsters.json and recorder recorder_config.json respectively",
-    "Committed effective config baseline alone as 092427a87386b8c163299c732d2ab48d5f9f5e78",
-    "Verified three telemetry files remained untracked/unchanged and ran focused test: 19 passed, 1 pytest cache ACL warning, producer exit 0",
-    "Committed exactly three telemetry files as be7ac8c24682a1e13bbdd46ba5f240f5c5b16b54",
-    "Final integrity gate: 348 artifact hashes/statuses pass; 327 external targets exist with matching sizes; protected hashes/attrs pass; classification enforcement passes; config reload passes; index empty",
-    "Reconciled sole history rename as the approved f173177 pipeline-log archival move; no Phase-1 structural rename occurred",
-    "Generated and validated FINAL_PHASE0_REPORT.md: 16 ordered sections, 15 exact commit/file inventories, and every remaining deleted/untracked path"
+  "completed_phase1_steps": [
+    "Read and reconciled all required Phase-0 handoff and migration evidence",
+    "Verified Phase-0 HEAD, branch, tag targets, empty preservation index, external snapshot, and accepted dirty reference-tree counts",
+    "Verified origin branch was a fast-forward target and preservation tags were absent remotely",
+    "Pushed the Phase-0 branch and three preservation tags without force and verified exact remote targets",
+    "Searched current documentation, visible untracked documentation, all local refs/history, and remote refs for the authoritative consolidation plan",
+    "Proved the sole approved-plan candidate is an older completed foreground-only refactor and not the current consolidation plan",
+    "Created refactor/consolidation-phase1 at pre-consolidation-complete in a clean sibling worktree",
+    "Verified the clean worktree had exact base HEAD, empty index, zero modified/deleted/untracked paths, unchanged tags, and no copied reference-tree material",
+    "Stopped before any product-source mutation"
   ],
-  "current_step": "Commit final report and journal, then create final Phase-0 tag",
-  "next_exact_action": "Stage only STATE.json, COMMAND_LOG.tsv, TEST_LOG.md, HANDOFF.md, and FINAL_PHASE0_REPORT.md; inspect cached set/diff; commit final documentation; run pre-tag checks; create pre-consolidation-complete at that HEAD.",
-  "blocked": false,
-  "stop_reason": null,
-  "known_preexisting_test_failures": [
-    "foreground_vision_bot/tests/test_farming_environment_lifecycle.py::test_focus_loss_during_eva_discards_kill_and_transition",
-    "foreground_vision_bot/tests/test_farming_training_session.py::test_normal_training_status_is_concise_and_uses_total_model_steps",
-    "foreground_vision_bot/tests/test_farming_training_session.py::test_training_callback_publishes_structured_session_statistics"
-  ],
-  "latest_test_results": {
-    "foreground_vision_bot": "709 collected; 705 passed, 3 failed (pre-existing), 1 skipped",
-    "flyff_farming_simulator": "357 collected; 355 passed, 0 failed/errors, 2 skipped with writable --basetemp",
-    "flyff_farming_recorder": "24 passed, 0 failed/errors/skipped with writable --basetemp",
-    "telemetry_focused": "19 passed, 0 failed/errors/skipped, 1 pytest cache ACL warning; writable explicit --basetemp; producer exit 0",
-    "environment_note": "Default pytest temp produced 66 simulator and 3 recorder WinError 5 setup errors; explicit writable --basetemp eliminated them."
+  "current_step": "Blocked at the mandatory pre-implementation plan-recovery gate",
+  "next_exact_action": "Provide or identify the accepted three-system consolidation plan and its exact Phase-1 section; then reconcile that document before defining or executing source changes.",
+  "blocked": true,
+  "stop_reason": "The authoritative Phase-1 definition cannot be recovered from repository documentation. Inventing it is explicitly forbidden.",
+  "tests_and_gates": {
+    "phase0_anchor_gate": "passed",
+    "remote_push_gate": "passed",
+    "clean_worktree_entry_gate": "passed after correcting a safe.directory verifier harness omission",
+    "plan_recovery_gate": "blocked_missing_authoritative_plan",
+    "product_tests": "not run; no product source changed",
+    "phase1_parity_gates": "not definable without authoritative plan"
   },
-  "important_hashes": {
-    "historical_result_sha256": "f30f63e4ef5ab97648e19c499b82fdb9cae537962097a52bcf2423e00c21bb30",
-    "tracked_0051200_checkpoint_sha256": "87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50",
-    "scratch_contract_archive_sha256": "484a44f4b8931ed1362f3162f9def2ac5903bb0acaaac86c5078d34afbd04d54",
-    "telemetry_module_sha256": "ece74579ea33f88123b02aa986ea51c41a905dfd6084d8fd532947417671b599",
-    "telemetry_test_sha256": "1d1e399a11500cb71dcd59a4aa011eff80cde69bd15b1582a995e700aa9a6f28",
-    "telemetry_cli_sha256": "3077f4a40dc89549452e885477c2aa3e4d3511f7efd574fc419f8bcbd6ade135"
+  "compatibility_path_status": {
+    "simulator.split_branch_policy.SplitSteeringNavigationPolicy": "UNCHANGED",
+    "simulator.split_branch_policy.SplitSteeringEventPolicy": "UNCHANGED",
+    "farming.sb3_training.TerminalPrefixRolloutBuffer": "UNCHANGED",
+    "farming.sb3_training.TrainingBoundary": "UNCHANGED",
+    "farming.sb3_training.TrainingBoundaryKind": "UNCHANGED"
   },
-  "phase1_authorized": false
+  "phase1_authorized": true,
+  "phase2_authorized": false
 }

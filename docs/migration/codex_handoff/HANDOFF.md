@@ -1,6 +1,59 @@
-# Codex to Claude Phase-0 Handoff
+# Codex to Claude Consolidation Handoff
 
-## Current checkpoint
+## Current Phase-1 checkpoint
+
+- Worktree: `C:\Users\Ridd\Documents\Repos\Flyff RL - Phase1`
+- Branch: `refactor/consolidation-phase1`
+- HEAD/base: `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`
+- Rollback: `pre-consolidation-complete` at the same SHA.
+- Phase-0 branch and all three preservation tags were pushed normally to
+  `origin` and verified at their exact expected targets; no force was used.
+- Clean-worktree entry gate passed: exact base HEAD, empty index, zero dirty or
+  untracked paths, unchanged tags, and none of the reference tree's untracked
+  material copied in.
+- No product source, test, config, artifact, checkpoint, archive, map, or runtime
+  file has been changed in this worktree.
+- Phase 1 is explicitly authorized, but implementation is **BLOCKED** because
+  the authoritative current Phase-1 definition is absent.
+- Phase 2 remains unauthorized.
+
+### Mandatory-plan blocker
+
+The repository was searched across `docs/migration/`, all `docs/`,
+`refactor_logs/`, visible untracked text documentation, all local refs/history,
+and current remote refs. No document defines Phase 1 for the newly described
+three-system bot/recorder/simulator consolidation.
+
+The sole file claiming to be an approved implementation plan is
+`refactor_logs/audits/target_architecture_and_refactor_plan.md`. It is not the
+required plan: it describes the older foreground-only July 31 refactor, calls
+its units Stage 1-8, and its corresponding `refactor_logs/PLAN.md` marks Phases
+01-08 complete. Its Phase 01 stabilization was already committed as
+`63651e97d6d013ac41364d912e98b70ac5c76b88`.
+
+The requested search phrases `Alternative C`, `Alternative A`, `C -> A`,
+`C → A`, `one canonical source tree`, and `canonical position` do not occur in
+current documentation or Git history. Reusing the completed July plan would
+both invent the new consolidation boundary and repeat already-finished work.
+
+### What is canonical and transitional
+
+- Canonical Phase-0 rollback point: `pre-consolidation-complete` / `dc734bb`.
+- Canonical Phase-1 implementation: none; no ownership was changed.
+- Transitional state: all three source trees remain exactly as preserved at
+  Phase 0. No compatibility bridge was added or removed.
+- Checkpoint Python ABI paths, historical archives, Tower map, movement kernel,
+  qualified router, 0051200 checkpoint, effective config, and observation-only
+  telemetry are all **UNCHANGED**.
+
+### Exact next action
+
+Provide or identify the accepted consolidation-plan document and the exact
+section defining Phase 1. On resume, read it fully and reconcile its allowed
+paths, exclusions, atomic commits, and gates before touching source. Do not infer
+the missing boundary from the architectural context in the takeover prompt.
+
+## Phase-0 historical handoff as committed at the rollback point
 
 - Branch: `feature/standalone-farming-recorder-simulator`
 - Exact HEAD: `be7ac8c24682a1e13bbdd46ba5f240f5c5b16b54`
@@ -126,3 +179,20 @@ Get-Content docs/migration/codex_handoff/COMMAND_LOG.tsv -Tail 20
 
 Do not repeat the 820M reproduction, retarget the historical tag, repair the
 three pre-existing bot tests, or begin Phase 1.
+
+## Current resume commands
+
+```powershell
+$wt = 'C:/Users/Ridd/Documents/Repos/Flyff RL - Phase1'
+$root = 'C:/Users/Ridd/Documents/Repos/Flyff RL'
+git -c "safe.directory=$root" -c "safe.directory=$wt" -C $wt rev-parse HEAD
+git -c "safe.directory=$root" -c "safe.directory=$wt" -C $wt branch --show-current
+git -c "safe.directory=$root" -c "safe.directory=$wt" -C $wt status --porcelain=v1 -uall
+git -c "safe.directory=$root" -c "safe.directory=$wt" -C $wt diff --cached --name-status
+Get-Content "$wt/docs/migration/codex_handoff/STATE.json" -Raw
+Get-Content "$wt/docs/migration/codex_handoff/PHASE1_REPORT.md" -Raw
+```
+
+Expected state before the documentation-only blocker checkpoint is committed:
+four modified handoff/log files, one untracked `PHASE1_REPORT.md`, and an empty
+index. The exact next source action is **none** until the missing plan is supplied.

@@ -297,3 +297,141 @@ repeated.
 - Final result: 1042 physical lines; 16/16 sections; 15/15 commits in order; all
   commit and remaining paths present; complete tail; zero errors.
 - Classification: passed final-documentation gate.
+
+### Final-documentation staged-set gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Exact checks: cached name set equals the five report/handoff files; cached
+  diff has no whitespace errors; no product, artifact, WIP, deletion, or
+  untracked path entered the index.
+- Producer exit code: **0**.
+- Result: exactly five expected documentation files were committed as
+  `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`.
+- Classification: passed.
+
+### Final pre-tag gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Exact checks: expected branch and final documentation HEAD; empty index;
+  earlier tags unchanged; external snapshot present; final report committed at
+  HEAD; all eight protected hashes unchanged.
+- Producer exit code: **0**.
+- Result: safe to create the final rollback tag. The working tree retained 122
+  deletions, only the deliberately excluded `MISTAKES.md` modification, and 297
+  visible untracked files before post-tag metadata updates.
+- Classification: passed.
+
+### Final rollback-tag creation
+
+- Exact command: `git tag pre-consolidation-complete dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`.
+- Producer exit code: **0**.
+- Result: tag resolves exactly to `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`.
+- Classification: passed.
+
+### Post-tag resume-state gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- First producer exit: **1** from Git's dubious-ownership protection because
+  the composite script omitted the repository's established per-command
+  `safe.directory`; no mutation occurred.
+- Authoritative producer exit: **0** after adding `-c safe.directory=...` to
+  every Git invocation.
+- Result: branch and HEAD exact; all three tag targets exact; index empty;
+  6 modified, 122 deleted, and 297 visible untracked paths; 16 chronological
+  commit inventories and all current paths present in the report; final commit
+  contains exactly five documentation files; STATE fields exact; external
+  snapshot present; no pending placeholder; zero errors.
+- Environment note: Git emitted the already-known inaccessible global ignore
+  warning; it did not affect status counts or the gate result.
+- Classification: passed final post-tag gate.
+
+## Phase 1
+
+### Phase-0 takeover and required-reading gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Start/end: 2026-08-16 03:01-03:02 local.
+- Exact commands: read-only Git HEAD/branch/status/index/ref/worktree checks;
+  complete reads of all twelve required handoff/migration documents; TSV shape
+  and JSON parsing over every row/document.
+- Purpose: prove the accepted preservation state before any Phase-1 mutation.
+- Producer exit code: **0**.
+- Result: exact HEAD/branch/tags; empty index; original tree 6 modified, 122
+  deleted, 297 visible untracked; external snapshot present; 37 closure rows,
+  313 checkpoint rows, 317 module-reference rows, and 234 artifact-classification
+  rows with zero malformed records.
+- Classification: passed entry gate.
+
+### Authoritative-plan recovery gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Start/end: 2026-08-16 03:03-03:06 local.
+- Exact commands: recursive `rg` searches across current tracked and visible
+  untracked documentation; filename inventory; `git log --all` name/content
+  searches; `git log -S` searches for Alternative A/C, C-to-A, canonical-source,
+  and development-app language; complete reads of the only approved-plan
+  candidate plus its PLAN, STATE, Phase 01, STATUS, and HANDOFF records.
+- Purpose: recover the exact current three-system consolidation Phase-1 scope.
+- Producer exit code: **1** (semantic stop gate; search commands themselves
+  exited normally).
+- Result: no authoritative current consolidation plan exists in repository
+  evidence. `refactor_logs/audits/target_architecture_and_refactor_plan.md` is an
+  older foreground-only plan whose Phase 01 was completed in `63651e97`; its
+  PLAN marks Phases 01-08 complete. It cannot define this new Phase 1.
+- Classification: **blocked / missing required authority**, not a migration
+  regression.
+
+### Remote preservation inspection and push gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`
+- Start/end: 2026-08-16 03:03-03:05 local.
+- First exact command: `git ... ls-remote --heads --tags origin`.
+- First producer exit code: **1**; sandbox network denial, no mutation.
+- Authoritative commands: the same `ls-remote` with approved network access;
+  `git merge-base --is-ancestor 51dc25b dc734bb`; one explicit non-force push
+  containing the preservation branch refspec and three explicit tag refspecs;
+  then exact-ref `ls-remote` verification.
+- Authoritative producer exit code: **0**.
+- Result: branch fast-forwarded `51dc25b..dc734bb`; three new preservation tags
+  published; remote targets exactly `51dc25b`, `a90de59`, and `dc734bb`; no
+  force, rewriting, rejection, or conflict.
+- Classification: first failure environment; authoritative preservation gate
+  passed.
+
+### Clean sibling-worktree entry gate
+
+- CWD: original worktree for creation; linked worktree for final inspection.
+- Start/end: 2026-08-16 03:07-03:09 local.
+- Exact mutation: `git worktree add -b refactor/consolidation-phase1
+  C:/Users/Ridd/Documents/Repos/Flyff RL - Phase1 pre-consolidation-complete`.
+- First verifier producer exit code: **1**; the harness supplied only the linked
+  worktree as `safe.directory`, while Git required the underlying main worktree
+  too. No mutation followed the already-successful worktree creation.
+- Authoritative verifier producer exit code: **0** using both exact
+  `safe.directory` values.
+- Result: HEAD/base `dc734bb`; branch exact; empty index; zero modified/deleted/
+  untracked paths; all tags exact; original tree still 6M/122D/297U. Therefore
+  none of its untracked experimental material was copied.
+- Classification: verifier-harness problem, then passed entry gate.
+
+### Product/parity tests
+
+- Not run.
+- Reason: the authoritative Phase-1 scope and its required gates are missing,
+  and no product source changed. Running guessed gates would not resolve the
+  authorization blocker.
+- Classification: intentionally not applicable at this stop checkpoint.
+
+### Documentation-only blocked-checkpoint gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL - Phase1`
+- Start/end: 2026-08-16 03:11 local; under one second.
+- Exact checks: status path set equals `COMMAND_LOG.tsv`, `HANDOFF.md`,
+  `PHASE1_REPORT.md`, `STATE.json`, and `TEST_LOG.md`; index empty;
+  path-scoped `git diff --check`; STATE JSON parses and reports blocked/Phase 2
+  false; every command-log row has nine columns; report has all eight required
+  sections.
+- Producer exit code: **0**.
+- Result: five intended documentation paths, no product paths, zero validation
+  errors.
+- Classification: passed documentation gate.
