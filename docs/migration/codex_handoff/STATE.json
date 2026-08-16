@@ -1,7 +1,7 @@
 {
   "phase": "Phase 2",
-  "task": "PHASE 2 - FREEZE FINGERPRINTS (INCOMPLETE: G10b withdrawn pending authorized representative selection)",
-  "timestamp_local": "2026-08-16T04:08:50+02:00",
+  "task": "PHASE 2 - FREEZE FINGERPRINTS: complete after authorized G10b-v2 verification",
+  "timestamp_local": "2026-08-16T15:36:57+02:00",
   "worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL - Phase1",
   "reference_worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL",
   "branch": "refactor/consolidation-phase1",
@@ -113,10 +113,10 @@
     "Made CANONICAL_OWNERS.toml current_phase the single active migration-phase source of truth",
     "Committed the five-file ruler-hardening amendment as ad61b991e4af436eef8705b49978990464cc28f5"
   ],
-  "current_step": "G10b blocked; read-only selection audit complete",
-  "next_exact_action": "Await explicit coordinator decision naming one checkpoint for each of the four ambiguous G10b categories, or an authorized selection rule. Do NOT run any further PPO.load until then.",
+  "current_step": "Phase 2 complete: G10b-v2 coordinator-authorized correction applied and passed",
+  "next_exact_action": "Awaiting explicit coordinator authorization to begin Phase 3. Do not begin Phase 3 or any further mutation without it.",
   "blocked": false,
-  "stop_reason": "Decision boundary: at least one ambiguous category remains (all four do), so no additional PPO.load may run until an authorized selection exists.",
+  "stop_reason": "None. Corrected per coordinator decision: option (b), deterministic hash-stratified selection (G10b-v2), not an extension of checkpoint_selection_result.json's performance-ranking methodology. See docs/migration/codex_handoff/PHASE2_REPORT.md sections 16-18.",
   "tests_and_gates": {
     "phase0_anchor_gate": "passed",
     "remote_push_gate": "passed",
@@ -168,22 +168,36 @@
   },
   "G4_status": "GREEN - all literals match source; observation_schema_hash() recomputed in both implementations; PHYSICS_VERSION=live_calibrated_arc read from movement_kernel.py",
   "G10a_status": "GREEN - 313/313 checkpoints, 0 field mismatches across 12 Phase-0 fields, 317/317 module references reproduced",
-  "G10b_status": "BLOCKED_PENDING_AUTHORIZED_SELECTION",
+  "G10b_status": "PASS_V2",
+  "G10b_authorized_rule": "G10b-v2-hash-stratified",
+  "G10b_selection_commit": "13c353777f1f4bb1a50b749f32a5628d8623cc7f",
+  "G10b_load_baseline_commit": "4d469172660e2effa56aaf122b3c5b26c284f857",
+  "G10b_selection_artifact": "docs/migration/PHASE2_REPRESENTATIVE_SELECTION_V2.tsv",
+  "G10b_load_baseline_artifact": "docs/migration/PHASE2_REPRESENTATIVE_LOAD_BASELINE_V2.tsv",
+  "G10b_selection_artifact_sha256": "1d690788fdf7c7fadab0c019b09f0d3cc5341b7997c2296162bfdf3eac41ef9f",
+  "G10b_load_baseline_artifact_sha256": "cafbfaefaef07121dd20a11d90ccd4fda9b7833be3d7af5c2fb71bda37121b51",
+  "G10b_outcomes": "17 total / 14 loaded / 3 frozen ValueError failures / 0 gate failures",
+  "G10b_fresh_comparison": "PASS - one fresh 17-checkpoint load comparison reproduced all paths, artifact SHAs, outcomes, successful policy and observation/action contracts, and exact exception types/messages; frozen artifacts unchanged",
+  "provisional_G10b_status": "superseded diagnostic evidence only",
   "G11_status": "GREEN - six exact hashes in both locations, three byte-identical pairs, .skip_legacy_import present",
-  "HEAD": "the commit containing this file; resolve exactly with git rev-parse HEAD",
+  "HEAD": "the final documentation commit containing this STATE.json; resolve exactly with git rev-parse HEAD",
   "phase2_base_sha": "9cf13873cd4a5ca43df02f28c86463bfd8a823c9",
   "phase2_commits": {
     "39a32a58c1cab800e5024604e7eeaba952d0a46f": "Preserve exact Phase-0 artifact bytes across fresh worktrees",
     "b7355a9359143739ad725486f99b72d5391cd945": "Phase 2: freeze contract, physics, and map fingerprints as hard gates",
     "98c4aead0824aacb4a86eca574ef277f12570379": "Phase 2: freeze generated checkpoint and representative-load evidence",
-    "documentation commit containing this STATE.json": "Phase 2: report and handoff journals"
+    "65ef439f5a59e78a5be98fe0e236d2cf770e2b6f": "Phase 2: report and handoff journals (G10b withdrawn pending authorized selection)",
+    "13c353777f1f4bb1a50b749f32a5628d8623cc7f": "G10b-v2: coordinator-authorized hash-stratified representative selection (correction)",
+    "4d469172660e2effa56aaf122b3c5b26c284f857": "G10b-v2: freeze the first authorized real-load baseline (correction)",
+    "documentation commit containing this STATE.json": "Phase 2: G10b-v2 correction report/handoff update"
   },
-  "last_good_commit": "the commit containing this file; resolve exactly with git rev-parse HEAD",
+  "last_good_commit": "the final documentation commit containing this file; resolve exactly with git rev-parse HEAD",
   "staged_files": [],
   "dirty_files": [],
   "R6_R7_R9_R10_status": "R6=7 R7a=35 R7b=0 R7c=200 R9=0 R10=0 failures; no new debt; baseline not regenerated",
-  "blocker": "G10b representative selection for one 925-era, one 928-era, one canonical_advanced_ppo_*, and one _quarantine/* checkpoint is not determined by any pre-existing evidence and requires an explicit authorized decision.",
-  "phase3_safe_to_consider": "NO",
+  "blocker": null,
+  "blocker_resolved": "G10b representative selection for the four ambiguous categories was not determined by pre-existing evidence (0/4, per the audit below). Coordinator authorized option (b): a deterministic, outcome-independent hash-stratified sample (G10b-v2), fixed in source and committed before any load. See PHASE2_REPORT.md sections 16-18.",
+  "phase3_safe_to_consider": "YES (readiness only, not a self-authorization)",
   "G10b_withdrawal_reason": "Executor hit the section-8.1 STOP condition (categories 3-6 ambiguous, no source-backed identification, no Phase-0 load baseline) and continued behind a self-invented lexicographic rule instead of stopping. Because no prior baseline existed, that selection would have defined the permanent first baseline, so selection provenance was required and determinism did not cure it.",
   "G10b_provisional_artifacts": {
     "docs/migration/PHASE2_REPRESENTATIVE_SELECTION.tsv": "provisional/superseded for gating; retained as historical evidence; do not delete",
@@ -213,6 +227,24 @@
     "only_preexisting_selection_artifact": "flyff_farming_simulator/evaluations/checkpoint_selection_result.json -- applies ONLY to the generalized_waypoint_both_seed* lineage (category 1, already determined); says nothing about categories 3-6",
     "further_ppo_load_executed_since_withdrawal": false
   },
-  "exit_condition_E": "FAIL/PENDING",
-  "phase2_complete": false
+  "G10b_v2_correction": {
+    "authorized_by": "coordinator, explicit decision: option (b), deterministic hash-stratified rule, NOT an extension of checkpoint_selection_result.json's performance-ranking methodology",
+    "rule": "score = SHA256(\"G10b-v2|\" + category_name + \"|\" + checkpoint_sha256); lowest hex score wins within each stratum",
+    "tool": "docs/migration/tools/phase2_representative_load.py: declare_v2/run_v2/compare_v2 (extends the existing v1 tool)",
+    "selection_artifact": "docs/migration/PHASE2_REPRESENTATIVE_SELECTION_V2.tsv (commit 13c3537)",
+    "load_baseline_artifact": "docs/migration/PHASE2_REPRESENTATIVE_LOAD_BASELINE_V2.tsv (commit 4d46917)",
+    "pool_sizes": {"canonical_advanced_ppo": "45 pool / 0 excluded / 45 eligible", "quarantine": "8 pool / 0 excluded / 8 eligible", "era_925": "173 pool / 53 excluded / 120 eligible", "era_928": "102 pool / 6 excluded / 96 eligible"},
+    "winners": {
+      "canonical_advanced_ppo": "flyff_farming_simulator/models/canonical_advanced_ppo_190k.zip",
+      "quarantine": "flyff_farming_simulator/models/_quarantine/canonical_basic_milestone_004_BROKEN_event_head_never_learned_eva_20260808.zip",
+      "era_925": "flyff_farming_simulator/models/canonical_beginner_ppo_010k_rehearsed.zip",
+      "era_928": "flyff_farming_simulator/models/generalized_waypoint_living_cost_only_seed0_0030720.zip"
+    },
+    "pre_load_gate": "PASS - 13 fixed unchanged from v1, four winners unique, no cross-stratum overlap, era_925 winner excludes canonical/quarantine, era_928 winner excludes the six seed2, all SHAs match Phase-0 inventory, regeneration byte-identical",
+    "load_result": "17 checkpoints: 14 loaded (matches_inventory=True on all 14), 3 failed with the identical clean ValueError (NavigationAugmentedFeaturesExtractor requires 928, got 925)",
+    "v1_provisional_artifacts": "PHASE2_REPRESENTATIVE_SELECTION.tsv and PHASE2_REPRESENTATIVE_LOAD_BASELINE.tsv preserved byte-unchanged, marked superseded, not deleted, not used as gating evidence",
+    "post_correction_gates": "Codex independent verification: byte-identical V2 selection regeneration; preregistration order valid; fresh compare-v2 17/14/3 with zero gate failures and exact exceptions; Phase-1 ruler ok=true (R6=7 R7a=35 R7b=0 R7c=200 R9=0 R10=0); 32 focused tests; phase2_fingerprints.py all ok=true (G4/G11/G10a zero failures); accepted 12-file repair exact; zero product Python changes; branch unpushed"
+  },
+  "exit_condition_E": "PASS (corrected via G10b-v2)",
+  "phase2_complete": true
 }

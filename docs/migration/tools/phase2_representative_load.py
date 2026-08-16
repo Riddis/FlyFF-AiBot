@@ -395,7 +395,12 @@ def compare(repo: Path, corpus: Path) -> tuple[list[dict[str, Any]], list[str]]:
     return results, failures
 
 
-def run_v2(repo: Path, corpus: Path) -> tuple[list[dict[str, Any]], list[str]]:
+def run_v2(
+    repo: Path,
+    corpus: Path,
+    *,
+    write_baseline: bool = True,
+) -> tuple[list[dict[str, Any]], list[str]]:
     """Load exactly the V2 selection (13 fixed + 4 hash-stratified). Same
     per-checkpoint isolated-subprocess protocol as ``run()``, against the
     coordinator-authorized selection file instead of the withdrawn v1 one."""
@@ -470,10 +475,11 @@ def run_v2(repo: Path, corpus: Path) -> tuple[list[dict[str, Any]], list[str]]:
             )
 
     results.sort(key=lambda r: (r["category"], r["path"]))
-    with (repo / BASELINE_V2).open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=BASELINE_FIELDS, delimiter="\t", lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(results)
+    if write_baseline:
+        with (repo / BASELINE_V2).open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=BASELINE_FIELDS, delimiter="\t", lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(results)
     return results, failures
 
 
@@ -483,15 +489,22 @@ def compare_v2(repo: Path, corpus: Path) -> tuple[list[dict[str, Any]], list[str
     if not baseline_path.is_file():
         raise RuntimeError("no frozen V2 load baseline to compare against")
     with baseline_path.open(encoding="utf-8", newline="") as handle:
-        frozen = {r["path"]: r for r in csv.DictReader(handle, delimiter="\t")}
-    results, failures = run_v2(repo, corpus)
+        frozen_rows = list(csv.DictReader(handle, delimiter="\t"))
+    frozen = {row["path"]: row for row in frozen_rows}
+    results, failures = run_v2(repo, corpus, write_baseline=False)
+    if len(frozen) != len(frozen_rows):
+        failures.append("G10b-v2 frozen baseline contains duplicate checkpoint paths")
+    result_paths = [row["path"] for row in results]
+    if len(set(result_paths)) != len(result_paths):
+        failures.append("G10b-v2 fresh comparison contains duplicate checkpoint paths")
+    for missing in sorted(set(frozen) - set(result_paths)):
+        failures.append(f"G10b-v2 frozen checkpoint missing from fresh comparison: {missing}")
     for row in results:
         old = frozen.get(row["path"])
         if old is None:
             failures.append(f"G10b-v2 new checkpoint not in frozen baseline: {row['path']}")
             continue
-        for field in ("outcome", "exception_type", "policy_class_module", "policy_class_qualname",
-                      "observation_space", "action_space", "sha256"):
+        for field in BASELINE_FIELDS:
             if row[field] != old[field]:
                 failures.append(f"G10b-v2 {row['path']} {field}: now={row[field]!r} frozen={old[field]!r}")
     return results, failures

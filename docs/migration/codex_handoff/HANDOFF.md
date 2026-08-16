@@ -387,3 +387,43 @@ G10b comparison, rerun the focused tests and ruler, and update the report.
 Still accepted and NOT to be redone: the portability repair and its 27/27
 fresh-worktree proof, G4, G10a (313/313 + 317 references), G11, the Phase-1
 verification, and the Phase-1 ruler results.
+
+# FINAL PHASE-2 COMPLETION — authorized G10b-v2 verified by Codex
+
+This section supersedes the blocked status immediately above while retaining it
+as the historical correction record. Claude completed the coordinator-authorized
+selection commit `13c353777f1f4bb1a50b749f32a5628d8623cc7f` and the first authorized
+real-load baseline commit `4d469172660e2effa56aaf122b3c5b26c284f857` before its session ended.
+Codex preserved Claude's WIP report/state edits and independently verified the work.
+
+The authorized rule is exactly:
+
+`SHA256(UTF8("G10b-v2|" + category_name + "|" + checkpoint_sha256))`, with the
+unique lowest hexadecimal score selected in each authorized stratum. The four
+winners are `canonical_advanced_ppo_190k.zip`,
+`canonical_basic_milestone_004_BROKEN_event_head_never_learned_eva_20260808.zip`,
+`canonical_beginner_ppo_010k_rehearsed.zip`, and
+`generalized_waypoint_living_cost_only_seed0_0030720.zip`. Full paths, hashes,
+scores, and pools are in `PHASE2_REPORT.md` section 19.
+
+Git proves the selection was committed before the baseline. Independent
+regeneration produced the identical 17-row selection at SHA-256
+`1d690788fdf7c7fadab0c019b09f0d3cc5341b7997c2296162bfdf3eac41ef9f`.
+The V2 load baseline SHA-256 is
+`cafbfaefaef07121dd20a11d90ccd4fda9b7833be3d7af5c2fb71bda37121b51`.
+
+The first run and the one authorized fresh comparison both produced **17 total /
+14 loaded / 3 failed / 0 gate failures**. The same three 925-era checkpoints
+reproduced the exact frozen `ValueError` type and message; all successes matched
+their frozen policy and observation/action contracts. A narrow verifier fix made
+comparison read-only and extended it to every frozen field.
+
+Final gates: 32 focused migration tests; ruler 7/35/0/200 with R9=0 and R10=0;
+G4 exact; G10a 313/313 plus 317/317; G11 exact. B1/B2 remain uninstalled and B4
+remains `a90de59232b81753c1b2ea35b8990325c26674e5`. The accepted 12-file
+portability repair remains exact; zero product Python/runtime logic changed.
+
+Final tip: the commit containing this handoff; resolve with `git rev-parse HEAD`.
+Branch `refactor/consolidation-phase1` remains unpushed. Exact next action:
+await explicit Phase-3 authorization. **PHASE 3 SAFE TO CONSIDER: YES. PHASE 3
+AUTHORIZED: NO.**

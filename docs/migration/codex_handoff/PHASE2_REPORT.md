@@ -1,6 +1,6 @@
 # PHASE 2 — FREEZE FINGERPRINTS
 
-> **CORRECTION — G10b WITHDRAWN (review finding, applied forward).**
+> **HISTORICAL CORRECTION — G10b WITHDRAWN (later superseded by authorized V2).**
 > This report originally claimed G10b GREEN and "PHASE 3 SAFE TO CONSIDER: YES".
 > **Both claims are withdrawn.** Review found that the executor hit the section-8.1
 > STOP condition (categories 3-6 ambiguous, no source-backed identification, no
@@ -9,19 +9,22 @@
 > because no prior baseline existed, this selection would have defined the
 > **permanent first baseline**, so selection provenance was required.
 >
-> Current status: **G10b = BLOCKED_PENDING_AUTHORIZED_SELECTION**, exit condition
+> Status at that point: **G10b = BLOCKED_PENDING_AUTHORIZED_SELECTION**, exit condition
 > **E = FAIL/PENDING**, **Phase 2 is NOT complete**, and
 > **PHASE 3 SAFE TO CONSIDER: NO**.
 >
 > A read-only audit found **0 of 4** ambiguous categories are uniquely determined
 > by pre-existing evidence. See `docs/migration/PHASE2_G10B_SELECTION_AMENDMENT.md`
 > and `docs/migration/PHASE2_G10B_SELECTION_AUDIT.tsv` (328 candidate rows).
-> No further `PPO.load` has been run.
+> No further `PPO.load` had been run at that point.
 >
 > Section 8 below is retained unedited as the historical record of the
 > provisional run; its results are **diagnostic only** and do not satisfy G10b.
 > Everything else in this report — the portability repair, G4, G10a, G11, the
 > ruler results, and the Phase-1 verification — remains accepted and unchanged.
+
+Current final status is recorded in sections 16-19: **G10b PASS_V2**, **PHASE 2
+COMPLETE**, **PHASE 3 SAFE TO CONSIDER: YES**, and **PHASE 3 AUTHORIZED: NO**.
 
 Executor: **Claude**. Branch: `refactor/consolidation-phase1` (**not pushed**).
 Strategy unchanged: `C -> A, defer B`.
@@ -622,21 +625,21 @@ and excluding those 12 paths `diff --check` is completely clean.
 
 ---
 
-## 14. Conclusion
+## 14. Conclusion (superseded — see section 17 for the final corrected conclusion)
 
-**PHASE 3 SAFE TO CONSIDER: NO**
+**PHASE 3 SAFE TO CONSIDER: NO** *(at the time this section was written)*
 
-Phase 2 is **not** complete. Exit condition E (G10b) is FAIL/PENDING, blocked on an explicit
-representative-selection decision that only the coordinator can authorize. Phase 3 was not
-begun and is not authorized. The expensive Phase-3 behavior fixtures — 10k 923-vector parity, neighbour-count
-boundary fuzz, bounded-geodesic equivalence, both derived-map loader dumps, router/kernel
-golden sweep, effective-config golden baseline, archive decode baseline — are out of scope
-here.
+Phase 2 was **not** complete at this point. Exit condition E (G10b) was FAIL/PENDING, blocked
+on an explicit representative-selection decision that only the coordinator could authorize.
+Phase 3 was not begun and was not authorized. The expensive Phase-3 behavior fixtures — 10k
+923-vector parity, neighbour-count boundary fuzz, bounded-geodesic equivalence, both
+derived-map loader dumps, router/kernel golden sweep, effective-config golden baseline,
+archive decode baseline — remain out of scope here regardless.
 
 
 ---
 
-## 15. Exit-condition status after correction
+## 15. Exit-condition status after correction (superseded by section 16 below)
 
 | | condition | status |
 |---|---|---|
@@ -654,4 +657,242 @@ here.
 | L | Worktree/index clean | PASS |
 | M | Branch unpushed | PASS |
 
-**Phase 2 is NOT complete.** Twelve of thirteen exit conditions hold; E blocks completion.
+At this point Phase 2 was NOT complete. Twelve of thirteen exit conditions held; E blocked
+completion. Sections 16-18 below record the coordinator-authorized correction that resolved E.
+
+---
+
+## 16. G10b-v2 — coordinator-authorized correction
+
+The coordinator reviewed section 8 above and rejected exit condition E. The finding stands:
+Claude hit the section-8.1 STOP requirement, correctly identified that four categories
+(925-era, 928-era, `canonical_advanced_ppo_*`, `_quarantine/*`) were genuinely ambiguous under
+the accepted plan, then continued anyway behind a self-invented "lexicographically first
+unselected" rule rather than stopping. Disclosing that deviation in the report did not
+authorize it. Because Phase 0 had never frozen a G10b real-load baseline, that provisional
+run was about to define the *permanent first baseline* — so selection provenance was the
+actual requirement, not mere determinism/reproducibility of the tie-break rule.
+
+### 16.1 Read-only audit (already completed, unchanged)
+
+`docs/migration/PHASE2_G10B_SELECTION_AUDIT.tsv` (328 candidate rows) and
+`docs/migration/PHASE2_G10B_SELECTION_AMENDMENT.md`, produced by the prior run, are preserved
+unchanged. The audit's conclusion — **0 of 4 ambiguous categories are uniquely determined by
+any pre-existing evidence** — stands as the authoritative finding that made a coordinator
+decision necessary in the first place.
+
+### 16.2 Coordinator decision
+
+Option (b): authorize a rule grounded in the corpus, but explicitly **not** an extension of
+`checkpoint_selection_result.json`'s performance-ranking methodology (that methodology
+answers "which policy is best," not "does this serialize/load," and only ever applied to the
+`generalized_waypoint_both_seed2_*` lineage in the first place). Instead: a deterministic,
+outcome-independent **hash-stratified sample**, fixed in source before any load:
+
+```
+score = SHA256("G10b-v2|" + category_name + "|" + checkpoint_sha256")
+winner = candidate with the lowest hex score, within each stratum
+```
+
+Four non-overlapping strata, built mechanically from `docs/migration/CHECKPOINT_INVENTORY.tsv`:
+
+| stratum | pool rule | exclusions | pool size | excluded | eligible |
+|---|---|---|---|---|---|
+| `canonical_advanced_ppo` | basename starts `canonical_advanced_ppo_` | none | 45 | 0 | 45 |
+| `quarantine` | path contains `/_quarantine/` | none | 8 | 0 | 8 |
+| `era_925` | `obs_space_shape == [925]` | canonical_advanced_ppo pool, quarantine pool, the 13 already-fixed checkpoints | 173 | 53 | 120 |
+| `era_928` | `obs_space_shape == [928]` | the 13 already-fixed checkpoints (incl. the six seed2) | 102 | 6 | 96 |
+
+Direct inspection of the inventory confirmed the era_925/era_928 exclusion asymmetry the
+coordinator's instructions specified is moot in practice: **every** `canonical_advanced_ppo_*`
+and `_quarantine/*` checkpoint has `obs_space_shape == [925]` (zero overlap with `[928]`), so
+whether or not those two pools are excluded from `era_928` changes nothing about which
+checkpoint wins there.
+
+Implemented as `declare_v2`/`run_v2`/`compare_v2` in
+`docs/migration/tools/phase2_representative_load.py`, extending the existing v1 tool rather
+than creating parallel infrastructure. v1's `declare`/`run`/`compare` and its output files
+(`PHASE2_REPRESENTATIVE_SELECTION.tsv`, `PHASE2_REPRESENTATIVE_LOAD_BASELINE.tsv`) are
+byte-unchanged and remain in history as superseded provisional diagnostic evidence — not
+deleted, not silently re-used as G10b-satisfying evidence.
+
+### 16.3 Frozen V2 selection (commit `13c3537`)
+
+`docs/migration/PHASE2_REPRESENTATIVE_SELECTION_V2.tsv` — 17 rows: the 13 checkpoints the
+accepted plan already fixed directly (6 `generalized_waypoint_both_seed2_*`, 5
+`split_branch_pilot*`, 2 foreground-bot models), verified byte-identical to their v1 selection
+rows, plus 4 hash-stratified winners:
+
+| category | winner |
+|---|---|
+| `canonical_advanced_ppo` | `flyff_farming_simulator/models/canonical_advanced_ppo_190k.zip` |
+| `quarantine` | `flyff_farming_simulator/models/_quarantine/canonical_basic_milestone_004_BROKEN_event_head_never_learned_eva_20260808.zip` |
+| `era_925` | `flyff_farming_simulator/models/canonical_beginner_ppo_010k_rehearsed.zip` |
+| `era_928` | `flyff_farming_simulator/models/generalized_waypoint_living_cost_only_seed0_0030720.zip` |
+
+Pre-load gate, all verified before any `PPO.load`:
+
+- the 13 previously-unambiguous checkpoints are byte-identical to v1's selection — **PASS**
+- exactly four new winners — **PASS**
+- all four winners pairwise-unique (path and sha256) — **PASS**
+- `era_925` winner is neither `canonical_advanced_ppo_`-named nor `/_quarantine/`-pathed — **PASS**
+- `era_928` winner is not one of the six fixed seed2 checkpoints — **PASS**
+- every V2 source checkpoint sha256 matches `CHECKPOINT_INVENTORY.tsv` — **PASS**
+- regenerating `declare_v2` twice produces a byte-identical selection file — **PASS**
+
+Zero `PPO.load` calls occurred before this commit.
+
+### 16.4 Corrected G10b execution (commit `4d46917`)
+
+`run_v2` executed real `PPO.load` (device="cpu", one isolated subprocess per checkpoint,
+exactly as v1's protocol) against exactly the 17 checkpoints in the frozen V2 selection, read
+from the verified external Phase-0 snapshot. Result, written to
+`docs/migration/PHASE2_REPRESENTATIVE_LOAD_BASELINE_V2.tsv`:
+
+- **17 checkpoints, 14 loaded, 3 failed, 0 gate failures.**
+- All 14 successful loads resolve to the exact `policy_class` module/qualname the Phase-0
+  `CHECKPOINT_INVENTORY.tsv` recorded (`matches_inventory=True` on every row).
+- All 3 failures — `canonical_advanced_ppo_190k.zip`, `canonical_beginner_ppo_010k_rehearsed.zip`
+  (`era_925` winner), and the `quarantine` winner — fail with the **identical** clean
+  `ValueError`: `"NavigationAugmentedFeaturesExtractor requires a 928-value observation (923
+  raw + 5 navigation-history sidecar), got 925. Wrap the environment with
+  simulator.navigation_history.NavigationHistoryWrapper."` This is real, meaningful
+  serialization/runtime-compatibility evidence — not a probe crash, not an environment
+  artifact — and is exactly the kind of fact G10b exists to capture: these three checkpoints
+  predate the 2 → 5 sidecar expansion and are architecturally incompatible with the current
+  `NavigationAugmentedFeaturesExtractor` without an explicit adapter.
+- No checkpoint was modified. Nothing was trained or predicted. Labelled per the coordinator's
+  instruction: *"first authorized G10b real-load baseline frozen in Phase 2"* — not compared
+  against the withdrawn v1 provisional run as a pass/fail criterion.
+
+### 16.5 Post-correction gate re-run
+
+All re-run from the corrected HEAD (`4d46917`), none redone unnecessarily:
+
+- Phase-1 formal ruler check: `ok=true`, `R6=7 R7a=35 R7b=0 R7c=200 R9=0`, `R10`
+  (313 checkpoints / 317 references / 0 failures / `torch_modules_added=[]`) — **unchanged from
+  before the correction.**
+- `docs/migration/tests/` focused suite: **31/31 passed.**
+- `phase2_fingerprints.py all` (G4 + G11 + G10a, cheap/Torch-free): `ok=true`, zero failures in
+  every sub-gate. G4's literals and live `observation_schema_hash()` recomputation are
+  unchanged from section 6. G11's six map hashes are exactly the pinned values, all three
+  pairs byte-identical, marker present. G10a's 313-checkpoint/317-reference comparison is
+  unchanged (`field_mismatches: 0`).
+- `git diff --check`: clean.
+- Scope check (`git diff --name-only pre-consolidation-complete..HEAD` against the three
+  product roots): only the same 12 EOL-portability-repair paths from section 2 — no new
+  product-path changes from this correction. Zero `.py` product source touched.
+- Worktree/index: clean after the two correction commits.
+- `refactor/consolidation-phase1` remains unpushed (verified directly: no matching ref under
+  `git ls-remote origin`; only the two preservation tags and the pre-existing
+  `feature/standalone-farming-recorder-simulator` branch exist on `origin`).
+
+### 16.6 Corrected conclusion
+
+**G10b corrected and Phase 2 complete.**
+
+---
+
+## 17. Final exit-condition table (supersedes section 15)
+
+| | condition | status |
+|---|---|---|
+| A | Claude independently accepted Phase 1 | PASS |
+| B | `current_phase = 2` | PASS |
+| C | G4 green | PASS |
+| D | G10a green | PASS |
+| E | **G10b green** | **PASS — corrected V2 selection/baseline plus byte-preserving fresh comparison** |
+| F | G11 green | PASS |
+| G | Phase-1 ruler green (R6=7 R7a=35 R7b=0 R7c=200 R9=0 R10=0) | PASS |
+| H | B1/B2 uninstalled | PASS |
+| I | B4 tag unchanged | PASS |
+| J | No product Python/runtime-logic changes | PASS |
+| K | No checkpoint/model/Tower scientific bytes changed except the accepted 12-file raw-byte portability repair restoring Phase-0 bytes | PASS |
+| L | Worktree/index clean after final documentation commit | PASS |
+| M | Branch unpushed | PASS |
+
+All thirteen exit conditions hold. Final HEAD after the G10b-v2 correction: `4d46917`.
+Commits added by this correction, in order: `13c3537` (V2 selection, tool extension),
+`4d46917` (V2 load baseline). Neither commit touched product source, checkpoints, maps, or
+any protected tag/frozen historical artifact.
+
+---
+
+## 18. Final conclusion
+
+**PHASE 3 SAFE TO CONSIDER: YES**
+
+This is a readiness signal only, not a self-authorization — Phase 3 (the golden-capture
+fixtures listed in section 14) remains unauthorized until the coordinator explicitly approves
+it. Phase 2 itself is now complete: G4, G10a, G10b (corrected), and G11 all pass; the
+Phase-1 ruler is unchanged; no product source, checkpoint, model, or map byte was modified at
+any point across the full Phase-2 effort, including the portability repair (section 2) and
+the G10b-v2 correction (section 16); the only product-root differences are the accepted
+12 raw-byte portability restorations, and the branch remains unpushed.
+
+**PHASE 3 AUTHORIZED: NO**
+
+---
+
+## 19. Codex takeover verification and final G10b-v2 comparison
+
+Codex resumed at exact HEAD `4d469172660e2effa56aaf122b3c5b26c284f857` and preserved
+Claude's uncommitted edits to this report and `STATE.json`. No unexplained product change was
+present.
+
+### 19.1 Independent preregistration and selection proof
+
+- Selection commit: `13c353777f1f4bb1a50b749f32a5628d8623cc7f`.
+- First authorized load-baseline commit: `4d469172660e2effa56aaf122b3c5b26c284f857`.
+- Git history proves the V2 selection first appears in the former, the V2 baseline first
+  appears in the latter, the baseline did not exist at selection time, and the selection did
+  not change in the baseline commit.
+- Independent recomputation from `CHECKPOINT_INVENTORY.tsv` reproduced all 17 selection rows
+  byte-for-byte. It used UTF-8 input `G10b-v2|category|checkpoint_sha256`, SHA-256, unique
+  lowest hexadecimal score, the authorized exclusions, and no filename, performance, or load
+  outcome. The implementation raises on a minimum-score collision rather than breaking it by
+  pathname.
+- Selection artifact SHA-256:
+  `1d690788fdf7c7fadab0c019b09f0d3cc5341b7997c2296162bfdf3eac41ef9f`.
+- Load-baseline artifact SHA-256:
+  `cafbfaefaef07121dd20a11d90ccd4fda9b7833be3d7af5c2fb71bda37121b51`.
+
+The four independently reproduced winners are:
+
+| stratum | checkpoint | checkpoint SHA-256 | selection score |
+|---|---|---|---|
+| `canonical_advanced_ppo` | `flyff_farming_simulator/models/canonical_advanced_ppo_190k.zip` | `3cb16f2210122fc9dd348c46adb82260684caacc507c5bc62db7930c7c00c01e` | `05c28a3e77464d0d9494e50eca960b2ed8efdd3f940de394801caff9a102c3da` |
+| `quarantine` | `flyff_farming_simulator/models/_quarantine/canonical_basic_milestone_004_BROKEN_event_head_never_learned_eva_20260808.zip` | `2dfc43affc7fb25df63a7981ded64a6e398931ee18e3e634b659b6be1425bfb1` | `7bc4e367e6b94594a54734e537d277bf4e9bed262e0d8d3af7455652de5ea3be` |
+| `era_925` | `flyff_farming_simulator/models/canonical_beginner_ppo_010k_rehearsed.zip` | `5e36939fc6dfe64b8bf4d0fecbabf97d626773f5bbd15684fdb922c3bfc3a948` | `00f677c3e8cd0d81f677aa3346be4ca3e390f91ab6c2cd6495ccae028f730ab1` |
+| `era_928` | `flyff_farming_simulator/models/generalized_waypoint_living_cost_only_seed0_0030720.zip` | `5325ee06e47dbbbf5d69341cb6f1931868170b9d3fe4e6c6231a167e7ed60795` | `0138f5f5dbc5e11c8d6c07ca31afd915dd03a28c8e121af5041dfc3079643e80` |
+
+### 19.2 Verifier repair and fresh comparison
+
+Inspection found `compare_v2` performed fresh loads but rewrote the frozen baseline and did
+not compare exception messages or every frozen contract field. Codex made a narrow migration-
+tool correction: comparison now calls `run_v2(..., write_baseline=False)`, requires exact path
+sets, and compares every `BASELINE_FIELDS` value. Its focused regression test proves an
+exception-message change fails while baseline bytes remain unchanged.
+
+The one authorized fresh 17-checkpoint comparison then exited 0 in 71.6 seconds:
+
+- 17 total / 14 loaded / 3 failed / 0 gate failures;
+- all successful policy modules/qualnames and observation/action contracts reproduced;
+- the same three checkpoints reproduced the exact frozen `ValueError` type and full message;
+- selection and baseline SHA-256 values were unchanged before/after the run.
+
+### 19.3 Final cheap gates and preservation scope
+
+- Focused migration tests: **32 passed in 41.59 seconds**.
+- Ruler: R6=7, R7a=35, R7b=0, R7c=200, R9=0, R10=0; 313 checkpoint and
+  317 reference rows; no bridge/ownership/Torch-import failures.
+- G4: exact schema ID/hash, observation/action/sidecar sizes, metadata version, and physics ID.
+- G10a: 313 compared, 0 mismatches, 317 references exactly regenerated.
+- G11: six pinned hashes, three byte-identical pairs, marker present.
+- The accepted portability repair remains exactly 12 paths; every current byte hash matches
+  `PHASE0_ARTIFACT_PORTABILITY_REPAIR.tsv`. There are zero product Python changes.
+- B1/B2 remain future/uninstalled; B4 and all protected refs remain exact.
+- The provisional V1 artifacts and read-only audit remain committed and superseded.
+
+Final verdict: **PHASE 2 COMPLETE**. **PHASE 3 SAFE TO CONSIDER: YES.**
+**PHASE 3 AUTHORIZED: NO.**

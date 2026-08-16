@@ -861,3 +861,89 @@ repeated.
 - Classification: **G10b BLOCKED_PENDING_AUTHORIZED_SELECTION**; exit condition E
   FAIL/PENDING; Phase 2 not complete; PHASE 3 SAFE TO CONSIDER: NO.
 - Producer exit code: **0** (audit generation).
+
+## Phase-2 interrupted-handoff completion (executor: Codex)
+
+### Reconciliation and Claude-action reconstruction
+
+- Start HEAD: `4d469172660e2effa56aaf122b3c5b26c284f857`; branch exact;
+  index empty; only Claude's WIP `PHASE2_REPORT.md` and `STATE.json` dirty.
+- No original timestamps were invented for Claude's interrupted V2 actions.
+  Git/artifacts prove selection commit
+  `13c353777f1f4bb1a50b749f32a5628d8623cc7f`, then baseline commit
+  `4d469172660e2effa56aaf122b3c5b26c284f857`, with first-run outcome
+  17 total / 14 loaded / 3 failed.
+- Classification: passed resume reconciliation; Claude WIP preserved.
+
+### Independent V2 selection and preregistration gates
+
+- Git proves the selection first appears in `13c3537`; the baseline first
+  appears in `4d46917`; no V2 baseline existed in the selection commit; the
+  selection did not change in the baseline commit.
+- Independent scoring from the frozen inventory reproduced four unique lowest
+  SHA-256 scores, exact paths/SHAs, pools 45/8/173/102, exclusions 0/0/53/6,
+  and eligible pools 45/8/120/96. No filename/outcome criterion was used.
+- Isolated `declare-v2` regeneration performed no PPO load and produced a
+  byte-identical 17-row artifact. Selection SHA-256:
+  `1d690788fdf7c7fadab0c019b09f0d3cc5341b7997c2296162bfdf3eac41ef9f`.
+- Baseline SHA-256:
+  `cafbfaefaef07121dd20a11d90ccd4fda9b7833be3d7af5c2fb71bda37121b51`.
+- Producer exit code: **0**.
+
+### Compare-v2 verifier correction
+
+- Inspection found comparison rewrote the baseline through `run_v2` and omitted
+  exception messages and other frozen fields.
+- Narrow migration-tool fix added a no-write run mode, exact path-set checks,
+  and comparison of every `BASELINE_FIELDS` value.
+- In-memory compile passed. Focused regression: **1 passed in 0.04s**, proving
+  changed exception text fails and baseline bytes stay unchanged.
+- Classification: real verifier/harness defect corrected before fresh load.
+
+### One authorized fresh G10b-v2 comparison
+
+- Exact command: repository venv `phase2_representative_load.py compare-v2
+  --repo . --corpus <preserved Phase-0 snapshot>`.
+- Producer exit code: **0**; elapsed 71.6 seconds.
+- Result: **17 total / 14 loaded / 3 failed / 0 gate failures**.
+- All successful policy module/qualname and observation/action fields matched.
+- The same three checkpoints reproduced exact `ValueError` type and full
+  925-vs-928 navigation-sidecar message.
+- Selection and frozen baseline SHA-256 were unchanged before/after.
+- Classification: G10b-v2 fresh repeatability PASS.
+
+### Final cheap/focused gates
+
+- `pytest docs/migration/tests`: **32 passed in 41.59s**.
+- Ruler: R6=7, R7a=35, R7b=0, R7c=200, R9=0; R10 313/317 with
+  zero failures; no bridge/ownership/Torch additions.
+- `phase2_fingerprints.py all`: exit **0**, `ok=true`.
+- G10a: 313 compared, zero field mismatches, 317 references equal.
+- G11: six exact hashes, three equal pairs, marker present.
+- G4: schema ID/hash, 923 raw, 5 sidecar, 928 policy input, `[3,3]`, metadata
+  version 2, and `live_calibrated_arc` exact.
+- No broad product suite, 820M, game, training, or extra PPO comparison ran.
+
+### Portability and scope gate
+
+- All 12 accepted repair rows match current, snapshot, manifest, and staged-blob
+  SHA-256 evidence; every row remains `line_endings_only` with `-text`.
+- Phase-0-to-HEAD product-root diff is exactly those 12 artifact paths; product
+  Python diff is empty.
+- `current_phase=2`; B1/B2 future/uninstalled; B4 and all protected refs exact.
+- Provisional V1 selection/baseline and audit/amendment remain committed and
+  superseded.
+- Classification: passed Phase-2 preservation/scope gate.
+
+### Final staged Phase-2 gate
+
+- Staged set: exactly five handoff/report journals, the corrected representative
+  load verifier, and its new regression test; no product source.
+- Cached `diff --check` and no-write syntax passed.
+- Tracked-set focused suite: **32 passed in 41.54s**; formal ruler green.
+- Phase-0-to-tip product-root set: exactly the accepted 12 portability artifacts;
+  product Python set empty; all 12 hashes exact.
+- Protected refs and both V2 artifact SHA-256 values exact; remote Phase-2
+  branch absent; generated scratch removed.
+- Producer exit code: **0**.
+- Classification: all final Phase-2 precommit gates passed.
