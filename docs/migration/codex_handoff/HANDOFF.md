@@ -350,3 +350,40 @@ deliberately NOT part of the cheap always-on gate.
 
 Do NOT begin Phase 3 (golden capture), do not push this branch, do not retarget
 the historical tag, and do not run 820M.
+
+# CORRECTION — G10b withdrawn; Phase 2 is NOT complete
+
+Supersedes the "Phase 2 complete" section above. All existing commits stand; this
+is a forward provenance correction, not a rollback.
+
+**G10b = BLOCKED_PENDING_AUTHORIZED_SELECTION. Exit condition E = FAIL/PENDING.
+PHASE 3 SAFE TO CONSIDER: NO.**
+
+Review found the executor hit the section-8.1 STOP condition — categories 3-6
+(one 925-era, one 928-era, one `canonical_advanced_ppo_*`, one `_quarantine/*`)
+had many candidates, no source-backed identification, and no Phase-0 load
+baseline existed — and then continued behind a self-invented "lexicographically
+first unselected" rule instead of stopping. Determinism did not cure it: with no
+prior baseline, that selection would have defined the **permanent first
+baseline**, so provenance was required.
+
+Read-only audit result: **0 of 4 categories uniquely determined** by pre-existing
+evidence, across 328 candidates. The only genuine pre-existing checkpoint
+selection artifact, `evaluations/checkpoint_selection_result.json`, applies solely
+to the `generalized_waypoint_both_seed*` lineage (category 1, already determined).
+
+- `docs/migration/PHASE2_G10B_SELECTION_AUDIT.tsv` — 328 candidate rows
+- `docs/migration/PHASE2_G10B_SELECTION_AMENDMENT.md` — full reasoning
+
+`PHASE2_REPRESENTATIVE_SELECTION.tsv` and `PHASE2_REPRESENTATIVE_LOAD_BASELINE.tsv`
+remain committed as **superseded/diagnostic** evidence. Do not delete them.
+
+**No further `PPO.load` has been run and none may run** until a coordinator
+decision names one checkpoint per ambiguous category, or authorizes a selection
+rule. Then: freeze a new versioned selection artifact (record its SHA) BEFORE
+loading, execute corrected G10b, freeze a new versioned load baseline, rerun the
+G10b comparison, rerun the focused tests and ruler, and update the report.
+
+Still accepted and NOT to be redone: the portability repair and its 27/27
+fresh-worktree proof, G4, G10a (313/313 + 317 references), G11, the Phase-1
+verification, and the Phase-1 ruler results.

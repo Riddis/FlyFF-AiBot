@@ -825,3 +825,39 @@ repeated.
 - D1 changed by exactly one row (the `map.json` pair digest); counts unchanged
   at 119 exact / 31 AST-similar. Diagnostic-only, never gates.
 - `git diff --check` clean outside the intentionally CRLF-restored artifacts.
+
+## G10b withdrawal and read-only selection audit (executor: Claude)
+
+- **No gate was executed for this entry. No `PPO.load` was run.** This was a
+  read-only evidence audit.
+- Sources searched for a pre-Phase-2 designation of the four ambiguous
+  representatives: the Phase-0 checkpoint inventory and module references, the
+  artifact manifest, all 235 rows of `EVALUATION_ARTIFACT_CLASSIFICATION.tsv`
+  (including the 8 `frozen_result` and 35 `scientific_reference` entries),
+  `HISTORICAL_REPRODUCTION_CLOSURE.tsv`, `DECISION_LOG.md` D1-D10,
+  `WIP_BASELINE.md`, all five `codex_handoff` journals, `run_logs/` and
+  `run_logs/archive/`, `refactor_logs/`, every tracked `.md`, and every
+  checkpoint basename across all tracked content at `dc734bb`.
+- Constraints honoured: the already-observed 14-load/3-failure outcomes were NOT
+  used in candidate assessment; the provisional selection was NOT treated as
+  evidence of intent; no candidate was preferred for having loaded or failed; no
+  new lexicographic/first/latest/best/uniqueness rule was invented.
+- Result: **0 of 4 categories uniquely determined**, 328 candidate rows.
+
+| category | candidates | pre-Phase-2 reference | uniquely determined |
+|---|---|---|---|
+| `era_925` | 173 | 173 | NO |
+| `era_928` | 102 | 102 | NO |
+| `canonical_advanced_ppo` | 45 | 45 | NO |
+| `quarantine` | 8 | 8 | NO |
+
+- Every candidate is referenced somewhere in pre-Phase-2 tracked content, so
+  "is referenced" has zero discriminating power.
+- The only genuine pre-existing checkpoint-selection artifact,
+  `flyff_farming_simulator/evaluations/checkpoint_selection_result.json`, carries
+  a real source-backed rule but applies **only** to the
+  `generalized_waypoint_both_seed*` lineage — category 1, already fixed by the
+  plan. It corroborates category 1 and says nothing about categories 3-6.
+- Classification: **G10b BLOCKED_PENDING_AUTHORIZED_SELECTION**; exit condition E
+  FAIL/PENDING; Phase 2 not complete; PHASE 3 SAFE TO CONSIDER: NO.
+- Producer exit code: **0** (audit generation).

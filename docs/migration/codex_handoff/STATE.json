@@ -1,6 +1,6 @@
 {
   "phase": "Phase 2",
-  "task": "PHASE 2 - FREEZE FINGERPRINTS (complete; stopped before Phase 3)",
+  "task": "PHASE 2 - FREEZE FINGERPRINTS (INCOMPLETE: G10b withdrawn pending authorized representative selection)",
   "timestamp_local": "2026-08-16T04:08:50+02:00",
   "worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL - Phase1",
   "reference_worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL",
@@ -113,10 +113,10 @@
     "Made CANONICAL_OWNERS.toml current_phase the single active migration-phase source of truth",
     "Committed the five-file ruler-hardening amendment as ad61b991e4af436eef8705b49978990464cc28f5"
   ],
-  "current_step": "Phase 2 complete",
-  "next_exact_action": "Await explicit Phase-3 authorization. Do not begin golden capture.",
+  "current_step": "G10b blocked; read-only selection audit complete",
+  "next_exact_action": "Await explicit coordinator decision naming one checkpoint for each of the four ambiguous G10b categories, or an authorized selection rule. Do NOT run any further PPO.load until then.",
   "blocked": false,
-  "stop_reason": "Phase 2 scope is complete; Phase 3 golden capture is explicitly unauthorized and the branch must remain unpushed.",
+  "stop_reason": "Decision boundary: at least one ambiguous category remains (all four do), so no additional PPO.load may run until an authorized selection exists.",
   "tests_and_gates": {
     "phase0_anchor_gate": "passed",
     "remote_push_gate": "passed",
@@ -168,7 +168,7 @@
   },
   "G4_status": "GREEN - all literals match source; observation_schema_hash() recomputed in both implementations; PHYSICS_VERSION=live_calibrated_arc read from movement_kernel.py",
   "G10a_status": "GREEN - 313/313 checkpoints, 0 field mismatches across 12 Phase-0 fields, 317/317 module references reproduced",
-  "G10b_status": "GREEN - 17 declared before execution, 14 loaded, 3 expected ValueError failures, 0 gate failures; first real-load baseline (none existed in Phase 0)",
+  "G10b_status": "BLOCKED_PENDING_AUTHORIZED_SELECTION",
   "G11_status": "GREEN - six exact hashes in both locations, three byte-identical pairs, .skip_legacy_import present",
   "HEAD": "the commit containing this file; resolve exactly with git rev-parse HEAD",
   "phase2_base_sha": "9cf13873cd4a5ca43df02f28c86463bfd8a823c9",
@@ -182,6 +182,37 @@
   "staged_files": [],
   "dirty_files": [],
   "R6_R7_R9_R10_status": "R6=7 R7a=35 R7b=0 R7c=200 R9=0 R10=0 failures; no new debt; baseline not regenerated",
-  "blocker": null,
-  "phase3_safe_to_consider": "YES (readiness only; not self-authorized)"
+  "blocker": "G10b representative selection for one 925-era, one 928-era, one canonical_advanced_ppo_*, and one _quarantine/* checkpoint is not determined by any pre-existing evidence and requires an explicit authorized decision.",
+  "phase3_safe_to_consider": "NO",
+  "G10b_withdrawal_reason": "Executor hit the section-8.1 STOP condition (categories 3-6 ambiguous, no source-backed identification, no Phase-0 load baseline) and continued behind a self-invented lexicographic rule instead of stopping. Because no prior baseline existed, that selection would have defined the permanent first baseline, so selection provenance was required and determinism did not cure it.",
+  "G10b_provisional_artifacts": {
+    "docs/migration/PHASE2_REPRESENTATIVE_SELECTION.tsv": "provisional/superseded for gating; retained as historical evidence; do not delete",
+    "docs/migration/PHASE2_REPRESENTATIVE_LOAD_BASELINE.tsv": "provisional/superseded for gating; raw outcomes retained as diagnostic evidence; do not delete"
+  },
+  "G10b_audit": {
+    "audit_tsv": "docs/migration/PHASE2_G10B_SELECTION_AUDIT.tsv",
+    "amendment": "docs/migration/PHASE2_G10B_SELECTION_AMENDMENT.md",
+    "candidate_rows": 328,
+    "categories_uniquely_determined": "0 of 4",
+    "era_925": {
+      "candidates": 173,
+      "uniquely_determined": false
+    },
+    "era_928": {
+      "candidates": 102,
+      "uniquely_determined": false
+    },
+    "canonical_advanced_ppo": {
+      "candidates": 45,
+      "uniquely_determined": false
+    },
+    "quarantine": {
+      "candidates": 8,
+      "uniquely_determined": false
+    },
+    "only_preexisting_selection_artifact": "flyff_farming_simulator/evaluations/checkpoint_selection_result.json -- applies ONLY to the generalized_waypoint_both_seed* lineage (category 1, already determined); says nothing about categories 3-6",
+    "further_ppo_load_executed_since_withdrawal": false
+  },
+  "exit_condition_E": "FAIL/PENDING",
+  "phase2_complete": false
 }
