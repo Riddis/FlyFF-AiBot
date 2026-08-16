@@ -298,3 +298,55 @@ historical result was rewritten.
 
 `current_phase` deliberately remained `1` across the repair commit and advanced
 to `2` only after the repair passed its fresh-worktree proof.
+
+# Phase 2 complete — stop boundary before Phase 3 (executor: Claude)
+
+Phase 1 was independently verified and ACCEPTED. Phase 2 is complete. Phase 3 is
+NOT authorized and was NOT begun.
+
+Commits (branch `refactor/consolidation-phase1`, still unpushed):
+
+| SHA | purpose |
+|---|---|
+| `39a32a58c1cab800e5024604e7eeaba952d0a46f` | Phase-0 artifact byte portability repair |
+| `b7355a9359143739ad725486f99b72d5391cd945` | fingerprint registry/tooling/tests + `current_phase = 2` |
+| `98c4aead0824aacb4a86eca574ef277f12570379` | generated Phase-2 evidence |
+
+Gate results: **G4 GREEN, G10a GREEN, G10b GREEN, G11 GREEN**; Phase-1 ruler
+still R6=7 / R7a=35 / R7b=0 / R7c=200 / R9=0 / R10 clean; 31 focused tests pass.
+
+Frozen Phase-2 artifacts a later phase must consume:
+
+```
+docs/migration/PHASE2_FINGERPRINTS.toml               single home for pinned literals
+docs/migration/PHASE2_CHECKPOINT_SUPPLEMENT.tsv       architecture metadata first frozen in Phase 2
+docs/migration/PHASE2_REPRESENTATIVE_SELECTION.tsv    G10b set, frozen before execution
+docs/migration/PHASE2_REPRESENTATIVE_LOAD_BASELINE.tsv first real-load baseline
+docs/migration/PHASE0_ARTIFACT_PORTABILITY_REPAIR.tsv  EOL-only repair evidence
+```
+
+Later gates must consume BOTH the immutable Phase-0 baseline
+(`CHECKPOINT_INVENTORY.tsv`, `CHECKPOINT_MODULE_REFERENCES.tsv`) AND the Phase-2
+supplement — the Phase-0 inventory genuinely never contained `policy_kwargs` or
+`net_arch` and was not backdated.
+
+## Phase-2 resume commands
+
+```powershell
+$wt = 'C:/Users/Ridd/Documents/Repos/Flyff RL - Phase1'
+$root = 'C:/Users/Ridd/Documents/Repos/Flyff RL'
+$snap = 'C:/Users/Ridd/FlyffRL_Backups/pre_consolidation_20260815/Flyff RL'
+git -c "safe.directory=$root" -c "safe.directory=$wt" -C $wt rev-parse HEAD
+git -c "safe.directory=$root" -c "safe.directory=$wt" -C $wt status --porcelain=v1 -uall
+& "$root/.venv/Scripts/python.exe" "$wt/docs/migration/tools/migration_integrity.py" check --repo $wt
+& "$root/.venv/Scripts/python.exe" "$wt/docs/migration/tools/phase2_fingerprints.py" all --repo $wt --corpus $snap
+& "$root/.venv/Scripts/python.exe" -m pytest "$wt/docs/migration/tests" -q
+Get-Content "$wt/docs/migration/codex_handoff/PHASE2_REPORT.md" -Raw
+```
+
+`phase2_representative_load.py compare --corpus $snap` re-runs the expensive
+Torch-backed G10b and requires every outcome to match the frozen baseline. It is
+deliberately NOT part of the cheap always-on gate.
+
+Do NOT begin Phase 3 (golden capture), do not push this branch, do not retarget
+the historical tag, and do not run 820M.

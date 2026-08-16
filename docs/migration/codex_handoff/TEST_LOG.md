@@ -744,3 +744,84 @@ repeated.
   transformed copy.
 - Evidence: `docs/migration/PHASE0_ARTIFACT_PORTABILITY_REPAIR.tsv`.
 - Producer exit code: **0**.
+
+## Phase-2 gate set (executor: Claude)
+
+### Fresh-worktree portability proof
+
+- Disposable worktree created with `git worktree add --detach` from the repair
+  commit; no file was copied into it by hand.
+- All **27/27** tracked Phase-0 artifact-manifest entries reproduced their
+  sha256 and size. The **12** repaired paths reproduced exactly. All six G11
+  hashes exact, all three Tower pairs byte-identical, `.skip_legacy_import`
+  present, and all 12 repaired files parsed to identical structures compared to
+  their pre-repair content.
+- Producer exit code: **0**.
+
+### G4 — contract fingerprints
+
+- Exact command: repository venv Python,
+  `docs/migration/tools/phase2_fingerprints.py g4 --repo .`
+- Each farming owner is imported in its OWN subprocess because `farming.*`
+  exists in two roots; the recorder's metadata-only copy is read via AST.
+- Result: **0 failures**. Schema id, size 923, nvec (3,3), sidecar 5, policy
+  input 928, metadata version 2, and PHYSICS_VERSION `live_calibrated_arc` all
+  match source. Per 5.2 `observation_schema_hash()` was RECOMPUTED to
+  `F2D568C1...C84609` in both implementations, not merely compared as a
+  constant.
+- Producer exit code: **0**.
+
+### G11 — Tower map byte fingerprints
+
+- Exact command: `phase2_fingerprints.py g11 --repo .`
+- Result: **0 failures**. Six exact hashes across both locations, three
+  byte-identical pairs, marker present. Copies remain deliberately duplicated;
+  no JSON reformatted and `occupancy.npy` not rewritten. G12 not attempted.
+- Producer exit code: **0**.
+
+### G10a — independent 313-checkpoint comparison
+
+- Exact command: `phase2_fingerprints.py g10a --corpus <external Phase-0
+  snapshot> --write-supplement`, read-only against the preserved corpus.
+- Result: **313/313** checkpoints compared, **0** mismatches across the 12
+  fields Phase 0 actually froze, and **317/317** serialized module references
+  reproduced with exact set equality.
+- The first attempt produced 315 reference rows. The two missing rows were
+  `farming.sb3_training.TrainingBoundaryKind`, whose `STACK_GLOBAL` module
+  operand arrives through the pickle MEMO via `BINGET` rather than as a literal.
+  The opcode scanner was corrected to track the memo; the frozen Phase-0
+  evidence was never altered to accommodate the tool.
+- Phase-0 header confirmed to lack `policy_kwargs` and `net_arch`; those were
+  NOT backdated. 313-row supplement written and labelled as first frozen in
+  Phase 2.
+- Producer exit code: **0**.
+
+### G10b — representative real PPO.load
+
+- Selection frozen to `PHASE2_REPRESENTATIVE_SELECTION.tsv` BEFORE execution:
+  17 checkpoints across all seven categories, all distinct.
+- Result: **14 loaded, 3 failed, 0 gate failures**. Every success resolved to
+  the inventory's policy class module/qualname; loaded 928 models kept `(928,)`
+  and `MultiDiscrete([3 3])`.
+- The 3 failures are 925-era checkpoints raising an identical expected
+  `ValueError` from `NavigationAugmentedFeaturesExtractor`. Expected failure is
+  valid evidence; exact type/message frozen, nothing repaired.
+- No Phase-0 real-load baseline existed, so this is the first, transparently
+  labelled Phase-2 load baseline.
+- Producer exit code: **0**.
+
+### Determinism of generated Phase-2 evidence
+
+- `PHASE2_CHECKPOINT_SUPPLEMENT.tsv` and `PHASE2_REPRESENTATIVE_SELECTION.tsv`
+  both regenerated **byte-identically**.
+- Producer exit code: **0**.
+
+### Phase-1 ruler after Phase 2
+
+- Formal check at `current_phase = 2`: **R6=7, R7a=35, R7b=0, R7c=200, R9=0**,
+  R10 zero failures over 313 checkpoints / 317 references, zero Torch modules,
+  zero bridge and ownership errors. Exit **0**.
+- Focused suites: **31 passed** (17 Phase-1 + 14 Phase-2).
+- D1 changed by exactly one row (the `map.json` pair digest); counts unchanged
+  at 119 exact / 31 AST-similar. Diagnostic-only, never gates.
+- `git diff --check` clean outside the intentionally CRLF-restored artifacts.

@@ -1,6 +1,6 @@
 {
-  "phase": "Phase 2 (entry: Phase-0 artifact portability repair; current_phase stays 1 until proven)",
-  "task": "Phase-2 preservation repair: restore exact Phase-0 artifact bytes for the 12 fresh-checkout mismatches discovered by G11",
+  "phase": "Phase 2",
+  "task": "PHASE 2 - FREEZE FINGERPRINTS (complete; stopped before Phase 3)",
   "timestamp_local": "2026-08-16T04:08:50+02:00",
   "worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL - Phase1",
   "reference_worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL",
@@ -113,10 +113,10 @@
     "Made CANONICAL_OWNERS.toml current_phase the single active migration-phase source of truth",
     "Committed the five-file ruler-hardening amendment as ad61b991e4af436eef8705b49978990464cc28f5"
   ],
-  "current_step": "Portability repair staged; committing before fresh-worktree proof",
-  "next_exact_action": "Commit the repair, then prove it in a genuinely fresh disposable worktree, then set current_phase=2 and run G4/G11/G10a/G10b",
+  "current_step": "Phase 2 complete",
+  "next_exact_action": "Await explicit Phase-3 authorization. Do not begin golden capture.",
   "blocked": false,
-  "stop_reason": "Phase-1 scope is complete; stop boundary is the explicit prohibition on Phase 2 and on pushing the Phase-1 branch.",
+  "stop_reason": "Phase 2 scope is complete; Phase 3 golden capture is explicitly unauthorized and the branch must remain unpushed.",
   "tests_and_gates": {
     "phase0_anchor_gate": "passed",
     "remote_push_gate": "passed",
@@ -162,10 +162,26 @@
     "difference_class": "line_endings_only for all 12",
     "tower_map_artifacts_affected": "2 of 6 (both map.json); occupancy.npy and both coordinate_frame.json already correct",
     "evidence": "docs/migration/PHASE0_ARTIFACT_PORTABILITY_REPAIR.tsv",
-    "protected_tags_rewritten": false
+    "protected_tags_rewritten": false,
+    "repair_commit": "39a32a58c1cab800e5024604e7eeaba952d0a46f",
+    "fresh_worktree_proof": "27/27 tracked manifest entries reproduce"
   },
-  "G4_status": "verified green pre-repair; to be re-run after repair",
-  "G10a_status": "not yet run; precondition satisfied (snapshot reproduces 348/348)",
-  "G10b_status": "not yet run",
-  "G11_status": "blocked pre-repair (2 of 6 Tower hashes); repair in progress"
+  "G4_status": "GREEN - all literals match source; observation_schema_hash() recomputed in both implementations; PHYSICS_VERSION=live_calibrated_arc read from movement_kernel.py",
+  "G10a_status": "GREEN - 313/313 checkpoints, 0 field mismatches across 12 Phase-0 fields, 317/317 module references reproduced",
+  "G10b_status": "GREEN - 17 declared before execution, 14 loaded, 3 expected ValueError failures, 0 gate failures; first real-load baseline (none existed in Phase 0)",
+  "G11_status": "GREEN - six exact hashes in both locations, three byte-identical pairs, .skip_legacy_import present",
+  "HEAD": "the commit containing this file; resolve exactly with git rev-parse HEAD",
+  "phase2_base_sha": "9cf13873cd4a5ca43df02f28c86463bfd8a823c9",
+  "phase2_commits": {
+    "39a32a58c1cab800e5024604e7eeaba952d0a46f": "Preserve exact Phase-0 artifact bytes across fresh worktrees",
+    "b7355a9359143739ad725486f99b72d5391cd945": "Phase 2: freeze contract, physics, and map fingerprints as hard gates",
+    "98c4aead0824aacb4a86eca574ef277f12570379": "Phase 2: freeze generated checkpoint and representative-load evidence",
+    "documentation commit containing this STATE.json": "Phase 2: report and handoff journals"
+  },
+  "last_good_commit": "the commit containing this file; resolve exactly with git rev-parse HEAD",
+  "staged_files": [],
+  "dirty_files": [],
+  "R6_R7_R9_R10_status": "R6=7 R7a=35 R7b=0 R7c=200 R9=0 R10=0 failures; no new debt; baseline not regenerated",
+  "blocker": null,
+  "phase3_safe_to_consider": "YES (readiness only; not self-authorized)"
 }
