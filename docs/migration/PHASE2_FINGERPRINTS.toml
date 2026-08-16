@@ -1,0 +1,178 @@
+schema_version = 1
+phase = 2
+base_sha = "dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34"
+purpose = "Machine-checkable Phase-2 freeze of contract, physics, and map-artifact fingerprints"
+
+# This registry is the SINGLE migration-owned home for Phase-2 frozen literals.
+# Do not duplicate these values into individual test files, and do not place them
+# into production runtime modules -- they are migration-only freeze constants.
+#
+# Every value here was READ FROM CURRENT SOURCE and then pinned. Nothing in the
+# product tree was edited to make a value match. If a later phase changes a
+# product definition, the corresponding gate fails by design.
+
+# ---------------------------------------------------------------------------
+# G4 -- farming contract fingerprints
+# ---------------------------------------------------------------------------
+
+[g4.observation_schema_id]
+value = "native-unified-923-v4"
+kind = "string"
+symbol = "OBSERVATION_SCHEMA_ID"
+owners = [
+  "flyff_farming_simulator/farming/observation.py",
+  "foreground_vision_bot/farming/observation.py",
+  "flyff_farming_recorder/recorder/session.py",
+]
+
+[g4.observation_schema_hash]
+value = "F2D568C1C4A4B5F577C9C2E36A37B1C5533C2CE28D415846C3B68EC293C84609"
+kind = "string"
+symbol = "OBSERVATION_SCHEMA_HASH"
+owners = [
+  "flyff_farming_simulator/farming/observation.py",
+  "foreground_vision_bot/farming/observation.py",
+  "flyff_farming_recorder/recorder/session.py",
+]
+recomputation_required = true
+recomputation_callable = "farming.observation.observation_schema_hash"
+recomputation_note = "The bot and simulator implementations must RECOMPUTE this value, not merely declare it, so semantic descriptor drift is caught. The recorder copy is metadata-only and carries no recomputation mechanism."
+
+[g4.observation_size]
+value = 923
+kind = "int"
+symbol = "OBSERVATION_SIZE"
+owners = [
+  "flyff_farming_simulator/farming/observation.py",
+  "foreground_vision_bot/farming/observation.py",
+]
+also_requires = "len(OBSERVATION_FIELDS) == OBSERVATION_SIZE"
+
+[g4.policy_action_nvecs]
+value = [3, 3]
+kind = "int_tuple"
+symbol = "POLICY_ACTION_NVECS"
+owners = [
+  "flyff_farming_simulator/farming/actions.py",
+  "foreground_vision_bot/farming/actions.py",
+]
+also_requires = "POLICY_ACTION_NVECS == (len(SteeringAction), len(FarmingEvent))"
+
+[g4.sidecar_size]
+value = 5
+kind = "int"
+symbol = "SIDECAR_SIZE"
+owners = ["flyff_farming_simulator/simulator/navigation_history.py"]
+also_requires = "SIDECAR_SIZE == TEMPORAL_SIDECAR_SIZE + PREVIOUS_STEERING_SIDECAR_SIZE == 2 + 3"
+
+[g4.policy_input_size]
+value = 928
+kind = "int"
+symbol = "POLICY_INPUT_SIZE"
+owners = ["flyff_farming_simulator/simulator/navigation_history.py"]
+also_requires = "POLICY_INPUT_SIZE == RAW_OBSERVATION_SIZE + SIDECAR_SIZE == 923 + 5"
+
+[g4.raw_observation_size]
+value = 923
+kind = "int"
+symbol = "RAW_OBSERVATION_SIZE"
+owners = ["flyff_farming_simulator/simulator/navigation_history.py"]
+
+[g4.model_contract_metadata_version]
+value = 2
+kind = "int"
+symbol = "MODEL_CONTRACT_METADATA_VERSION"
+owners = [
+  "flyff_farming_simulator/farming/model_contract.py",
+  "foreground_vision_bot/farming/model_contract.py",
+]
+
+# ---------------------------------------------------------------------------
+# G4 -- PHYSICS_VERSION
+# ---------------------------------------------------------------------------
+# The accepted plan calls this "PHYSICS_VERSION" but NO symbol of that name
+# exists in source. The authoritative physics-model version tag in the current
+# movement_kernel.py is MOVEMENT_PHYSICS_MODEL_ID. Its literal was read from
+# source (never taken from the task prompt) and pinned here.
+
+[g4.physics_version]
+value = "live_calibrated_arc"
+kind = "string"
+symbol = "MOVEMENT_PHYSICS_MODEL_ID"
+owners = ["flyff_farming_simulator/simulator/movement_kernel.py"]
+plan_name = "PHYSICS_VERSION"
+name_resolution = "No symbol literally named PHYSICS_VERSION exists; MOVEMENT_PHYSICS_MODEL_ID is the authoritative physics-model version tag in movement_kernel.py."
+
+[g4.legacy_physics_version]
+value = "legacy_recorded_iid"
+kind = "string"
+symbol = "LEGACY_MOVEMENT_PHYSICS_MODEL_ID"
+owners = ["flyff_farming_simulator/simulator/movement_kernel.py"]
+
+# The calibrated kinematic constants the version tag names. Frozen alongside the
+# tag so a silent constant change cannot hide behind an unchanged tag string.
+[g4.physics_constants]
+kind = "float_map"
+owners = ["flyff_farming_simulator/simulator/movement_kernel.py"]
+PATH_LENGTH_CELLS_PER_TICK = 2.738491
+ONSET_TURN_RADIANS = 0.792978
+STEADY_TURN_RADIANS = 0.873649
+DEFAULT_SUBSTEPS = 10
+
+# ---------------------------------------------------------------------------
+# G11 -- authoritative Tower map byte fingerprints
+# ---------------------------------------------------------------------------
+# The two raw Tower map copies intentionally REMAIN DUPLICATED during this
+# migration. Do not deduplicate them. Do not load/resave/reformat either JSON.
+# Do not rewrite occupancy.npy. G11's contract is RAW BYTES.
+#
+# Note: git-blob IDs are recorded as supplementary evidence only; they never
+# replace the raw-byte contract.
+
+[g11]
+locations = [
+  "flyff_farming_simulator/map_assets",
+  "foreground_vision_bot/mapper/maps/tower_aoe",
+]
+pairs_must_be_byte_identical = true
+marker = "foreground_vision_bot/mapper/maps/tower_aoe/.skip_legacy_import"
+
+[g11.artifacts]
+"occupancy.npy" = "62fa3c9ec3aed0b3b134b82577292c0a8a67b0acc4111fde3a36e3d2684d789b"
+"map.json" = "faaf8633457bc1bcdb61c781c8ca62c6f2e008174ed5b284c3d6c08df92fe815"
+"coordinate_frame.json" = "40339f6c397d38fe01d5b3a5300e5b9b6d499f06292f436b1f91ea34523a0414"
+
+[g11.sizes]
+"occupancy.npy" = 1002129
+"map.json" = 4868
+"coordinate_frame.json" = 106
+
+# G12 is explicitly NOT performed here. The intentional live/simulator
+# obstacle_radius_cells difference (2 vs 0) stays frozen for this migration.
+[g11.not_in_scope]
+g12 = "derived-map behavior capture/parity belongs to later phases"
+frozen_difference = "live obstacle_radius_cells = 2 vs simulator obstacle_radius_cells = 0 is intentional and must not be reconciled"
+
+# ---------------------------------------------------------------------------
+# G10 -- checkpoint corpus fingerprints
+# ---------------------------------------------------------------------------
+
+[g10]
+checkpoint_count = 313
+module_reference_rows = 317
+phase0_inventory = "docs/migration/CHECKPOINT_INVENTORY.tsv"
+phase0_references = "docs/migration/CHECKPOINT_MODULE_REFERENCES.tsv"
+phase2_supplement = "docs/migration/PHASE2_CHECKPOINT_SUPPLEMENT.tsv"
+phase2_load_baseline = "docs/migration/PHASE2_REPRESENTATIVE_LOAD_BASELINE.tsv"
+preserved_corpus = "C:/Users/Ridd/FlyffRL_Backups/pre_consolidation_20260815/Flyff RL"
+preserved_corpus_note = "Read-only. The consolidation worktree contains only the single Git-tracked 0051200 ZIP; most model artifacts are ignored. G10a must never run over only that file."
+
+# Hard repo-local checkpoint-ABI paths. Checkpoint ABI is more than policy_class.
+[g10.required_repo_local_references]
+values = [
+  "simulator.split_branch_policy.SplitSteeringNavigationPolicy",
+  "simulator.split_branch_policy.SplitSteeringEventPolicy",
+  "farming.sb3_training.TerminalPrefixRolloutBuffer",
+  "farming.sb3_training.TrainingBoundary",
+  "farming.sb3_training.TrainingBoundaryKind",
+]
