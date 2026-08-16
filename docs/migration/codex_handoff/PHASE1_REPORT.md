@@ -1,23 +1,109 @@
-# Phase 1 Consolidation Stop Report
+# Phase 1 Consolidation Report
 
-Status: **BLOCKED BEFORE IMPLEMENTATION**
+Status: **PHASE 1 COMPLETE — STOPPED BEFORE PHASE 2**
 
-Reason: the authoritative Phase-1 definition for the current three-system
-bot/recorder/simulator consolidation cannot be recovered from repository
-documentation. The takeover instructions explicitly prohibit inventing it.
+The user-supplied resume prompt resolved the earlier missing-plan blocker and
+authorized only `PHASE 1 - BUILD THE RULER`. No product source or behavior was
+changed, Phase 2 was not started, and the Phase-1 branch was not pushed.
+
+## Completion amendment
+
+### Scope and commits
+
+- Phase-0 base and rollback target:
+  `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34` /
+  `pre-consolidation-complete`.
+- Preserved blocked-state commit:
+  `80090cbad1dd0ef2ce09d87e01dc162f5a0306d6`.
+- Ruler architecture commit:
+  `61e1abefdba029cf826ac8bf1c2191d41c7b2ceb`.
+- Final documentation commit: the commit containing this report; resolve its
+  exact SHA with `git rev-parse HEAD` after checkout.
+- Authorized rules implemented: R6, R7a, R7b, R7c, D1, R9, and R10.
+- Strategy recorded: C -> A; Strategy B deferred.
+
+The architecture commit contains exactly:
+
+- `CANONICAL_OWNERS.toml`
+- `BRIDGES.md`
+- `docs/migration/BASELINE_VIOLATIONS.json`
+- `docs/migration/BASELINE_VIOLATIONS.md`
+- `docs/migration/DUPLICATE_CONTENT_REPORT.tsv`
+- `docs/migration/tools/migration_integrity.py`
+- `docs/migration/tests/test_migration_integrity.py`
+
+The final documentation checkpoint contains exactly the five files under
+`docs/migration/codex_handoff/`: `COMMAND_LOG.tsv`, `HANDOFF.md`,
+`PHASE1_REPORT.md`, `STATE.json`, and `TEST_LOG.md`.
+
+### Ownership, bridges, and ratchets
+
+`CANONICAL_OWNERS.toml` records current definitions and conceptual target
+owners without moving a package. `BRIDGES.md` contains a machine-readable TOML
+ledger plus a human summary: B1/B2 are future and not installed, B3 is the
+verified existing non-live inventory bridge, and B4 is the permanent historical
+tag. Every bridge has explicit evidence and a removal phase or `NEVER`.
+
+The frozen non-regression baseline is:
+
+- R6: 7 entries.
+- R7a: 35 entries.
+- R7b: 0 entries.
+- R7c: 20 entries.
+
+R6/R7 debt may decrease but may not grow. R7b is green and must remain zero.
+D1 is diagnostic only and reports 119 exact-content pairs plus 31
+AST-normalized pairs at or above 0.95 similarity.
+
+### Green integrity gates
+
+- R9: zero unresolved or untracked-local repository imports.
+- R10: 313 checkpoint inventory rows and 317 module-reference rows checked;
+  zero failures and zero Torch modules imported.
+- Ownership and bridge validation: zero errors.
+- Generated evidence determinism: the JSON, Markdown baseline, and D1 TSV
+  reproduced byte-for-byte with SHA-256 values `18C9DD99...71460D3`,
+  `9E044424...943ECF1`, and `187A8DE5...0A5D5`.
+- Focused test suite: 9 passed in 25.72 seconds.
+- In-memory syntax compilation: passed.
+
+The first `py_compile` attempt failed only because the linked-worktree sandbox
+denied creation of `docs/migration/tools/__pycache__`; the no-write in-memory
+compile passed. The first pytest collection attempt exposed a test-loader
+harness defect (the dynamic module was not registered in `sys.modules`); the
+harness was corrected and the authoritative run passed. Both attempts are
+retained in `COMMAND_LOG.tsv` and `TEST_LOG.md`.
+
+### Preservation and exit decision
+
+The diff from Phase 0 contains no path under `foreground_vision_bot`,
+`flyff_farming_recorder`, or `flyff_farming_simulator`, and no change to the
+artifact manifest, checkpoint inventory, checkpoint module references,
+effective config, or historical closure. Preservation tags still resolve to
+`51dc25b`, `a90de59`, and `dc734bb` exactly. Test scratch was removed after
+verifying its resolved path was inside the linked worktree.
+
+**PHASE 2 SAFE TO CONSIDER: YES, after review and explicit authorization.**
+This is a readiness statement, not authorization. Do not move product code,
+change runtime behavior, remove a bridge, or push this branch as part of Phase 1.
+
+## Historical blocked-checkpoint report
+
+The following sections preserve the exact earlier stop report. Its missing-plan
+conclusion was correct when commit `80090cb` was created and was later resolved
+by the authoritative user-supplied resume prompt.
 
 ## A. Git state
 
 - Worktree: `C:\Users\Ridd\Documents\Repos\Flyff RL - Phase1`
 - Branch: `refactor/consolidation-phase1`
 - Phase-0 base: `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`
-- Current HEAD before the documentation-only blocker checkpoint:
-  `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`
+- Current HEAD: `80090cbad1dd0ef2ce09d87e01dc162f5a0306d6`
 - Index: empty.
 - Entry state before documentation: clean, with zero modified, deleted, or
   untracked paths.
-- Current expected documentation state: four modified handoff/log files plus
-  this untracked report; no product-source path changed.
+- Current expected documentation state: five modified post-commit metadata
+  files and an empty index; no product-source path changed.
 - Original reference worktree remains 6 modified, 122 deleted, and 297 visible
   untracked paths. It was not cleaned or altered.
 
@@ -33,10 +119,12 @@ Remote preservation is complete. `origin` resolves as follows:
 
 ## B. Phase-1 commits
 
-No architectural or product-source commit exists.
+No architectural or product-source commit exists. One documentation-only
+blocked-state checkpoint was created:
 
-The only planned commit is a documentation-only blocked-state checkpoint
-containing exactly:
+- Full SHA: `80090cbad1dd0ef2ce09d87e01dc162f5a0306d6`
+- Message: `Phase 1 blocked: authoritative consolidation plan missing`
+- Files (5):
 
 - `docs/migration/codex_handoff/COMMAND_LOG.tsv`
 - `docs/migration/codex_handoff/HANDOFF.md`
@@ -45,7 +133,9 @@ containing exactly:
 - `docs/migration/codex_handoff/TEST_LOG.md`
 
 Purpose: preserve the verified push/worktree state and exact missing-plan stop
-condition. Rollback reference: `pre-consolidation-complete`.
+condition. Rollback reference: `pre-consolidation-complete`. The five working
+metadata updates that name this commit remain unstaged because a commit cannot
+contain its own eventual SHA.
 
 ## C. Architectural effect
 
@@ -163,18 +253,17 @@ Git metadata, tracked/untracked filenames, and search matches were also read.
 `flyff_farming_simulator/MISTAKES.md` was not read or discussed as migration
 content.
 
-## G. Phase-2 readiness
+## G. Historical Phase-2 readiness at blocked checkpoint
 
-**PHASE 2 SAFE TO CONSIDER: NO.**
+**At commit `80090cb`, PHASE 2 SAFE TO CONSIDER was NO.**
 
 Phase 1 has not been defined or implemented. Phase 2 is explicitly unauthorized
 and cannot be considered until the missing Phase-1 authority is supplied,
 executed, gated, and reviewed.
 
-## H. Claude resume instructions
+## H. Superseded blocked-checkpoint resume instructions
 
-- Exact HEAD before the documentation-only blocker checkpoint:
-  `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`.
+- Historical exact HEAD: `80090cbad1dd0ef2ce09d87e01dc162f5a0306d6`.
 - Worktree: `C:\Users\Ridd\Documents\Repos\Flyff RL - Phase1`.
 - Branch: `refactor/consolidation-phase1`.
 - First commands:
@@ -195,6 +284,5 @@ Get-Content "$wt/docs/migration/codex_handoff/PHASE1_REPORT.md" -Raw
   authoritative plan.
 - Do not repeat: Phase-0 preservation, remote push, 820M reproduction, broad
   suites, old July refactor, or clean-worktree creation.
-- Next phase awaiting review: Phase 1 only; Phase 2 remains unauthorized.
-- Unresolved decision: the authoritative current Phase-1 objective, exact scope,
-  atomic commits, and gates.
+- These instructions are retained only as history. The completion amendment at
+  the top of this report is authoritative for the current state.

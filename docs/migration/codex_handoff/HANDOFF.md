@@ -1,10 +1,13 @@
 # Codex to Claude Consolidation Handoff
 
-## Current Phase-1 checkpoint
+## Current Phase-1 checkpoint (completed)
 
 - Worktree: `C:\Users\Ridd\Documents\Repos\Flyff RL - Phase1`
 - Branch: `refactor/consolidation-phase1`
-- HEAD/base: `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`
+- Architecture checkpoint: `61e1abefdba029cf826ac8bf1c2191d41c7b2ceb`
+- Final documentation tip: the commit containing this handoff; resolve it with
+  `git rev-parse HEAD` after checkout.
+- Phase-0 base: `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`
 - Rollback: `pre-consolidation-complete` at the same SHA.
 - Phase-0 branch and all three preservation tags were pushed normally to
   `origin` and verified at their exact expected targets; no force was used.
@@ -13,13 +16,20 @@
   material copied in.
 - No product source, test, config, artifact, checkpoint, archive, map, or runtime
   file has been changed in this worktree.
-- Phase 1 is explicitly authorized, but implementation is **BLOCKED** because
-  the authoritative current Phase-1 definition is absent.
+- The documentation-only blocked-state checkpoint is committed as `80090cb`;
+  its five post-commit metadata updates are incorporated in the final
+  documentation checkpoint rather than discarded.
+- Phase 1 `BUILD THE RULER` is complete for R6, R7a, R7b, R7c, D1, R9, and R10.
+- No product source, package layout, behavior, or scientific artifact changed.
+- The architecture checkpoint contains exactly seven ruler artifacts; this
+  handoff and the other four journal files are finalized separately.
+- No Phase-1 branch was pushed.
 - Phase 2 remains unauthorized.
 
-### Mandatory-plan blocker
+### Resolved mandatory-plan blocker
 
-The repository was searched across `docs/migration/`, all `docs/`,
+Commit `80090cbad1dd0ef2ce09d87e01dc162f5a0306d6` preserves the earlier stop.
+At that time the repository was searched across `docs/migration/`, all `docs/`,
 `refactor_logs/`, visible untracked text documentation, all local refs/history,
 and current remote refs. No document defines Phase 1 for the newly described
 three-system bot/recorder/simulator consolidation.
@@ -36,10 +46,25 @@ The requested search phrases `Alternative C`, `Alternative A`, `C -> A`,
 current documentation or Git history. Reusing the completed July plan would
 both invent the new consolidation boundary and repeat already-finished work.
 
+The later user resume prompt supplied the authoritative `PHASE 1 - BUILD THE
+RULER` definition, Strategy C -> A, deferred Strategy B, the exact seven rules,
+exclusions, and gates. That resolved the blocker without rewriting its history.
+
+### Ruler result
+
+- Registry: `CANONICAL_OWNERS.toml`; bridge ledger: `BRIDGES.md`.
+- Frozen debt: R6=7, R7a=35, R7b=0, R7c=20.
+- D1 diagnostic: 119 exact-content and 31 AST-similar pairs.
+- R9: zero violations.
+- R10: 313 checkpoints and 317 module-reference rows; zero failures and no
+  Torch modules imported.
+- All generated evidence was byte-deterministic; 9 focused tests passed.
+
 ### What is canonical and transitional
 
 - Canonical Phase-0 rollback point: `pre-consolidation-complete` / `dc734bb`.
-- Canonical Phase-1 implementation: none; no ownership was changed.
+- Canonical Phase-1 policy: `CANONICAL_OWNERS.toml` and `BRIDGES.md`.
+- Canonical rule implementation: `docs/migration/tools/migration_integrity.py`.
 - Transitional state: all three source trees remain exactly as preserved at
   Phase 0. No compatibility bridge was added or removed.
 - Checkpoint Python ABI paths, historical archives, Tower map, movement kernel,
@@ -48,10 +73,9 @@ both invent the new consolidation boundary and repeat already-finished work.
 
 ### Exact next action
 
-Provide or identify the accepted consolidation-plan document and the exact
-section defining Phase 1. On resume, read it fully and reconcile its allowed
-paths, exclusions, atomic commits, and gates before touching source. Do not infer
-the missing boundary from the architectural context in the takeover prompt.
+Review the Phase-1 report and commits. Do not start Phase 2, move product code,
+remove bridges, or push `refactor/consolidation-phase1` without explicit new
+authorization.
 
 ## Phase-0 historical handoff as committed at the rollback point
 
@@ -193,6 +217,6 @@ Get-Content "$wt/docs/migration/codex_handoff/STATE.json" -Raw
 Get-Content "$wt/docs/migration/codex_handoff/PHASE1_REPORT.md" -Raw
 ```
 
-Expected state before the documentation-only blocker checkpoint is committed:
-four modified handoff/log files, one untracked `PHASE1_REPORT.md`, and an empty
-index. The exact next source action is **none** until the missing plan is supplied.
+Expected current state: five modified post-commit handoff/report metadata files
+and an empty index. The exact next source action is **none** until the missing
+plan is supplied.

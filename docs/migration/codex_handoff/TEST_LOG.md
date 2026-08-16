@@ -435,3 +435,150 @@ repeated.
 - Result: five intended documentation paths, no product paths, zero validation
   errors.
 - Classification: passed documentation gate.
+
+### Blocked-checkpoint staged-set and commit gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL - Phase1`
+- Start/end: 2026-08-16 03:12-03:13 local.
+- Exact staging: the five named files under
+  `docs/migration/codex_handoff/`; no broad add command.
+- Exact checks: cached name/status, diffstat, `git diff --cached --check`, and
+  exact five-path set comparison.
+- Producer exit code: **0**.
+- Result: 5 exact files, 529 insertions, 100 deletions; commit
+  `80090cbad1dd0ef2ce09d87e01dc162f5a0306d6` created locally. No Phase-1 commit
+  was pushed.
+- Classification: passed documentation-only checkpoint gate.
+
+### Final local and remote stop gates
+
+- Local CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL - Phase1`.
+- Local producer exit code: **0**.
+- Local result: all 13 assertions passed: exact HEAD/branch; 5 modified metadata
+  paths; 0 deleted, untracked, or staged paths; exact documentation-only commit
+  and base-diff sets; STATE/report/TSV/diff/tag checks; original reference tree
+  unchanged at 6M/122D/297U.
+- Remote CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL`.
+- Exact remote command: `git ... ls-remote --heads origin
+  refs/heads/feature/standalone-farming-recorder-simulator
+  refs/heads/refactor/consolidation-phase1`.
+- Remote producer exit code: **0**.
+- Remote result: preservation branch remains exactly `dc734bb`; no remote
+  `refactor/consolidation-phase1` exists, proving the blocker commit was not
+  pushed.
+- Classification: passed final stop-state gates.
+
+### Authoritative Phase-1 resume and scope gate
+
+- CWD: `C:\Users\Ridd\Documents\Repos\Flyff RL - Phase1`.
+- Authority: user-supplied `PHASE 1 - BUILD THE RULER` section.
+- Result: authorized rules are exactly R6, R7a, R7b, R7c, D1, R9, and R10;
+  product moves and behavior changes are excluded; Phase 2 and a Phase-1 push
+  are unauthorized.
+- Existing commit `80090cb` and its missing-plan evidence were retained as
+  resolved history.
+- Producer exit code: **0**.
+- Classification: passed authority and containment gate.
+
+### Raw detector and initial snapshot gate
+
+- Exact commands: `migration_integrity.py raw --repo .` and
+  `migration_integrity.py snapshot --repo .` with bytecode writes disabled.
+- Raw result: R6=7, R7a=35, R7b=0, R7c=20; R9=0; R10 checked 313
+  checkpoints and 317 module-reference rows with zero failures; zero ownership
+  or bridge errors; zero Torch modules added.
+- Snapshot result: D1 found 119 exact-content pairs and 31 AST-normalized pairs
+  at or above 0.95 similarity.
+- Producer exit code: **0**.
+- Classification: passed measurement and freeze gate. D1 remains diagnostic.
+
+### Syntax gates
+
+- First exact command: Python `py_compile` over the tool and test.
+- First producer exit code: **1** with `WinError 5` while attempting to create
+  `docs/migration/tools/__pycache__` in the linked-worktree environment. No
+  Python syntax error was reported.
+- Authoritative command: built-in `compile(...)` over both UTF-8 source texts,
+  which performs no cache write.
+- Authoritative producer exit code: **0**; both sources compiled.
+- The no-write syntax check passed again immediately before the architecture
+  commit.
+- Classification: initial environment/cache-write failure; authoritative
+  syntax gate passed.
+
+### Focused pytest gates
+
+- Exact command shape: repository venv Python, `-m pytest
+  docs/migration/tests/test_migration_integrity.py -q -p no:cacheprovider
+  --basetemp=.pytest-temp-phase1-integrity`, with bytecode writes disabled.
+- First producer exit code: **2** during collection. The dynamic test loader had
+  not inserted its module into `sys.modules`, which `dataclass` requires.
+- The test harness was corrected without changing product code.
+- Intermediate authoritative result: **8 passed**.
+- After linked-worktree/R9 hardening and an explicit unregistered-owner test:
+  **9 passed in 25.80 seconds**.
+- Final tracked-set result: **9 passed in 25.72 seconds**.
+- Producer exit code: **0** for both passing runs.
+- Classification: initial test-loader defect; corrected focused gate passed.
+
+### Tracked-set deterministic snapshot gate
+
+- The seven ruler artifacts were staged with an explicit path list so
+  `git ls-files` represented the proposed commit.
+- The snapshot was regenerated, and only the three generated evidence files
+  were explicitly restaged.
+- A second snapshot produced zero SHA-256 mismatches:
+  `BASELINE_VIOLATIONS.json` = `18C9DD99CF8899D474AF869716F4AA1628B6A64BF42CF47465284211771460D3`;
+  `BASELINE_VIOLATIONS.md` = `9E044424071DCA62AA9CB00F78590134FD5AEF38BE01DFBD4EE5878B6943ECF1`;
+  `DUPLICATE_CONTENT_REPORT.tsv` = `187A8DE50D27379AD983C0885FBCB31C8AC46AAA2DC39BD296164D5330E0A5D5`.
+- Counts remained R6=7, R7a=35, R7b=0, R7c=20, D1 exact=119, and
+  D1 AST-similar=31.
+- Producer exit code: **0**.
+- Classification: passed deterministic evidence gate.
+
+### Formal integrity and protected-state gates
+
+- Exact integrity command: repository venv Python
+  `docs/migration/tools/migration_integrity.py check --repo .`.
+- Result: `ok=true`; no new or resolved baseline entries; R9=0; R10 zero
+  failures; no ownership, bridge, or Torch-import errors.
+- Protected diff checks found no path under `foreground_vision_bot`,
+  `flyff_farming_recorder`, or `flyff_farming_simulator`, and no changes to the
+  artifact manifest, checkpoint inventory, checkpoint module references,
+  effective config, or historical closure relative to `dc734bb`.
+- Preservation refs remained exact at `51dc25b`, `a90de59`, and `dc734bb`.
+- A combined inspector returned **1** only because it queried two optional
+  `__pycache__` paths that did not exist; all preceding substantive Git checks
+  passed. The actual pytest scratch target was resolved inside the worktree and
+  removed exactly.
+- Authoritative producer exit code: **0**.
+- Classification: passed formal ruler and protected-state gates; one harmless
+  optional-path inspector failure retained.
+
+### Ruler staged-set and architecture commit gate
+
+- Expected staged set: exactly the seven files listed in the completion report.
+- Checks: exact set comparison, cached `diff --check`, and zero product-tree
+  diff from the Phase-0 base.
+- Producer exit code: **0**.
+- Result: commit `61e1abefdba029cf826ac8bf1c2191d41c7b2ceb`
+  (`Phase 1: add migration integrity ruler and frozen baseline`) created with
+  7 files and 1,794 insertions. It was not pushed.
+- Classification: passed architecture checkpoint gate.
+
+### Final report and target-state gate
+
+- Exact Phase-1 diff set from `dc734bb`: 12 paths, comprising the seven ruler
+  artifacts and five `codex_handoff` journals.
+- No path under any product tree changed; the artifact manifest, checkpoint
+  inventory, checkpoint module-reference inventory, effective config, and
+  historical closure were unchanged.
+- `STATE.json` parsed with `blocked=false` and `phase2_authorized=false`; every
+  command-log row had exactly nine TSV columns; `git diff --check` passed.
+- The formal ruler check passed again with the frozen counts, R9=0, R10 zero
+  failures, no ownership/bridge errors, and no Torch modules imported.
+- Preservation refs resolved exactly to `51dc25b`, `a90de59`, and `dc734bb`.
+- No pytest scratch remained. `ls-remote` returned no
+  `refs/heads/refactor/consolidation-phase1`, confirming no Phase-1 push.
+- Producer exit code: **0**.
+- Classification: passed final target-state gate before documentation staging.
