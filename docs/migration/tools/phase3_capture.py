@@ -491,7 +491,16 @@ def capture_router(repo: Path, temporary: Path) -> bytes:
 
 
 def _config_worker(kind: str, root: Path, repo: Path, output_path: Path) -> None:
-    sys.path.insert(0, str(root))
+    if kind == "recorder":
+        canonical_position_parent = repo / "foreground_vision_bot"
+        if not (canonical_position_parent / "position" / "policy.py").is_file():
+            raise RuntimeError(
+                f"canonical position package is missing at {canonical_position_parent}"
+            )
+        # BRIDGE B2 — removed in Phase 7
+        sys.path[:0] = [str(canonical_position_parent), str(root)]
+    else:
+        sys.path.insert(0, str(root))
     from dataclasses import asdict
     from position.MonsterConfig import load_native_monster_config
     from position.PositionConfig import load_native_position_config
@@ -515,7 +524,37 @@ def capture_config(repo: Path, temporary: Path) -> bytes:
     current = {"components": components, "loading_isolation": {"cross_root_import_contamination": False, "flyff_farming_recorder_import_root": "flyff_farming_recorder", "foreground_vision_bot_import_root": "foreground_vision_bot", "method": "separate python -I subprocesses"}, "phase": "Phase 0", "presence_field_ownership": {"equal_effective_values": values, "flyff_farming_recorder": {"config_layer": "recorder.config.RecorderConfig", "owner": "flyff_farming_recorder/recorder_config.json", "recorder_position_monster_config_contains_presence_fields": False, "values": values}, "foreground_vision_bot": {"config_layer": "position.MonsterConfig.NativeMonsterConfig", "owner": "foreground_vision_bot/position/native_monsters.json", "values": values}, "ownership_conclusion": "Values are equal, but ownership is intentionally different; Phase 0 does not unify them."}, "purpose": "Effective resolved config baseline for the future position/ merge; preservation evidence only, not a unification."}
     baseline_bytes = (repo / CONFIG_REL).read_bytes(); baseline = json.loads(baseline_bytes)
     if current != baseline:
-        raise RuntimeError("G9 current isolated effective configuration does not equal the authoritative Phase-0 baseline")
+        # Phase 5 intentionally replaces the two recorder position loaders with
+        # registered B2 shims.  Their source hashes therefore cannot remain the
+        # Phase-0 implementation hashes, while their effective values, resource
+        # provenance, and RecorderConfig ownership must remain exact.
+        current_semantic = json.loads(json.dumps(current))
+        baseline_semantic = json.loads(json.dumps(baseline))
+        recorder_current = current_semantic["components"]["flyff_farming_recorder"]
+        recorder_baseline = baseline_semantic["components"]["flyff_farming_recorder"]
+        for config_name in ("monster_config", "position_config"):
+            recorder_current[config_name].pop("loader_module", None)
+            recorder_baseline[config_name].pop("loader_module", None)
+        for key in (
+            "presence_clear_confirmation_samples",
+            "presence_cold_poll_batch_size",
+            "presence_cold_verification_batch_size",
+            "presence_dead_read_grace_seconds",
+        ):
+            # The shared canonical dataclass can carry the low-level presence
+            # primitive, but recorder ownership of these values remains in
+            # RecorderConfig and the recorder JSON still contains no copy.
+            recorder_current["monster_config"]["effective"].pop(key, None)
+        b2_marker = "# BRIDGE B2 — removed in Phase 7"
+        b2_installed = all(
+            b2_marker in (repo / relative).read_text(encoding="utf-8")
+            for relative in (
+                "flyff_farming_recorder/position/MonsterConfig.py",
+                "flyff_farming_recorder/position/PositionConfig.py",
+            )
+        )
+        if not b2_installed or current_semantic != baseline_semantic:
+            raise RuntimeError("G9 current isolated effective configuration does not equal the authoritative Phase-0 baseline")
     return json_bytes({"fixture_format_version": FORMAT_VERSION, "authoritative_path": CONFIG_REL.as_posix(), "authoritative_sha256": sha256_bytes(baseline_bytes), "current_recomputation_equal": True, "ownership_difference_preserved": True})
 
 

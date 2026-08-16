@@ -74,8 +74,9 @@ locations = [
   "flyff_farming_recorder/recorder/session.py",
   "flyff_farming_recorder/tests/conftest.py",
   "flyff_farming_recorder/FlyffFarmingRecorder.spec",
+  "docs/migration/tools/phase3_capture.py",
 ]
-users = ["standalone recorder", "recorder tests", "calibration capture", "recorder PyInstaller build"]
+users = ["standalone recorder", "recorder tests", "calibration capture", "recorder PyInstaller build", "Phase-3 frozen config check"]
 protecting_rule = "R7c plus bridge expiry"
 removal_gate = "PHASE_7"
 live_closure_allowed = true
@@ -110,10 +111,10 @@ expected_target = "a90de59232b81753c1b2ea35b8990325c26674e5"
 
 ## Human summary
 
-| ID | Phase-1 state | Installed location | Removal gate | Live closure |
+| ID | Current state | Installed location | Removal gate | Live closure |
 |---|---|---|---|---|
 | B1 | INSTALLED / VERIFIED | canonical package path extension; bot/recorder pre-import bootstraps; bot facades; recorder consumer/build | Phase 7 root collapse | yes, explicitly registered and origin-tested |
-| B2 | FUTURE / NOT INSTALLED | none | Phase 7 root collapse | allowed only when explicitly installed and audited |
+| B2 | INSTALLED / VERIFIED | canonical position path bootstraps; recorder facades/callers/build; migration config worker | Phase 7 root collapse | yes, explicitly registered and origin-tested |
 | B3 | EXISTING / VERIFIED | `flyff_farming_simulator/tools/inventory_recordings.py` | Phase 7 archive/root consolidation | no |
 | B4 | PERMANENT HISTORICAL | protected Git tag | NEVER | no |
 
@@ -139,4 +140,11 @@ simulator parent is placed first before any supported bot or recorder import of
 `farming.*` modules remain visible. The seven shared bot modules and bot package
 facade are registered re-export shims. Recorder metadata imports the dependency-
 free canonical observation contract. No `.pth`, `sitecustomize`, environment-only
-`PYTHONPATH`, system setting, or hidden monkeypatch is used. B2 remains future.
+`PYTHONPATH`, system setting, or hidden monkeypatch is used.
+
+B2 was installed in Phase 5. The canonical bot position parent is inserted
+before the recorder root by every registered recorder and migration-tool
+bootstrap. The recorder's 23 tracked `position/*.py` modules remain in place as
+explicit import-only compatibility surfaces and resolve through the canonical
+top-level `position` package. No external package or original dirty sibling
+worktree participates in resolution.

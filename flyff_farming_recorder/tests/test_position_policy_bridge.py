@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-from position.native_process_service import NativeProcessService
+from position.native_process_service import NativeProcessService as _NativeProcessService
 from position.policy import LIVE_ATTACH_POLICY, RECORDING_ATTACH_POLICY
 
 from foreground_vision_bot.tests.test_native_trace_targets import _discover
@@ -37,7 +37,7 @@ def test_b2_fake_reader_preserves_attach_time_presence_policy() -> None:
         presence_dead_read_grace_seconds=2.0,
     )
 
-    live = object.__new__(NativeProcessService)
+    live = object.__new__(_NativeProcessService)
     live.attach_policy = LIVE_ATTACH_POLICY
     live.monster_config = config
     live._enable_presence_sampling(reader, {944, 948})
@@ -51,7 +51,7 @@ def test_b2_fake_reader_preserves_attach_time_presence_policy() -> None:
         }
     ]
 
-    recording = object.__new__(NativeProcessService)
+    recording = object.__new__(_NativeProcessService)
     recording.attach_policy = RECORDING_ATTACH_POLICY
     recording.monster_config = config
     recording._enable_presence_sampling(reader, {944, 948})
