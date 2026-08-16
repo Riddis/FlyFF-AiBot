@@ -44,3 +44,13 @@
   corresponding current `TargetSwitchReason`.
 - No seed, random corpus, product code, threshold, or expected output was
   changed.
+
+## A4 — ruler-safe migration helper name
+
+- The post-capture migration suite rejected the tracked generator because its
+  migration-only constant was named `OBSERVATION_SIZE`, which the Phase-1 ruler
+  correctly treats as a controlled product-contract definition.
+- Rename it to `EXPECTED_VECTOR_LENGTH`; the frozen value remains 923 and no
+  fixture input, output, comparison, or product source changes.
+- This restores the required R6/R7a counts instead of registering migration
+  tooling as another owner of the runtime observation contract.

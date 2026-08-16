@@ -27,7 +27,7 @@ FORMAT_VERSION = "flyffrl-phase3-v1"
 BASE_SHA = "82e908d6028d5869a6ff6d6bb27d5a2aeaaebc46"
 RANDOM_OBSERVATIONS = 10_000
 EDGE_OBSERVATIONS = 16
-OBSERVATION_SIZE = 923
+EXPECTED_VECTOR_LENGTH = 923
 FIXTURE_REL = Path("tests/fixtures/migration")
 MANIFEST_REL = Path("docs/migration/PHASE3_FIXTURE_MANIFEST.tsv")
 SPEC_REL = Path("docs/migration/PHASE3_CAPTURE_SPEC.toml")
@@ -216,11 +216,11 @@ def _obs_worker(root: Path, input_path: Path, output_path: Path, meta_path: Path
             local = MAP_LUT[np.frombuffer(row["l"], dtype=np.uint8)]
             context = MAP_LUT[np.frombuffer(row["c"], dtype=np.uint8)]
             vector = builder.build_vector(ObservationFrame(player=player, actors=actors, local_map=local, context_map=context))
-            if vector.shape != (OBSERVATION_SIZE,) or vector.dtype != np.float32:
+            if vector.shape != (EXPECTED_VECTOR_LENGTH,) or vector.dtype != np.float32:
                 raise RuntimeError(f"invalid observation contract at row {row['i']}: {vector.shape} {vector.dtype}")
             finite = finite and bool(np.all(np.isfinite(vector)))
             handle.write(np.ascontiguousarray(vector, dtype="<f4").tobytes())
-    meta_path.write_bytes(json_bytes({"count": len(rows), "dtype": "float32", "finite": finite, "shape": [OBSERVATION_SIZE]}))
+    meta_path.write_bytes(json_bytes({"count": len(rows), "dtype": "float32", "finite": finite, "shape": [EXPECTED_VECTOR_LENGTH]}))
 
 
 def capture_observations(repo: Path, temporary: Path) -> tuple[dict[str, bytes], dict[str, Any]]:
@@ -237,8 +237,8 @@ def capture_observations(repo: Path, temporary: Path) -> tuple[dict[str, bytes],
         _run(repo, "_obs_worker", str(repo / root_rel), str(input_path), str(output), str(meta))
         outputs.append(output)
         metas.append(json.loads(meta.read_text(encoding="utf-8")))
-    bot = np.memmap(outputs[0], mode="r", dtype="<f4", shape=(len(rows), OBSERVATION_SIZE))
-    simulator = np.memmap(outputs[1], mode="r", dtype="<f4", shape=(len(rows), OBSERVATION_SIZE))
+    bot = np.memmap(outputs[0], mode="r", dtype="<f4", shape=(len(rows), EXPECTED_VECTOR_LENGTH))
+    simulator = np.memmap(outputs[1], mode="r", dtype="<f4", shape=(len(rows), EXPECTED_VECTOR_LENGTH))
     equal_rows = [np.array_equal(bot[index], simulator[index]) for index in range(len(rows))]
     differing = [index for index, equal in enumerate(equal_rows) if not equal]
     first_differences = []
@@ -255,7 +255,7 @@ def capture_observations(repo: Path, temporary: Path) -> tuple[dict[str, bytes],
     sentinels = {str(index): base64.b64encode(np.ascontiguousarray(bot[index], dtype="<f4").tobytes()).decode("ascii") for index in SENTINELS}
     expected = {
         "fixture_format_version": FORMAT_VERSION, "count": len(rows), "random_count": RANDOM_OBSERVATIONS,
-        "edge_count": EDGE_OBSERVATIONS, "shape": [OBSERVATION_SIZE], "dtype": "<f4", "finite": all(meta["finite"] for meta in metas),
+        "edge_count": EDGE_OBSERVATIONS, "shape": [EXPECTED_VECTOR_LENGTH], "dtype": "<f4", "finite": all(meta["finite"] for meta in metas),
         "input_corpus_sha256": sha256_bytes(input_bytes), "expected_row_sha256": row_hashes,
         "aggregate_output_sha256": aggregate.hexdigest(), "sentinel_rows_base64_le_f4": sentinels,
         "cross_implementation_equal_count": len(rows) - len(differing), "cross_implementation_differing_count": len(differing),
