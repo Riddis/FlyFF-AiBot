@@ -1,0 +1,107 @@
+{
+  "phase": "Phase 0",
+  "task": "Continue Phase-0 consolidation preservation; repository reconciliation complete, Step 10 evidence validation in progress",
+  "timestamp_local": "2026-08-16T02:03:00+02:00",
+  "branch": "feature/standalone-farming-recorder-simulator",
+  "head_sha": "f173177b7b1134f68cdd43ec96417f1dc6725647",
+  "head_message": "Preservation checkpoint: restore and archive OVERNIGHT_20260809_PIPELINE.md, cited by static_waypoint_env.py:17, instead of letting the deletion orphan that citation.",
+  "pre_consolidation_head_tag": "51dc25b2be0aafb091e22a17505767c1bec79552",
+  "historical_reproduction_tag": "a90de59232b81753c1b2ea35b8990325c26674e5",
+  "pre_consolidation_complete_tag": null,
+  "last_verified_good_commit": "f173177b7b1134f68cdd43ec96417f1dc6725647",
+  "staged_files": [],
+  "dirty_tracked_files": {
+    "modified_count": 30,
+    "modified": [
+      "flyff_farming_simulator/MISTAKES.md",
+      "flyff_farming_simulator/RUN_CANONICAL_ADVANCED.py",
+      "flyff_farming_simulator/RUN_CANONICAL_BEGINNER.py",
+      "flyff_farming_simulator/RUN_CANONICAL_INTERMEDIATE.py",
+      "flyff_farming_simulator/scratchpad_ppo_pure_navigation_v2.py",
+      "flyff_farming_simulator/simulator/basic_environment.py",
+      "flyff_farming_simulator/simulator/basic_training.py",
+      "flyff_farming_simulator/simulator/beginner_transition.py",
+      "flyff_farming_simulator/simulator/milestone_evaluator.py",
+      "flyff_farming_simulator/simulator/navigation_dataset.py",
+      "flyff_farming_simulator/simulator/navigation_ppo.py",
+      "flyff_farming_simulator/simulator/progress_reporting.py",
+      "flyff_farming_simulator/simulator/pure_navigation_env.py",
+      "flyff_farming_simulator/simulator/run_provenance.py",
+      "flyff_farming_simulator/simulator/steering_oracle.py",
+      "flyff_farming_simulator/simulator/synthetic.py",
+      "flyff_farming_simulator/synthetic_curriculum_advanced_training_v1/curriculum.json",
+      "flyff_farming_simulator/tests/test_basic_environment.py",
+      "flyff_farming_simulator/tests/test_basic_training_pipeline.py",
+      "flyff_farming_simulator/tests/test_deep_review.py",
+      "flyff_farming_simulator/tests/test_fine_tune_steering_branch.py",
+      "flyff_farming_simulator/tests/test_navigation_dataset.py",
+      "flyff_farming_simulator/tests/test_navigation_history.py",
+      "flyff_farming_simulator/tests/test_pure_navigation_env.py",
+      "flyff_farming_simulator/tests/test_run_provenance.py",
+      "flyff_farming_simulator/tests/test_steering_expansion_transplant.py",
+      "flyff_farming_simulator/tests/test_steering_oracle_escape_robust.py",
+      "flyff_farming_simulator/tests/test_steering_oracle_v3_terminal_gate.py",
+      "flyff_farming_simulator/tests/test_synthetic_layout_validation.py",
+      "flyff_farming_simulator/tests/test_temporal_sidecar_parity.py"
+    ],
+    "deleted_count": 122,
+    "deleted_groups": {
+      "flyff_farming_recorder/.pytest-recorder-110": 4,
+      "flyff_farming_simulator/.pytest-temp-v16": 44,
+      "flyff_farming_simulator/.pytest-temp-v17": 71,
+      "substantive_scratchpad_deletions": 3
+    },
+    "substantive_deleted": [
+      "flyff_farming_simulator/scratchpad_aggregate_target_thrashing.py",
+      "flyff_farming_simulator/scratchpad_measure_target_thrashing.py",
+      "flyff_farming_simulator/scratchpad_measure_target_thrashing_missing.py"
+    ]
+  },
+  "untracked_files_grouped": {
+    "visible_total": 543,
+    "migration_evidence": 5,
+    "codex_handoff_journal": 4,
+    "evaluation_json": 222,
+    "synthetic_curriculum_files": 197,
+    "scratchpad_archive_files": 31,
+    "run_log_files": 14,
+    "archive_files": 6,
+    "untracked_simulator_source_and_other_singletons": 55,
+    "telemetry_source_test_tool": 3,
+    "scratchpad_traces": 3,
+    "local_claude_settings": 1,
+    "overnight_log": 1,
+    "ignored_scratch_contract_archive": 1
+  },
+  "completed_steps": [
+    "Verified branch, HEAD, seven-commit preservation chain, and empty index",
+    "Verified pre-consolidation-head and historical-reproduction tags; verified pre-consolidation-complete absent",
+    "Verified external snapshot directory and 112749676-byte scratch contract archive exist",
+    "Verified DECISION_LOG D9 records historical tag retarget and clean-checkout proof",
+    "Verified 37-row historical closure, 313-row checkpoint inventory, and checkpoint module references",
+    "Mechanically reconciled WIP_BASELINE: four closure files committed and 30 original files still modified",
+    "Verified every artifact-manifest path, byte size, SHA-256, and Git status: 348 rows, 708385568 bytes, 27 tracked, 321 ignored, 0 errors",
+    "Independently enumerated the artifact corpus and matched the manifest set/categories exactly; verified 313-row inventory, 317 module-reference rows, and 37-row historical closure"
+  ],
+  "current_step": "Review and commit the validated Step-10 migration evidence with explicit path staging",
+  "next_exact_action": "Stage only the five untracked migration evidence files plus the four codex_handoff journal files, inspect the cached diff and file list, then commit the Step-10 documentation checkpoint.",
+  "blocked": false,
+  "stop_reason": null,
+  "known_preexisting_test_failures": [
+    "foreground_vision_bot/tests/test_farming_environment_lifecycle.py::test_focus_loss_during_eva_discards_kill_and_transition",
+    "foreground_vision_bot/tests/test_farming_training_session.py::test_normal_training_status_is_concise_and_uses_total_model_steps",
+    "foreground_vision_bot/tests/test_farming_training_session.py::test_training_callback_publishes_structured_session_statistics"
+  ],
+  "latest_test_results": {
+    "foreground_vision_bot": "709 collected; 705 passed, 3 failed (pre-existing), 1 skipped",
+    "flyff_farming_simulator": "357 collected; 355 passed, 0 failed/errors, 2 skipped with writable --basetemp",
+    "flyff_farming_recorder": "24 passed, 0 failed/errors/skipped with writable --basetemp",
+    "environment_note": "Default pytest temp produced 66 simulator and 3 recorder WinError 5 setup errors; explicit writable --basetemp eliminated them."
+  },
+  "important_hashes": {
+    "historical_result_sha256": "f30f63e4ef5ab97648e19c499b82fdb9cae537962097a52bcf2423e00c21bb30",
+    "tracked_0051200_checkpoint_sha256": "87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50",
+    "scratch_contract_archive_sha256": "484a44f4b8931ed1362f3162f9def2ac5903bb0acaaac86c5078d34afbd04d54"
+  },
+  "phase1_authorized": false
+}
