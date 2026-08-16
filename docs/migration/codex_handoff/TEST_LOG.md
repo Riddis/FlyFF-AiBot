@@ -996,3 +996,37 @@ repeated.
   `farming` origins established first: 56 passed, 1 skipped in 30.81 seconds.
 - No product source, archive, map, evaluation, model, or checkpoint write; no
   G10b rerun, training, game access, or 820M.
+
+## Phase 4 plan-amendment gates
+
+### Frozen-analysis validator
+
+- Command: read-only Python validation of
+  `PHASE4_GEODESIC_CONTRACT_ANALYSIS.tsv` against the committed
+  `bounded_geodesic.json`, plus STATE/report/current-phase/manifest checks and
+  `git diff --check`.
+- CWD: `C:/Users/Ridd/Documents/Repos/Flyff RL - Phase1`.
+- Purpose: prove the plan amendment is derived from frozen evidence without
+  regenerating it.
+- Producer exit code: **0**.
+- Result: 108 TSV rows in exact fixture mismatch order; 105
+  `FINITE_ONE_ULP`, one `FINITE_TWO_ULP`, two
+  `EXPANSION_BUDGET_REACHABILITY`; every point/field bit-or-absence value
+  exact; Phase 3/current phase 3 and Phase 4 unauthorized; manifest SHA-256
+  `d07687ef8aaf5f564068bd07fa78352db1db47c635ad9c61d14f01613d8adaa2`.
+- Classification: passed amendment evidence gate.
+
+### Existing ruler and focused migration suite
+
+- Commands: `migration_integrity.py check --repo .`; then
+  `python -m pytest docs/migration/tests -q` with an isolated basetemp.
+- CWD: `C:/Users/Ridd/Documents/Repos/Flyff RL - Phase1`.
+- Purpose: prove documentation/evidence changes add no ownership, bridge,
+  import, or checkpoint-ABI regression.
+- Producer exit code: **0**.
+- Ruler: `ok=true`; R6=7, R7a=35, R7b=0, R7c=200; R9=0; R10=0 across
+  313 checkpoints / 317 module-reference rows; no bridge errors; no Torch
+  modules added.
+- Tests: **38 passed in 44.77s**.
+- Classification: all existing migration gates passed; no product tests were
+  required because product code did not change.

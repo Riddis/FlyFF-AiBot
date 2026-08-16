@@ -464,3 +464,48 @@ migration plan for bounded-geodesic non-equivalence and explicitly authorize
 any further phase.
 
 **PHASE 4 SAFE TO CONSIDER: NO. PHASE 4 AUTHORIZED: NO.**
+
+# Phase 4 contract amendment complete — implementation still unauthorized
+
+The coordinator authorized only a documentation/evidence amendment from clean
+HEAD `c4c018b80be3bb083b16b7cf4ba98b36583ade8d`. Product source, Phase-3
+fixtures, frozen Phase-0/Phase-2 evidence, and `current_phase = 3` were not
+changed.
+
+`PHASE4_PLAN_AMENDMENT.md` records the complete revised execution contract and
+`PHASE4_GEODESIC_CONTRACT_ANALYSIS.tsv` contains all 108 frozen differences.
+Mechanical textual and AST comparison proves simulator `map_features.py` is
+still a pure superset: two field-cache attributes plus
+`bounded_geodesic_field`; all imports, constants, and 25 pre-existing methods
+are otherwise exact.
+
+There are three simulator production field consumers
+(`demonstrations.py`, `environment.py`, and `route_waypoint_generator.py`) and
+zero live-bot/recorder field consumers. The live bot continues to use repeated
+goal-directed point queries through `native_world.py`. No caller or test relies
+on exact field/point equality; the sole exact-equivalence promise is a false
+field docstring that Phase 4 must correct without changing either algorithm.
+
+The frozen mismatch classification is exact: 105 one-ULP finite differences,
+one two-ULP finite difference (`random_096`), and two field-absent/point-finite
+expansion-budget cases (`narrow` and `expansion_32`). The revised G-GEO gate
+protects point and field outputs independently and retains 108 only as the
+current cross-classification; it never requires field equality.
+
+The revised G3 target is the Phase-3 live/bot golden for all 10,016 complete
+923-value vectors and all four signed diagonal-nextabove direct cases. The
+physical canonical simulator `observation.py` must adopt the exact current live
+`hypot(dx,dy) <= radius` helper; no tolerance or radius change is allowed.
+
+R6 requires recorder `session.py` to stop defining current schema metadata and
+consume it from shared farming. The plan uses a small dependency-free canonical
+`farming/observation_contract.py`, avoiding an unnecessary NumPy dependency in
+the recorder while preserving emitted archive metadata and historical decode.
+B1 therefore includes explicit recorder source/test/PyInstaller visibility in
+addition to the registered bot farming facade/shims. B1 remains uninstalled in
+this amendment and expires at Phase 7 if later installed.
+
+Exact next action: coordinator review. Do not begin Phase 4, install B1, change
+product source, or alter any frozen fixture without separate authorization.
+
+**REVISED PHASE 4 SAFE TO CONSIDER: YES. PHASE 4 AUTHORIZED: NO.**

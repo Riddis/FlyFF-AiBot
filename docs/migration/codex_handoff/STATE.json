@@ -1,7 +1,7 @@
 {
-  "phase": "Phase 3",
-  "task": "PHASE 3 - GOLDEN CAPTURE: complete with blocking bounded-geodesic discrepancy preserved",
-  "timestamp_local": "2026-08-16T18:11:08+02:00",
+  "phase": "Phase 3 complete",
+  "task": "PHASE 3 COMPLETE - narrow Phase-4 contract amendment complete; implementation unauthorized",
+  "timestamp_local": "2026-08-16T18:48:06+02:00",
   "worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL - Phase1",
   "reference_worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL",
   "branch": "refactor/consolidation-phase1",
@@ -113,8 +113,8 @@
     "Made CANONICAL_OWNERS.toml current_phase the single active migration-phase source of truth",
     "Committed the five-file ruler-hardening amendment as ad61b991e4af436eef8705b49978990464cc28f5"
   ],
-  "current_step": "Phase 3 complete: pre-migration goldens captured; Phase 4 not safe pending bounded-geodesic plan revision",
-  "next_exact_action": "STOP. Do not begin Phase 4. Coordinator must revise the migration plan for the captured bounded-geodesic non-equivalence before Phase 4 can be considered safe.",
+  "current_step": "Phase 3 complete: Phase-4 contract amendment proves independent point/field preservation is source-safe; Phase 4 remains inactive and unauthorized",
+  "next_exact_action": "Coordinator review of PHASE4_PLAN_AMENDMENT.md and PHASE4_GEODESIC_CONTRACT_ANALYSIS.tsv. Do not begin Phase 4 or install B1 without separate authorization.",
   "blocked": false,
   "stop_reason": "None. Corrected per coordinator decision: option (b), deterministic hash-stratified selection (G10b-v2), not an extension of checkpoint_selection_result.json's performance-ranking methodology. See docs/migration/codex_handoff/PHASE2_REPORT.md sections 16-18.",
   "tests_and_gates": {
@@ -264,6 +264,13 @@
   "G9_status": "PASS - isolated current recomputation exactly equals authoritative Phase-0 effective-config baseline; ownership difference preserved",
   "G7_status": "PASS - all 8 archive path/size/SHA pins exact; typed ordered frame/event/input semantic and block hashes captured",
   "deterministic_regeneration_status": "PASS - two fresh temporary regenerations plus final A4 check reproduced all 10 fixtures and manifest byte-identically; final check mode left Git status unchanged",
-  "phase4_safe_to_consider": "NO",
-  "phase4_blocker": "Current bounded field and point-query APIs are not exact equivalents. Migration plan revision is required; Phase 4 remains unauthorized."
+  "phase4_safe_to_consider": "NO - superseded by revised_phase4_safe_to_consider after the narrow contract amendment",
+  "phase4_blocker": "The original equivalence premise remains false, but the plan blocker is resolved by preserving point and field as separate independent APIs. This does not authorize Phase 4.",
+  "phase4_plan_amendment_status": "complete",
+  "proposed_geodesic_contract": "separate-independent-APIs",
+  "revised_phase4_safe_to_consider": "YES",
+  "phase4_plan_amendment_start_sha": "c4c018b80be3bb083b16b7cf4ba98b36583ade8d",
+  "phase4_plan_amendment_evidence": "docs/migration/PHASE4_PLAN_AMENDMENT.md and docs/migration/PHASE4_GEODESIC_CONTRACT_ANALYSIS.tsv",
+  "phase4_plan_amendment_next_action": "coordinator review",
+  "phase4_plan_amendment_constraints": "current_phase remains 3; phase4_authorized remains false; no product source, Phase-3 fixture, or frozen Phase-0/Phase-2 evidence changed"
 }
