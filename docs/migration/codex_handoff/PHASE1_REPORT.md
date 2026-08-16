@@ -6,6 +6,98 @@ The user-supplied resume prompt resolved the earlier missing-plan blocker and
 authorized only `PHASE 1 - BUILD THE RULER`. No product source or behavior was
 changed, Phase 2 was not started, and the Phase-1 branch was not pushed.
 
+## Phase-1 ruler-hardening amendment
+
+Status: **COMPLETE — PHASE 2 STILL NOT STARTED OR AUTHORIZED**
+
+Review accepted the architecture at
+`31cf236e0808a82cc50873832963c41f25dd9184` and authorized a narrow ruler-only
+amendment. The implementation commit is
+`ad61b991e4af436eef8705b49978990464cc28f5` (`Phase 1 hardening: close ruler
+integrity blind spots`). It changes exactly:
+
+- `BRIDGES.md`
+- `docs/migration/BASELINE_VIOLATIONS.json`
+- `docs/migration/BASELINE_VIOLATIONS.md`
+- `docs/migration/tests/test_migration_integrity.py`
+- `docs/migration/tools/migration_integrity.py`
+
+No product path, source/config/model/map/archive/telemetry behavior, frozen
+checkpoint TSV inventory, or preservation tag changed.
+
+### R7c detector correction
+
+The original R7c detector required a controlled imported symbol to appear in a
+literal `__all__`. The corrected AST detector treats public module-scope
+`from X import ControlledSymbol` bindings as re-exports even without `__all__`,
+handles public aliases, preserves registered shim allowance, and ignores a
+deliberately private alias unless explicitly exported.
+
+On the exact unchanged product tree:
+
+- R6: 7 -> 7.
+- R7a: 35 -> 35.
+- R7b: 0 -> 0.
+- R7c: **20 -> 200**.
+
+The R7c increase is a detector-coverage correction, not new repository debt.
+No unexpected non-R7c debt changed.
+
+### Corrected R10 boundary
+
+Phase-1 R10 protects the frozen Phase-0 checkpoint corpus described by
+`CHECKPOINT_INVENTORY.tsv` and `CHECKPOINT_MODULE_REFERENCES.tsv`. Phase-2 G10a
+independently regenerates that corpus inventory against preserved artifacts.
+This amendment did not rewrite either frozen TSV.
+
+The actual inventory/source classification is:
+
+- `farming.sb3_training`: repository-local.
+- `simulator.split_branch_policy`: repository-local.
+- `stable_baselines3.common.policies`: external.
+
+Repository-local modules must resolve to source inside this repository and the
+recorded top-level symbol must exist in that source. A same-named external
+fallback therefore cannot make a local ABI path green. External modules remain
+allowed to resolve externally. All 313 checkpoint rows and 317 module-reference
+rows pass; `torch_modules_added == []`.
+
+### Bridge invariants and phase awareness
+
+- B4 did **not** previously have a dedicated persistent focused test. The bridge
+  checker and new test now resolve
+  `historical-reproduction-baseline-20260815` on every run and require exact SHA
+  `a90de59232b81753c1b2ea35b8990325c26674e5`.
+- B3 now AST-verifies `_RECORDER_ROOT`, the `sys.path.insert` call, and the
+  registered target `recorder.movement_classification.MovementControlClassifier`.
+- The hard-coded tool phase and duplicate bridge-registry phase were removed.
+  `current_phase` in `CANONICAL_OWNERS.toml` is the single source used by bridge
+  expiry and generated evidence.
+- A `PHASE_7` bridge is allowed before Phase 7 and expired at/after the Phase-7
+  boundary. This applies to future and installed temporary bridges, so B1/B2
+  cannot silently survive while the checker still believes it is Phase 1.
+- B1 and B2 remain future/uninstalled.
+
+### Hardening gates and decision
+
+- In-memory syntax compilation: passed.
+- Initial focused test: 16 passed, 1 failed as expected because the corrected
+  detector was checked against the old R7c=20 baseline.
+- Corrected deterministic snapshot: passed; JSON SHA-256
+  `564231F1537FE7545E2AF22BCA878565ED8035901287360E0D831C92EA7D962A`,
+  Markdown SHA-256
+  `0F188946445B8090F5A6689F98C76FCCDDB8F5E753169F932FCC618368CF9493`,
+  and unchanged D1 SHA-256
+  `187A8DE50D27379AD983C0885FBCB31C8AC46AAA2DC39BD296164D5330E0A5D5`.
+- Formal check: `ok=true`; R9=0; corrected R10 and bridges green.
+- Focused tests: **17 passed in 25.01 seconds**.
+- Broad product suites, 820M reproduction, model loading, and training were not
+  run, as required.
+
+**PHASE 2 SAFE TO AUTHORIZE: YES, after review.** Phase 2 is not authorized by
+this statement. The branch remains local and must not be pushed as part of this
+amendment.
+
 ## Completion amendment
 
 ### Scope and commits

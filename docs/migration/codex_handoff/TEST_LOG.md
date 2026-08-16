@@ -582,3 +582,117 @@ repeated.
   `refs/heads/refactor/consolidation-phase1`, confirming no Phase-1 push.
 - Producer exit code: **0**.
 - Classification: passed final target-state gate before documentation staging.
+
+## Phase-1 ruler-hardening amendment
+
+### Entry and authority gate
+
+- Expected and actual start HEAD:
+  `31cf236e0808a82cc50873832963c41f25dd9184`.
+- Branch: `refactor/consolidation-phase1`; worktree and index clean.
+- Authorized scope: integrity tool, focused tests, corrected generated baseline,
+  bridge/owner registry only as necessary, and handoff documentation.
+- Explicit exclusions: product roots, configs, models, maps, archives,
+  telemetry behavior, Phase 2, broad suites, 820M, model loading/training, push.
+- Producer exit code: **0**.
+- Classification: passed hardening entry gate.
+
+### Initial syntax and focused-test gate against old baseline
+
+- In-memory compilation of the integrity tool and test: passed.
+- Focused pytest result: **16 passed, 1 failed** in 23.95 seconds.
+- The sole failure was `test_actual_repository_integrity_gate_is_green`: the
+  corrected AST detector found R7c=200 while the accepted old detector baseline
+  still contained R7c=20. R6=7, R7a=35, R7b=0, R9=0, corrected R10, bridges,
+  ownership, and Torch-import checks were already green.
+- Producer exit code: **1**.
+- Classification: expected ratchet rejection proving the detector correction
+  could not silently bypass the frozen baseline; not a product regression.
+
+### R7c coverage-correction gate
+
+- Raw detector was parsed and compared mechanically with the accepted baseline.
+- Counts: R6 7->7, R7a 35->35, R7b 0->0, R7c **20->200**.
+- Zero unexpected non-R7c change; product files were not edited.
+- R9=0; R10 failures=0; bridge errors=0; ownership errors=0;
+  `torch_modules_added=[]`.
+- Producer exit code: **0**.
+- Classification: passed detector-coverage correction gate.
+
+### Corrected R10 classification and fallback gate
+
+- Phase-1 inputs remained the frozen Phase-0
+  `CHECKPOINT_INVENTORY.tsv` (313 rows) and
+  `CHECKPOINT_MODULE_REFERENCES.tsv` (317 rows); neither was regenerated.
+- Repository-local: `farming.sb3_training`,
+  `simulator.split_branch_policy`.
+- External: `stable_baselines3.common.policies`.
+- Focused test substitutes an outside-repository same-named spec for a module
+  classified repository-local and verifies R10 reports
+  `repository_local_module_outside_repo`.
+- Recorded local top-level symbols are AST-verified from repository source.
+- Actual corpus result: zero failures; `torch_modules_added=[]`.
+- Producer exit code: **0**.
+- Classification: passed local-origin and external-allowance gate.
+
+### Bridge invariant and phase-awareness gates
+
+- B3 test verifies the exact registered module/symbol
+  `recorder.movement_classification.MovementControlClassifier`; a deliberately
+  different symbol fails the AST evidence helper.
+- Review found no pre-existing dedicated persistent B4 test. The new test and
+  bridge checker require tag `historical-reproduction-baseline-20260815` to
+  resolve exactly to `a90de59232b81753c1b2ea35b8990325c26674e5`.
+- `CANONICAL_OWNERS.toml current_phase` is the single active-phase source.
+- Focused boundary test proves a `PHASE_7` bridge is allowed at Phase 6 and
+  expired at Phase 7. The rule applies to future and existing temporary bridges.
+- Producer exit code: **0**.
+- Classification: passed B3, B4, and bridge-expiry gates.
+
+### Deterministic snapshot, formal check, and final focused suite
+
+- In-memory syntax compilation: passed.
+- Corrected snapshot counts: R6=7, R7a=35, R7b=0, R7c=200; D1 remained
+  119 exact and 31 AST-similar pairs.
+- Repeat snapshot hashes were identical:
+  `BASELINE_VIOLATIONS.json` =
+  `564231F1537FE7545E2AF22BCA878565ED8035901287360E0D831C92EA7D962A`;
+  `BASELINE_VIOLATIONS.md` =
+  `0F188946445B8090F5A6689F98C76FCCDDB8F5E753169F932FCC618368CF9493`;
+  `DUPLICATE_CONTENT_REPORT.tsv` =
+  `187A8DE50D27379AD983C0885FBCB31C8AC46AAA2DC39BD296164D5330E0A5D5`.
+- Formal check: `ok=true`, no ratchet, ownership, bridge, R9, R10, or
+  Torch-import errors.
+- Focused pytest: **17 passed in 25.01 seconds**.
+- Producer exit code: **0**.
+- Classification: passed all authorized Phase-1 hardening gates.
+
+### Hardening containment and commit gate
+
+- Changed/staged set: exactly `BRIDGES.md`, corrected baseline JSON/Markdown,
+  the integrity tool, and its focused test.
+- No product path and neither frozen checkpoint inventory TSV changed.
+- `git diff --check` and a staged formal integrity check passed.
+- Generated pytest scratch was resolved inside the linked worktree and removed
+  exactly before staging.
+- Commit: `ad61b991e4af436eef8705b49978990464cc28f5`, message
+  `Phase 1 hardening: close ruler integrity blind spots`.
+- Producer exit code: **0**.
+- Classification: passed five-file local hardening checkpoint; not pushed.
+
+### Hardening handoff target-state gate
+
+- Dirty set before staging: exactly the five `codex_handoff` journals; index
+  empty; no untracked scratch.
+- `STATE.json`: hardening SHA exact, `blocked=false`,
+  `phase2_authorized=false`.
+- All 144 command-log rows had nine columns; report/handoff/test log all contain
+  the 20->200 correction and the report contains the explicit Phase-2 readiness
+  decision.
+- Protected diff from accepted HEAD `31cf236`: zero product paths and zero
+  frozen checkpoint inventory TSV paths.
+- Formal ruler check passed again at R6=7, R7a=35, R7b=0, R7c=200 with R9,
+  R10, ownership, bridges, and Torch-import checks green.
+- `ls-remote` still returned no Phase-1 branch.
+- Producer exit code: **0**.
+- Classification: passed final hardening documentation gate before staging.

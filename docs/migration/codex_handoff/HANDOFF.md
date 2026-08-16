@@ -5,6 +5,9 @@
 - Worktree: `C:\Users\Ridd\Documents\Repos\Flyff RL - Phase1`
 - Branch: `refactor/consolidation-phase1`
 - Architecture checkpoint: `61e1abefdba029cf826ac8bf1c2191d41c7b2ceb`
+- Accepted Phase-1 documentation checkpoint:
+  `31cf236e0808a82cc50873832963c41f25dd9184`.
+- Ruler-hardening checkpoint: `ad61b991e4af436eef8705b49978990464cc28f5`.
 - Final documentation tip: the commit containing this handoff; resolve it with
   `git rev-parse HEAD` after checkout.
 - Phase-0 base: `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`
@@ -25,6 +28,37 @@
   handoff and the other four journal files are finalized separately.
 - No Phase-1 branch was pushed.
 - Phase 2 remains unauthorized.
+
+### Phase-1 ruler-hardening amendment (current)
+
+Review accepted the original Phase-1 architecture and authorized only integrity
+hardening. The unchanged product tree was remeasured with the corrected ruler:
+
+- R7c now detects public module-scope `from X import ControlledSymbol` bindings
+  without requiring `__all__`, handles public aliases, honors registered shims,
+  and ignores deliberately private aliases unless explicitly exported.
+- R7c changed **20 -> 200** solely because detector coverage increased. R6=7,
+  R7a=35, and R7b=0 are unchanged.
+- R10 still reads the frozen Phase-0 `CHECKPOINT_INVENTORY.tsv` and
+  `CHECKPOINT_MODULE_REFERENCES.tsv`; neither inventory was regenerated.
+- R10 classifies `farming.sb3_training` and
+  `simulator.split_branch_policy` as repository-local and requires their source
+  origins to remain inside this worktree. `stable_baselines3.common.policies`
+  is external and may resolve externally. All 313/317 rows pass and no Torch
+  module is imported.
+- No persistent B4 test existed before review. The checker and a focused test
+  now require `historical-reproduction-baseline-20260815` to resolve exactly to
+  `a90de59232b81753c1b2ea35b8990325c26674e5`.
+- B3 now AST-verifies both path insertion and the registered target
+  `recorder.movement_classification.MovementControlClassifier`.
+- `current_phase` in `CANONICAL_OWNERS.toml` is now the single phase source of
+  truth. `PHASE_7` bridges are allowed through Phase 6 and expire at the start
+  of Phase 7; B1/B2 remain uninstalled.
+- Deterministic evidence passed and 17 focused tests passed in 25.01 seconds.
+
+The hardening commit changes only `BRIDGES.md`, the two generated baseline
+files, the integrity tool, and its focused test. Product roots and the two
+frozen checkpoint inventory TSVs are unchanged.
 
 ### Resolved mandatory-plan blocker
 
@@ -50,7 +84,7 @@ The later user resume prompt supplied the authoritative `PHASE 1 - BUILD THE
 RULER` definition, Strategy C -> A, deferred Strategy B, the exact seven rules,
 exclusions, and gates. That resolved the blocker without rewriting its history.
 
-### Ruler result
+### Original accepted ruler result (superseded counts retained as history)
 
 - Registry: `CANONICAL_OWNERS.toml`; bridge ledger: `BRIDGES.md`.
 - Frozen debt: R6=7, R7a=35, R7b=0, R7c=20.
