@@ -9,11 +9,9 @@ from typing import Iterable
 
 import numpy as np
 
-from farming.actions import FarmingAction
-
-from . import movement_kinematics
 from .environment import RecordedFarmingEnv
 from .map_model import MapModel
+from .movement_kernel import MOVEMENT_PHYSICS_MODEL_ID, STEADY_TURN_RADIANS, SteeringDirection, advance_player_tick
 from .world_model import MovementModel, RecordedWorldModel
 
 try:  # Optional until training is requested.
@@ -288,23 +286,14 @@ _ESCAPE_SAMPLE_POSITIONS = 120
 _ESCAPE_HEADINGS_PER_POSITION = 4
 
 
-def _turn_step_radians(movement: tuple[MovementModel, ...]) -> float:
-    """The per-tick heading change from one LEFT/RIGHT tap, matching the
-    exact convention ``RecordedFarmingEnv.movement_path_clear`` uses."""
-
-    left = float(movement[int(FarmingAction.RUN_FORWARD_LEFT)].turn_mean_radians)
-    step = abs(left)
-    return step if step > 0.01 else 0.10
-
-
 def _regains_movement_within(
     map_model: MapModel,
-    movement: tuple[MovementModel, ...],
     x: float,
     z: float,
     heading: float,
     *,
     max_ticks: int,
+    previous_steering: SteeringDirection = SteeringDirection.NONE,
 ) -> bool:
     """Whether the bot's real controls can regain a genuinely clear
     direction -- a full ordinary movement step with no contact at all --
@@ -314,17 +303,24 @@ def _regains_movement_within(
     sliding move that is still blocked can shuffle the player sideways, or
     even deeper into a dead end, while never actually freeing them, and
     counting that as "escaped" would pass layouts that still trap the bot.
-    Continued search between ticks uses the sliding response so the frontier
-    reflects where the bot's controls would actually carry it while still
-    blocked, matching ``RecordedFarmingEnv``'s live collision handling.
-    """
+    Continued search between ticks uses the kernel's own substep/slide
+    response so the frontier reflects where the bot's controls would
+    actually carry it while still blocked, matching
+    ``RecordedFarmingEnv``'s live collision handling.
 
-    turn_step = _turn_step_radians(movement)
-    forward_distance_cells = max(
-        0.5, float(movement[int(FarmingAction.RUN_FORWARD)].distance_mean_cells)
-    )
-    native_distance = forward_distance_cells * map_model.native_units_per_cell
+    2026-08-13: migrated from the legacy per-action Gaussian model's fixed
+    turn/distance stats to movement_kernel.advance_player_tick -- the same
+    authoritative kernel RecordedFarmingEnv/the planner/the oracle all use,
+    so this validation gate (which determines whether a generated layout
+    is shippable) reflects what the real simulator now does, not the old
+    ~10-15deg/tick model. previous_steering is threaded through the
+    frontier since the kernel's turn is stateful (onset vs. steady); each
+    call starts fresh (NONE) by default, matching a probed position/
+    heading with no prior steering commitment (both call sites below probe
+    positions independently, never mid-sequence)."""
+
     unit = max(1.0e-6, map_model.native_units_per_cell)
+    turn_step = STEADY_TURN_RADIANS  # discretization bucket size only
 
     def discretize(px: float, pz: float, heading_value: float) -> tuple[int, int, int]:
         return (
@@ -333,28 +329,22 @@ def _regains_movement_within(
             int(round(heading_value / turn_step)),
         )
 
-    frontier: list[tuple[float, float, float]] = [(x, z, heading)]
+    frontier: list[tuple[float, float, float, SteeringDirection]] = [(x, z, heading, previous_steering)]
     visited = {discretize(x, z, heading)}
     for _tick in range(int(max_ticks)):
-        next_frontier: list[tuple[float, float, float]] = []
-        for px, pz, ph in frontier:
-            for turn in (0.0, turn_step, -turn_step):
-                new_heading = math.atan2(math.sin(ph + turn), math.cos(ph + turn))
-                dx = math.cos(new_heading) * native_distance
-                dz = math.sin(new_heading) * native_distance
-                _direct_x, _direct_z, direct_contact = movement_kinematics.sweep(
-                    map_model, px, pz, dx, dz
-                )
-                if not direct_contact:
+        next_frontier: list[tuple[float, float, float, SteeringDirection]] = []
+        for px, pz, ph, pprev in frontier:
+            for direction in (SteeringDirection.NONE, SteeringDirection.LEFT, SteeringDirection.RIGHT):
+                result = advance_player_tick(map_model, px, pz, ph, pprev, direction)
+                if not result.contact:
                     return True
-                nx, nz, _ = movement_kinematics.advance_with_slide(map_model, px, pz, dx, dz)
-                key = discretize(nx, nz, new_heading)
+                key = discretize(result.x, result.z, result.heading)
                 if key in visited:
                     continue
                 visited.add(key)
                 if len(visited) > _ESCAPE_MAX_VISITED_STATES:
                     return False
-                next_frontier.append((nx, nz, new_heading))
+                next_frontier.append((result.x, result.z, result.heading, result.next_previous_steering))
         if not next_frontier:
             return False
         frontier = next_frontier
@@ -383,7 +373,6 @@ def _boundary_safe_positions(map_model: MapModel) -> np.ndarray:
 
 def _layout_escapability_reasons(
     map_model: MapModel,
-    movement: tuple[MovementModel, ...],
     rng: np.random.Generator,
     *,
     stage: str,
@@ -407,7 +396,7 @@ def _layout_escapability_reasons(
         heading
         for heading in np.linspace(-math.pi, math.pi, 8, endpoint=False)
         if not _regains_movement_within(
-            map_model, movement, spawn_native[0], spawn_native[1], heading, max_ticks=spawn_ticks
+            map_model, spawn_native[0], spawn_native[1], heading, max_ticks=spawn_ticks
         )
     ]
     if failing_headings:
@@ -428,7 +417,7 @@ def _layout_escapability_reasons(
         headings = rng.uniform(-math.pi, math.pi, size=_ESCAPE_HEADINGS_PER_POSITION)
         for heading in headings:
             if not _regains_movement_within(
-                map_model, movement, native_x, native_z, float(heading), max_ticks=max_ticks
+                map_model, native_x, native_z, float(heading), max_ticks=max_ticks
             ):
                 failures += 1
                 if first_failure is None:
@@ -706,7 +695,6 @@ def _generate_validated_layout(
     *,
     obstacle_level: int,
     stage: str,
-    movement: tuple[MovementModel, ...],
 ) -> tuple[MapModel, tuple[int, int], dict[str, object], np.random.Generator]:
     """Regenerate a layout until it passes the stage's escapability gate,
     rather than silently shipping one that can trap the bot. Each attempt is
@@ -724,7 +712,7 @@ def _generate_validated_layout(
         )
         spawn_native = map_model.layout_to_native(*spawn_cell)
         reasons = _layout_escapability_reasons(
-            map_model, movement, attempt_rng, stage=stage, spawn_native=spawn_native
+            map_model, attempt_rng, stage=stage, spawn_native=spawn_native
         )
         if not reasons:
             metadata = {
@@ -798,7 +786,6 @@ def generate_curriculum_from_plan(
             variant_seed,
             obstacle_level=obstacle_level,
             stage=stage,
-            movement=reference_movement,
         )
         name = f"{index:02d}_{stage}_{template}_{density}_{respawn}"
         variant_root = root / "variants" / name
@@ -847,6 +834,13 @@ def generate_curriculum_from_plan(
             respawn_model_mode=("synthetic_redistribution_heavy" if density == "shifting" else "synthetic_global_redistribution"),
             respawn_delay_source=f"synthetic_{respawn}",
             human_action_probabilities=(0.60, 0.14, 0.14, 0.10, 0.02),
+            # This layout's escapability was validated against the live
+            # calibrated-arc kernel (see _regains_movement_within), so the
+            # world is genuinely a calibrated-arc-physics curriculum entry
+            # -- even though `movement` above still carries the legacy
+            # per-action stats (kept only as informational provenance, see
+            # MovementModel's docstring; RecordedFarmingEnv never reads it).
+            movement_physics_model=MOVEMENT_PHYSICS_MODEL_ID,
             fit_warnings=(
                 "Synthetic environment: use for generic farming pretraining, not for Tower-specific validation.",
                 "Layout intentionally favors large open farming regions and excludes dungeon/corridor generation.",

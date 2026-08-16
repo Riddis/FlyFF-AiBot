@@ -10,8 +10,9 @@ from simulator.navigation_dataset import (
     _group_into_events,
     mine_navigation_dataset,
 )
+from simulator.navigation_history import POLICY_INPUT_SIZE
 
-_DUMMY_OBS = np.zeros((925,), dtype=np.float32)
+_DUMMY_OBS = np.zeros((POLICY_INPUT_SIZE,), dtype=np.float32)
 
 
 def _record(**overrides) -> _TickRecord:
@@ -115,7 +116,7 @@ def test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts():
         config=config,
     )
     assert result["observations"].shape[0] > 0
-    assert result["observations"].shape[1] == 925
+    assert result["observations"].shape[1] == POLICY_INPUT_SIZE
     assert result["actions"].shape == (result["observations"].shape[0], 2)
     assert set(result["categories"]) <= set(CATEGORY_PRECEDENCE)
     # Not a strict requirement that every category appears in this small a

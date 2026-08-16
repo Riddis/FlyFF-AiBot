@@ -72,6 +72,7 @@ def build_run_manifest(
     every later stage that legitimately continues from one.
     """
 
+    from .movement_kernel import MOVEMENT_PHYSICS_MODEL_ID
     from .navigation_history import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE, STEERING_POLICY_INPUT_SCHEMA_ID
 
     default_contract = {
@@ -80,6 +81,12 @@ def build_run_manifest(
         "policy_input_schema_id": STEERING_POLICY_INPUT_SCHEMA_ID,
         "policy_input_size": POLICY_INPUT_SIZE,
         "policy_class": "SplitSteeringNavigationPolicy",
+        # Records a FACT about the codebase that produced this run, not a
+        # configurable option -- RecordedFarmingEnv unconditionally executes
+        # this physics model (see movement_kernel.py's module docstring).
+        # Manifests written before this field existed lack it and must be
+        # read as legacy_recorded_iid by absence, never assumed calibrated-arc.
+        "movement_physics_model": MOVEMENT_PHYSICS_MODEL_ID,
     }
     if architecture_contract:
         default_contract.update(architecture_contract)

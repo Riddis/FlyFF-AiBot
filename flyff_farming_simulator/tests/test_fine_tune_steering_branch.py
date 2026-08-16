@@ -8,7 +8,7 @@ from gymnasium import spaces
 from stable_baselines3.common.utils import get_schedule_fn
 
 from simulator.factorized_v193_training import fine_tune_steering_branch_v193
-from simulator.navigation_history import POLICY_INPUT_SIZE
+from simulator.navigation_history import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE, SIDECAR_SIZE
 from simulator.split_branch_policy import SplitSteeringNavigationPolicy
 from simulator.synthetic import iter_variant_environments
 
@@ -45,7 +45,14 @@ def _real_raw_observations(n: int) -> np.ndarray:
 def _build_synthetic_dataset(path: Path, n_per_layout: int = 60) -> None:
     rng = np.random.default_rng(0)
     raw = _real_raw_observations(n_per_layout * 2)
-    sidecar = rng.uniform(0.0, 1.0, size=(raw.shape[0], 2)).astype(np.float32)
+    temporal = rng.uniform(0.0, 1.0, size=(raw.shape[0], 2)).astype(np.float32)
+    # A valid previous-steering one-hot per sample (not just uniform noise --
+    # this feeds the same steering_net columns a real deployment would see).
+    previous_steering_index = rng.integers(0, 3, size=raw.shape[0])
+    one_hot = np.zeros((raw.shape[0], 3), dtype=np.float32)
+    one_hot[np.arange(raw.shape[0]), previous_steering_index] = 1.0
+    sidecar = np.concatenate([temporal, one_hot], axis=1)
+    assert sidecar.shape[1] == SIDECAR_SIZE
     observations = np.concatenate([raw, sidecar], axis=1)
     # A deliberately learnable pattern: steering label depends on sidecar[0]
     # (recent_progress), with a STRAIGHT band in the middle so all three

@@ -244,9 +244,10 @@ def main() -> None:
             ppo_result = graduate_basic_to_beginner(
                 current_checkpoint, ppo_output, curriculum=INTERMEDIATE_CURRICULUM, timesteps=PPO_CHUNK_TIMESTEPS,
                 stage=INTERMEDIATE_STAGE, seed=round_seed, episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS,
-                device="cpu", progress_every_seconds=20.0,
+                device="cpu", progress_every_seconds=20.0, canonical_stage="intermediate",
             )
-            log(f"PPO chunk done. layouts={ppo_result['training_layouts']} timesteps={ppo_result['timesteps']}")
+            log(f"PPO chunk done. layouts={ppo_result['training_layouts']} requested_timesteps={ppo_result['timesteps']} "
+                f"actual_timesteps={ppo_result.get('actual_timesteps', 'n/a')}")
             log(f"Saved: {ppo_result['checkpoint_out']} (+ provenance)")
         pre_rehearsal_checkpoint = ppo_output
         model = PPO.load(str(pre_rehearsal_checkpoint), device="cpu")
@@ -279,6 +280,7 @@ def main() -> None:
             rehearsal_result = rehearse_beginner_on_basic_data(
                 pre_rehearsal_checkpoint, rehearsed_output, basic_dataset_paths=event_dataset_paths,
                 epochs=REHEARSAL_EPOCHS, learning_rate=REHEARSAL_LEARNING_RATE, batch_size=128, seed=round_seed,
+                canonical_stage="intermediate",
             )
             log(f"Rehearsal done. train_samples={rehearsal_result['train_samples']}")
             model2 = PPO.load(str(rehearsed_output), device="cpu")

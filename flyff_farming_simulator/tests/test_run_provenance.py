@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from simulator.movement_kernel import MOVEMENT_PHYSICS_MODEL_ID
+from simulator.navigation_history import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE
 from simulator.run_provenance import build_run_manifest, capture_git_state, write_run_manifest
 
 
@@ -22,9 +24,19 @@ def test_fresh_initialization_is_false_when_continuing_a_checkpoint() -> None:
 
 def test_manifest_includes_architecture_contract_and_git_state() -> None:
     manifest = build_run_manifest(stage="basic", milestone="bootstrap", seeds=[0], config={})
-    assert manifest["architecture_contract"]["policy_input_size"] == 925
-    assert manifest["architecture_contract"]["raw_observation_size"] == 923
+    assert manifest["architecture_contract"]["policy_input_size"] == POLICY_INPUT_SIZE
+    assert manifest["architecture_contract"]["raw_observation_size"] == RAW_OBSERVATION_SIZE
     assert "commit" in manifest["git"]
+
+
+def test_manifest_records_the_live_movement_physics_model() -> None:
+    """2026-08-13: every new manifest must explicitly record which physics
+    kernel produced the run, so old (legacy_recorded_iid, by absence) and
+    new (live_calibrated_arc) results are never conflated when comparing
+    checkpoints later."""
+    manifest = build_run_manifest(stage="basic", milestone="bootstrap", seeds=[0], config={})
+    assert manifest["architecture_contract"]["movement_physics_model"] == MOVEMENT_PHYSICS_MODEL_ID
+    assert MOVEMENT_PHYSICS_MODEL_ID == "live_calibrated_arc"
 
 
 def test_capture_git_state_never_raises() -> None:

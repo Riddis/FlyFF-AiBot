@@ -51,11 +51,13 @@ from .factorized_v193_training import (
     _sqrt_inverse_class_weights,
     _train_natural_prior_epoch,
 )
+from .movement_kernel import SteeringDirection
 from .navigation_history import (
     CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT,
     CALIBRATED_HISTORY_WINDOW,
     POLICY_INPUT_SIZE,
     RAW_OBSERVATION_SIZE,
+    SIDECAR_SIZE,
     NavigationStepEvidence,
     sidecar_values_from_history,
 )
@@ -124,17 +126,32 @@ def save_checkpoint_with_provenance(
 def reconstruct_session_sidecars(
     displacement_cells: np.ndarray,
     events: np.ndarray,
+    steering: np.ndarray,
     *,
     contact: np.ndarray | None = None,
     history_window: int = CALIBRATED_HISTORY_WINDOW,
     expected_clear_path_displacement: float = CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT,
 ) -> np.ndarray:
-    """Reconstruct [recent_progress, recent_contact] for one session's
-    samples, already in strict temporal order, causally aligned with
+    """Reconstruct the full sidecar [recent_progress, recent_contact,
+    prev_straight, prev_left, prev_right] for one session's samples,
+    already in strict temporal order, causally aligned with
     NavigationHistoryWrapper's actual online semantics -- see
     tests/test_temporal_sidecar_parity.py for the parity proof this is
     checked against directly (drive the real wrapper against a controlled
     fake env, compare index by index).
+
+    `steering` is the per-sample RECORDED steering action (farming.actions.
+    SteeringAction ints: STRAIGHT=0/LEFT=1/RIGHT=2), required (not
+    optional/defaulted) since unlike `contact` this genuinely IS available
+    from human recordings and silently defaulting it to "always STRAIGHT"
+    would misrepresent real recorded steering. SteeringAction's integer
+    values are identical to movement_kernel.SteeringDirection's
+    (NONE=0/LEFT=1/RIGHT=2) by construction, so no translation is needed.
+    previous_steering for sample idx is `steering[idx-1]` (the action that
+    drove the idx-1 -> idx transition, i.e. what will determine whether
+    idx's OWN subsequent action is an onset or a steady continuation) --
+    same causal-alignment convention as `eva_attempted` below, and NONE for
+    sample 0 (matching RecordedFarmingEnv.reset()).
 
     The alignment is easy to get wrong in two independent ways, both fixed
     here (an earlier version of this function had both bugs):
@@ -180,7 +197,7 @@ def reconstruct_session_sidecars(
     """
 
     n = displacement_cells.shape[0]
-    sidecars = np.zeros((n, 2), dtype=np.float32)
+    sidecars = np.zeros((n, SIDECAR_SIZE), dtype=np.float32)
     history: list[NavigationStepEvidence] = []
     for idx in range(n):
         if idx > 0:
@@ -191,8 +208,10 @@ def reconstruct_session_sidecars(
                     eva_attempted=bool(events[idx - 1] == int(FarmingEvent.CAST_EVA)),
                 )
             )
+        previous_steering = SteeringDirection.NONE if idx == 0 else SteeringDirection(int(steering[idx - 1]))
         sidecars[idx] = sidecar_values_from_history(
-            history[-history_window:], expected_clear_path_displacement=expected_clear_path_displacement,
+            history[-history_window:], previous_steering,
+            expected_clear_path_displacement=expected_clear_path_displacement,
         )
     return sidecars
 
@@ -254,7 +273,7 @@ def build_human_bootstrap_dataset(
         order = np.flatnonzero(session_index == session)
         order = order[np.argsort(elapsed_ms[order], kind="stable")]
         sample_sidecars = reconstruct_session_sidecars(
-            displacement_cells[order], actions[order, 1],
+            displacement_cells[order], actions[order, 1], actions[order, 0],
             history_window=history_window, expected_clear_path_displacement=expected_clear_path_displacement,
         )
         sidecars[order] = sample_sidecars

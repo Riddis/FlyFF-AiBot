@@ -129,10 +129,12 @@ def resume_ppo_chunk_phase2(
                 f"wrapped training env's {wrapped_obs_shape} -- refusing to train with a mismatch"
             )
 
+        num_timesteps_before = int(policy.num_timesteps)
         policy.learn(
             total_timesteps=int(timesteps), reset_num_timesteps=False, progress_bar=False,
             callback=callback,
         )
+        num_timesteps_after = int(policy.num_timesteps)
 
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -143,6 +145,16 @@ def resume_ppo_chunk_phase2(
     return {
         "training_layouts": training_layouts,
         "timesteps": int(timesteps),
+        # SB3 collects whole n_steps*n_envs rollout batches until the
+        # requested total is reached, so the real amount of experience
+        # collected this chunk almost always overshoots `timesteps` --
+        # e.g. confirmed 12288 actual vs 10000 requested for n_envs in
+        # {12, 16} with n_steps=256 (2026-08-08 rollout-math audit). Report
+        # both rather than letting the checkpoint's "*_010k" label imply an
+        # exact count.
+        "actual_timesteps": num_timesteps_after - num_timesteps_before,
+        "num_timesteps_before": num_timesteps_before,
+        "num_timesteps_after": num_timesteps_after,
         "checkpoint_in": str(Path(checkpoint).resolve()),
         "checkpoint_out": str(Path(output).resolve()),
     }

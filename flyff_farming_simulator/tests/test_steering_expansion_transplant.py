@@ -6,7 +6,7 @@ from gymnasium import spaces
 from stable_baselines3.common.utils import get_schedule_fn
 
 from simulator.factorized_v193_training import expand_steering_input_from_checkpoint
-from simulator.navigation_history import NavigationHistoryWrapper, POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE
+from simulator.navigation_history import NavigationHistoryWrapper, POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE, SIDECAR_SIZE
 from simulator.split_branch_policy import SplitSteeringEventPolicy, SplitSteeringNavigationPolicy
 from simulator.synthetic import iter_variant_environments
 
@@ -54,7 +54,11 @@ def test_transplant_reproduces_old_policy_exactly_with_nonzero_new_features():
     # Deliberately NONZERO, realistic-looking sidecar/navigation values --
     # an all-zero probe would pass even with broken (randomly-initialized)
     # new columns, since random_weight * 0 == 0 regardless of the weight.
-    sidecar = np.tile(np.asarray([0.37, 0.4], dtype=np.float32), (raw.shape[0], 1))
+    # [recent_progress, recent_contact, prev_straight, prev_left, prev_right]
+    # -- a valid one-hot (prev_left), not all-zero, so this exercises the
+    # 2026-08-13 previous-steering sidecar columns too.
+    assert SIDECAR_SIZE == 5
+    sidecar = np.tile(np.asarray([0.37, 0.4, 0.0, 1.0, 0.0], dtype=np.float32), (raw.shape[0], 1))
     augmented = np.concatenate([raw, sidecar], axis=1)
 
     old_obs = torch.as_tensor(raw, dtype=torch.float32)

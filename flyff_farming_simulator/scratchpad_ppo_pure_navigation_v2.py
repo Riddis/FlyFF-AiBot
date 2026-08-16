@@ -1,5 +1,15 @@
 """2026-08-10 corrected PPO pure-navigation ablation.
 
+SUPERSEDED 2026-08-10 (correction #3): pure_navigation_env.py's target
+selection was rebuilt around a self-contained single-source-of-truth
+selector (`select_target`); this script's `current_target_position` import
+predates that rebuild and no longer exists. The runs launched from this
+script (`goal_stable`/`goal_normal`/`safety`, all *_0200704.zip
+checkpoints) remain useful as historical diagnostic artifacts (see
+run_logs/OVERNIGHT_20260809_PIPELINE.md's 2026-08-10 entries) but should
+not be retrained from this file as-is. See scratchpad_ppo_pure_navigation_v4.py
+for the corrected driver.
+
 Three runs needed (run this script once per row):
   name          reward_mode  target_mode
   safety        safety       normal_target   (locomotion-only baseline;

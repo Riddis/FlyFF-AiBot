@@ -63,6 +63,71 @@ def _is_durable_recovery(
     return unique_growth >= min_unique_cell_growth and distance_growth > 0 and contact_growth <= max_contact_growth
 
 
+_PERSISTENT_CONTACT_MIN_CONSECUTIVE_TICKS = 3
+# Matches RecoveryController's own min_contacts_in_window=3 (recovery_controller.py).
+# NOTE: this is contact-duration alone, NOT a wedge. Per the established
+# project semantics (2026-08-08 review): one-tick/brief contact = collision;
+# persistent contact alone = prolonged collision/scrape; a "wedge" is
+# specifically persistent contact PLUS degraded displacement/no correction,
+# which this trace-only helper has no displacement signal to evaluate. Do
+# not call this field "wedge_events" -- it is a raw contact-duration split,
+# nothing more, and graduation should not need this distinction anyway: any
+# actual contact event is a collision in a deterministic simulator with
+# exact collision ground truth, full stop.
+
+
+def _contact_event_stats(contacts_trace: list[int]) -> dict[str, Any]:
+    """Turn the environment's raw per-tick contact counter into distinct-event
+    statistics.
+
+    ``environment.py``'s ``self.contact_count += int(contact)`` increments by
+    exactly one on every tick where the movement sweep detected contact, so
+    ``contacts_trace`` (the cumulative running total reported each tick) is a
+    TICK COUNT, not an event count: a single sustained 40-tick scrape
+    against a wall inflates it by 40, identical to 40 independent one-tick
+    touches spread across the whole episode. ``contacts_per_100_distance``
+    (computed straight from this cumulative counter) is therefore a severity/
+    exposure metric, not a "how many times did the player actually run into
+    something" metric -- conflating the two overstates how far a policy is
+    from genuinely collision-free navigation. This reconstructs the discrete
+    events from the same trace already being collected, no new environment
+    instrumentation needed: consecutive ticks with contact=True are ONE event.
+    """
+
+    if not contacts_trace:
+        return {
+            "total_contact_ticks": 0,
+            "distinct_contact_events": 0,
+            "max_consecutive_contact_ticks": 0,
+            "any_contact": False,
+            "persistent_contact_runs": 0,
+        }
+    deltas = [contacts_trace[0]] + [b - a for a, b in zip(contacts_trace, contacts_trace[1:])]
+    events = 0
+    max_run = 0
+    current_run = 0
+    persistent_runs = 0
+    for delta in deltas:
+        if delta > 0:
+            if current_run == 0:
+                events += 1
+            current_run += 1
+            max_run = max(max_run, current_run)
+        else:
+            if current_run >= _PERSISTENT_CONTACT_MIN_CONSECUTIVE_TICKS:
+                persistent_runs += 1
+            current_run = 0
+    if current_run >= _PERSISTENT_CONTACT_MIN_CONSECUTIVE_TICKS:
+        persistent_runs += 1
+    return {
+        "total_contact_ticks": int(contacts_trace[-1]),
+        "distinct_contact_events": int(events),
+        "max_consecutive_contact_ticks": int(max_run),
+        "any_contact": bool(contacts_trace[-1] > 0),
+        "persistent_contact_runs": int(persistent_runs),
+    }
+
+
 def _policy_forward(net: Any, observation: np.ndarray) -> tuple[int, int, np.ndarray]:
     with torch.no_grad():
         obs_tensor = torch.as_tensor(observation[None, :], device=net.device)
@@ -237,6 +302,7 @@ def run_episode(
         "zero_kill": bool(info.get("total_kills", 0) == 0),
         "recovery": recovery_summary,
         **movement,
+        **_contact_event_stats(contacts_trace),
         "_eva_target_counts": eva_target_counts,
         "_teacher_events": teacher_events,
         "_policy_events": policy_events,
@@ -281,6 +347,20 @@ def _summarize_episodes(label: str, results: list[dict[str, Any]], teacher_media
         "zero_kill_episodes": sum(1 for r in results if r["zero_kill"]),
         "density_binned_eva": density_bins,
         "recovery": _summarize_recovery(results) if results and results[0].get("recovery") is not None else None,
+        # Distinct-collision-event reporting (see _contact_event_stats):
+        # contacts_per_100_distance above stays as a severity/exposure metric,
+        # these answer "did the player actually run into something, how many
+        # separate times, for how long" -- the question an absolute
+        # collision-free graduation bar actually needs answered.
+        "episodes_with_any_contact": sum(1 for r in results if r.get("any_contact")),
+        "pct_episodes_with_any_contact": (
+            sum(1 for r in results if r.get("any_contact")) / len(results) if results else None
+        ),
+        "distinct_contact_events": _stat(results, "distinct_contact_events"),
+        "max_consecutive_contact_ticks": _stat(results, "max_consecutive_contact_ticks"),
+        "total_contact_ticks": _stat(results, "total_contact_ticks"),
+        "episodes_with_persistent_contact": sum(1 for r in results if r.get("persistent_contact_runs", 0) > 0),
+        "total_persistent_contact_runs": sum(r.get("persistent_contact_runs", 0) for r in results),
     }
 
 
@@ -497,6 +577,17 @@ def evaluate_challenge_parallel(
 
 
 def _run_teacher_episode(curriculum_path: str, layout_name: str, *, seed: int, episode_seconds: float, max_actions: int, stage: str = "early") -> dict[str, Any]:
+    """Roll the scripted teacher alone (no policy, no recovery) through one
+    episode, tracking the same collision/movement traces run_episode does.
+
+    Historically this only returned kills_per_simulated_hour (the one thing
+    evaluate_heldout/evaluate_challenge needed for teacher-relative ratios).
+    Extended 2026-08-08 to support directly auditing the teacher's own
+    collision rate -- we'd been treating its labels as the supervision
+    target for DAgger without ever checking whether the teacher itself
+    navigates these maps without contact.
+    """
+
     entry, env = next(
         iter(
             iter_variant_environments(
@@ -507,12 +598,37 @@ def _run_teacher_episode(curriculum_path: str, layout_name: str, *, seed: int, e
     )
     observation, _ = env.reset(seed=seed)
     info: dict[str, Any] = {}
+    steering_choices: list[int] = []
+    unique_cells_trace: list[int] = []
+    total_distance_trace: list[float] = []
+    contacts_trace: list[int] = []
     for _ in range(int(max_actions)):
         command = scripted_command("obstacle_aware", env)
+        steering_choices.append(int(command.steering))
         observation, _reward, terminated, truncated, info = env.step(
             np.asarray([int(command.steering), int(command.event)], dtype=np.int64)
         )
+        unique_cells_trace.append(int(info["unique_cells"]))
+        total_distance_trace.append(float(info["total_distance_cells"]))
+        contacts_trace.append(int(info["contacts"]))
         if terminated or truncated:
             break
     env.close()
-    return {"kills_per_simulated_hour": float(info.get("total_kills", 0)) * 3600.0 / max(1e-9, float(info.get("elapsed_seconds", 0.0)))}
+
+    movement = classify_episode_movement(
+        steering_choices=steering_choices, unique_cells_trace=unique_cells_trace, total_distance_trace=total_distance_trace,
+    )
+    return {
+        "layout": layout_name,
+        "seed": int(seed),
+        "steps": len(steering_choices),
+        "kills_per_simulated_hour": float(info.get("total_kills", 0)) * 3600.0 / max(1e-9, float(info.get("elapsed_seconds", 0.0))),
+        "total_kills": int(info.get("total_kills", 0)),
+        "contacts": int(info.get("contacts", 0)),
+        "contacts_per_100_distance": float(info.get("contacts", 0)) * 100.0 / max(1e-9, float(info.get("total_distance_cells", 0.0))),
+        "total_distance_cells": float(info.get("total_distance_cells", 0.0)),
+        "unique_cells": int(info.get("unique_cells", 0)),
+        "zero_kill": bool(info.get("total_kills", 0) == 0),
+        **movement,
+        **_contact_event_stats(contacts_trace),
+    }

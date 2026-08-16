@@ -309,7 +309,8 @@ def main() -> None:
                 stage="early", seed=round_seed, episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS,
                 device="cpu", progress_every_seconds=20.0,
             )
-            log(f"PPO chunk done. layouts={ppo_result['training_layouts']} timesteps={ppo_result['timesteps']}")
+            log(f"PPO chunk done. layouts={ppo_result['training_layouts']} requested_timesteps={ppo_result['timesteps']} "
+                f"actual_timesteps={ppo_result.get('actual_timesteps', 'n/a')}")
             log(f"Saved: {ppo_result['checkpoint_out']} (+ provenance)")
         pre_rehearsal_checkpoint = ppo_output
         model = PPO.load(str(pre_rehearsal_checkpoint), device="cpu")

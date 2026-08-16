@@ -210,7 +210,7 @@ def run_episode_925(
     """
     import numpy as np
 
-    from .milestone_evaluator import _is_durable_recovery, _policy_forward
+    from .milestone_evaluator import _contact_event_stats, _is_durable_recovery, _policy_forward
     from .movement_classification import classify_episode_movement
     from .navigation_history import NavigationHistoryWrapper
     from .scripted_policies import scripted_command
@@ -339,6 +339,7 @@ def run_episode_925(
         "zero_kill": bool(info.get("total_kills", 0) == 0),
         "recovery": recovery_summary,
         **movement,
+        **_contact_event_stats(contacts_trace),
         "_eva_target_counts": eva_target_counts,
         "_teacher_events": teacher_events,
         "_policy_events": policy_events,
@@ -554,6 +555,7 @@ def graduate_basic_to_beginner(
     max_actions: int = 1000,
     device: str = "cpu",
     progress_every_seconds: float = 15.0,
+    canonical_stage: str = "beginner",
 ) -> dict[str, Any]:
     """One bounded PPO chunk on the Basic-graduated checkpoint, recovery off
     throughout (structural, not configurable -- see module docstring),
@@ -562,7 +564,17 @@ def graduate_basic_to_beginner(
     Mirrors resume_ppo_chunk_phase2's own shape: one bounded chunk, save,
     never loops on its own, no rehearsal folded in -- call
     rehearse_beginner_on_basic_data separately/periodically between chunks
-    if forgetting is observed."""
+    if forgetting is observed.
+
+    Despite the function's name (kept for now -- Intermediate/Advanced reuse
+    this same PPO-chunk mechanics unchanged, only the curriculum/checkpoint
+    lineage differs), ``canonical_stage`` is the real pipeline stage this
+    call represents ("beginner"/"intermediate"/"advanced") and is recorded
+    as such in provenance -- NOT derived from ``stage`` (the curriculum's own
+    internal stage string, e.g. "early" for Beginner, which is a different
+    axis and historically got hardcoded to "beginner" in every provenance
+    file regardless of caller, confirmed against real Intermediate/Advanced
+    checkpoint provenance during the 2026-08-08 review)."""
 
     from .navigation_ppo import resume_ppo_chunk_phase2
     from .progress_reporting import SB3ProgressCallback
@@ -575,10 +587,10 @@ def graduate_basic_to_beginner(
     result = resume_ppo_chunk_phase2(
         checkpoint=basic_checkpoint, curriculum=curriculum, output=output, timesteps=timesteps,
         stage=stage, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, device=device,
-        callback=SB3ProgressCallback(int(timesteps), label="beginner_ppo", min_interval_seconds=progress_every_seconds),
+        callback=SB3ProgressCallback(int(timesteps), label=f"{canonical_stage}_ppo", min_interval_seconds=progress_every_seconds),
     )
     manifest = build_run_manifest(
-        stage="beginner", milestone="ppo_chunk", seeds=seed,
+        stage=canonical_stage, milestone="ppo_chunk", seeds=seed,
         config={"timesteps": timesteps, "stage": stage, "episode_seconds": episode_seconds,
                 "max_actions": max_actions, **conservative_ppo_hparams},
         curriculum_path=str(curriculum), recovery_config={"enabled": False, "reason": "structural -- see module docstring"},
@@ -597,6 +609,7 @@ def rehearse_beginner_on_basic_data(
     learning_rate: float = 1e-5,
     batch_size: int = 128,
     seed: int = 0,
+    canonical_stage: str = "beginner",
 ) -> dict[str, Any]:
     """Periodic BC rehearsal on Basic-stage data (human bootstrap +
     recovery-assisted DAgger, concatenated) to guard against Beginner's PPO
@@ -636,7 +649,7 @@ def rehearse_beginner_on_basic_data(
     model.save(str(output_path))
 
     manifest = build_run_manifest(
-        stage="beginner", milestone="rehearsal", seeds=seed,
+        stage=canonical_stage, milestone="rehearsal", seeds=seed,
         config={"epochs": epochs, "learning_rate": learning_rate, "batch_size": batch_size,
                 "basic_dataset_paths": [str(p) for p in basic_dataset_paths]},
         starting_checkpoint=str(Path(checkpoint).resolve()), output_checkpoint=str(output_path.resolve()),

@@ -26,16 +26,13 @@ conflated them):
     contact, so ignoring the target features is no longer a viable
     strategy. This is the mode that actually tests target stability.
 
-`target_mode` (only meaningfully distinguishable under reward_mode="goal";
-see the module docstring history below for why a naive env-only fix does
-not suffice):
-  A. stable_waypoint: the env's target-hysteresis margin is set to
-     effectively infinite (initial target held all episode, barring
-     death/unreachability) AND the raw observation's direct-actor block is
-     masked so only that one target actor is ever "active".
-  B. normal_target: the env's actual current default target-selection
-     behavior (hysteresis enabled, margin=3.0 cells) with NO observation
-     masking -- i.e. "the real system as it exists today."
+`target_mode` (only meaningfully distinguishable under reward_mode="goal"):
+  A. stable_waypoint: sticky selection (see `select_target` below) -- keep
+     the current target while it remains alive, reachable, and
+     representable; reselect only when it stops being any of those.
+  B. normal_target: greedy selection -- reselect the best representable,
+     reachable target every tick, from the identical candidate pool sticky
+     mode draws from. Persistence is the ONLY difference between modes.
 
 STEERING-ONLY, per the 2026-08-10 correction: the event action (EVA/jump)
 is always forced to NONE before being applied to the underlying env,
@@ -44,25 +41,64 @@ movement suppression can never become an accidental collision-avoidance
 mechanism. This experiment answers whether PPO can learn WALL AVOIDANCE
 AT THE STEERING LEVEL (STRAIGHT/LEFT/RIGHT), nothing else.
 
-CRITICAL FIX (2026-08-09, caught before it produced a misleading result):
-the first version of this module only set `target_hysteresis_enabled`/
-`_TARGET_HYSTERESIS_MARGIN_CELLS` on the underlying env, assuming that
-would make the POLICY's own observation stable too. It does not.
-`simulator/geometry_features.py`'s `derive_geometry_features[_torch]` --
-which produces the 6 target-geometry values in the policy's actual 11-
-feature steering input -- deliberately does NOT read
-`_nearest_reachable_actor_id`/`_best_group_actor_id` at all; it
-independently recomputes its own stateless, memoryless "best candidate"
-selection from the raw observation's direct-actor slots on every call (by
-design, so the live bot can compute the identical transform without any
-privileged env state). Two PPO runs under the env-only fix produced
-byte-identical training statistics at every checkpoint, which is what
-caught this. The fix masks the raw observation directly: only the current
-sticky target's direct-actor slot is left "active", forcing
-`derive_geometry_features`'s greedy selection to have exactly one
-candidate, achieving real stability at the level the policy actually sees
--- without modifying the shared, foundational `geometry_features.py`
-transform used elsewhere (DAgger, the live bot, etc.).
+CRITICAL FIX (2026-08-09): the first version only set env-level hysteresis
+state, assuming that would make the POLICY's own observation stable too.
+It does not -- `derive_geometry_features[_torch]` independently recomputes
+its own target selection from the raw observation's direct-actor slots on
+every call, deliberately ignoring any privileged env state (by design, so
+the live bot can compute the identical transform without privileged
+state). Fixed by masking the raw observation directly so only the selected
+target's slot is ever "active".
+
+CRITICAL FIX #2 (2026-08-10): the fix above was only ever applied for
+`stable_waypoint`; `normal_target` episodes left masking a no-op, so its
+policy-observed "target" (derive_geometry_features' own euclidean-distance
+argmax over ALL active slots) could disagree with whichever actor the
+reward was computed against. Fixed by making masking mode-independent.
+
+CRITICAL FIX #3 (2026-08-10, after the user reviewed the completed Track A
+results and correctly rejected treating them as decisive): fix #2 still
+masked/rewarded against `_nearest_reachable_actor_id`/`_best_group_actor_id`
+-- environment.py attributes selected by scanning ALL visible candidates
+(commonly 300+ actors) via GEODESIC distance, with an env-level hysteresis
+margin that only governs whether a candidate is allowed to STEAL the
+target, never whether the current target remains within the
+DIRECT_ACTOR_SLOTS=12-widest observation window the policy actually sees.
+Measured directly: under `stable_waypoint`'s effectively-infinite margin,
+the selected target fell outside the representable observation window on
+74.0% of ticks (1201/1623 across the 6-episode eval set) -- the policy's
+target-geometry features were zero on three-quarters of all ticks while
+the reward kept scoring progress toward that same, invisible-to-the-policy
+actor. `normal_target`'s margin=3.0 kept this gap to 0.6%, but that
+measurement itself predates this fix (fix #2's masking made it representable
+by CONSTRUCTION on the ticks it was active, not by ruling out the
+possibility that a fresh reselection could still pick something outside
+the window under fix #2's borrowed env-level logic) and cannot be trusted
+as a clean isolation of "reselection frequency" either.
+
+Fixed by replacing all env-attribute-borrowing with a single, self-
+contained target selector (`select_target` below) that is the sole source
+of truth for BOTH the policy's masked observation and the reward,
+constructed so a selected target can never be anything other than
+representable:
+  - The candidate pool is always exactly `_representable_candidates` --
+    the same DIRECT_ACTOR_SLOTS-nearest-by-raw-distance pool the
+    observation's direct-actor block is built from. Never the full
+    (hundreds-wide) visible-candidate list.
+  - "Reachable" means finite geodesic distance, computed fresh each call.
+  - Sticky mode retains the previous target id only if it is still alive,
+    still among the representable candidates, AND still reachable this
+    tick; otherwise it reselects the nearest reachable representable
+    candidate, exactly as greedy mode always does. The two modes therefore
+    differ ONLY in persistence, never in candidate pool or ranking metric.
+This makes "the reward target is unrepresentable to the policy" a
+structurally impossible state rather than a measured-to-be-rare one; see
+`tests/test_pure_navigation_env.py::TestNoUnrepresentableRewardTarget`.
+
+Also per this correction: the terminal collision penalty was recalibrated
+from measurement rather than left at an unexamined -5.0 (see
+`scratchpad_calibrate_pure_nav_reward.py` and this module's
+`COLLISION_TERMINAL_REWARD` constant for the reasoning and numbers).
 """
 from __future__ import annotations
 
@@ -77,69 +113,97 @@ from farming.observation import ACTOR_FEATURES, DIRECT_ACTOR_SLOTS, DIRECT_ACTOR
 TargetMode = Literal["stable_waypoint", "normal_target"]
 RewardMode = Literal["safety", "goal"]
 
-COLLISION_TERMINAL_REWARD = -5.0
+# Calibrated 2026-08-10 from measurement, not an arbitrary constant (see
+# scratchpad_calibrate_pure_nav_reward.py and the OVERNIGHT_20260809_
+# PIPELINE.md entry of the same date). Measured with the scripted teacher
+# over MAX_ACTIONS=1000 training episodes: per-tick safety reward mean=1.09,
+# p90=2.35, observed max=4.69. The THEORETICAL WORST-CASE ceiling -- the
+# discounted (gamma=0.99, matching training) return of a trajectory that
+# somehow sustained the observed per-tick max for the ENTIRE 1000-tick
+# horizon -- is 428.67. Real episodes fall far short of that (discounted
+# productive return: safety mean=107/max=111, goal-greedy mean=31/max=46,
+# goal-sticky mean=-25/max=-9 -- negative even for the scripted teacher).
+# Set comfortably above the theoretical ceiling (not just the realistic
+# mean/max) so that a collision is decisively worse than a collision-free
+# trajectory under ANY circumstance the training run could produce, not
+# just the typical case -- directly addressing the finding that the old
+# -5.0 constant was frequently dominated by 80-150+ units of banked safety
+# reward before termination.
+COLLISION_TERMINAL_REWARD = -500.0
 PROGRESS_REWARD_SCALE = 1.0
 GOAL_PROGRESS_REWARD_SCALE = 1.0
 EVENT_NONE = 0
-# Large enough that no candidate could ever beat the sticky target under
-# the existing margin comparison (see environment.py's hysteresis logic),
-# effectively locking the initial target for the whole episode short of it
-# dying/going unreachable.
-EFFECTIVELY_INFINITE_HYSTERESIS_MARGIN_CELLS = 1.0e6
 _ACTIVE_FIELD_OFFSET = _DIRECT_ACTOR_FIELD_NAMES.index("active")
 
 
-def configure_target_mode(wrapped_env: Any, mode: TargetMode) -> None:
-    """Apply the requested target-selection mode to the underlying
-    RecordedFarmingEnv instance. Uses `.unwrapped` (gymnasium's standard
-    recursive-unwrap property) rather than manually walking `.env` --
-    gymnasium's Wrapper implements `__getattr__` delegation, so a naive
-    `hasattr` probe on the OUTER wrapper would already appear to "have" any
-    attribute the base env has, terminating a manual walk immediately and
-    setting the attribute on the wrong (outer) object where it would
-    silently have no effect. Call once per episode, right after reset,
-    since a fresh reset does not reset this configuration itself."""
-
-    env = wrapped_env.unwrapped
-    env.target_hysteresis_enabled = True
-    if mode == "stable_waypoint":
-        env._TARGET_HYSTERESIS_MARGIN_CELLS = EFFECTIVELY_INFINITE_HYSTERESIS_MARGIN_CELLS
-    else:
-        env._TARGET_HYSTERESIS_MARGIN_CELLS = type(env)._TARGET_HYSTERESIS_MARGIN_CELLS
+def _representable_candidates(base_env: Any) -> list[tuple[float, Any, float, float]]:
+    """The exact top-DIRECT_ACTOR_SLOTS-nearest-by-raw-distance pool the
+    observation's direct-actor block is built from. A target selection is
+    only ever representable to the policy if it is drawn from exactly this
+    pool -- not `_visible_candidates()`'s full (commonly 300+ wide) list,
+    which is what `_nearest_reachable_actor_id` used to draw from (see
+    module docstring's correction #3)."""
+    return base_env._visible_candidates()[:DIRECT_ACTOR_SLOTS]
 
 
-def _mask_observation_to_sticky_target(obs: np.ndarray, base_env: Any) -> np.ndarray:
+def _reachable_representable_targets(base_env: Any, candidates) -> list[tuple[int, float]]:
+    """(actor_id, geodesic_distance_cells) for every representable
+    candidate that currently has a finite (reachable) geodesic path."""
+    player_cell = base_env.map.native_to_layout_cell(base_env.player_x, base_env.player_z)
+    geodesic_field = base_env._geodesic_field(player_cell)
+    result = []
+    for _distance, actor, _dx, _dz in candidates:
+        actor_cell = base_env.map.native_to_layout_cell(actor.x, actor.z)
+        geodesic = math.inf if actor_cell is None else float(geodesic_field.get(actor_cell, math.inf))
+        if math.isfinite(geodesic):
+            result.append((actor.actor_id, geodesic))
+    return result
+
+
+def select_target(base_env: Any, *, sticky_id: int | None, sticky: bool) -> int | None:
+    """Single source-of-truth target selection (2026-08-10 correction #3),
+    shared by BOTH the policy's masked observation and the reward. Always
+    selects from `_representable_candidates`, so a selected target can
+    never be unrepresentable to the policy by construction. Ranks by
+    geodesic (path) distance among representable candidates that are
+    currently reachable, nearest first.
+
+    sticky=True: retain `sticky_id` if it is still alive, still among the
+    representable candidates, AND still reachable this tick; otherwise
+    reselect the nearest reachable representable candidate and adopt it as
+    the new sticky target.
+    sticky=False (greedy): always reselect the nearest reachable
+    representable candidate this tick, from the identical candidate pool
+    sticky mode uses -- persistence is the ONLY difference between modes.
+
+    Returns None if no representable candidate is currently reachable.
+    """
+    candidates = _representable_candidates(base_env)
+    reachable = _reachable_representable_targets(base_env, candidates)
+    if sticky and sticky_id is not None:
+        for actor_id, _geodesic in reachable:
+            if actor_id == sticky_id:
+                return sticky_id
+    if not reachable:
+        return None
+    return min(reachable, key=lambda pair: pair[1])[0]
+
+
+def _mask_observation_to_target(obs: np.ndarray, base_env: Any, target_id: int | None) -> np.ndarray:
     """Return a COPY of `obs` with every direct-actor slot deactivated
-    except whichever slot (if any) holds the env's current sticky target
-    (`_nearest_reachable_actor_id`, falling back to `_best_group_actor_id`
-    -- the same precedence `_obstacle_aware_target_angle` uses). Reuses the
-    env's own already-stabilized target ID (set by the hysteresis fix, with
-    an effectively-infinite margin under stable_waypoint mode) rather than
-    tracking a second, separate notion of "sticky" -- one source of truth
-    for which actor counts as the target."""
-
-    sticky_id = base_env._nearest_reachable_actor_id
-    if sticky_id is None:
-        sticky_id = base_env._best_group_actor_id
-
+    except whichever slot (if any) holds `target_id`."""
     masked = np.array(obs, copy=True)
-    candidates = base_env._visible_candidates()[:DIRECT_ACTOR_SLOTS]
-    for slot, (_distance, actor, _dx, _dz) in enumerate(candidates):
-        if actor.actor_id == sticky_id:
+    for slot, (_distance, actor, _dx, _dz) in enumerate(_representable_candidates(base_env)):
+        if actor.actor_id == target_id:
             continue
         offset = DIRECT_ACTOR_START + slot * ACTOR_FEATURES + _ACTIVE_FIELD_OFFSET
         masked[offset] = 0.0
     return masked
 
 
-def current_target_position(base_env: Any) -> tuple[float, float] | None:
-    """World position of the env's current sticky target (same precedence
-    as _obstacle_aware_target_angle: nearest-reachable, else best-group),
-    or None if no target is currently available."""
-
-    target_id = base_env._nearest_reachable_actor_id
-    if target_id is None:
-        target_id = base_env._best_group_actor_id
+def target_position(base_env: Any, target_id: int | None) -> tuple[float, float] | None:
+    """World position of `target_id`, or None if it's not currently alive
+    (or no target is selected)."""
     if target_id is None:
         return None
     for actor in base_env.actors:
@@ -153,37 +217,36 @@ class PureNavigationWrapper(gym.Wrapper):
     first physical contact. Event action is always forced to NONE. Reward
     otherwise depends on `reward_mode` (see module docstring).
 
-    CORRECTED 2026-08-10 (target-switch reward discontinuity): the first
-    version tracked `_prev_target_distance` relative to whatever target was
-    active AT THE TIME it was recorded -- so on a tick where the target
-    switched, the reward compared "distance to the OLD target one tick ago"
-    against "distance to the NEW target now", an apples-to-oranges
-    comparison that could produce a large spurious reward spike or cliff
-    completely unrelated to actual navigation quality, exactly on ticks
-    where the target changes. Fixed by always computing BOTH terms of the
-    progress delta relative to the SAME (current) target: distance from the
-    PREVIOUS player position to the CURRENT target, minus distance from the
-    CURRENT player position to the CURRENT target. This is well-defined and
-    discontinuity-free regardless of whether the target switched this tick.
+    Owns `_selected_target_id` directly (2026-08-10 correction #3) rather
+    than reading it off the underlying env -- the wrapper is now the sole
+    source of truth for which actor counts as "the target", for both the
+    masked observation and the reward.
+
+    CORRECTED 2026-08-10 (target-switch reward discontinuity): both terms
+    of the progress delta are computed relative to the SAME (freshly
+    reselected, current-tick) target: distance from the PREVIOUS player
+    position to the CURRENT target, minus distance from the CURRENT player
+    position to the CURRENT target. Well-defined and discontinuity-free
+    regardless of whether the target changed this tick.
     """
 
     def __init__(self, env: Any, *, target_mode: TargetMode, reward_mode: RewardMode = "safety"):
         super().__init__(env)
         self.target_mode = target_mode
         self.reward_mode = reward_mode
+        self._sticky = target_mode == "stable_waypoint"
         self._prev_contacts = 0
         self._prev_distance = 0.0
         self._prev_player_x = 0.0
         self._prev_player_z = 0.0
+        self._selected_target_id: int | None = None
 
-    def _maybe_mask(self, obs: np.ndarray) -> np.ndarray:
-        if self.target_mode != "stable_waypoint":
-            return obs
-        return _mask_observation_to_sticky_target(obs, self.env.unwrapped)
+    def _mask(self, obs: np.ndarray) -> np.ndarray:
+        return _mask_observation_to_target(obs, self.env.unwrapped, self._selected_target_id)
 
-    def _distance_to_current_target(self, player_x: float, player_z: float) -> float | None:
+    def _distance_to_selected_target(self, player_x: float, player_z: float) -> float | None:
         base_env = self.env.unwrapped
-        target = current_target_position(base_env)
+        target = target_position(base_env, self._selected_target_id)
         if target is None:
             return None
         dx = target[0] - player_x
@@ -192,13 +255,13 @@ class PureNavigationWrapper(gym.Wrapper):
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
-        configure_target_mode(self.env, self.target_mode)
         base_env = self.env.unwrapped
+        self._selected_target_id = select_target(base_env, sticky_id=None, sticky=self._sticky)
         self._prev_contacts = int(info.get("contacts", 0)) if isinstance(info, dict) else 0
         self._prev_distance = float(info.get("total_distance_cells", 0.0)) if isinstance(info, dict) else 0.0
         self._prev_player_x = float(base_env.player_x)
         self._prev_player_z = float(base_env.player_z)
-        return self._maybe_mask(obs), info
+        return self._mask(obs), info
 
     def step(self, action):
         action = np.asarray(action, dtype=np.int64).copy()
@@ -214,7 +277,11 @@ class PureNavigationWrapper(gym.Wrapper):
         self._prev_distance = distance
         self._prev_player_x = float(base_env.player_x)
         self._prev_player_z = float(base_env.player_z)
-        obs = self._maybe_mask(obs)
+
+        # Reselect BEFORE masking/reward, so both are always scored against
+        # the exact same, freshly-valid target (single source of truth).
+        self._selected_target_id = select_target(base_env, sticky_id=self._selected_target_id, sticky=self._sticky)
+        obs = self._mask(obs)
 
         if contact_this_tick:
             return obs, COLLISION_TERMINAL_REWARD, True, truncated, info
@@ -222,14 +289,10 @@ class PureNavigationWrapper(gym.Wrapper):
         if self.reward_mode == "safety":
             reward = PROGRESS_REWARD_SCALE * max(0.0, displacement)
         else:
-            # Both terms use the CURRENT target -- never the target that may
-            # have been active a tick ago -- so a mid-tick target switch
-            # cannot inject a spurious reward spike/cliff (see class
-            # docstring's 2026-08-10 correction).
-            prev_distance_to_current_target = self._distance_to_current_target(prev_player_x, prev_player_z)
-            new_distance_to_current_target = self._distance_to_current_target(base_env.player_x, base_env.player_z)
-            if prev_distance_to_current_target is not None and new_distance_to_current_target is not None:
-                reward = GOAL_PROGRESS_REWARD_SCALE * (prev_distance_to_current_target - new_distance_to_current_target)
+            prev_distance_to_target = self._distance_to_selected_target(prev_player_x, prev_player_z)
+            new_distance_to_target = self._distance_to_selected_target(base_env.player_x, base_env.player_z)
+            if prev_distance_to_target is not None and new_distance_to_target is not None:
+                reward = GOAL_PROGRESS_REWARD_SCALE * (prev_distance_to_target - new_distance_to_target)
             else:
                 reward = 0.0
         return obs, reward, terminated, truncated, info

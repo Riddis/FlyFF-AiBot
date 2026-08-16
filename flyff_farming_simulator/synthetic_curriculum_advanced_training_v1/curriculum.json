@@ -146,6 +146,54 @@
       "weight": 1.0,
       "seed": 20535028,
       "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "13_advanced_wide_neck_shifting_variable",
+      "stage": "advanced",
+      "template": "wide_neck",
+      "density_profile": "shifting",
+      "respawn_profile": "variable",
+      "map_assets": "variants/13_advanced_wide_neck_shifting_variable/map_assets",
+      "world_model": "variants/13_advanced_wide_neck_shifting_variable/world.json.gz",
+      "weight": 1.0,
+      "seed": 20487919,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "14_advanced_wide_neck_uneven_slow",
+      "stage": "advanced",
+      "template": "wide_neck",
+      "density_profile": "uneven",
+      "respawn_profile": "slow",
+      "map_assets": "variants/14_advanced_wide_neck_uneven_slow/map_assets",
+      "world_model": "variants/14_advanced_wide_neck_uneven_slow/world.json.gz",
+      "weight": 1.0,
+      "seed": 20495838,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "15_advanced_split_field_shifting_variable",
+      "stage": "advanced",
+      "template": "split_field",
+      "density_profile": "shifting",
+      "respawn_profile": "variable",
+      "map_assets": "variants/15_advanced_split_field_shifting_variable/map_assets",
+      "world_model": "variants/15_advanced_split_field_shifting_variable/world.json.gz",
+      "weight": 1.0,
+      "seed": 20503757,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
+    },
+    {
+      "name": "16_advanced_split_field_uneven_slow",
+      "stage": "advanced",
+      "template": "split_field",
+      "density_profile": "uneven",
+      "respawn_profile": "slow",
+      "map_assets": "variants/16_advanced_split_field_uneven_slow/map_assets",
+      "world_model": "variants/16_advanced_split_field_uneven_slow/world.json.gz",
+      "weight": 1.0,
+      "seed": 20511676,
+      "notes": "Large open farming layout; no procedural corridors or dungeon rooms."
     }
   ],
   "design_rules": [

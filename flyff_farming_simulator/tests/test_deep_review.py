@@ -229,17 +229,20 @@ def test_advance_with_slide_makes_more_progress_than_a_direct_stop() -> None:
 
 def test_move_player_still_reports_contact_while_sliding() -> None:
     """Sliding corrects the resulting displacement, but a real navigation
-    imperfection still occurred, so the contact penalty must still apply."""
+    imperfection still occurred, so the contact penalty must still apply.
+
+    2026-08-13: _move_player no longer reads world.movement at all (it
+    delegates entirely to movement_kernel.advance_player_tick's fixed,
+    calibrated PATH_LENGTH_CELLS_PER_TICK), so the old technique of
+    forcing overshoot via an inflated MovementModel distance mean is now
+    a no-op. The wall is placed close enough (1 cell away in x) to be
+    within the kernel's fixed ~2.74-cell-per-tick reach along a 45deg
+    heading (path distance to a 1-cell-away wall is ~1.41 cells)."""
 
     traversable = np.ones((41, 41), dtype=bool)
-    traversable[:, 23] = False  # close enough to be within _move_player's 5-cell distance cap
+    traversable[:, 21] = False  # 1 cell away in x -- within the kernel's fixed per-tick reach
     wall_map = MapModel.from_arrays(traversable, obstacle_radius_cells=0)
     _map_model, world = _open_world(map_model=wall_map)
-    fast_movement = tuple(
-        MovementModel(model.samples, 8.0, 0.0, model.turn_mean_radians, 0.0)
-        for model in world.movement
-    )
-    world = replace(world, movement=fast_movement)
     env = RecordedFarmingEnv(world, map_model=wall_map, seed=1, episode_steps=20)
     env.reset(seed=1)
     env.player_x, env.player_z = wall_map.layout_to_native(20, 20)

@@ -17,7 +17,8 @@ from simulator.basic_training import (
 )
 from simulator.demonstrations import export_demonstrations
 from simulator.map_model import MapModel
-from simulator.navigation_history import NavigationHistoryWrapper
+from simulator.movement_kernel import SteeringDirection
+from simulator.navigation_history import POLICY_INPUT_SIZE, NavigationHistoryWrapper
 from simulator.synthetic import generate_curriculum_from_plan, iter_variant_environments
 from tests.test_simulator_core import _synthetic_recording
 
@@ -52,7 +53,7 @@ def test_build_human_bootstrap_dataset_has_neutral_recent_contact(tmp_path: Path
     demo_path = _demo_dataset(tmp_path)
     bootstrap_path = build_human_bootstrap_dataset(demo_path, tmp_path / "bootstrap.npz")
     data = np.load(bootstrap_path, allow_pickle=False)
-    assert data["observations"].shape[1] == 925
+    assert data["observations"].shape[1] == POLICY_INPUT_SIZE
     assert np.all(data["observations"][:, 924] == 0.0), "recent_contact must be the documented neutral placeholder"
     assert bool(data["recent_contact_is_neutral_placeholder"][0]) is True
 
@@ -91,7 +92,8 @@ def test_sidecar_values_from_history_reflects_real_displacement_when_not_eva_exc
         NavigationStepEvidence(displacement_cells=1.79, contact=False, eva_attempted=False),
         NavigationStepEvidence(displacement_cells=1.79, contact=False, eva_attempted=False),
     ]
-    progress, contact = sidecar_values_from_history(history, expected_clear_path_displacement=1.79)
+    sidecar = sidecar_values_from_history(history, SteeringDirection.NONE, expected_clear_path_displacement=1.79)
+    progress, contact = sidecar[0], sidecar[1]
     assert progress == 1.0
     assert contact == 0.0
 
@@ -110,7 +112,7 @@ def test_build_fresh_basic_policy_has_925_dim_observation_space(tmp_path: Path) 
     env = NavigationHistoryWrapper(base_env)
     model = build_fresh_basic_policy(env, seed=0, device="cpu")
     env.close()
-    assert tuple(model.observation_space.shape) == (925,)
+    assert tuple(model.observation_space.shape) == (POLICY_INPUT_SIZE,)
 
 
 def test_bootstrap_policy_from_human_recordings_defaults_to_event_only(tmp_path: Path) -> None:
@@ -289,7 +291,7 @@ def _tiny_teacher_dataset(tmp_path: Path):
 
 def test_collect_simulator_teacher_dataset_produces_925_dim_labeled_samples(tmp_path: Path) -> None:
     dataset = _tiny_teacher_dataset(tmp_path)
-    assert dataset["observations"].shape[1] == 925
+    assert dataset["observations"].shape[1] == POLICY_INPUT_SIZE
     assert dataset["observations"].shape[0] == dataset["actions"].shape[0] == 300
     assert dataset["actions"].shape[1] == 2
     assert len(dataset["train_indices"]) + len(dataset["validation_indices"]) == 300
@@ -365,7 +367,7 @@ def _synthetic_event_pool_dataset(
             # entirely absent".
             event_labels[:3] = 2
         steering_labels = rng.integers(0, 3, size=n)
-        obs = rng.normal(0.0, 1.0, size=(n, 925)).astype(np.float32)
+        obs = rng.normal(0.0, 1.0, size=(n, POLICY_INPUT_SIZE)).astype(np.float32)
         obs[:, 900] += event_labels.astype(np.float32) * 4.0
         observations.append(obs)
         actions.append(np.column_stack([steering_labels, event_labels]).astype(np.int64))
@@ -375,7 +377,7 @@ def _synthetic_event_pool_dataset(
         session_id += 1
     for _ in range(n_eva_only_sessions):
         n = max(4, samples_per_session // 2)
-        obs = rng.normal(0.0, 1.0, size=(n, 925)).astype(np.float32)
+        obs = rng.normal(0.0, 1.0, size=(n, POLICY_INPUT_SIZE)).astype(np.float32)
         obs[:, 900] += 4.0
         observations.append(obs)
         actions.append(np.column_stack([np.zeros(n, dtype=np.int64), np.ones(n, dtype=np.int64)]))
@@ -496,7 +498,7 @@ def test_load_event_training_pool_offsets_sessions_and_defaults_dagger_role(tmp_
     from simulator.basic_training import _load_event_training_pool
 
     human_path = _synthetic_event_pool_dataset(tmp_path / "human.npz", n_direct_sessions=2, n_eva_only_sessions=1, samples_per_session=10)
-    dagger_observations = np.random.default_rng(0).normal(0, 1, size=(15, 925)).astype(np.float32)
+    dagger_observations = np.random.default_rng(0).normal(0, 1, size=(15, POLICY_INPUT_SIZE)).astype(np.float32)
     dagger_actions = np.column_stack([
         np.zeros(15, dtype=np.int64), np.array([0] * 10 + [1] * 5, dtype=np.int64),
     ])
@@ -538,7 +540,7 @@ def test_persistent_event_split_is_stable_as_pool_grows(tmp_path: Path) -> None:
 
     # A second, unrelated file appended -- simulating a later round's mined DAgger data.
     rng = np.random.default_rng(0)
-    extra_observations = rng.normal(0.0, 1.0, size=(40, 925)).astype(np.float32)
+    extra_observations = rng.normal(0.0, 1.0, size=(40, POLICY_INPUT_SIZE)).astype(np.float32)
     extra_actions = np.column_stack([np.zeros(40, dtype=np.int64), np.array([0] * 20 + [1] * 20, dtype=np.int64)])
     extra_path = tmp_path / "dagger_round001.npz"
     np.savez_compressed(

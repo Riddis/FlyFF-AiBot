@@ -48,7 +48,7 @@ import torch
 
 from farming.actions import FarmingEvent
 from .local_navigation_features import derive_physical_clearance_features
-from .navigation_history import NavigationHistoryWrapper
+from .navigation_history import POLICY_INPUT_SIZE, NavigationHistoryWrapper
 from .scripted_policies import scripted_command
 from .synthetic import iter_variant_environments
 
@@ -276,7 +276,7 @@ def mine_navigation_dataset(
             episode_counter += 1
 
     return {
-        "observations": np.asarray(observations, dtype=np.float32) if observations else np.zeros((0, 925), dtype=np.float32),
+        "observations": np.asarray(observations, dtype=np.float32) if observations else np.zeros((0, POLICY_INPUT_SIZE), dtype=np.float32),
         "actions": np.asarray(actions, dtype=np.int64) if actions else np.zeros((0, 2), dtype=np.int64),
         "categories": categories,
         "layout_index": np.asarray(layout_ids, dtype=np.int64),

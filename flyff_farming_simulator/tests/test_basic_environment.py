@@ -7,7 +7,7 @@ import numpy as np
 from simulator.basic_environment import collect_basic_dagger_dataset, save_basic_dagger_dataset
 from simulator.basic_training import build_fresh_basic_policy
 from simulator.navigation_dataset import CATEGORY_PRECEDENCE, MiningConfig
-from simulator.navigation_history import NavigationHistoryWrapper
+from simulator.navigation_history import POLICY_INPUT_SIZE, NavigationHistoryWrapper
 from simulator.synthetic import generate_curriculum_from_plan, iter_variant_environments
 
 
@@ -39,7 +39,7 @@ def test_collect_basic_dagger_dataset_produces_valid_shapes_and_categories(tmp_p
         seeds=[0, 1], model=model, episode_seconds=8.0, max_actions=40, config=config,
     )
 
-    assert mined["observations"].shape[1] == 925
+    assert mined["observations"].shape[1] == POLICY_INPUT_SIZE
     assert mined["actions"].shape == (mined["observations"].shape[0], 2)
     assert set(mined["categories"]) <= set(CATEGORY_PRECEDENCE)
     assert len(mined["episode_summaries"]) == 4

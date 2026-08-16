@@ -64,7 +64,53 @@ EVAL_SEEDS = [0, 1]
 
 PPO_CHUNK_TIMESTEPS = 10_000
 N_EVAL_WORKERS = 6
-MAX_ROUNDS = 8
+
+AUTO_GRADUATION_ENABLED = False
+# Disabled 2026-08-08 pending the collision-event-metric review: contacts_
+# per_100_distance <= 15.0 was confirmed (via the new _contact_event_stats
+# audit) to NOT mean collision-free -- frozen Beginner shows actual contact
+# in 93.8% of heldout episodes despite comfortably passing that bar, and
+# min_kills_per_hour_median>=500 has repeatedly failed rounds with otherwise-
+# clean navigation on lower-density layouts. advanced_heldout has also now
+# been checked 20+ times and used to directly motivate a curriculum change,
+# so it is development data, not a pristine exam. This flag keeps the round
+# loop running exactly as before (checkpoints, evaluations, rehearsal, the
+# existing bar's pass/fail bookkeeping) so nothing already in flight is
+# wasted, but any old-bar "PASSED" is logged as a CANDIDATE only -- the loop
+# will never freeze a graduated checkpoint or declare RUN COMPLETE while
+# this is False. Flip back to True only alongside the corrected collision-
+# event bar, a replacement for the flat kills/hour floor, and a confirmation
+# pass against the untouched advanced_unseen_profiles/advanced_challenge
+# pools -- not as a standalone edit.
+MAX_ROUNDS = 24
+# Extended 8 -> 16 -> 24 (2026-08-08). Rounds 1-16 ran on the original
+# 12-variant curriculum: round 6 fully passed the absolute bar but rounds
+# 9-16 kept missing by 1-2 metrics without a monotonic trend, and per-layout
+# breakdowns (canonical_advanced_ppo_*k_pre_rehearsal_heldout.json) showed
+# the SAME 2 templates dominate every round's worst layout: wide_neck_high_
+# slow (5/16 rounds) and split_field (low_variable 4/16 + high_slow 3/16 =
+# 7/16) -- 12 of 16 rounds combined, vs 1-2 rounds each for every other
+# template. This matches synthetic.py's own template design (wide_neck has a
+# literal narrow bridge; split_field has a partial wall with a gap) and the
+# escapability validator's proof that these layouts ARE recoverable within
+# budget (_STAGE_ESCAPE_TICKS["advanced"]=40) -- so this is a skill gap on
+# genuinely tight chokepoint geometry the policy hasn't mastered, not a
+# curriculum bug or an unlearnable map.
+#
+# Single targeted change made in response (see
+# scratchpad/add_advanced_chokepoint_variants.py, run 2026-08-08): appended
+# 4 more wide_neck/split_field training variants (13-16) to
+# synthetic_curriculum_advanced_training_v1, using the SAME training-side
+# density/respawn combos already in use (shifting/variable, uneven/slow;
+# heldout keeps its own disjoint low/variable + high/slow combos, reverified
+# via assert_disjoint_from_training) with fresh seeds -- doubling PPO's
+# per-round exposure to exactly the two templates driving failures, while
+# leaving every other template's representation, and every PPO hyperparameter
+# (lr, clip_range, batch_size, n_epochs, gamma, gae_lambda, ent_coef,
+# PPO_CHUNK_TIMESTEPS), untouched. Extended the round budget again to give
+# this specific, evidence-driven change room to take effect. Resume support
+# means re-running this script continues from round 17 using the existing
+# round-16 checkpoint, now training against the 16-variant curriculum.
 CONSECUTIVE_PASSES_REQUIRED = 2
 
 REHEARSAL_EPOCHS = 2
@@ -236,9 +282,10 @@ def main() -> None:
             ppo_result = graduate_basic_to_beginner(
                 current_checkpoint, ppo_output, curriculum=ADVANCED_CURRICULUM, timesteps=PPO_CHUNK_TIMESTEPS,
                 stage=ADVANCED_STAGE, seed=round_seed, episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS,
-                device="cpu", progress_every_seconds=20.0,
+                device="cpu", progress_every_seconds=20.0, canonical_stage="advanced",
             )
-            log(f"PPO chunk done. layouts={ppo_result['training_layouts']} timesteps={ppo_result['timesteps']}")
+            log(f"PPO chunk done. layouts={ppo_result['training_layouts']} requested_timesteps={ppo_result['timesteps']} "
+                f"actual_timesteps={ppo_result.get('actual_timesteps', 'n/a')}")
             log(f"Saved: {ppo_result['checkpoint_out']} (+ provenance)")
         pre_rehearsal_checkpoint = ppo_output
         model = PPO.load(str(pre_rehearsal_checkpoint), device="cpu")
@@ -271,6 +318,7 @@ def main() -> None:
             rehearsal_result = rehearse_beginner_on_basic_data(
                 pre_rehearsal_checkpoint, rehearsed_output, basic_dataset_paths=event_dataset_paths,
                 epochs=REHEARSAL_EPOCHS, learning_rate=REHEARSAL_LEARNING_RATE, batch_size=128, seed=round_seed,
+                canonical_stage="advanced",
             )
             log(f"Rehearsal done. train_samples={rehearsal_result['train_samples']}")
             model2 = PPO.load(str(rehearsed_output), device="cpu")
@@ -329,7 +377,13 @@ def main() -> None:
         summary_path.write_text(json.dumps(round_reports, indent=2, default=str), encoding="utf-8")
         current_checkpoint = carried_forward_checkpoint
 
-        if consecutive_passes >= CONSECUTIVE_PASSES_REQUIRED:
+        if consecutive_passes >= CONSECUTIVE_PASSES_REQUIRED and not AUTO_GRADUATION_ENABLED:
+            log(f"=== CANDIDATE PASS: {consecutive_passes} consecutive rounds passed the OLD absolute bar "
+                f"(contacts/100<=15, kills/hr>=500) -- AUTO_GRADUATION_ENABLED=False, NOT freezing. "
+                f"This bar is known to not mean collision-free (see 2026-08-08 collision-event audit) and "
+                f"is pending replacement. Checkpoint {current_checkpoint.name} is a candidate only. "
+                f"Continuing the round loop to keep collecting data. ===")
+        elif consecutive_passes >= CONSECUTIVE_PASSES_REQUIRED:
             log(f"=== GRADUATION: {consecutive_passes} consecutive rounds passed the absolute bar ===")
             graduated_checkpoint = MODELS_DIR / "canonical_advanced_graduated.zip"
             graduated_provenance = MODELS_DIR / "canonical_advanced_graduated.provenance.json"

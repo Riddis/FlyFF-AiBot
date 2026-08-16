@@ -12,15 +12,6 @@ from simulator.synthetic import (
     _regains_movement_within,
     _STAGE_ESCAPE_TICKS,
 )
-from simulator.world_model import MovementModel
-
-_MOVEMENT = (
-    MovementModel(100, 1.5, 0.0, 0.0, 0.0),
-    MovementModel(100, 1.5, 0.0, 0.25, 0.0),
-    MovementModel(100, 1.5, 0.0, -0.25, 0.0),
-    MovementModel(0, 0.0, 0.0, 0.0, 0.0),
-    MovementModel(10, 1.5, 0.0, 0.0, 0.0),
-)
 
 
 def _cul_de_sac(width: int) -> MapModel:
@@ -41,7 +32,7 @@ def _cul_de_sac(width: int) -> MapModel:
 def test_open_field_position_is_immediately_escapable() -> None:
     open_map = MapModel.from_arrays(np.ones((41, 41), dtype=bool), obstacle_radius_cells=0)
     x, z = open_map.layout_to_native(20, 20)
-    assert _regains_movement_within(open_map, _MOVEMENT, x, z, 0.0, max_ticks=1)
+    assert _regains_movement_within(open_map, x, z, 0.0, max_ticks=1)
 
 
 def test_dead_end_facing_the_closed_wall_is_not_escapable_within_a_tight_budget() -> None:
@@ -49,22 +40,24 @@ def test_dead_end_facing_the_closed_wall_is_not_escapable_within_a_tight_budget(
     directly into a dead end's closed wall from right up against it takes
     real turning ticks to correct, not an instant recovery.
 
-    Pinned to a literal tick count (measured: fails through 12 ticks,
-    succeeds by 16) rather than _STAGE_ESCAPE_TICKS["early"]. That constant
-    was recalibrated after obstacle_radius_cells -> 0 to cover the worst
-    case actually found in generated boundary-safe positions (24 ticks,
-    concave multi-wall corners), which turns out to need MORE ticks than a
-    clean single-wall corridor reversal like this one (16 ticks) -- so this
-    fixture is no longer a proxy for the early-stage difficulty ceiling,
-    just a fixed regression pin on the search itself."""
+    2026-08-13: re-measured (not guessed) after the calibrated constant-
+    curvature-arc kernel migration -- the ~4-5x stronger real turn rate
+    (movement_kernel.STEADY_TURN_RADIANS vs. the legacy ~0.184rad model)
+    means this same dead end now escapes MUCH faster than before (a
+    dedicated sweep script found: fails through tick 4, succeeds at tick 5,
+    for both width=1 and width=3 -- the reversal that used to take a
+    glancing multi-tick turn now completes almost immediately). Pinned to
+    a literal tick count below that measured boundary, not
+    _STAGE_ESCAPE_TICKS["early"] (same rationale as before: this fixture is
+    a regression pin on the search itself, not a proxy for the stage
+    difficulty ceiling, which is calibrated from harder concave multi-wall
+    corners elsewhere)."""
 
     cul_de_sac = _cul_de_sac(width=3)
     x, z = cul_de_sac.layout_to_native(20, 5)
     heading_into_wall = math.pi / 2.0
 
-    assert not _regains_movement_within(
-        cul_de_sac, _MOVEMENT, x, z, heading_into_wall, max_ticks=12
-    )
+    assert not _regains_movement_within(cul_de_sac, x, z, heading_into_wall, max_ticks=4)
 
 
 def test_dead_end_is_escapable_given_the_advanced_stage_budget() -> None:
@@ -76,23 +69,24 @@ def test_dead_end_is_escapable_given_the_advanced_stage_budget() -> None:
     x, z = cul_de_sac.layout_to_native(20, 5)
     heading_into_wall = math.pi / 2.0
 
-    assert _regains_movement_within(
-        cul_de_sac, _MOVEMENT, x, z, heading_into_wall, max_ticks=_STAGE_ESCAPE_TICKS["advanced"]
-    )
+    assert _regains_movement_within(cul_de_sac, x, z, heading_into_wall, max_ticks=_STAGE_ESCAPE_TICKS["advanced"])
 
 
 def test_moving_deeper_into_a_dead_end_does_not_count_as_escaping() -> None:
     """A sliding move that is still blocked, or that shuffles the player
     sideways or further into the pocket, must not be mistaken for having
-    regained real movement -- only a genuinely uncontacted step counts."""
+    regained real movement -- only a genuinely uncontacted step counts.
+
+    max_ticks=3 stays below the re-measured (post-kernel-migration) 5-tick
+    success boundary for this exact fixture (see the test above) -- still a
+    valid "not yet escaped" regression case, not merely inherited unchanged
+    from before the migration."""
 
     cul_de_sac = _cul_de_sac(width=1)
     x, z = cul_de_sac.layout_to_native(20, 5)
     heading_into_wall = math.pi / 2.0
 
-    assert not _regains_movement_within(
-        cul_de_sac, _MOVEMENT, x, z, heading_into_wall, max_ticks=3
-    )
+    assert not _regains_movement_within(cul_de_sac, x, z, heading_into_wall, max_ticks=3)
 
 
 def test_boundary_safe_positions_excludes_interior_cells() -> None:
@@ -109,10 +103,8 @@ def test_boundary_safe_positions_excludes_interior_cells() -> None:
 def test_layout_escapability_reasons_flags_an_unescapable_spawn() -> None:
     """A fully sealed single-cell pocket -- not merely a narrow corridor --
     so the assertion holds by construction (zero room to move in any
-    direction) rather than depending on a specific tick budget. A width=1
-    open-ended corridor no longer works for this: under the recalibrated
-    early-stage budget (see _STAGE_ESCAPE_TICKS' comment) it turns out to be
-    escapable from every sampled heading well within budget."""
+    direction, true regardless of the movement model's specific turn/
+    distance values) rather than depending on a specific tick budget."""
 
     size = 41
     traversable = np.zeros((size, size), dtype=bool)
@@ -122,7 +114,6 @@ def test_layout_escapability_reasons_flags_an_unescapable_spawn() -> None:
 
     reasons = _layout_escapability_reasons(
         sealed_box,
-        _MOVEMENT,
         np.random.default_rng(0),
         stage="early",
         spawn_native=spawn_native,
@@ -137,14 +128,12 @@ def test_generate_validated_layout_produces_an_escapable_open_field() -> None:
         base_seed=42,
         obstacle_level=1,
         stage="early",
-        movement=_MOVEMENT,
     )
 
     assert metadata["escapability_validated"] is True
     spawn_native = map_model.layout_to_native(*spawn_cell)
     assert _regains_movement_within(
         map_model,
-        _MOVEMENT,
         spawn_native[0],
         spawn_native[1],
         0.0,
