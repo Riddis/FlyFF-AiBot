@@ -947,3 +947,52 @@ repeated.
   branch absent; generated scratch removed.
 - Producer exit code: **0**.
 - Classification: all final Phase-2 precommit gates passed.
+
+## Phase 3 golden-capture gates
+
+### Entry and preregistration
+
+- Exact base `82e908d6028d5869a6ff6d6bb27d5a2aeaaebc46`; clean index/worktree;
+  remote branch absent; protected refs exact.
+- Preregistration tests: 5 passed; ruler green. Commit `e4f8afc` created before
+  any fixture output.
+- Four forward amendments were documented before the golden commit: current
+  config-loader API, literal array/manifest/full fixed-case coverage,
+  controller-case realization, and ruler-safe helper naming.
+
+### Capture results
+
+- Final producer exit 0: 10 fixtures, 8,437,669 bytes; manifest SHA-256
+  `d07687ef8aaf5f564068bd07fa78352db1db47c635ad9c61d14f01613d8adaa2`.
+- Observation: 10,016 cases, 10,015 cross-root exact, one known G3 edge vector.
+- G3: 4/4,126 direct mismatches, known diagonal-nextabove hypot/squared class.
+- Geodesic: 418/526 exact, 108 mismatched; blocking evidence retained.
+- G12: separate radius 2/radius 0 outputs; MAP6 XOR 7,655 diagnostic only.
+- G8c: 7 route/replan, 6 controller, 84 movement cases.
+- G9 exact Phase-0 equality. G7 all eight source pins exact and decoded.
+
+### Determinism
+
+- First fresh regeneration: tool output `check=PASS`, `byte_identical=true`.
+  Outer wrapper exit 90 was a harness false positive: PowerShell array `-cne`
+  was elementwise. No repository status change actually occurred.
+- Corrected whole-string check: exit 0, all 10 hashes and manifest identical,
+  status unchanged.
+- Final post-A4 check: exit 0 in 1,074.6 seconds, `byte_identical=true`, status
+  unchanged.
+
+### Final focused gates
+
+- `pytest docs/migration/tests`: 38 passed in 46.46 seconds.
+- `phase2_fingerprints.py all`: exit 0, G4/G10a/G11 green; 313/313 and 317/317.
+- Ruler: 7/35/0/200, R9=0, R10=0.
+- Initial six-file router run: 55 passed, 1 skipped, 1 failed because the clean
+  worktree lacks Phase-0 user-owned `scratchpad_single_obstacle_train.py`.
+- A first helper-origin probe failed closed because importing the helper first
+  redirected packages to the original tree. No test result from that probe was
+  accepted.
+- Final source-backed run used the original simulator directory only as
+  read-only CWD/secondary helper root, with linked current `simulator` and
+  `farming` origins established first: 56 passed, 1 skipped in 30.81 seconds.
+- No product source, archive, map, evaluation, model, or checkpoint write; no
+  G10b rerun, training, game access, or 820M.

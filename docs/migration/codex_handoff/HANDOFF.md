@@ -427,3 +427,40 @@ Final tip: the commit containing this handoff; resolve with `git rev-parse HEAD`
 Branch `refactor/consolidation-phase1` remains unpushed. Exact next action:
 await explicit Phase-3 authorization. **PHASE 3 SAFE TO CONSIDER: YES. PHASE 3
 AUTHORIZED: NO.**
+
+# Phase 3 complete — golden capture, Phase 4 blocked
+
+The coordinator explicitly authorized Phase 3 and not Phase 4. Phase 3 began
+from exact clean/unpushed HEAD `82e908d6028d5869a6ff6d6bb27d5a2aeaaebc46`.
+The preregistration commit `e4f8afc2406d9c0ed6939cc0e34f19091a479e5d`
+preceded every substantive output. Four documented forward tool amendments
+(`8649afb`, `20f863a`, `f75a3fa`, `538694b`) also preceded the golden commit
+`9a1bdb5336df9a97a39c9dd1109a0022486204ec`.
+
+Ten fixtures under `tests/fixtures/migration/` plus
+`PHASE3_FIXTURE_MANIFEST.tsv` freeze observation/G3, bounded geodesic, separate
+live/simulator maps, MAP6 diagnostics, router/controller/kernel behavior,
+effective config, and all eight archives. Manifest SHA-256 is
+`d07687ef8aaf5f564068bd07fa78352db1db47c635ad9c61d14f01613d8adaa2`.
+Fresh regeneration and final read-only check mode are byte-identical.
+
+G3 is narrowly classified: four diagonal-nextabove direct mismatches and one
+affected edge-case vector, all solely the known `hypot` versus squared-distance
+boundary. No random observation divergence exists. Preserve the live bit-level
+contract during any future canonicalization.
+
+The blocker is `bounded_geodesic_field`: 108/526 cases are not exact matches to
+bounded point queries (106 finite, mainly one ULP; two expansion-budget
+reachability differences). No product code or tolerance changed. See
+`PHASE3_REPORT.md` and `bounded_geodesic.json`.
+
+Final gates: migration 38 passed; ruler 7/35/0/200 with R9/R10 green; G4/G10a/
+G11 green; six requested router files 56 passed and 1 skipped using the
+preserved read-only Phase-0 helper/curriculum while current package origins were
+asserted; no 820M or G10b rerun. No product Python changed.
+
+Exact next action: STOP. Do not start Phase 4. The coordinator must revise the
+migration plan for bounded-geodesic non-equivalence and explicitly authorize
+any further phase.
+
+**PHASE 4 SAFE TO CONSIDER: NO. PHASE 4 AUTHORIZED: NO.**
