@@ -455,3 +455,133 @@ confirm every Phase-9 exit condition:
 **PHASE 9 COMPLETE: YES**
 **PHASE 10 SAFE TO CONSIDER: YES** — readiness only, not self-authorized.
 **PHASE 10 AUTHORIZED: NO**
+
+## 21. Post-acceptance hardening addendum (2026-08-17) — pickle module-identity compatibility
+
+Phase 9 was accepted conditionally on one narrow compatibility check: does
+a live `KinoState`/`RouteEdgeInfo`/`AdvanceResult` instance actually
+survive `pickle.dumps()`/`pickle.loads()`, not merely reproduce the frozen
+G7/G8c fixtures' string-based `__module__.__qualname__` encoding? This
+section documents that check and its resolution. Nothing in sections 0–20
+above changed; this is a forward addendum.
+
+**Probe result**: a fresh-subprocess round-trip (`sys.path` limited to the
+collapsed repository root) failed for all three, exactly as the
+`__module__` overrides' own inline comments predicted but had not yet been
+tested: `PicklingError: Can't pickle <class 'simulator.
+kinodynamic_route_planner.KinoState'>: No module named 'simulator.
+kinodynamic_route_planner'` (and the equivalent for `RouteEdgeInfo` and
+`simulator.movement_kernel.AdvanceResult`). Pickle's global-object lookup
+imports `obj.__module__` and asserts `getattr(module, qualname) is obj`
+before it will write a class reference — the frozen fixtures only ever
+read `__module__.__qualname__` as a plain string, so they never exercised
+this path; a real pickle round-trip does.
+
+**Resolution**: two narrow, behavior-free compatibility shims —
+`simulator/kinodynamic_route_planner.py` (re-exports `KinoState`,
+`RouteEdgeInfo`) and `simulator/movement_kernel.py` (re-exports
+`AdvanceResult`) — each containing only a docstring, a `from
+navigation.* import ...` statement, and an `__all__` list. No routing or
+movement-kernel implementation was restored; both files contain zero
+`class`/`def` statements (verified by AST, see below). Registered
+permanently (`removal_gate = "NEVER"`, `bridge_id = "NONE"`) in
+`CANONICAL_OWNERS.toml`'s `[[shim]]` registry, the same mechanism already
+used for 17 other permanent re-export shims (e.g.
+`farming/observation.py`'s `OBSERVATION_SCHEMA_HASH`/`OBSERVATION_SCHEMA_ID`
+re-export), so R7c does not flag `AdvanceResult`'s re-export (the one of
+the three that is a ruler-tracked symbol; `KinoState`/`RouteEdgeInfo`
+are not currently tracked by any R7a concept). R6/R7a were never at risk:
+`definition_owners`' AST scan only recognizes `class`/`def`/top-level
+assignment as a "definition," and these shims contain an `ImportFrom`
+only.
+
+**Post-fix round-trip**: identical fresh-subprocess probe now succeeds for
+all three — same class object identity (`type(restored) is
+navigation.<module>.<Class>`), equal fields, `__module__` still exactly
+`simulator.kinodynamic_route_planner`/`simulator.movement_kernel` (the
+frozen-fixture-required value, unchanged).
+
+**Tests added** (`tests/test_pickle_module_identity_compat.py`, 6 tests):
+canonical implementation origin remains `navigation.*` (AST `ClassDef`
+scan); legacy import resolves to the exact same class objects as the
+canonical import; pickle round-trip succeeds in-process; pickle round-trip
+succeeds in a fresh, cold subprocess with only the repository root on
+`sys.path`; the two shims contain no duplicate behavioral definitions (AST
+scan: only the module docstring, one `ImportFrom`, and one `__all__`
+assignment permitted); the historical guard still fails closed with the
+shims present, now for a hash mismatch rather than `MISSING` (a real file
+now exists at both paths, but it is not the frozen historical
+implementation — still a refusal, never a pass, and `MISSING` no longer
+appears in the message for either path). `tests/
+test_historical_tag_reproducibility.py`'s existing
+`test_current_head_guard_fails_closed_only_for_the_two_phase9_moved_files`
+was re-run unmodified and still passes (it only asserts the two path
+strings appear and no other `REQUIRED_FILES` path does, which remains
+true under the new hash-mismatch reason).
+
+**G4 literal hardening** (`docs/migration/tests/test_phase9_g4_literal_hardening.py`,
+2 tests, new, separate concern from the pickle fix): an independent,
+deliberately hardcoded pin of `observation_schema_id`
+(`"native-unified-923-v4"`), `observation_schema_hash`
+(`"F2D568C1C4A4B5F577C9C2E36A37B1C5533C2CE28D415846C3B68EC293C84609"`),
+`raw_observation_size` (923), `policy_action_nvecs` (`[3, 3]`),
+`sidecar_size` (5), `policy_input_size` (928),
+`model_contract_metadata_version` (2), and `physics_version`
+(`"live_calibrated_arc"`) — recomputed live from source and compared
+against literals written directly into the test file, never against
+`docs/migration/PHASE2_FINGERPRINTS.toml`. This closes a gap the existing
+`test_g4_contract_fingerprints_match_current_source` cannot: that test
+only proves source and the TOML pin agree with each other, not that either
+still matches the true historical contract, and it deliberately hardcodes
+nothing (by its own file-level design note) so there is one place to look
+for a frozen value — this new file is the deliberate, documented exception
+to that rule, precisely because its purpose is to be independent of the
+TOML. Both tests pass; all 8 literals unchanged despite the Phase-7 root
+collapse and Phase-9 navigation extraction moving every one of their
+owning modules.
+
+**One pre-existing regression test updated**: `docs/migration/tests/
+test_migration_integrity.py::test_actual_non_bridge_retained_shims_are_accepted_by_bridge_validator`
+hardcoded the permanent-shim count at 17; updated to 19 to include the two
+new shims, with an inline comment explaining the delta. This is the only
+existing test whose expected value changed.
+
+**Full verification at this hardening's final state**:
+
+- Pickle round-trip: PASS, all 3 (in-process and fresh-subprocess).
+- Dependency-boundary gate (`tests/test_navigation_dependency_boundary.py`):
+  3/3 still pass, unaffected (the shims live under `simulator/`, not
+  `navigation/`).
+- Ruler: `ok: true`, `R6=0 R7a=0 R7b=0 R7c=204` (unchanged — `AdvanceResult`'s
+  new re-export site is shim-exempted, `KinoState`/`RouteEdgeInfo` are not
+  ruler-tracked), `R9=0`, `R10=0` failures/313 checkpoints.
+- G7/G8c, official: `phase3_capture.py check --corpus <Phase-0 snapshot>`
+  → `PASS`, `byte_identical: true`, 10/10 fixtures exact, `recordings.json`
+  and `router_kernel.json` both byte-for-byte identical to every prior
+  Phase-9 run — the shims did not disturb either frozen fixture.
+- Historical B4: `verify_historical_snapshot()` still fails closed at
+  current HEAD (now for a hash mismatch on the two shim paths, not
+  `MISSING`); `tests/test_historical_tag_reproducibility.py` (4 tests)
+  still confirms the B4 tag resolves exactly and every `REQUIRED_FILES`
+  member reproduces from the frozen tag. B4 itself unchanged.
+- 0051200 checkpoint: fresh read-only `PPO.load()` — SHA
+  `87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50` exact;
+  `simulator.split_branch_policy.SplitSteeringNavigationPolicy`;
+  `Box(-1.0, 1.0, (928,), float32)`; `MultiDiscrete([3 3])`;
+  `num_timesteps=51200`.
+- Full `tests/` suite: 1113 passed (up from 1103 — 10 new tests across the
+  three new test files), 2 skipped, 1 xfailed, 4 failed — the same exact 4
+  pre-existing/unrelated failures as before this hardening (verified
+  identical test IDs), zero new failures.
+- `docs/migration/tests/`: 76 passed (up from 74 — the two new G4-hardening
+  tests), 0 failed.
+
+**Not done, per explicit instruction**: the old router/movement-kernel
+implementation files were not restored (the shims contain zero
+implementation); no historical hash was altered; no frozen fixture was
+regenerated; no training occurred; no FlyFF launch; Phase 10 was not
+begun.
+
+**PHASE 9 (with hardening): COMPLETE: YES**
+**PHASE 10 SAFE TO CONSIDER: YES** — readiness only, not self-authorized.
+**PHASE 10 AUTHORIZED: NO**

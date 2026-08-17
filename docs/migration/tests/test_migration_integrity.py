@@ -302,7 +302,10 @@ def test_non_bridge_retained_shim_registers_reexports() -> None:
 def test_actual_non_bridge_retained_shims_are_accepted_by_bridge_validator() -> None:
     registry = integrity.load_registry(REPO)
     retained = [shim for shim in registry["shim"] if shim["bridge_id"] == "NONE"]
-    assert len(retained) == 17
+    # 17 pre-Phase-9-hardening + 2 new permanent pickle-module-identity
+    # compatibility shims (simulator/kinodynamic_route_planner.py,
+    # simulator/movement_kernel.py) registered 2026-08-17.
+    assert len(retained) == 19
     errors = integrity.bridge_errors(REPO, registry, current_phase=7)
     assert not [error for error in errors if error.startswith("Retained shim")]
 

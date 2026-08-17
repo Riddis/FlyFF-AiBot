@@ -476,5 +476,18 @@
   "phase10_authorized": false,
   "phase10_safe_to_consider": "YES - readiness only, not self-authorized",
   "G5_status": "PENDING - unchanged, not attempted",
-  "G5_P2_status": "PENDING - unchanged, not attempted"
+  "G5_P2_status": "PENDING - unchanged, not attempted",
+  "phase9_hardening_pickle_compat": "complete",
+  "phase9_hardening_probe_result": "fresh-subprocess pickle.dumps()/loads() of live KinoState/RouteEdgeInfo/AdvanceResult instances failed before the fix: PicklingError, No module named simulator.kinodynamic_route_planner / simulator.movement_kernel -- the frozen G7/G8c __module__ overrides only satisfy string-based typed-encoding, not pickle's own global-object lookup",
+  "phase9_hardening_shims": "simulator/kinodynamic_route_planner.py (re-exports KinoState, RouteEdgeInfo), simulator/movement_kernel.py (re-exports AdvanceResult) -- behavior-free, zero routing/movement implementation, registered permanently (removal_gate=NEVER, bridge_id=NONE) in CANONICAL_OWNERS.toml [[shim]]",
+  "phase9_hardening_post_fix_probe": "PASS - same class object identity, equal fields, __module__ unchanged, verified both in-process and in a fresh cold subprocess with only the repo root on sys.path",
+  "phase9_hardening_ruler_status": "R6=0 R7a=0 R7b=0 R7c=204 (unchanged) R9=0 R10=0 failures, ok=true",
+  "phase9_hardening_G7_G8c_status": "PASS - official phase3_capture.py check --corpus <Phase-0 snapshot>, byte_identical=true, 10/10 fixtures exact, recordings.json and router_kernel.json both identical to every prior Phase-9 run",
+  "phase9_hardening_historical_guard": "still fails closed at current HEAD -- reason shifted from MISSING to a hash mismatch on the two shim paths (a real, non-historical file now exists there), never a pass; B4 unchanged; tests/test_historical_tag_reproducibility.py still 4/4 pass unmodified",
+  "phase9_hardening_model_0051200_status": "PASS - SHA 87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50; SplitSteeringNavigationPolicy; Box(928,float32); MultiDiscrete([3,3]); num_timesteps=51200",
+  "phase9_hardening_g4_literal_regression": "docs/migration/tests/test_phase9_g4_literal_hardening.py, 2 tests, new -- hardcoded independent pin of observation_schema_id/hash, raw_observation_size=923, policy_action_nvecs=[3,3], sidecar_size=5, policy_input_size=928, model_contract_metadata_version=2, physics_version=live_calibrated_arc; recomputed from live source, never compared against PHASE2_FINGERPRINTS.toml; all 8 literals unchanged despite Phase-7/9 source-path translations",
+  "phase9_hardening_full_suite_status": "tests/: 1113 passed (was 1103; +10 new tests), 2 skipped, 1 xfailed, 4 failed -- identical 4 pre-existing/unrelated failures, zero new; docs/migration/tests/: 76 passed (was 74; +2 new), 0 failed",
+  "phase9_hardening_shim_count_test_update": "docs/migration/tests/test_migration_integrity.py::test_actual_non_bridge_retained_shims_are_accepted_by_bridge_validator hardcoded count updated 17->19 for the 2 new permanent shims; only pre-existing test whose expected value changed",
+  "phase9_hardening_report": "docs/migration/codex_handoff/PHASE9_REPORT.md section 21",
+  "phase9_hardening_branch_push_status": "UNPUSHED; no upstream; not on origin"
 }

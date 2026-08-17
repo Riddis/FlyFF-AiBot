@@ -985,3 +985,74 @@ Phase 10 without separate coordinator authorization.
 **PHASE 10 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 9 post-acceptance hardening (2026-08-17) — pickle module-identity compatibility
+
+Phase 9 was accepted conditionally on one check: does a live `KinoState`/
+`RouteEdgeInfo`/`AdvanceResult` instance actually survive
+`pickle.dumps()`/`pickle.loads()`, not merely reproduce the frozen G7/G8c
+fixtures' string-based `__module__.__qualname__` encoding? A fresh-subprocess
+round-trip probe (`sys.path` limited to the collapsed repository root)
+failed for all three: `PicklingError: ... No module named 'simulator.
+kinodynamic_route_planner'` / `'simulator.movement_kernel'` — pickle's
+global-object lookup imports `obj.__module__` and asserts identity against
+a real module, which the frozen-fixture `__module__` overrides alone don't
+provide.
+
+Resolved via two narrow, behavior-free compatibility shims —
+`simulator/kinodynamic_route_planner.py` (re-exports `KinoState`,
+`RouteEdgeInfo`) and `simulator/movement_kernel.py` (re-exports
+`AdvanceResult`) — each containing only a docstring, one `from
+navigation.* import ...`, and an `__all__` list; zero routing/movement
+implementation restored (verified by AST). Registered permanently
+(`removal_gate = "NEVER"`, `bridge_id = "NONE"`) in `CANONICAL_OWNERS.toml`'s
+existing `[[shim]]` registry (the same mechanism already used for 17 other
+permanent re-export shims), so R6/R7a never see a competing owner and R7c
+does not flag `AdvanceResult`'s re-export. Post-fix, the identical probe
+succeeds for all three, same class identity, same fields, `__module__`
+unchanged.
+
+6 new tests (`tests/test_pickle_module_identity_compat.py`): canonical
+origin remains `navigation.*`, legacy import resolves to the same class
+objects, pickle round-trip succeeds both in-process and in a fresh cold
+subprocess, no duplicate behavioral definitions exist in either shim, and
+the historical guard still fails closed with the shims present (now for a
+hash mismatch on the two shim paths rather than `MISSING` — still a
+refusal, never a pass; `tests/test_historical_tag_reproducibility.py`'s
+existing guard-behavior test re-run unmodified and still passes). B4 and
+every `REQUIRED_FILES` byte are unchanged.
+
+Separately, 2 new tests (`docs/migration/tests/test_phase9_g4_literal_hardening.py`)
+independently, deliberately hardcode the Phase-2 G4 contract literals
+(`observation_schema_id`, `observation_schema_hash`,
+`raw_observation_size=923`, `policy_action_nvecs=[3,3]`, `sidecar_size=5`,
+`policy_input_size=928`, `model_contract_metadata_version=2`,
+`physics_version="live_calibrated_arc"`) and compare them against live
+source recomputation — never against `PHASE2_FINGERPRINTS.toml` — closing
+the one gap the existing TOML-comparison test cannot catch (source and
+TOML changing together, silently). All 8 literals unchanged despite the
+Phase-7/9 source-path translations.
+
+One pre-existing test's hardcoded expected value was updated
+(`test_actual_non_bridge_retained_shims_are_accepted_by_bridge_validator`:
+17 → 19 permanent shims) — the only existing test whose expectation
+changed.
+
+Full reverification: ruler `ok=true` (`R6=0 R7a=0 R7b=0 R7c=204` unchanged
+`R9=0 R10=0`); official G7/G8c `PASS`, `byte_identical=true`, 10/10
+fixtures exact, `recordings.json`/`router_kernel.json` identical to every
+prior Phase-9 run; 0051200 checkpoint exact; full `tests/` suite 1113
+passed (was 1103) with the identical 4 pre-existing/unrelated failures and
+zero new ones; `docs/migration/tests/` 76 passed (was 74), 0 failed.
+
+Old router/movement-kernel implementation files were not restored (shims
+contain zero implementation); no historical hash altered; no frozen
+fixture regenerated; no training; no FlyFF launch; Phase 10 not begun.
+
+Read `PHASE9_REPORT.md` section 21 for the full account.
+
+**PHASE 9 (with hardening) COMPLETE: YES.**
+**PHASE 10 SAFE TO CONSIDER: YES** — readiness only.
+**PHASE 10 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**

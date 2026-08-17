@@ -1721,3 +1721,76 @@ unpushed, no upstream, not on origin. Protected tags unchanged.
 PHASE 10 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 9 post-acceptance hardening (executor: Claude) — pickle module-identity compatibility
+
+### Pre-fix probe
+- Fresh-subprocess `pickle.dumps()`/`pickle.loads()` of minimal
+  `KinoState`/`RouteEdgeInfo`/`AdvanceResult` instances, `sys.path` limited
+  to the collapsed repository root: all 3 FAILED --
+  `PicklingError: Can't pickle <class 'simulator.kinodynamic_route_planner.
+  KinoState'>: No module named 'simulator.kinodynamic_route_planner'`
+  (and the equivalent for `RouteEdgeInfo` and
+  `simulator.movement_kernel.AdvanceResult`).
+
+### Fix and post-fix probe
+- Two behavior-free compatibility shims added:
+  `simulator/kinodynamic_route_planner.py` (re-exports `KinoState`,
+  `RouteEdgeInfo`), `simulator/movement_kernel.py` (re-exports
+  `AdvanceResult`). Registered permanently in `CANONICAL_OWNERS.toml`'s
+  `[[shim]]` registry (`removal_gate = "NEVER"`, `bridge_id = "NONE"`).
+- Identical fresh-subprocess probe re-run: all 3 PASS -- same class object
+  identity, equal fields, `__module__` unchanged.
+
+### New tests
+- `tests/test_pickle_module_identity_compat.py`: 6 passed --
+  `test_canonical_implementation_origin_remains_navigation`,
+  `test_legacy_import_resolves_to_the_same_class_objects`,
+  `test_pickle_round_trip_succeeds_in_process`,
+  `test_pickle_round_trip_succeeds_in_a_fresh_subprocess_with_only_repo_root_on_sys_path`,
+  `test_compat_shims_contain_no_duplicate_behavioral_definitions`,
+  `test_historical_guard_still_fails_closed_with_the_shims_present`.
+- `docs/migration/tests/test_phase9_g4_literal_hardening.py`: 2 passed --
+  independent, hardcoded pin of the 8 Phase-2 G4 contract literals
+  (`observation_schema_id`, `observation_schema_hash`,
+  `raw_observation_size=923`, `policy_action_nvecs=[3,3]`,
+  `sidecar_size=5`, `policy_input_size=928`,
+  `model_contract_metadata_version=2`, `physics_version=
+  live_calibrated_arc`), compared against live source recomputation, never
+  against `PHASE2_FINGERPRINTS.toml`.
+- `docs/migration/tests/test_migration_integrity.py::test_actual_non_bridge_retained_shims_are_accepted_by_bridge_validator`:
+  hardcoded expected shim count updated `17` -> `19` (the only existing
+  test whose expectation changed).
+
+### Full reverification
+- Ruler: `ok=true`, `R6=0 R7a=0 R7b=0 R7c=204` (unchanged) `R9=0 R10=0`
+  failures.
+- G7/G8c official: `phase3_capture.py check --corpus <Phase-0 snapshot>` →
+  `PASS`, `byte_identical=true`, 10/10 fixtures exact,
+  `recordings.json`/`router_kernel.json` identical to every prior Phase-9
+  run.
+- Historical guard: still fails closed at current HEAD -- reason shifted
+  from `MISSING` to a hash mismatch on the two shim paths (a real,
+  non-historical file now exists there); never a pass.
+  `tests/test_historical_tag_reproducibility.py`: 4 passed, unmodified. B4
+  unchanged.
+- 0051200 checkpoint: fresh read-only `PPO.load()` -- SHA
+  `87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50` exact;
+  `simulator.split_branch_policy.SplitSteeringNavigationPolicy`;
+  `Box(-1.0, 1.0, (928,), float32)`; `MultiDiscrete([3 3])`;
+  `num_timesteps=51200`.
+- `tests/`: **1113 passed** (was 1103), 2 skipped, 1 xfailed, 4 failed --
+  the identical 4 pre-existing/unrelated failures as before this
+  hardening, zero new.
+- `docs/migration/tests/`: **76 passed** (was 74), 0 failed.
+
+### Final state
+Old router/movement-kernel implementation files not restored (shims
+contain zero implementation). No historical hash altered, no frozen
+fixture regenerated, no training, no FlyFF launch, Phase 10 not begun.
+Worktree clean, index empty, branch unpushed, no upstream, not on origin.
+
+**PHASE 9 (with hardening) COMPLETE: YES. PHASE 10 SAFE TO CONSIDER: YES
+(readiness only). PHASE 10 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**

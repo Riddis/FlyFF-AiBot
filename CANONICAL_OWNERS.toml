@@ -385,3 +385,19 @@ canonical_owner = "position/native_process_service.py"
 reason = "Phase-7 retained repository-qualified process-service re-export"
 bridge_id = "NONE"
 removal_gate = "PHASE_12"
+
+[[shim]]
+location = "simulator/kinodynamic_route_planner.py"
+symbols = ["KinoState", "RouteEdgeInfo"]
+canonical_owner = "navigation/kinodynamic_route_planner.py"
+reason = "Post-Phase-9 pickle module-identity compatibility re-export. KinoState.__module__/RouteEdgeInfo.__module__ are pinned to this path so the frozen G7/G8c typed-encoding fixtures reproduce byte-identically, but that string override alone does not make pickle.dumps()/pickle.loads() of a live instance succeed -- pickle's global-object lookup requires a real importable module here. Confirmed via a fresh-subprocess round-trip probe (failed before this shim existed: PicklingError, No module named simulator.kinodynamic_route_planner). Zero routing/planning implementation; re-export only."
+bridge_id = "NONE"
+removal_gate = "NEVER"
+
+[[shim]]
+location = "simulator/movement_kernel.py"
+symbols = ["AdvanceResult"]
+canonical_owner = "navigation/movement_kernel.py"
+reason = "Post-Phase-9 pickle module-identity compatibility re-export. AdvanceResult.__module__ is pinned to this path for the same frozen-fixture reason as the kinodynamic_route_planner shim above; confirmed necessary via the same fresh-subprocess round-trip probe. Zero movement-kernel implementation; re-export only."
+bridge_id = "NONE"
+removal_gate = "NEVER"
