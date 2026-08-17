@@ -383,3 +383,127 @@ def test_actual_repository_integrity_gate_is_green() -> None:
         "simulator.split_branch_policy": "repository-local",
         "stable_baselines3.common.policies": "external",
     }
+
+
+def test_ratchet_accepts_explicit_forward_supplement_but_rejects_unrelated_growth() -> None:
+    old = integrity.Finding("R7a", "contract", "old.py", "duplicate_definition=X")
+    baseline = {"violations": {"R7a": [old.as_dict()]}}
+    supplemental = integrity.Finding(
+        "R7c", "SplitSteeringNavigationPolicy", "new_helper.py",
+        "reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy",
+    )
+    unrelated = integrity.Finding(
+        "R7c", "SomeOtherSymbol", "unrelated.py", "reexport_from=somewhere:SomeOtherSymbol",
+    )
+
+    # A finding explicitly listed in the supplement is accepted, exactly
+    # like a frozen-baseline entry -- no rewrite of `baseline` occurred.
+    errors, resolved = integrity.ratchet_errors(
+        [old, supplemental], baseline, supplement={supplemental.key},
+    )
+    assert errors == []
+    assert resolved == []
+
+    # A DIFFERENT new R7c finding -- same rule, not itself in the
+    # supplement -- still ratchets as growth. The supplement grants
+    # forward acceptance for specifically enumerated keys only, never a
+    # rule-wide or path-wide exemption.
+    errors, resolved = integrity.ratchet_errors(
+        [old, supplemental, unrelated], baseline, supplement={supplemental.key},
+    )
+    assert errors == [f"new_baseline_violation:{unrelated.key}"]
+
+    # Omitting the supplement entirely reproduces the pre-supplement
+    # behavior exactly: the same finding that was accepted above now
+    # ratchets, proving the supplement is additive, not a silent bypass.
+    errors, resolved = integrity.ratchet_errors([old, supplemental], baseline)
+    assert errors == [f"new_baseline_violation:{supplemental.key}"]
+
+
+def test_supplement_loading_validates_key_and_matches_finding() -> None:
+    rows = [
+        {
+            "rule": "R7c",
+            "concept": "SplitSteeringNavigationPolicy",
+            "path": "scratchpad_single_obstacle_train.py",
+            "detail": "reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy",
+            "key": (
+                "R7c|SplitSteeringNavigationPolicy|scratchpad_single_obstacle_train.py"
+                "|reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy"
+            ),
+        }
+    ]
+    keys = integrity.supplement_keys(rows)
+    assert keys == {rows[0]["key"]}
+
+    bad_rows = [dict(rows[0], key="wrong-key")]
+    try:
+        integrity.supplement_keys(bad_rows)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("expected RuntimeError for a malformed supplement key")
+
+
+def test_supplement_loading_returns_empty_for_missing_file(tmp_path: Path) -> None:
+    assert integrity.load_supplement(tmp_path / "does_not_exist.tsv") == []
+
+
+def test_frozen_phase1_baseline_bytes_are_restored_exact() -> None:
+    """The Post-Phase-7 repository-completeness repair (commit 860a990)
+    incorrectly hand-edited the frozen baseline directly; that was
+    corrected forward (commit follows) by restoring these two files to
+    their exact pre-860a990 bytes and moving the 3 newly-visible R7c
+    edges into POST_PHASE7_R7C_SUPPLEMENT.tsv instead. This proves the
+    frozen baseline is -- and stays -- byte-identical to its state
+    immediately before that incorrect edit."""
+    frozen_json = integrity._run_git(
+        REPO, "show", "966f5fb5c4c06091d55c1161abf80a34ed09b602:docs/migration/BASELINE_VIOLATIONS.json",
+    )
+    current_json = (REPO / integrity.DEFAULT_BASELINE).read_bytes()
+    assert current_json == frozen_json
+
+    frozen_md = integrity._run_git(
+        REPO, "show", "966f5fb5c4c06091d55c1161abf80a34ed09b602:docs/migration/BASELINE_VIOLATIONS.md",
+    )
+    current_md = (REPO / integrity.DEFAULT_BASELINE_MD).read_bytes()
+    assert current_md == frozen_md
+
+
+def test_actual_supplement_covers_exactly_the_three_post_phase7_r7c_edges() -> None:
+    rows = integrity.load_supplement(REPO / integrity.DEFAULT_SUPPLEMENT)
+    assert len(rows) == 3
+    assert integrity.supplement_keys(rows) == {
+        "R7c|SplitSteeringNavigationPolicy|scratchpad_generalized_waypoint_train_reward_ablation.py"
+        "|reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy",
+        "R7c|SplitSteeringNavigationPolicy|scratchpad_single_obstacle_train.py"
+        "|reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy",
+        "R7c|SteeringAction|scratchpad_single_obstacle_train.py"
+        "|reexport_from=farming.actions:SteeringAction",
+    }
+
+
+def test_actual_repository_integrity_gate_is_green_via_frozen_baseline_plus_supplement() -> None:
+    payload, errors = integrity.check(REPO)
+    assert errors == [], json.dumps(payload, indent=2, sort_keys=True)
+    assert payload["baseline_counts"] == {"R6": 0, "R7a": 0, "R7b": 0, "R7c": 171}
+    assert payload["r9_violations"] == 0
+    assert payload["r10_failures"] == []
+    assert set(payload["supplement_entries_applied"]) == integrity.supplement_keys(
+        integrity.load_supplement(REPO / integrity.DEFAULT_SUPPLEMENT)
+    )
+    # An unrelated fourth new R7c entry must still fail: verified by
+    # constructing one extra finding not present in either the frozen
+    # baseline or the supplement, and confirming it alone ratchets.
+    bogus = integrity.Finding(
+        "R7c", "NotARealSymbol", "not_a_real_file.py", "reexport_from=nowhere:NotARealSymbol",
+    )
+    result = integrity.collect(REPO, integrity.load_registry(REPO))
+    supplement = integrity.supplement_keys(integrity.load_supplement(REPO / integrity.DEFAULT_SUPPLEMENT))
+    ratchet, _resolved = integrity.ratchet_errors(
+        [*result["findings"], bogus],
+        integrity.load_baseline(REPO / integrity.DEFAULT_BASELINE),
+        path_moves=integrity.phase7_move_paths(REPO),
+        supplement=supplement,
+    )
+    assert ratchet == [f"new_baseline_violation:{bogus.key}"]

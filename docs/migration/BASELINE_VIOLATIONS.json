@@ -1011,20 +1011,6 @@
         "rule": "R7c"
       },
       {
-        "concept": "SplitSteeringNavigationPolicy",
-        "detail": "reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy",
-        "key": "R7c|SplitSteeringNavigationPolicy|scratchpad_generalized_waypoint_train_reward_ablation.py|reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy",
-        "path": "scratchpad_generalized_waypoint_train_reward_ablation.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "SplitSteeringNavigationPolicy",
-        "detail": "reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy",
-        "key": "R7c|SplitSteeringNavigationPolicy|scratchpad_single_obstacle_train.py|reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy",
-        "path": "scratchpad_single_obstacle_train.py",
-        "rule": "R7c"
-      },
-      {
         "concept": "SteeringAction",
         "detail": "reexport_from=farming.actions:SteeringAction",
         "key": "R7c|SteeringAction|flyff_farming_simulator/scratchpad_coarse_route_proof_of_mechanism_v2.py|reexport_from=farming.actions:SteeringAction",
@@ -1190,13 +1176,6 @@
         "detail": "reexport_from=farming.actions:SteeringAction",
         "key": "R7c|SteeringAction|foreground_vision_bot/tests/test_factorized_control_v19.py|reexport_from=farming.actions:SteeringAction",
         "path": "foreground_vision_bot/tests/test_factorized_control_v19.py",
-        "rule": "R7c"
-      },
-      {
-        "concept": "SteeringAction",
-        "detail": "reexport_from=farming.actions:SteeringAction",
-        "key": "R7c|SteeringAction|scratchpad_single_obstacle_train.py|reexport_from=farming.actions:SteeringAction",
-        "path": "scratchpad_single_obstacle_train.py",
         "rule": "R7c"
       },
       {

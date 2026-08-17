@@ -36,6 +36,7 @@ DEFAULT_BRIDGES = "BRIDGES.md"
 DEFAULT_BASELINE = "docs/migration/BASELINE_VIOLATIONS.json"
 DEFAULT_BASELINE_MD = "docs/migration/BASELINE_VIOLATIONS.md"
 DEFAULT_D1 = "docs/migration/DUPLICATE_CONTENT_REPORT.tsv"
+DEFAULT_SUPPLEMENT = "docs/migration/POST_PHASE7_R7C_SUPPLEMENT.tsv"
 PHASE7_MOVE_MANIFEST = "docs/migration/PHASE7_MOVE_MANIFEST.tsv"
 BRIDGE_BEGIN = "<!-- bridge-registry:begin -->"
 BRIDGE_END = "<!-- bridge-registry:end -->"
@@ -683,6 +684,32 @@ def load_baseline(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_supplement(path: Path) -> list[dict[str, str]]:
+    """Explicit, hand-maintained forward evidence: findings that are known,
+    accepted additions on top of the frozen baseline at `path`, without ever
+    rewriting that frozen baseline itself. Each row must carry its own
+    `key` matching `rule|concept|path|detail` exactly (validated by
+    `supplement_keys`); this is deliberately the same one-row-per-finding,
+    exact-tuple-match shape as the frozen baseline, so a supplement can only
+    ever accept the specific findings it lists -- never a rule or path
+    wildcard, and never a substitute for updating the frozen baseline via
+    its own `snapshot` mechanism when a future phase is ready to do that."""
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def supplement_keys(rows: Sequence[dict[str, str]]) -> set[str]:
+    keys: set[str] = set()
+    for row in rows:
+        finding = Finding(row["rule"], row["concept"], row["path"], row["detail"])
+        if row["key"] != finding.key:
+            raise RuntimeError(f"Malformed supplement key: {row['key']}")
+        keys.add(finding.key)
+    return keys
+
+
 def phase7_move_paths(repo: Path) -> dict[str, str]:
     with (repo / PHASE7_MOVE_MANIFEST).open(encoding="utf-8", newline="") as handle:
         rows = [
@@ -701,7 +728,14 @@ def ratchet_errors(
     baseline: dict[str, Any],
     *,
     path_moves: dict[str, str] | None = None,
+    supplement: set[str] | None = None,
 ) -> tuple[list[str], list[str]]:
+    """Compare current findings against the frozen baseline plus an
+    explicit forward supplement (each an exact rule|concept|path|detail
+    key). The frozen baseline itself is never mutated to absorb new,
+    post-freeze-phase findings; a supplement grants forward acceptance for
+    specifically enumerated keys only -- any other new finding, including
+    other findings for the same rule or symbol, still ratchets as growth."""
     baseline_keys: set[str] = set()
     for items in baseline.get("violations", {}).values():
         for item in items:
@@ -710,6 +744,7 @@ def ratchet_errors(
                 raise RuntimeError(f"Malformed frozen baseline key: {item['key']}")
             path = (path_moves or {}).get(frozen.path, frozen.path)
             baseline_keys.add(Finding(frozen.rule, frozen.concept, path, frozen.detail).key)
+    baseline_keys |= set(supplement or ())
     current_keys = {finding.key for finding in current}
     added = sorted(current_keys - baseline_keys)
     resolved = sorted(baseline_keys - current_keys)
@@ -847,10 +882,13 @@ def summary(result: dict[str, Any], *, d1_rows: Sequence[dict[str, str]] | None 
 
 def check(repo: Path) -> tuple[dict[str, Any], list[str]]:
     result = collect(repo, load_registry(repo))
+    supplement_rows = load_supplement(repo / DEFAULT_SUPPLEMENT)
+    supplement = supplement_keys(supplement_rows)
     ratchet, resolved = ratchet_errors(
         result["findings"],
         load_baseline(repo / DEFAULT_BASELINE),
         path_moves=phase7_move_paths(repo),
+        supplement=supplement,
     )
     errors = [
         *result["ownership_errors"],
@@ -860,7 +898,12 @@ def check(repo: Path) -> tuple[dict[str, Any], list[str]]:
         *[f"R10:{failure}" for failure in result["r10"]["failures"]],
     ]
     payload = summary(result)
-    payload.update({"resolved_baseline_entries": resolved, "errors": sorted(errors), "ok": not errors})
+    payload.update({
+        "resolved_baseline_entries": resolved,
+        "supplement_entries_applied": sorted(supplement),
+        "errors": sorted(errors),
+        "ok": not errors,
+    })
     return payload, sorted(errors)
 
 
