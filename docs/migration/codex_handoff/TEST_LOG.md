@@ -1915,3 +1915,96 @@ items). PHASE 11 SAFE TO CONSIDER: YES (readiness only). PHASE 11
 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 10 completion correction — GUI integration (executor: Claude)
+
+**Correction, not a new phase**: the block above's completion verdict was
+premature -- documenting the GUI launch/status/cancel exit condition as
+deferred does not satisfy it. This section records the actual completion
+work and its verification; sections above are preserved unmodified.
+
+### New GUI-facing tests
+- `tests/test_devtools_gui_tools.py`: **17 passed** -- framework-agnostic
+  `DevToolsGuiController` (no PySimpleGUI window needed): launch
+  constructs the intended command/argv and returns without blocking
+  (elapsed < 2.0s against a 60s-sleeping fake process); running state
+  visible; successful exit -> completed; non-zero exit -> visible FAILED
+  state; cancel invokes termination; process output reaches the shared
+  `RuntimeBus` log; double-launch of a running command rejected visibly;
+  `shutdown()` terminates dev-app-owned processes; unregistered
+  command/unparseable arguments fail visibly rather than raising; module
+  imports no recorder/simulator-training implementation (AST-based);
+  artifact-row helpers never write; every grouped command is a real
+  registered `SpecialistCommand`.
+- `tests/test_gui_devtools_wiring.py`: **8 passed** -- the same properties
+  proven through `Gui.py`'s actual `__handle_devtools_event`/
+  `__refresh_devtools_status` methods (not just the controller in
+  isolation), using a lightweight fake window object -- `Gui()`
+  construction confirmed to create no real PySimpleGUI window; launch
+  event logs a visible message; no-selection launch is a no-op; cancel
+  event stops a running process and logs it; status refresh updates the
+  widget and is skipped when nothing changed (version-gated); the
+  artifacts-refresh event populates the table (321 rows: 313 checkpoints +
+  8 recordings); `Gui()` shares its own `RuntimeBus` with `dev_tools`;
+  `dev_tools.shutdown()` (the exact call `__shutdown` makes) terminates a
+  running process.
+
+### R1b re-verification after the GUI wiring
+- `tests/test_dev_app_import_closure.py`: **10 passed** (re-run, unchanged
+  from before this repair). Direct closure inspection: closure size grew
+  from 100 to 107 module names, now demonstrably including
+  `devtools.gui_tools`/`devtools.processes`/`devtools.artifact_inventory`/
+  `devtools.session_context`, with **zero new violations** and the single
+  `runtime_controller.py` -> `farming.trainer` exception unchanged and
+  unwidened.
+
+### Full reverification
+- Ruler: `ok=true`, `R6=0 R7a=0 R7b=0 R7c=204` (unchanged) `R9=0 R10=0`
+  failures.
+- `git diff --check` on the staged tree: clean.
+- One out-of-caution 0051200 smoke load: SHA
+  `87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50`
+  exact; `simulator.split_branch_policy.SplitSteeringNavigationPolicy`;
+  `Box(-1.0, 1.0, (928,), float32)`; `MultiDiscrete([3 3])`;
+  `num_timesteps=51200`.
+- `docs/migration/tests/`: **76 passed, 0 failed** -- unchanged.
+- `tests/`: **1166 passed** (was 1141 -- exactly the 25 new GUI-completion
+  tests), 2 skipped, 1 xfailed, 4 failed -- the identical 4 pre-existing/
+  unrelated failures as every prior baseline, zero new. This run was
+  invoked without a `| tail` pipe specifically so pytest's own exit code
+  (1, due to the 4 accepted failures) was observed directly rather than
+  masked by the pipe's own exit status.
+
+### Pytest exit-code bookkeeping correction
+Several prior `COMMAND_LOG.tsv` rows (`P9-final-verify`, `P9H-verify`,
+`P10-final-verify`) recorded `exit_code=0` for `pytest tests/ ... | tail
+-N` commands -- that `0` is the shell pipeline's exit status (`tail`
+always exits 0), not pytest's own (which returns 1 whenever any test
+fails, true on every one of those runs because of the 4 accepted
+pre-existing failures). Each row's `result_summary` prose correctly
+states the real outcome; only the numeric `exit_code` column conflated
+"the pipeline ran" with "pytest reported success." Not rewritten per
+journal convention; recorded here as the forward correction.
+
+### Commit-count correction
+There were **six** Phase-10 commits before this repair (`f104326`,
+`7c48b2d`, `eb82c51`, `16095ec`, `84ca526`, `146f59b`), not five as
+previously described in places that bundled `7c48b2d`+`eb82c51` into one
+description line. New commit: `0f9b7b27bb8b46350218f4239d0ada1f250a65cb`
+(P10-GUI).
+
+### Final state
+Worktree clean, index empty, branch unpushed, no upstream, not on origin.
+Protected tags unchanged. No live execution: no FlyFF launch, no
+specialist actually invoked against a real game process by any test (a
+throwaway monkeypatched sleep script stands in for every process-lifecycle
+test).
+
+**PHASE 10 COMPLETE: YES** -- the development application now genuinely
+exposes the specialist process orchestration's launch/status/failure/
+cancel behavior and a read-only artifact inventory view, per the original
+exit contract. R1b passes with exactly one source-backed, unwidened
+exception. **PHASE 11 SAFE TO CONSIDER: YES (readiness only). PHASE 11
+AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**

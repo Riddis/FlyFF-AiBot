@@ -535,7 +535,7 @@ confirm every Phase-10 exit condition from the authorization's section 30,
 with the two above as the sole partial-completion items (both
 transparently documented, neither silently accepted).
 
-## 38. Conclusion
+## 38. Conclusion (superseded by section 39 — preserved as the original, premature record)
 
 **G5 STATUS: NOT RUN / PENDING**
 **G5-P2 STATUS: NOT RUN / PENDING**
@@ -544,5 +544,165 @@ transparently documented, neither silently accepted).
 partial-completion items in sections 7 and 12 — the R1b exact exception
 and the deferred GUI wiring — both explicitly authorized/reasoned, not
 silent gaps).
+**PHASE 11 SAFE TO CONSIDER: YES** — readiness only, not self-authorized.
+**PHASE 11 AUTHORIZED: NO**
+
+## 39. Phase-10 completion correction — GUI integration
+
+**This section corrects section 38's conclusion. Sections 0–38 above are
+left exactly as originally written (the same forward-correction
+convention used throughout this migration, e.g. the Phase-7 R7c baseline
+correction and the Phase-9 frozen-file incident) — this section
+supersedes their verdict, it does not rewrite them.**
+
+**The original Phase-10 completion claim was premature.** Section 38
+declared Phase 10 complete with the GUI-launcher/status/cancel exit
+condition (authorization section 30, item 16: "development app exposes
+launch/status/cancel behavior for the specialist capabilities actually
+included") marked as a deliberately deferred, documented gap rather than
+satisfied. Documenting a gap as deferred does not satisfy the exit
+condition it describes. The user rejected this and required the missing
+integration be completed before Phase 10 could be marked complete.
+
+**Commit-count correction**: section 3's table describes 5 logical rows
+but undercounted the true number of distinct commit objects by presenting
+`7c48b2d` and `eb82c51` (the P10-B move and its rename-completion repair)
+as a single bundled entry. There were **six** Phase-10 commits before this
+correction, not five: `f104326`, `7c48b2d`, `eb82c51`, `16095ec`,
+`84ca526`, `146f59b`. This section's own commit list (below) is exact on
+every distinct SHA.
+
+**GUI integration now completed** — new commit `0f9b7b2`, "Phase 10
+P10-GUI: wire the specialist process manager and artifact view into the
+development GUI":
+
+- `devtools/gui_tools.py` (new): `DevToolsGuiController`, a
+  PySimpleGUI-agnostic adapter (`Gui.py` → `DevToolsGuiController` →
+  `SpecialistProcessManager` → subprocess) so the substantive logic is
+  directly unit-testable without a real window. 16 registered specialist
+  commands grouped by purpose (Recorder/Telemetry/Simulator/Native
+  diagnostics/Archive tools/Calibration) for one grouped combo box, not 16
+  separate buttons. `checkpoint_table_rows()`/`recording_table_rows()`/
+  `artifact_table_rows()` build plain-tuple rows on top of the existing
+  read-only `devtools/artifact_inventory.py`.
+- `Gui.py`, additive only — no existing element key, event branch, or
+  control removed/renamed/reordered: `__init__` constructs
+  `self.dev_tools = DevToolsGuiController(bus=self.runtime_bus)`, sharing
+  the exact `RuntimeBus` instance already passed to `RuntimeController`
+  (specialist stdout/stderr flows through the identical bounded-log
+  surface `__refresh_runtime` already drains — no second logging
+  mechanism, satisfying "reuse the existing RuntimeBus/log/status surface,
+  do not create a second independent logging framework"). `__get_layout`
+  appends one new "Development Tools:" `sg.Frame` to the existing,
+  already-scrollable `controls` Column (zero layout/sizing risk): a
+  grouped command combo, an optional free-text arguments field (never a
+  hardcoded/fake value — the user supplies real arguments, or leaves it
+  blank for tools that support running with none, e.g. `recorder` and
+  `telemetry`, which both have sensible defaults), Launch/Cancel buttons, a
+  status text, and a read-only artifact `Table` (populated at window-init
+  time and via an explicit Refresh button). `loop()` gains one new call
+  (`self.__handle_devtools_event(event, values)`); `__refresh_runtime`
+  gains one new call (`self.__refresh_devtools_status(values)`, polled at
+  the same ≤20/s cadence as the rest of the status surface, version-gated
+  so it only touches the widget when the selected command or its status
+  actually changed); `__shutdown` calls `self.dev_tools.shutdown(timeout=
+  5.0)` before the existing `WorkerManager.shutdown()` — **ownership
+  policy: any specialist process this GUI session launched is terminated
+  on close**, mirroring `WorkerManager`'s existing behavior for
+  CAPTURE/PREVIEW/CONTROL/DIAGNOSTIC workers; nothing is left orphaned.
+
+**How this was verified without live execution or a rendered window**:
+`Gui.__init__` does not construct a PySimpleGUI window (only `.init()`
+does — confirmed by reading the source before editing); `Gui("DarkAmber")`
+and `__get_layout()` were both confirmed to succeed standalone. The new
+event-handler/status-refresh methods were exercised directly against a
+lightweight fake window object (`tests/test_gui_devtools_wiring.py`, 8
+tests) plus the framework-agnostic controller directly
+(`tests/test_devtools_gui_tools.py`, 17 tests) — never against a real
+rendered Tk window, and never by actually invoking a real specialist
+(a throwaway monkeypatched sleep script stands in for every
+process-lifecycle test, exactly as `tests/test_devtools_process_orchestrator.py`
+already established in the prior commit).
+
+**Items A–M from the GUI-completion authorization's Section 7, each with
+its test**: (A) launch constructs the intended command/argv —
+`test_launch_constructs_the_intended_command_and_argv`; (B) launch returns
+without blocking — `test_launch_returns_without_blocking` (asserts
+elapsed < 2.0s against a 60s-sleeping fake process); (C) running state
+visible — `test_running_state_is_visible_after_launch`; (D) successful
+exit → completed — `test_successful_exit_becomes_completed_state`; (E)
+non-zero exit → visible failure — `test_nonzero_exit_becomes_visible_failure_state`;
+(F) cancel invokes termination —
+`test_cancel_invokes_process_manager_termination`; (G) bounded output
+reaches the existing log surface —
+`test_process_output_reaches_the_shared_runtime_bus_log`; (H) double-launch
+rejected visibly — `test_double_launch_of_the_same_running_command_is_rejected_visibly`;
+(I) dev-app-owned processes terminated on close —
+`test_shutdown_terminates_dev_app_owned_specialist_processes` /
+`test_shutdown_terminates_any_running_devtools_process` (the chosen
+ownership policy: dev-app owns and terminates); (J) no recorder/simulator/
+training implementation imported by this work —
+`test_module_imports_no_recorder_or_simulator_training_implementation`
+(AST-based); (K) R1b still has exactly the one accepted exception — (L)
+Phase-9 pickle-compat modules not pulled into the dev-app closure — both
+re-verified by re-running `tests/test_dev_app_import_closure.py` (still
+10/10 passing) *after* the `Gui.py` wiring landed, and by direct closure
+inspection confirming `devtools.gui_tools`/`devtools.processes`/
+`devtools.artifact_inventory`/`devtools.session_context` are now
+genuinely reached (closure grew from 100 to 107 module names) with zero
+new violations and the single `runtime_controller.py` → `farming.trainer`
+exception unwidened; (M) artifact view remains read-only —
+`test_artifact_table_helpers_never_write` plus the pre-existing
+`devtools/artifact_inventory.py` write-scan/hash-check tests, unaffected.
+
+**Pytest exit-code bookkeeping note** (requested correction to prior
+journal entries): several `COMMAND_LOG.tsv` rows across Phase 9 and Phase
+10 (e.g. the `P9-final-verify`, `P9H-verify`, and `P10-final-verify` rows)
+recorded `exit_code=0` for commands of the shape `pytest tests/ ... | tail
+-N`. That `0` is the Unix pipeline's reported exit status — the last
+command in the pipe (`tail`) always exits 0 regardless of what `pytest`
+itself returned. `pytest` itself returns a non-zero exit code (1) whenever
+any test fails, which was true on every one of those runs because of the
+4 accepted pre-existing/unrelated failures baked into the baseline. The
+`result_summary` column on each of those rows correctly states the actual
+pytest outcome in prose ("... 4 pre-existing/unrelated failed"), so no
+row's *substance* is wrong, but the numeric `exit_code` column
+conflates "the shell pipeline succeeded" with "pytest reported success,"
+which it did not. Per journal convention, prior rows are not rewritten;
+this note is the forward correction. This same phase's own new
+verification command (section 40) was run without a `tail` pipe
+specifically so its captured exit code is pytest's own.
+
+**Full verification after the GUI wiring** (`0f9b7b27bb8b46350218f4239d0ada1f250a65cb`):
+`tests/test_devtools_gui_tools.py` 17/17 passed,
+`tests/test_gui_devtools_wiring.py` 8/8 passed,
+`tests/test_dev_app_import_closure.py` 10/10 passed (re-run after the
+`Gui.py` change), ruler `ok=true` (`R6=0 R7a=0 R7b=0 R7c=204` unchanged
+`R9=0 R10=0`), `git diff --check` clean, one out-of-caution 0051200
+smoke load exact (SHA `87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50`,
+`SplitSteeringNavigationPolicy`, `Box(928,)`, `MultiDiscrete([3,3])`,
+`num_timesteps=51200`), `docs/migration/tests/` 76 passed (unchanged), and
+a final full `tests/` run: **1166 passed** (up from 1141 — exactly the 25
+new GUI-completion tests: 17 + 8), **2 skipped, 1 xfailed, 4 failed** —
+the identical 4 pre-existing/unrelated failures as the accepted baseline
+(same exact test IDs as sections 27/section-30's earlier runs). **Zero
+new failures.**
+
+## 40. Corrected final conclusion
+
+**G5 STATUS: NOT RUN / PENDING**
+**G5-P2 STATUS: NOT RUN / PENDING**
+
+**PHASE 10 COMPLETE: YES.**
+
+The development application now genuinely exposes the specialist process
+orchestration's launch/status/failure/cancel behavior (`Gui.py`'s
+Development Tools panel), and a read-only artifact inventory view, per
+the original exit contract. Recorder/simulator/offline tooling remain
+specialist subprocesses, never imported into the dev-app process.
+Telemetry remains observation-only. R1b passes with exactly one
+source-backed, unwidened exception
+(`runtime_controller.py` → `farming.trainer`, four named symbols).
+
 **PHASE 11 SAFE TO CONSIDER: YES** — readiness only, not self-authorized.
 **PHASE 11 AUTHORIZED: NO**

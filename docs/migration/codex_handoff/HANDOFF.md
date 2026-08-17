@@ -1187,3 +1187,79 @@ wiring — both explicitly reasoned, not silent gaps).
 **PHASE 11 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 10 completion correction — GUI integration (commit `0f9b7b2`)
+
+**The block above's "COMPLETE (with... the deferred GUI wiring)" verdict
+was premature and is superseded by this section.** Documenting the GUI
+launch/status/cancel exit condition as deliberately deferred does not
+satisfy it. The user rejected that framing and required the missing
+integration be completed before Phase 10 could close. Also corrected:
+there were **six** Phase-10 commits before this repair (`f104326`,
+`7c48b2d`, `eb82c51`, `16095ec`, `84ca526`, `146f59b`), not five as
+previously described — `7c48b2d`+`eb82c51` had been bundled into one
+description line.
+
+**GUI integration completed**, new commit `0f9b7b27bb8b46350218f4239d0ada1f250a65cb`:
+`devtools/gui_tools.py` (new) — `DevToolsGuiController`, a
+PySimpleGUI-agnostic adapter (`Gui.py` → controller →
+`SpecialistProcessManager` → subprocess), 16 specialist commands grouped
+by purpose (Recorder/Telemetry/Simulator/Native diagnostics/Archive
+tools/Calibration) into one combo box rather than 16 buttons. `Gui.py`
+changes are strictly additive — no existing element/event/control
+touched: `__init__` shares its own `RuntimeBus` with the new controller
+(specialist output flows through the same bounded-log surface
+`__refresh_runtime` already drains — no second logging mechanism);
+`__get_layout` appends one "Development Tools:" Frame to the
+already-scrollable `controls` Column (command combo, optional free-text
+args field — never a hardcoded/fake value, Launch/Cancel buttons, status
+text, read-only artifact Table); `loop()`/`__refresh_runtime` each gain
+one new call dispatching to the controller; `__shutdown` now terminates
+any specialist process this GUI session launched before the existing
+`WorkerManager.shutdown()` call — chosen ownership policy: dev-app owns
+and terminates on close, nothing orphaned.
+
+Verified without live execution: `Gui.__init__` doesn't construct a real
+window (confirmed by reading source before editing; `Gui("DarkAmber")`
+and `__get_layout()` both succeed standalone). New handler/refresh methods
+tested directly against a lightweight fake window object
+(`tests/test_gui_devtools_wiring.py`, 8 tests) plus the controller itself
+(`tests/test_devtools_gui_tools.py`, 17 tests) — covering items A–M from
+the completion authorization: launch constructs the intended command/argv
+and returns without blocking; running/completed/FAILED/cancelled states
+are all visible; process output reaches the shared log; double-launch is
+rejected visibly; shutdown terminates owned processes; the module imports
+no recorder/simulator-training implementation; the artifact view stays
+read-only.
+
+**R1b re-verified after the wiring**: `tests/test_dev_app_import_closure.py`
+still 10/10 passing; the closure now demonstrably includes
+`devtools.gui_tools`/`processes`/`artifact_inventory`/`session_context`
+(grew 100 → 107 module names), zero new violations, the single
+`runtime_controller.py` → `farming.trainer` exception unchanged and
+unwidened.
+
+**Pytest exit-code bookkeeping correction**: several prior `COMMAND_LOG.tsv`
+rows (`P9-final-verify`, `P9H-verify`, `P10-final-verify`) recorded
+`exit_code=0` for `pytest tests/ ... | tail -N` commands — that `0` is
+the shell pipeline's exit status (`tail` always exits 0), not pytest's own
+(which returns 1 whenever any test fails, true on every one of those runs
+because of the 4 accepted pre-existing failures). Each row's prose
+`result_summary` correctly states the real outcome; only the numeric
+column conflated the two. Not rewritten per journal convention; recorded
+here as the forward correction.
+
+**Full verification**: `tests/` **1166 passed** (was 1141 — exactly the
+25 new GUI tests), 2 skipped, 1 xfailed, 4 failed — the identical
+4 pre-existing/unrelated failures, zero new. `docs/migration/tests/`: 76
+passed, unchanged. Ruler `ok=true` (`R6=0 R7a=0 R7b=0 R7c=204` unchanged
+`R9=0 R10=0`). `git diff --check` clean. 0051200 checkpoint exact.
+
+Read `PHASE10_REPORT.md` sections 39–40 for the full corrected account
+(sections 0–38 preserved as originally written, not rewritten).
+
+**PHASE 10 COMPLETE: YES.**
+**PHASE 11 SAFE TO CONSIDER: YES** — readiness only.
+**PHASE 11 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**
