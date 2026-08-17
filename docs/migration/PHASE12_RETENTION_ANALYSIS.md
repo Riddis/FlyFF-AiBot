@@ -170,6 +170,43 @@ Confirmed present and unchanged:
 `pyproject.toml` line 2. Per Section 19, this does not affect any
 deletion gate — classified `DEFER_PHASE13_CLEANUP`, not touched.
 
+## 5a. Gate correction: `CANONICAL_OWNERS.toml`'s `removal_gate` transitioned from `PHASE_12` to `NEVER` for all 16 registered shims
+
+The ruler's bridge/shim-expiry check (`migration_integrity.py`'s
+`removal_gate_expired`) treats a bare `removal_gate = "PHASE_N"` as
+**required to be gone by the start of Phase N** — the exact mechanism
+that already retired B1/B2/B3. Advancing `current_phase` to 12 without
+addressing this correctly flipped the ruler to `ok: false` with 16
+"expired" errors, since all 16 registered shims (section 1a/1b above)
+were still present.
+
+Per `BRIDGES.md`'s own rule — "future as well as installed temporary
+bridges must be removed **or explicitly transitioned** before that gate"
+— and since section 1's mechanical proof shows deletion is not currently
+safe, the correct action is a metadata-only gate transition, not a forced
+deletion and not leaving the ruler red. `CANONICAL_OWNERS.toml`'s
+`[[shim]]` table already has exactly one precedent value for a
+non-phase-numbered gate: bare `removal_gate = "NEVER"` (used by
+`farming/observation.py`'s shim and the two Phase-9 ABI re-export
+shims). All 16 registered shims' `removal_gate` were corrected to this
+**existing** sentinel — no new gate vocabulary was invented for this
+finding — and each shim's `reason` field was appended with the specific
+Phase-12 finding (which test/check requires it) and the actual
+retirement condition: the relevant `docs/migration/tests/
+test_phase{4,5}_contracts.py` check must first be intentionally retired
+or replaced, and its consumers proven unnecessary — not a phase number
+this migration can unilaterally schedule.
+
+This is a correction of a Phase-7-era assumption ("these can be deleted
+by Phase 12") that did not anticipate the migration tooling's own later
+dependency on these exact files — not a weakening of any deletion gate,
+not a special Phase-12 waiver, and not a rewrite of historical evidence.
+Only `removal_gate` values and `reason` prose changed; no shim file, no
+test, no frozen baseline was touched. Re-verified: `migration_integrity.
+py check` → `ok: true`, zero bridge/shim errors; all 11
+`test_phase4_contracts.py`/`test_phase5_contracts.py` tests plus
+`test_migration_integrity.py`'s own 25 tests (48 total) re-run and pass.
+
 ## 6. Conclusion
 
 **Zero destructive deletions are justified in Phase 12.** Every
