@@ -1619,3 +1619,105 @@ unpushed, no upstream, not on origin. Protected tags unchanged.
 PHASE 9 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 9 — shared production navigation extraction (executor: Claude)
+
+### Pre-mutation module-identity verification
+- Direct `_router_worker()` re-run post-move reproduced `router_kernel.json`
+  byte-for-byte
+  (`b56bea2e8a6f45ae2b0316c706786781caa86f4a9ab5398726b43553abf3a74a`),
+  proving the two `__module__` overrides (`KinoState`/`RouteEdgeInfo` →
+  `simulator.kinodynamic_route_planner`; `AdvanceResult` →
+  `simulator.movement_kernel`) correctly preserve the frozen typed-encoding
+  contract.
+
+### G8c — current-tree migration gate, official
+- `phase3_capture.py check --corpus <Phase-0 snapshot>` → `PASS`,
+  `byte_identical=true`, 10/10 fixtures exact, including
+  `router_kernel.json`
+  `b56bea2e8a6f45ae2b0316c706786781caa86f4a9ab5398726b43553abf3a74a` —
+  byte-for-byte identical to the pre-mutation value.
+- 5 previously-failing `tests/test_kinodynamic_route_planner.py` tests
+  (broken by their local import of the now-unimportable frozen
+  `scratchpad_general_router_episode.py`) repaired per explicit user
+  direction via `tests/helpers/router_qualification_harness.py` (verbatim
+  copy, mechanically-necessary import substitution only) +
+  `tests/test_parity_router_qualification_harness.py` (AST-identity proof)
+  — not xfailed, not skipped. `tests/test_kinodynamic_route_planner.py`:
+  34 passed, 1 skipped (pre-existing, unrelated).
+
+### Dependency-boundary gate (Section 12)
+- `tests/test_navigation_dependency_boundary.py`: 3 passed —
+  `navigation.*`'s import closure pulls in no gymnasium/stable_baselines3/
+  torch/recorder/position/win32/training-only-`simulator` dependency;
+  `MapModel` structurally satisfies `NavigationMapProtocol`.
+
+### R9/R10 and checkpoint smoke check
+- R9=0, R10=0 failures across the frozen 313-checkpoint/317-reference
+  corpus, `torch_modules_added=[]`.
+- Fresh read-only
+  `PPO.load("models/generalized_waypoint_both_seed2_0051200.zip")`: SHA
+  `87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50` exact;
+  `simulator.split_branch_policy.SplitSteeringNavigationPolicy`;
+  `Box(-1.0, 1.0, (928,), float32)`; `MultiDiscrete([3 3])`;
+  `num_timesteps=51200`.
+
+### G4 / G3-G-GEO
+- G4: `ok=true`, `failures=[]`.
+- G-GEO: 526 comparisons, 418 exact-match, 108 mismatch — identical to the
+  frozen pre-Phase-9 baseline.
+
+### Historical immutability (Section 14 / Phase-9a)
+- `verify_historical_snapshot()`: fails closed at final HEAD for exactly
+  `simulator/kinodynamic_route_planner.py` and
+  `simulator/movement_kernel.py` (`MISSING`), no other discrepancy —
+  EXPECTED FAIL-CLOSED AFTER PRODUCTION-NAVIGATION EXTRACTION.
+- `tests/test_historical_tag_reproducibility.py`: 4 passed — B4 tag
+  resolves to its exact SHA; every `REQUIRED_FILES` member available there
+  (pre-Phase-7-collapse nested path) with content matching the frozen
+  snapshot exactly; frozen snapshot's own recorded commit is an ancestor
+  of B4; current-HEAD guard fails closed for precisely the two
+  Phase-9-moved files.
+- One incident: an edit to `scratchpad_beginner_navigation_mix_pools.py`
+  (discovered to be one of `REQUIRED_FILES`) was caught via hash mismatch
+  and fully reverted before staging — confirmed byte-identical to the
+  frozen snapshot both before and after
+  (`dd9a4630c30059ce809ed8320c24b095eb9b3e4fe99b76a4e271a2404be84156`).
+  Corrected via `tests/helpers/beginner_navigation_mix_harness.py` (3
+  passed) + `tests/test_parity_beginner_navigation_mix_harness.py` (3
+  passed).
+- B4 unchanged. No 820M, no G5, no G5-P2, no live FlyFF access.
+
+### Full simulator test suite (Section 17.F, required)
+- `pytest tests/`: **1103 passed, 2 skipped, 1 xfailed, 4 failed**,
+  556.51s. All 4 failures pre-existing/unrelated:
+  `test_navigation_dataset.py::test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts`
+  (gitignored artifact gap, `models/split_branch_pilot_15000.zip`);
+  `test_farming_environment_lifecycle.py::test_focus_loss_during_eva_discards_kill_and_transition`
+  and `test_farming_training_session.py::test_normal_training_status_is_concise_and_uses_total_model_steps`/
+  `::test_training_callback_publishes_structured_session_statistics`
+  (`farming`/`runtime_bus` bugs — `git diff HEAD -- farming/` empty, zero
+  import overlap with anything this phase touched).
+- `docs/migration/tests/`: 74 passed, 0 failed.
+
+### Broad-suite decision
+Scoped to `tests/` + `docs/migration/tests/` (section 16 of the report).
+`tools/test_native_independent_reader.py` (the only test file outside
+both) checked and excluded: zero import overlap, itself a live-attach
+Win32 diagnostic tool out of scope for this phase.
+
+### Ruler before/after
+Before: `R6=0 R7a=0 R7b=0 R7c=171 R9=0 R10=0`. After: `R6=0 R7a=0 R7b=0
+R7c=204 R9=0 R10=0`, `ok=true`. R7c's growth is a pure ruler-path
+translation (33 pre-existing imports now visible under `navigation.*`
+paths), recorded in `docs/migration/POST_PHASE9_R7C_SUPPLEMENT.tsv` (35
+entries) rather than editing the frozen baseline.
+
+### Final state
+`current_phase` advanced `8` -> `9`. Worktree clean, index empty, branch
+unpushed, no upstream, not on origin. Protected tags unchanged.
+
+**PHASE 9 COMPLETE: YES. PHASE 10 SAFE TO CONSIDER: YES (readiness only).
+PHASE 10 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**

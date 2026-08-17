@@ -876,3 +876,112 @@ separate coordinator authorization.
 **PHASE 9 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 9 checkpoint (completed)
+
+Entry HEAD `54de56ff35248de4c83779ef0d2e66b60eb572a0`. Five commits:
+`400baf7` (P9-A, audit/manifest, no code), `7119285` + `b52cba2` (P9-B,
+`git mv` `simulator/{kinodynamic_route_planner,movement_kernel,
+movement_kinematics}.py` to `navigation/`; `7119285` captured only the
+rename's addition half, `b52cba2` landed the deletion half seconds later
+after being caught via a direct `git show HEAD:<path>` check — no gate ran
+at the intermediate state), `5e7d223` (P9-C, `navigation/
+navigation_evidence.py` extraction + consumer rewiring + ownership
+registry), `f7b5c53` (P9-9A, historical-path treatment).
+
+Two frozen-fixture-preserving `__module__` overrides (both `typed_encode()`
+and `_typed_json()` embed dataclass `__module__.__qualname__`, and
+`router_kernel.json`/`recordings.json` are frozen G7/G8c fixtures):
+`KinoState.__module__`/`RouteEdgeInfo.__module__` stay
+`"simulator.kinodynamic_route_planner"`; `AdvanceResult.__module__` stays
+`"simulator.movement_kernel"`. Verified: a direct `_router_worker()`
+invocation and the full official G8c check both reproduce `router_kernel.
+json` byte-for-byte
+(`b56bea2e8a6f45ae2b0316c706786781caa86f4a9ab5398726b43553abf3a74a`).
+
+`navigation/map_protocol.py`'s `NavigationMapProtocol` is a minimal
+3-member `typing.Protocol` derived mechanically from
+`movement_kinematics.py`'s actual attribute/method accesses, not copied
+from `MapModel`'s full surface — `MapModel.load()`, map generation, and
+obstacle-radius behavior stay in `simulator/`. Structurally proven
+satisfied by the real `MapModel` (zero numerical change).
+`route_waypoint_generator.py` was audited and deliberately **kept** under
+`simulator/` — concrete `MapModel.from_arrays` construction, raw array
+indexing, zero current tracked importers; none of the 5 required move
+conditions were mechanically demonstrated. `simulator/split_branch_policy.py`
+was **not** moved — one import line changed
+(`.navigation_history` → `navigation.navigation_evidence`); the checkpoint
+ABI namespace is exactly preserved, confirmed by a fresh read-only
+`PPO.load()` of `models/generalized_waypoint_both_seed2_0051200.zip`
+(exact SHA, policy class, spaces, `num_timesteps=51200`).
+
+`tests/test_navigation_dependency_boundary.py` (3 tests, new) proves the
+`navigation.*` import closure pulls in no gymnasium/stable_baselines3/
+torch/recorder/position/win32/training-only-simulator dependency — the
+canonical 923→928 dev-bot chain remains buildable later without a runtime
+dependency leak, though no dev-bot integration was performed this phase.
+
+**Two consequential decisions were surfaced to the user, not decided
+unilaterally**: (1) G8c's 5 tests that broke because they locally imported
+from the now-unimportable frozen `scratchpad_general_router_episode.py` —
+user explicitly rejected xfail/skip and directed verbatim preservation in
+a test-owned, provenance-tracked, parity-tested harness
+(`tests/helpers/router_qualification_harness.py` +
+`tests/test_parity_router_qualification_harness.py`), implemented exactly
+as specified; all 5 now exercise real current-tree behavior and pass. (2)
+Fixing a similar break in `tests/test_beginner_navigation_mix_train.py`
+was first attempted by editing `scratchpad_beginner_navigation_mix_pools.py`
+directly — this file turned out to ALSO be one of
+`scratchpad_historical_reproduction_guard.py`'s hash-frozen `REQUIRED_FILES`
+(confirmed: its pre-edit hash exactly matched the frozen 2026-08-15
+snapshot). The edit was caught and fully reverted before being staged
+anywhere; the user directed the same minimal test-owned-copy technique
+(`tests/helpers/beginner_navigation_mix_harness.py` +
+`tests/test_parity_beginner_navigation_mix_harness.py`), implemented
+exactly as specified. The frozen file was never staged or committed in
+any form during this phase.
+
+Historical reproduction remains commit-addressed at B4
+(`historical-reproduction-baseline-20260815` →
+`a90de59232b81753c1b2ea35b8990325c26674e5`).
+`verify_historical_snapshot()` correctly fails closed at final HEAD for
+exactly the two Phase-9-moved paths (`simulator/kinodynamic_route_planner.py`,
+`simulator/movement_kernel.py` → `MISSING`) and no other discrepancy —
+EXPECTED FAIL-CLOSED AFTER PRODUCTION-NAVIGATION EXTRACTION, not a
+regression. `tests/test_historical_tag_reproducibility.py` (4 tests, new)
+makes this checkable: the B4 tag resolves to its exact SHA, every
+`REQUIRED_FILES` member remains available there (at its
+pre-Phase-7-collapse nested path under `flyff_farming_simulator/`, since
+Phase 7's collapse relocated these files without changing bytes) with
+content matching the frozen snapshot exactly.
+
+**Gates**: G8c official `PASS`, `byte_identical=true`, 10/10 fixtures
+exact. R9=0, R10=0/313 checkpoints. 0051200 exact. G4 `ok=true`. G3/G-GEO
+526/418/108, identical to the frozen baseline. Ruler `ok=true`
+(`R6=0 R7a=0 R7b=0 R7c=204 R9=0 R10=0`) — R7c's 171→204 growth is a pure
+ruler-path translation of pre-existing imports now visible under
+`navigation.*`, recorded in `docs/migration/POST_PHASE9_R7C_SUPPLEMENT.tsv`
+(35 entries) via the same frozen-baseline-plus-supplement mechanism
+established in Phase 7 (generalized to `DEFAULT_SUPPLEMENTS`, a tuple, so
+each phase gets its own labeled file). Full `tests/` suite: 1103 passed, 4
+failed — all 4 pre-existing/unrelated (1 gitignored-artifact gap, 3
+`farming`/`runtime_bus` failures with zero git diff and zero import
+overlap with anything this phase touched). `docs/migration/tests/`: 74
+passed.
+
+`current_phase` advanced to `9`. Worktree clean, index empty, branch
+unpushed, no upstream, not on origin.
+
+No FlyFF launch, no training, no recording, no 820M, no G5, no G5-P2, no
+standalone/live bot, no dev-bot runtime integration beyond the mechanically
+necessary import adaptation already covered above.
+
+Read `PHASE9_REPORT.md` for the full audit, move manifest, module-identity
+risk analysis, and gate results. Exact next action: STOP. Do not begin
+Phase 10 without separate coordinator authorization.
+
+**REPOSITORY/PHASE 9: COMPLETE.**
+**PHASE 10 SAFE TO CONSIDER: YES** — readiness only.
+**PHASE 10 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**
