@@ -1056,3 +1056,134 @@ Read `PHASE9_REPORT.md` section 21 for the full account.
 **PHASE 10 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 10 checkpoint (completed) — development tooling / recorder / telemetry organization + dev-app orchestration
+
+Entry HEAD `9198818c517d54f34a34d12b126fe9cfb6875a7f`. Five commits:
+`f104326` (P10-A, audit — corrects the authorization's own stale
+"archives/schema.py" assumption: that relocation was reverted in Phase 8
+before any commit, and `archives/` does not exist in this repository; the
+actual canonical archive reader is `simulator/schema.py` +
+`legacy/manifest_compat.py`), `7c48b2d` + `eb82c51` (P10-B, 19 `git mv`
+moves into `apps/`/`devtools/{telemetry,native,archives,calibration}/` —
+`7c48b2d` captured only the additions, `eb82c51` is the deletion
+completion landing seconds later, same slip-and-immediate-fix pattern as
+Phase 9's P9-B), `16095ec` (P10-C, consumer import fixes + `devtools/
+session_context.py` + `devtools/processes.py` + 3 new boundary-test
+files), `84ca526` (P10-D, read-only `devtools/artifact_inventory.py`).
+
+**Canonical dev-app entrypoint**: `apps/dev_app.py` (was
+`foreground_vision_farm.py`). **Recorder**: `apps/recorder_app.py` (was
+`app.py` — a pre-existing naming confusion this move corrects: `app.py`
+was always the recorder's entrypoint, never the dev bot's). **Telemetry
+CLI**: `apps/telemetry_cli.py`. **Simulator CLI**: `apps/simulator_cli.py`.
+`Gui.py`/`Bot.py`/`runtime_controller.py`/`runtime_bus.py`/
+`worker_manager.py`/`capture_service.py`/`preview_service.py`/
+`project_paths.py` all stay at the repository root, unmoved, behaviorally
+unchanged.
+
+**R1b (dev-app in-process dependency boundary)**: PASS WITH ONE EXACT,
+PRE-EXISTING, SOURCE-BACKED EXCEPTION. The static (AST, recursive,
+PEP-562-lazy-`__getattr__`-aware — `apps/dev_app.py` cannot be dynamically
+imported here since its top-level code constructs a live `Gui`/`Bot`)
+import-closure walker found `runtime_controller.py`'s pre-existing lazy
+`from farming.trainer import (dry_run_native_farming,
+run_native_farming_agent, train_native_farming,
+validate_native_farming_data)`. **This was surfaced to the user before
+deciding how to resolve it**: all four functions take `bot: FarmingBot` —
+the live, already-attached Bot instance with an open native window
+handle and active capture threads, constructed once at
+`apps/dev_app.py` startup — as their first parameter, which cannot cross
+a subprocess boundary through argv/JSON without either the subprocess
+independently attaching to the same live game window (a real
+attachment/farming-runtime redesign) or an IPC/RPC bridge, both
+explicitly out of scope for Phase 10. Confirmed pre-existing (`git diff
+HEAD -- runtime_controller.py` empty throughout). User directed: keep the
+import exactly as-is, do not redesign the farming runtime, encode this as
+one EXACT (importer path + dependency + exact symbol set, not a prefix or
+module-wide allowance) registered exception with dedicated tests proving
+it cannot silently widen — implemented exactly as specified
+(`tests/test_dev_app_import_closure.py`, 10 tests, including 4 against
+synthetic fixtures proving the exception rejects a different importer, a
+different symbol set, and any direct disallowed dependency). Classified as
+deferred development-runtime debt for a later, deliberate revisit — not
+permanent architecture, not arbitrarily assigned to Phase 11.
+
+**Telemetry**: `farming/telemetry.py` → `devtools/telemetry/
+observation_telemetry.py` (confirmed a clean leaf before moving — no
+`farming/__init__.py` re-export, exactly 2 consumers). All 19 pre-existing
+tests pass unmodified in behavior; every documented control-incapability
+safety property re-verified at the new location; not merged with
+`recorder/session.py` or `legacy/manifest_compat.py`; schema unchanged.
+
+**Native/archive/calibration tools**: moved into `devtools/{native,
+archives,calibration}/` with mechanical `parents[1]`→`parents[2]` sys.path
+bootstrap fixes where needed (verified empirically, each broke then was
+fixed). `tools/friend_pointer_recovery_test.py` deliberately NOT moved —
+its own PyInstaller spec hardcodes its `tools/` path, and moving it would
+silently break that packaging. Calibration DATA/output files never moved
+(all remain at the repository root, bytes unchanged) — see the one
+caught-and-reverted incident below.
+
+**Incident, caught before any commit**: verifying
+`devtools/calibration/calibration_holdout_validation.py` by direct
+invocation ran it to completion (no `--help` mode), which rewrote
+`calibration_holdout_ramp_results.csv`/`calibration_holdout_step_results.csv`
+as a normal side effect. Caught via `git status`, reverted with `git
+checkout --` before staging, confirmed byte-identical to HEAD afterward.
+Neither file appears in any Phase-10 commit.
+
+**Session/process orchestration**: `devtools/session_context.py` resolves
+the repository root and existing canonical subdirectories (nothing
+relocated), independent of caller cwd. `devtools/processes.py`'s
+`SpecialistCommand` registry (16 real, tracked entrypoints) resolves via
+`Path.is_file()` only, never `importlib`; `SpecialistProcessManager`
+launches via `subprocess.Popen` with explicit argv/cwd/env (no
+`PYTHONPATH` injection), reuses `RuntimeBus`'s existing bounded-log
+architecture for status (not duplicated), and supports PID/exit tracking
+plus terminate/kill. `WorkerManager` (thread-based, tied to the live
+capture/control pipeline) was evaluated and found unsuitable for
+subprocess lifecycle.
+
+**Read-only artifact view**: `devtools/artifact_inventory.py` — a thin
+reader over `recordings/INDEX.json`/`recording_provenance.json`/the frozen
+`docs/migration/CHECKPOINT_INVENTORY.tsv` (313 rows, presented exactly as
+frozen). Proven read-only by an AST write-call scan and a before/after
+hash check on the frozen TSV.
+
+**GUI wiring deliberately deferred**: `Gui.py` is an 86KB, untested,
+single-window PySimpleGUI event loop with no way to visually verify
+behavior in this environment; blind-editing its live control flow was
+judged higher-risk than the rest of Phase 10's fully test-verified work.
+The Python-level capability (`devtools.processes`,
+`devtools.artifact_inventory`) is complete and ready to wire in; only the
+literal GUI layout/event integration is deferred, with a concrete
+completion design recorded in `PHASE10_REPORT.md` section 12.
+
+**Gates**: ruler `ok=true` (`R6=0 R7a=0 R7b=0 R7c=204` unchanged `R9=0
+R10=0`) — the two new R7c findings are pure path translations, recorded
+in `docs/migration/POST_PHASE10_R7C_SUPPLEMENT.tsv`. 0051200 checkpoint
+exact. `navigation/*`/`simulator/split_branch_policy.py` zero-diff since
+Phase-9-hardening HEAD; Phase-9 pickle shims unmoved and proven absent
+from the dev-app closure. `docs/migration/tests/`: 76 passed, 0 failed.
+Full `tests/` suite: no new failure beyond the accepted 4-failure
+baseline (final count confirmed in `PHASE10_REPORT.md`).
+
+`current_phase` advanced to `10`. Worktree clean, index empty, branch
+unpushed, no upstream, not on origin.
+
+No FlyFF launch, no training, no recording, no G5, no G5-P2, no
+`apps/live_bot.py`, no PyInstaller live-bot packaging, no farming-runtime
+redesign, no IPC/RPC introduced.
+
+Read `PHASE10_REPORT.md` for the full audit, move manifest, R1b exception
+account, and gate results. Exact next action: STOP. Do not begin Phase 11
+without separate coordinator authorization.
+
+**REPOSITORY/PHASE 10: COMPLETE** (with two documented, evidenced
+partial-completion items — the R1b exact exception and the deferred GUI
+wiring — both explicitly reasoned, not silent gaps).
+**PHASE 11 SAFE TO CONSIDER: YES** — readiness only.
+**PHASE 11 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**

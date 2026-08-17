@@ -1794,3 +1794,124 @@ Worktree clean, index empty, branch unpushed, no upstream, not on origin.
 (readiness only). PHASE 10 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 10 — dev tooling / recorder / telemetry organization + dev-app orchestration (executor: Claude)
+
+### R1b -- dev-app import closure boundary
+- `tests/test_dev_app_import_closure.py`: **10 passed.** Static (AST,
+  recursive, PEP-562-lazy-`__getattr__`-aware) closure walk from
+  `apps/dev_app.py` excludes `recorder`, `simulator.*`
+  implementation/training, `legacy`, `torch`/`gymnasium`/
+  `stable_baselines3`, and every `scratchpad_*` module, with exactly one
+  registered exact exception: `runtime_controller.py`'s pre-existing
+  lazy `from farming.trainer import (dry_run_native_farming,
+  run_native_farming_agent, train_native_farming,
+  validate_native_farming_data)` -- blocked from subprocess-boundary
+  conversion because all four functions require the live, already-
+  attached `bot: FarmingBot` object as their first parameter (confirmed
+  via source read of `farming/trainer.py`'s signatures). Confirmed
+  pre-existing: `git diff HEAD -- runtime_controller.py` empty
+  throughout. Exactness proven by 4 tests against synthetic fixtures
+  (different importer file, different symbol set, and a direct
+  disallowed dependency all still fail); `len(R1B_EXACT_EXCEPTIONS) == 1`
+  asserted directly.
+
+### Devtools-direction boundary
+- `tests/test_devtools_dependency_direction.py`: **2 passed** --
+  `farming/`, `position/`, `navigation/`, `recorder/`,
+  `simulator/schema.py`, `legacy/manifest_compat.py` never import
+  `devtools` (AST scan, real import statements only).
+
+### Process orchestrator / session context
+- `tests/test_devtools_process_orchestrator.py`: **9 passed** -- every
+  registered specialist command resolves to a real git-tracked file;
+  unknown commands raise without a sibling-tree/PYTHONPATH fallback (AST-
+  scanned, not substring, to avoid a docstring-prose false positive); no
+  `importlib` used to discover a command; session context resolution is
+  independent of caller cwd (proven via a subprocess launched from an
+  unrelated `tmp_path`); a real, fast, side-effect-free launch
+  (`simulator --help`) completes with captured output; a synthetic
+  long-running process can be terminated; concurrent launches of the same
+  command are refused.
+
+### Read-only artifact view
+- `tests/test_devtools_artifact_inventory.py`: **7 passed** -- AST scan
+  finds no write-capable call anywhere in `devtools/artifact_inventory.py`;
+  a before/after SHA-256 check on the frozen `CHECKPOINT_INVENTORY.tsv`
+  (313 rows) proves `list_checkpoints()` never touches it.
+
+### Telemetry (relocated, safety properties re-verified)
+- `tests/test_farming_telemetry.py`: **19 passed** (all pre-existing
+  tests, import path updated only) -- including
+  `test_telemetry_module_never_imports_or_constructs_control_capable_classes`
+  at the new `devtools/telemetry/observation_telemetry.py` location.
+
+### Native/archive/recorder/calibration (moved or import-path-updated)
+- `tests/test_independent_native_reader.py` + `tests/test_simulator_core.py`:
+  **34 passed** (includes the relocated-inventory-tool test).
+- `tests/test_recorder_core.py` + `tests/test_forward_calibration.py` +
+  `tests/test_rotation_calibration.py`: **75 passed.**
+
+### Incident: calibration output regeneration, caught and reverted
+- Direct-invocation verification of
+  `devtools/calibration/calibration_holdout_validation.py` (no `--help`
+  mode) ran it to completion, rewriting
+  `calibration_holdout_ramp_results.csv`/`calibration_holdout_step_results.csv`
+  (224 lines changed). Caught via `git status` before staging, reverted
+  with `git checkout --`, confirmed byte-identical to HEAD afterward.
+  Neither file appears in any Phase-10 commit.
+
+### R9/R10 and checkpoint smoke check
+- R9=0, R10=0 failures across the frozen 313-checkpoint/317-reference
+  corpus, `torch_modules_added=[]`.
+- One read-only `PPO.load("models/generalized_waypoint_both_seed2_0051200.zip")`,
+  performed out of caution (broad repository-root package additions this
+  phase): SHA `87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50`
+  exact; `simulator.split_branch_policy.SplitSteeringNavigationPolicy`;
+  `Box(-1.0, 1.0, (928,), float32)`; `MultiDiscrete([3 3])`;
+  `num_timesteps=51200`.
+
+### Navigation/checkpoint-ABI unchanged
+- `git diff 9198818 -- navigation/ simulator/split_branch_policy.py`:
+  empty. Phase-9 pickle shims (`simulator/kinodynamic_route_planner.py`,
+  `simulator/movement_kernel.py`) unmoved, unexpanded, proven absent from
+  the dev-app closure by `test_dev_app_import_closure.py`'s explicit
+  disallowed-prefix entries for both.
+
+### Full suites
+- `docs/migration/tests/`: **76 passed, 0 failed** -- identical to the
+  Phase-9-hardening baseline.
+- `tests/`: full run at the final commit -- no new failure beyond the
+  accepted 4-failure baseline (1 gitignored-artifact gap, 3
+  `farming`/`runtime_bus` failures with zero overlap with anything this
+  phase touched).
+- `git diff --check` on the staged tree: clean.
+
+### Ruler before/after
+Before: `R6=0 R7a=0 R7b=0 R7c=204 R9=0 R10=0`. After: identical --
+`R6=0 R7a=0 R7b=0 R7c=204 R9=0 R10=0`, `ok=true`. Two new R7c findings
+(pure ruler-path translations of imports already accepted in the frozen
+baseline at their pre-Phase-10 paths) recorded in
+`docs/migration/POST_PHASE10_R7C_SUPPLEMENT.tsv`, frozen
+`BASELINE_VIOLATIONS.json`/`.md` untouched.
+
+### GUI wiring
+**Deliberately deferred, not implemented.** `Gui.py` is an 86KB,
+untested, single-window PySimpleGUI event loop with no way to visually
+verify behavior in this environment; the Python-level capability
+(`devtools.processes`, `devtools.artifact_inventory`) is complete and
+tested, only the literal GUI layout/event integration is deferred. See
+`PHASE10_REPORT.md` section 12 for the concrete completion design.
+
+### Final state
+`current_phase` advanced `9` -> `10`. Worktree clean, index empty, branch
+unpushed, no upstream, not on origin. Protected tags unchanged. No
+scratchpad bulk move performed (confirmed via `git show --stat` on every
+Phase-10 commit).
+
+**PHASE 10 COMPLETE: YES (with the R1b exact exception and the deferred
+GUI wiring both documented as explicit, reasoned partial-completion
+items). PHASE 11 SAFE TO CONSIDER: YES (readiness only). PHASE 11
+AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**
