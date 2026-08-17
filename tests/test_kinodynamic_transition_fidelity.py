@@ -31,8 +31,8 @@ from __future__ import annotations
 
 import math
 
-from simulator.kinodynamic_route_planner import KinoState, _normalize_angle, _successor_state, bin_to_heading, heading_to_bin
-from simulator.movement_kernel import (
+from navigation.kinodynamic_route_planner import KinoState, _normalize_angle, _successor_state, bin_to_heading, heading_to_bin
+from navigation.movement_kernel import (
     ONSET_TURN_RADIANS, PATH_LENGTH_CELLS_PER_TICK, STEADY_TURN_RADIANS, SteeringDirection, resolve_signed_turn_radians,
 )
 

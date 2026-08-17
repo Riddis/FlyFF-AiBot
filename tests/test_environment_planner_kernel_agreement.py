@@ -42,10 +42,10 @@ import math
 import numpy as np
 
 from farming.actions import FarmingAction
+from navigation.kinodynamic_route_planner import KinoState, _arc_edge_check, _successor_state
+from navigation.movement_kernel import SteeringDirection
 from simulator.environment import RecordedFarmingEnv, _STEERING_DIRECTION_BY_ACTION
-from simulator.kinodynamic_route_planner import KinoState, _arc_edge_check, _successor_state
 from simulator.map_model import MapModel
-from simulator.movement_kernel import SteeringDirection
 from simulator.world_model import MovementModel, RecordedWorldModel
 
 SIZE = 41
@@ -205,7 +205,7 @@ class TestContactAgreementOnObstacleFixtures:
         """Wall placed directly on the LEFT arc's own swept path (computed
         via the same arc math, not guessed), close enough that a genuine
         collision is unambiguous on both sides."""
-        from simulator.movement_kernel import ONSET_TURN_RADIANS, PATH_LENGTH_CELLS_PER_TICK, arc_endpoint_local
+        from navigation.movement_kernel import ONSET_TURN_RADIANS, PATH_LENGTH_CELLS_PER_TICK, arc_endpoint_local
 
         forward_end, lateral_end = arc_endpoint_local(PATH_LENGTH_CELLS_PER_TICK, ONSET_TURN_RADIANS)
         map_model_arr = np.ones((SIZE, SIZE), dtype=bool)

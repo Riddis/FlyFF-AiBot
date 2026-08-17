@@ -13,13 +13,11 @@ import pytest
 from simulator.environment import RecordedFarmingEnv
 from simulator.navigation_history import NavigationHistoryWrapper
 from simulator.router_waypoint_env import ObstacleEpisodeSpec, RouterMixedWaypointWrapper
-from simulator.single_obstacle_env import ObstacleSpec
 from simulator.static_waypoint_env import (
     COLLISION_TERMINAL_REWARD, FIXED_HEADING, SUCCESS_TERMINAL_REWARD, StaticWaypointWrapper, WaypointSpec,
     build_open_world,
 )
-
-from scratchpad_general_router_episode import build_multi_wall_world
+from tests.helpers.router_qualification_harness import build_multi_wall_world
 
 LIVING_COST = 0.0441  # same cited constant the wrapper itself uses
 EPISODE_STEPS_BY_MODE = {"open": 100, "single_wall": 200, "two_wall": 200}

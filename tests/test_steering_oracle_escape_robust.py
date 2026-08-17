@@ -28,8 +28,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from farming.actions import SteeringAction
+from navigation.movement_kernel import STEADY_TURN_RADIANS, AdvanceResult, SteeringDirection
 from simulator import steering_oracle as so
-from simulator.movement_kernel import STEADY_TURN_RADIANS, AdvanceResult, SteeringDirection
 
 STRAIGHT_DISTANCE = 1.9
 # Matches the real kernel's STEADY_TURN_RADIANS exactly (not an arbitrary

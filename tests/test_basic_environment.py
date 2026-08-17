@@ -4,10 +4,11 @@ from pathlib import Path
 
 import numpy as np
 
+from navigation.navigation_evidence import POLICY_INPUT_SIZE
 from simulator.basic_environment import collect_basic_dagger_dataset, save_basic_dagger_dataset
 from simulator.basic_training import build_fresh_basic_policy
 from simulator.navigation_dataset import CATEGORY_PRECEDENCE, MiningConfig
-from simulator.navigation_history import POLICY_INPUT_SIZE, NavigationHistoryWrapper
+from simulator.navigation_history import NavigationHistoryWrapper
 from simulator.synthetic import generate_curriculum_from_plan, iter_variant_environments
 
 

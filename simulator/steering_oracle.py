@@ -99,9 +99,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from farming.actions import FarmingAction, SteeringAction
+from navigation.movement_kernel import SteeringDirection, STEADY_TURN_RADIANS, advance_player_tick
 
 from .local_clearance import sample_heading_relative_clearance
-from .movement_kernel import SteeringDirection, STEADY_TURN_RADIANS, advance_player_tick
 
 _CANDIDATES: tuple[SteeringAction, ...] = (SteeringAction.STRAIGHT, SteeringAction.LEFT, SteeringAction.RIGHT)
 

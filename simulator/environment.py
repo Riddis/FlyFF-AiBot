@@ -25,10 +25,11 @@ from farming.observation import (
 )
 from farming.session import SessionOutcome
 
-from . import movement_kinematics
+from navigation import movement_kinematics
+from navigation.movement_kernel import SteeringDirection, advance_player_tick
+
 from .local_clearance import sample_heading_relative_clearance
 from .map_model import MapModel
-from .movement_kernel import SteeringDirection, advance_player_tick
 from .reward_model import (
     SimulatorRewardCalculator,
     SimulatorRewardComponents,

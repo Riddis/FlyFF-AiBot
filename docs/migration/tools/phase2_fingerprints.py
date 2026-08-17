@@ -78,7 +78,7 @@ out["POLICY_ACTION_NVECS"] = list(POLICY_ACTION_NVECS)
 out["ACTION_ENUM_LENGTHS"] = [len(SteeringAction), len(FarmingEvent)]
 out["MODEL_CONTRACT_METADATA_VERSION"] = int(MODEL_CONTRACT_METADATA_VERSION)
 try:
-    from simulator.navigation_history import (
+    from navigation.navigation_evidence import (
         RAW_OBSERVATION_SIZE, SIDECAR_SIZE, POLICY_INPUT_SIZE,
         TEMPORAL_SIDECAR_SIZE, PREVIOUS_STEERING_SIDECAR_SIZE,
     )
@@ -90,7 +90,7 @@ try:
 except Exception:
     pass
 try:
-    from simulator.movement_kernel import (
+    from navigation.movement_kernel import (
         MOVEMENT_PHYSICS_MODEL_ID, LEGACY_MOVEMENT_PHYSICS_MODEL_ID,
         PATH_LENGTH_CELLS_PER_TICK, ONSET_TURN_RADIANS, STEADY_TURN_RADIANS,
         DEFAULT_SUBSTEPS,

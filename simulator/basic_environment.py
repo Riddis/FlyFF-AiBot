@@ -80,7 +80,9 @@ from .navigation_dataset import (
     _classify_tick,
     _group_into_events,
 )
-from .navigation_history import POLICY_INPUT_SIZE, NavigationHistoryWrapper
+from navigation.navigation_evidence import POLICY_INPUT_SIZE
+
+from .navigation_history import NavigationHistoryWrapper
 from .progress_reporting import ProgressPrinter
 from .recovery_controller import RecoveryController
 from .scripted_policies import scripted_command

@@ -15,10 +15,11 @@ from simulator.basic_training import (
     canonical_checkpoint_name,
     collect_simulator_teacher_dataset,
 )
+from navigation.movement_kernel import SteeringDirection
+from navigation.navigation_evidence import POLICY_INPUT_SIZE
 from simulator.demonstrations import export_demonstrations
 from simulator.map_model import MapModel
-from simulator.movement_kernel import SteeringDirection
-from simulator.navigation_history import POLICY_INPUT_SIZE, NavigationHistoryWrapper
+from simulator.navigation_history import NavigationHistoryWrapper
 from simulator.synthetic import generate_curriculum_from_plan, iter_variant_environments
 from tests.test_simulator_core import _synthetic_recording
 
@@ -86,7 +87,7 @@ def test_sidecar_values_from_history_reflects_real_displacement_when_not_eva_exc
     """Unit-level check of the actual sidecar math (decoupled from any one
     fixture's specific EVA placement): real, non-EVA displacement must
     change recent_progress."""
-    from simulator.navigation_history import NavigationStepEvidence, sidecar_values_from_history
+    from navigation.navigation_evidence import NavigationStepEvidence, sidecar_values_from_history
 
     history = [
         NavigationStepEvidence(displacement_cells=1.79, contact=False, eva_attempted=False),

@@ -48,7 +48,8 @@ from typing import Any, Callable, Literal
 import gymnasium as gym
 import numpy as np
 
-from .kinodynamic_route_planner import TargetPersistenceController, plan_route, select_persistent_waypoint
+from navigation.kinodynamic_route_planner import TargetPersistenceController, plan_route, select_persistent_waypoint
+
 from .map_model import MapModel
 from .single_obstacle_env import MAP_HALF_SIZE_CELLS, ObstacleSpec
 from .static_waypoint_env import (

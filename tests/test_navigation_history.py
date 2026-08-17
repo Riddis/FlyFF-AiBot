@@ -4,12 +4,12 @@ import gymnasium as gym
 import numpy as np
 
 from farming.actions import FarmingEvent, SteeringAction
-from simulator.movement_kernel import SteeringDirection
-from simulator.navigation_history import (
+from navigation.movement_kernel import SteeringDirection
+from navigation.navigation_evidence import (
     POLICY_INPUT_SIZE,
     RAW_OBSERVATION_SIZE,
-    NavigationHistoryWrapper,
 )
+from simulator.navigation_history import NavigationHistoryWrapper
 
 # Sidecar layout, as shipped: [recent_progress, recent_contact, prev_straight, prev_left, prev_right].
 _PROGRESS_OFFSET = RAW_OBSERVATION_SIZE

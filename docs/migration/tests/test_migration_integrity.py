@@ -583,15 +583,26 @@ def test_actual_supplement_covers_exactly_the_three_post_phase7_r7c_edges() -> N
     }
 
 
+def _all_supplement_keys() -> set[str]:
+    rows = [row for relative in integrity.DEFAULT_SUPPLEMENTS for row in integrity.load_supplement(REPO / relative)]
+    return integrity.supplement_keys(rows)
+
+
+def test_actual_supplement_covers_exactly_the_35_post_phase9_r7c_edges() -> None:
+    rows = integrity.load_supplement(REPO / "docs/migration/POST_PHASE9_R7C_SUPPLEMENT.tsv")
+    assert len(rows) == 35
+    keys = integrity.supplement_keys(rows)
+    assert all(key.startswith("R7c|") for key in keys)
+    assert all("navigation" in key for key in keys)
+
+
 def test_actual_repository_integrity_gate_is_green_via_frozen_baseline_plus_supplement() -> None:
     payload, errors = integrity.check(REPO)
     assert errors == [], json.dumps(payload, indent=2, sort_keys=True)
-    assert payload["baseline_counts"] == {"R6": 0, "R7a": 0, "R7b": 0, "R7c": 171}
+    assert payload["baseline_counts"] == {"R6": 0, "R7a": 0, "R7b": 0, "R7c": 204}
     assert payload["r9_violations"] == 0
     assert payload["r10_failures"] == []
-    assert set(payload["supplement_entries_applied"]) == integrity.supplement_keys(
-        integrity.load_supplement(REPO / integrity.DEFAULT_SUPPLEMENT)
-    )
+    assert set(payload["supplement_entries_applied"]) == _all_supplement_keys()
     # An unrelated fourth new R7c entry must still fail: verified by
     # constructing one extra finding not present in either the frozen
     # baseline or the supplement, and confirming it alone ratchets.
@@ -599,7 +610,7 @@ def test_actual_repository_integrity_gate_is_green_via_frozen_baseline_plus_supp
         "R7c", "NotARealSymbol", "not_a_real_file.py", "reexport_from=nowhere:NotARealSymbol",
     )
     result = integrity.collect(REPO, integrity.load_registry(REPO))
-    supplement = integrity.supplement_keys(integrity.load_supplement(REPO / integrity.DEFAULT_SUPPLEMENT))
+    supplement = _all_supplement_keys()
     ratchet, _resolved = integrity.ratchet_errors(
         [*result["findings"], bogus],
         integrity.load_baseline(REPO / integrity.DEFAULT_BASELINE),

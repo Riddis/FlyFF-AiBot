@@ -41,7 +41,7 @@ from .local_navigation_features import (
     CLEARANCE_FEATURE_SIZE,
     derive_physical_clearance_features_torch,
 )
-from .navigation_history import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE, SIDECAR_SIZE
+from navigation.navigation_evidence import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE, SIDECAR_SIZE
 
 
 def derive_geometry_features_torch(observations: torch.Tensor) -> torch.Tensor:

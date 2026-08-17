@@ -47,8 +47,10 @@ import numpy as np
 import torch
 
 from farming.actions import FarmingEvent
+from navigation.navigation_evidence import POLICY_INPUT_SIZE
+
 from .local_navigation_features import derive_physical_clearance_features
-from .navigation_history import POLICY_INPUT_SIZE, NavigationHistoryWrapper
+from .navigation_history import NavigationHistoryWrapper
 from .scripted_policies import scripted_command
 from .synthetic import iter_variant_environments
 

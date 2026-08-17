@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from simulator.movement_kernel import MOVEMENT_PHYSICS_MODEL_ID
-from simulator.navigation_history import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE
+from navigation.movement_kernel import MOVEMENT_PHYSICS_MODEL_ID
+from navigation.navigation_evidence import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE
 from simulator.run_provenance import build_run_manifest, capture_git_state, write_run_manifest
 
 

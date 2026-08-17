@@ -7,8 +7,8 @@ import torch
 from gymnasium import spaces
 from stable_baselines3.common.utils import get_schedule_fn
 
+from navigation.navigation_evidence import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE, SIDECAR_SIZE
 from simulator.factorized_v193_training import fine_tune_steering_branch_v193
-from simulator.navigation_history import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE, SIDECAR_SIZE
 from simulator.split_branch_policy import SplitSteeringNavigationPolicy
 from simulator.synthetic import iter_variant_environments
 

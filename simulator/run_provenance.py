@@ -72,8 +72,8 @@ def build_run_manifest(
     every later stage that legitimately continues from one.
     """
 
-    from .movement_kernel import MOVEMENT_PHYSICS_MODEL_ID
-    from .navigation_history import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE, STEERING_POLICY_INPUT_SCHEMA_ID
+    from navigation.movement_kernel import MOVEMENT_PHYSICS_MODEL_ID
+    from navigation.navigation_evidence import POLICY_INPUT_SIZE, RAW_OBSERVATION_SIZE, STEERING_POLICY_INPUT_SCHEMA_ID
 
     default_contract = {
         "raw_observation_schema_id": "923-value production observation contract",

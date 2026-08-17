@@ -19,8 +19,9 @@ from typing import Any
 
 import numpy as np
 
+from navigation.navigation_evidence import CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT, CALIBRATED_HISTORY_WINDOW
+
 from .basic_environment import _roll_basic_episode
-from .navigation_history import CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT, CALIBRATED_HISTORY_WINDOW
 from .progress_reporting import ProgressPrinter
 
 

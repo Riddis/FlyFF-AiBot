@@ -9,11 +9,11 @@ import math
 
 import numpy as np
 
-from simulator.map_model import MapModel
-from simulator.movement_kernel import (
+from navigation.movement_kernel import (
     DEFAULT_SUBSTEPS, ONSET_TURN_RADIANS, PATH_LENGTH_CELLS_PER_TICK, STEADY_TURN_RADIANS,
     SteeringDirection, advance_player_tick, arc_endpoint_local, arc_endpoint_world, resolve_signed_turn_radians,
 )
+from simulator.map_model import MapModel
 
 SIZE = 121
 CENTER = SIZE // 2

@@ -51,8 +51,8 @@ from .factorized_v193_training import (
     _sqrt_inverse_class_weights,
     _train_natural_prior_epoch,
 )
-from .movement_kernel import SteeringDirection
-from .navigation_history import (
+from navigation.movement_kernel import SteeringDirection
+from navigation.navigation_evidence import (
     CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT,
     CALIBRATED_HISTORY_WINDOW,
     POLICY_INPUT_SIZE,
@@ -61,6 +61,7 @@ from .navigation_history import (
     NavigationStepEvidence,
     sidecar_values_from_history,
 )
+
 from .progress_reporting import ProgressPrinter
 from .split_branch_policy import STEERING_NAVIGATION_FEATURE_SIZE
 

@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from simulator.kinodynamic_route_planner import ARC_SAMPLES_PER_EDGE, KinoState, _arc_edge_check, _arc_sample_points, _segment_clear
+from navigation.kinodynamic_route_planner import ARC_SAMPLES_PER_EDGE, KinoState, _arc_edge_check, _arc_sample_points, _segment_clear
+from navigation.movement_kernel import ONSET_TURN_RADIANS, PATH_LENGTH_CELLS_PER_TICK, SteeringDirection, arc_endpoint_local
 from simulator.map_model import MapModel
-from simulator.movement_kernel import ONSET_TURN_RADIANS, PATH_LENGTH_CELLS_PER_TICK, SteeringDirection, arc_endpoint_local
 
 SIZE = 61
 CENTER = SIZE // 2

@@ -153,12 +153,35 @@ resolution_phase = "PHASE_5"
 id = "qualified_persistent_waypoint_selector"
 rule = "R7a"
 symbols = ["select_persistent_waypoint"]
-current_owners = ["simulator/kinodynamic_route_planner.py"]
-target_owner = "future shared production navigation owner after validated closure preservation"
-status = "green-current-single-owner"
+current_owners = ["navigation/kinodynamic_route_planner.py"]
+target_owner = "navigation/kinodynamic_route_planner.py"
+status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "LATER_NAVIGATION_PHASE"
+resolution_phase = "PHASE_9"
+
+[[concept]]
+id = "shared_movement_kernel"
+rule = "R7a"
+symbols = ["SteeringDirection", "AdvanceResult", "advance_player_tick", "resolve_signed_turn_radians"]
+current_owners = ["navigation/movement_kernel.py"]
+target_owner = "navigation/movement_kernel.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+resolution_phase = "PHASE_9"
+note = "AdvanceResult's runtime __module__ is explicitly pinned to simulator.movement_kernel for frozen G8c fixture compatibility (docs/migration/PHASE9_NAVIGATION_OWNER_ANALYSIS.md section 2); the AST-level source definition -- what R7a tracks -- is here, in navigation/movement_kernel.py, unaffected by that runtime override."
+
+[[concept]]
+id = "shared_navigation_evidence"
+rule = "R7a"
+symbols = ["NavigationStepEvidence", "sidecar_values_from_history", "previous_steering_one_hot"]
+current_owners = ["navigation/navigation_evidence.py"]
+target_owner = "navigation/navigation_evidence.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+resolution_phase = "PHASE_9"
 
 [[concept]]
 id = "serialized_split_policy_api"

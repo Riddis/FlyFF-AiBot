@@ -10,7 +10,7 @@ from simulator.navigation_dataset import (
     _group_into_events,
     mine_navigation_dataset,
 )
-from simulator.navigation_history import POLICY_INPUT_SIZE
+from navigation.navigation_evidence import POLICY_INPUT_SIZE
 
 _DUMMY_OBS = np.zeros((POLICY_INPUT_SIZE,), dtype=np.float32)
 

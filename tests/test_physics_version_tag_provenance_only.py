@@ -36,14 +36,14 @@ import math
 import numpy as np
 
 from farming.actions import FarmingAction
-from simulator.environment import RecordedFarmingEnv
-from simulator.map_model import MapModel
-from simulator.movement_kernel import (
+from navigation.movement_kernel import (
     LEGACY_MOVEMENT_PHYSICS_MODEL_ID,
     MOVEMENT_PHYSICS_MODEL_ID,
     SteeringDirection,
     advance_player_tick,
 )
+from simulator.environment import RecordedFarmingEnv
+from simulator.map_model import MapModel
 from simulator.world_model import MovementModel, RecordedWorldModel
 
 SIZE = 61

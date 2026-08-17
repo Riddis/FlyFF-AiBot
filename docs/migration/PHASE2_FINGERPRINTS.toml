@@ -62,21 +62,21 @@ also_requires = "POLICY_ACTION_NVECS == (len(SteeringAction), len(FarmingEvent))
 value = 5
 kind = "int"
 symbol = "SIDECAR_SIZE"
-owners = ["simulator/navigation_history.py"]
+owners = ["navigation/navigation_evidence.py"]
 also_requires = "SIDECAR_SIZE == TEMPORAL_SIDECAR_SIZE + PREVIOUS_STEERING_SIDECAR_SIZE == 2 + 3"
 
 [g4.policy_input_size]
 value = 928
 kind = "int"
 symbol = "POLICY_INPUT_SIZE"
-owners = ["simulator/navigation_history.py"]
+owners = ["navigation/navigation_evidence.py"]
 also_requires = "POLICY_INPUT_SIZE == RAW_OBSERVATION_SIZE + SIDECAR_SIZE == 923 + 5"
 
 [g4.raw_observation_size]
 value = 923
 kind = "int"
 symbol = "RAW_OBSERVATION_SIZE"
-owners = ["simulator/navigation_history.py"]
+owners = ["navigation/navigation_evidence.py"]
 
 [g4.model_contract_metadata_version]
 value = 2
@@ -99,7 +99,7 @@ owners = [
 value = "live_calibrated_arc"
 kind = "string"
 symbol = "MOVEMENT_PHYSICS_MODEL_ID"
-owners = ["simulator/movement_kernel.py"]
+owners = ["navigation/movement_kernel.py"]
 plan_name = "PHYSICS_VERSION"
 name_resolution = "No symbol literally named PHYSICS_VERSION exists; MOVEMENT_PHYSICS_MODEL_ID is the authoritative physics-model version tag in movement_kernel.py."
 
@@ -107,13 +107,13 @@ name_resolution = "No symbol literally named PHYSICS_VERSION exists; MOVEMENT_PH
 value = "legacy_recorded_iid"
 kind = "string"
 symbol = "LEGACY_MOVEMENT_PHYSICS_MODEL_ID"
-owners = ["simulator/movement_kernel.py"]
+owners = ["navigation/movement_kernel.py"]
 
 # The calibrated kinematic constants the version tag names. Frozen alongside the
 # tag so a silent constant change cannot hide behind an unchanged tag string.
 [g4.physics_constants]
 kind = "float_map"
-owners = ["simulator/movement_kernel.py"]
+owners = ["navigation/movement_kernel.py"]
 PATH_LENGTH_CELLS_PER_TICK = 2.738491
 ONSET_TURN_RADIANS = 0.792978
 STEADY_TURN_RADIANS = 0.873649

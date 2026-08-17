@@ -37,6 +37,14 @@ DEFAULT_BASELINE = "docs/migration/BASELINE_VIOLATIONS.json"
 DEFAULT_BASELINE_MD = "docs/migration/BASELINE_VIOLATIONS.md"
 DEFAULT_D1 = "docs/migration/DUPLICATE_CONTENT_REPORT.tsv"
 DEFAULT_SUPPLEMENT = "docs/migration/POST_PHASE7_R7C_SUPPLEMENT.tsv"
+# Each later phase that legitimately grows R7c (through ownership/path
+# translation, never new coupling) gets its own separate, phase-labeled
+# supplement file rather than appending to an earlier phase's -- keeps each
+# phase's forward evidence independently attributable and reviewable.
+DEFAULT_SUPPLEMENTS = (
+    DEFAULT_SUPPLEMENT,
+    "docs/migration/POST_PHASE9_R7C_SUPPLEMENT.tsv",
+)
 PHASE7_MOVE_MANIFEST = "docs/migration/PHASE7_MOVE_MANIFEST.tsv"
 BRIDGE_BEGIN = "<!-- bridge-registry:begin -->"
 BRIDGE_END = "<!-- bridge-registry:end -->"
@@ -882,7 +890,7 @@ def summary(result: dict[str, Any], *, d1_rows: Sequence[dict[str, str]] | None 
 
 def check(repo: Path) -> tuple[dict[str, Any], list[str]]:
     result = collect(repo, load_registry(repo))
-    supplement_rows = load_supplement(repo / DEFAULT_SUPPLEMENT)
+    supplement_rows = [row for relative in DEFAULT_SUPPLEMENTS for row in load_supplement(repo / relative)]
     supplement = supplement_keys(supplement_rows)
     ratchet, resolved = ratchet_errors(
         result["findings"],

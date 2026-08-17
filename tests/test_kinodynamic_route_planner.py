@@ -18,13 +18,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from simulator.kinodynamic_route_planner import (
+from navigation.kinodynamic_route_planner import (
     DESIRED_CLEARANCE_CELLS, _STEERING_NAMES, _direct_hop_min_clearance, _normalize_angle,
     _segment_clear, annotate_route_edges, bin_to_heading, plan_route, select_persistent_waypoint,
     select_persistent_waypoint_experimental_collision_free_fallback,
 )
+from navigation.movement_kernel import SteeringDirection, resolve_signed_turn_radians
 from simulator.map_model import MapModel
-from simulator.movement_kernel import SteeringDirection, resolve_signed_turn_radians
 
 SIZE = 61
 CENTER = SIZE // 2
@@ -379,7 +379,7 @@ class TestGeneralRouterDefaultsToPersistenceController:
 
     def _single_wall_world(self):
         from simulator.single_obstacle_env import ObstacleSpec
-        from scratchpad_general_router_episode import build_multi_wall_world
+        from tests.helpers.router_qualification_harness import build_multi_wall_world
 
         spec = ObstacleSpec(
             gap_side="right", distance_cells=30.0, wall_offset_cells=10,
@@ -395,7 +395,7 @@ class TestGeneralRouterDefaultsToPersistenceController:
         return PPO.load(str(checkpoint), device="cpu")
 
     def test_default_call_instantiates_and_uses_persistence_controller(self):
-        from scratchpad_general_router_episode import run_episode_general_router
+        from tests.helpers.router_qualification_harness import run_episode_general_router
         from simulator.static_waypoint_env import FIXED_HEADING
         from simulator.single_obstacle_env import MAP_HALF_SIZE_CELLS
 
@@ -419,7 +419,7 @@ class TestGeneralRouterDefaultsToPersistenceController:
         assert sum(result.switch_reason_counts.values()) > 0
 
     def test_explicit_opt_out_still_uses_plain_stateless_selector(self):
-        from scratchpad_general_router_episode import run_episode_general_router
+        from tests.helpers.router_qualification_harness import run_episode_general_router
         from simulator.static_waypoint_env import FIXED_HEADING
         from simulator.single_obstacle_env import MAP_HALF_SIZE_CELLS
 
@@ -459,7 +459,7 @@ class TestGeneralRouterPreservesPreviousSteering:
             return np.array([int(SteeringDirection.LEFT), 0], dtype=np.int64), None
 
     def test_reaugmented_observation_reflects_real_previous_steering(self, monkeypatch):
-        from scratchpad_general_router_episode import build_multi_wall_world, run_episode_general_router
+        from tests.helpers.router_qualification_harness import build_multi_wall_world, run_episode_general_router
         from simulator.navigation_history import NavigationHistoryWrapper
         from simulator.static_waypoint_env import FIXED_HEADING
 
@@ -515,7 +515,7 @@ class TestGeneralRouterPathEfficiencyInstrumentation:
     qualified checkpoint."""
 
     def test_path_efficiency_populated_on_success_and_none_otherwise(self):
-        from scratchpad_general_router_episode import build_multi_wall_world, run_episode_general_router
+        from tests.helpers.router_qualification_harness import build_multi_wall_world, run_episode_general_router
         from simulator.static_waypoint_env import FIXED_HEADING
         from stable_baselines3 import PPO
 
@@ -544,7 +544,7 @@ class TestGeneralRouterPathEfficiencyInstrumentation:
         # A planner_failure_no_route_found result never enters the tick loop
         # at all -- path_efficiency must stay None (its dataclass default),
         # not be silently computed from a bogus/empty trajectory.
-        from scratchpad_general_router_episode import GeneralRouterEpisodeResult
+        from tests.helpers.router_qualification_harness import GeneralRouterEpisodeResult
 
         result = GeneralRouterEpisodeResult(
             outcome="planner_failure_no_route_found", ticks=0, contact_tick=None, route_found=False,
@@ -595,7 +595,7 @@ class TestCollisionFreeLowMarginFallback:
         directly by a debug run showing the "candidates" being probed were
         curved-arc sample points, not route nodes, once that leak was
         traced down."""
-        import simulator.kinodynamic_route_planner as kp
+        import navigation.kinodynamic_route_planner as kp
 
         map_model = _open_map()
         native = map_model.layout_to_native(CENTER, CENTER)
@@ -612,7 +612,7 @@ class TestCollisionFreeLowMarginFallback:
         return map_model, native, route
 
     def test_prefers_farther_equally_safe_candidate_over_a_segment_clear_false_any_fallback(self, monkeypatch):
-        import simulator.kinodynamic_route_planner as kp
+        import navigation.kinodynamic_route_planner as kp
 
         map_model, native, route = self._straight_route_with_generous_budget(monkeypatch)
         a_xz = (round(route[1].x, 3), round(route[1].z, 3))   # nearer, clearance 2.83, valid
@@ -647,7 +647,7 @@ class TestCollisionFreeLowMarginFallback:
         be lost (see that class's own docstring): a selector that stops
         returning SOME forward progress regresses navigation, it doesn't
         improve it."""
-        import simulator.kinodynamic_route_planner as kp
+        import navigation.kinodynamic_route_planner as kp
 
         map_model, native, route = self._straight_route_with_generous_budget(monkeypatch)
         monkeypatch.setattr(kp, "_direct_hop_min_clearance", lambda *a, **k: 1.0)
@@ -692,7 +692,7 @@ class TestProductionSelectorInvalidHopGuard:
         """Duplicated from TestCollisionFreeLowMarginFallback (same
         rationale documented there) -- kept self-contained per-class
         rather than sharing across classes for a single small helper."""
-        import simulator.kinodynamic_route_planner as kp
+        import navigation.kinodynamic_route_planner as kp
 
         map_model = _open_map()
         native = map_model.layout_to_native(CENTER, CENTER)
@@ -714,7 +714,7 @@ class TestProductionSelectorInvalidHopGuard:
         _segment_clear=True, v2 must return it UNCHANGED -- never
         substitute a nearer, higher-clearance alternative just because one
         exists. This is the guard's whole point."""
-        import simulator.kinodynamic_route_planner as kp
+        import navigation.kinodynamic_route_planner as kp
 
         map_model, native, route = self._straight_route_with_generous_budget(monkeypatch)
         nearer_xz = (round(route[1].x, 3), round(route[1].z, 3))
@@ -747,7 +747,7 @@ class TestProductionSelectorInvalidHopGuard:
         selection among the remaining candidates -- identical behavior to
         v1 in this specific scenario (the one v1 was actually right
         about)."""
-        import simulator.kinodynamic_route_planner as kp
+        import navigation.kinodynamic_route_planner as kp
 
         map_model, native, route = self._straight_route_with_generous_budget(monkeypatch)
         a_xz = (round(route[1].x, 3), round(route[1].z, 3))
@@ -778,7 +778,7 @@ class TestProductionSelectorInvalidHopGuard:
         candidate anywhere is _segment_clear, v2 must still return the
         old any_fallback (matching v1 and the original qualified selector)
         rather than returning None and losing forward progress entirely."""
-        import simulator.kinodynamic_route_planner as kp
+        import navigation.kinodynamic_route_planner as kp
 
         map_model, native, route = self._straight_route_with_generous_budget(monkeypatch)
         monkeypatch.setattr(kp, "_direct_hop_min_clearance", lambda *a, **k: 1.0)

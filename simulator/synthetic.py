@@ -8,10 +8,10 @@ from pathlib import Path
 from typing import Iterable
 
 import numpy as np
+from navigation.movement_kernel import MOVEMENT_PHYSICS_MODEL_ID, STEADY_TURN_RADIANS, SteeringDirection, advance_player_tick
 
 from .environment import RecordedFarmingEnv
 from .map_model import MapModel
-from .movement_kernel import MOVEMENT_PHYSICS_MODEL_ID, STEADY_TURN_RADIANS, SteeringDirection, advance_player_tick
 from .world_model import MovementModel, RecordedWorldModel
 
 try:  # Optional until training is requested.

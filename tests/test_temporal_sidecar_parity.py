@@ -31,14 +31,14 @@ import numpy as np
 import pytest
 
 from farming.actions import FarmingEvent, SteeringAction
-from simulator.basic_training import reconstruct_session_sidecars
-from simulator.navigation_history import (
+from navigation.navigation_evidence import (
     CALIBRATED_EXPECTED_CLEAR_PATH_DISPLACEMENT,
     CALIBRATED_HISTORY_WINDOW,
     POLICY_INPUT_SIZE,
     RAW_OBSERVATION_SIZE,
-    NavigationHistoryWrapper,
 )
+from simulator.basic_training import reconstruct_session_sidecars
+from simulator.navigation_history import NavigationHistoryWrapper
 
 try:
     import gymnasium as gym

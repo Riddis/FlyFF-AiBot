@@ -1309,7 +1309,8 @@ def fine_tune_steering_branch_v193(
     import torch
     import torch.nn.functional as F
 
-    from .navigation_history import POLICY_INPUT_SIZE
+    from navigation.navigation_evidence import POLICY_INPUT_SIZE
+
     from .split_branch_policy import STEERING_NAVIGATION_FEATURE_SIZE
 
     with np.load(Path(dataset_path), allow_pickle=False) as data:

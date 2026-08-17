@@ -457,9 +457,9 @@ def capture_maps(repo: Path, temporary: Path) -> dict[str, bytes]:
 
 def _router_worker(root: Path, output_path: Path) -> None:
     sys.path.insert(0, str(root))
-    from simulator.kinodynamic_route_planner import TargetPersistenceController, annotate_route_edges, plan_route, select_persistent_waypoint
+    from navigation.kinodynamic_route_planner import TargetPersistenceController, annotate_route_edges, plan_route, select_persistent_waypoint
+    from navigation.movement_kernel import SteeringDirection, advance_player_tick, arc_endpoint_local, arc_endpoint_world, resolve_signed_turn_radians
     from simulator.map_model import MapModel
-    from simulator.movement_kernel import SteeringDirection, advance_player_tick, arc_endpoint_local, arc_endpoint_world, resolve_signed_turn_radians
     size = 61; center = size // 2
     def make(kind: str) -> Any:
         array = np.ones((size, size), dtype=bool)
