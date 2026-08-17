@@ -158,4 +158,4 @@ foreground_vision_bot/tests/test_turn_control.py	tests/test_turn_control.py	MOVE
 foreground_vision_bot/tests/test_wall_inference.py	tests/test_wall_inference.py	MOVE	bot	710	none	retained	One-level Alternative-A root collapse; content must remain byte-identical.
 foreground_vision_bot/tests/test_win32_process_memory.py	tests/test_win32_process_memory.py	MOVE	bot	710	none	retained	One-level Alternative-A root collapse; content must remain byte-identical.
 foreground_vision_bot/tests/test_worker_manager.py	tests/test_worker_manager.py	MOVE	bot	710	none	retained	One-level Alternative-A root collapse; content must remain byte-identical.
-foreground_vision_bot/tools/test_native_independent_reader.py	tools/test_native_independent_reader.py	MOVE	bot	710	none	retained	One-level Alternative-A root collapse; content must remain byte-identical.
+foreground_vision_bot/tools/test_native_independent_reader.py	devtools/native/test_native_independent_reader.py	MOVE	bot	710	none	retained	One-level Alternative-A root collapse; content must remain byte-identical.

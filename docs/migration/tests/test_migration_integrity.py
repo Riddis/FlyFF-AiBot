@@ -368,7 +368,7 @@ def test_b3_removed_from_bridge_registry() -> None:
 def test_b3_bootstrap_pattern_no_longer_present_in_inventory_recordings() -> None:
     """B3's old sys.path bootstrap (_RECORDER_ROOT/_SIMULATOR_ROOT insertion)
     must not have been replaced by an equivalent hidden mechanism."""
-    source = (REPO / "tools/inventory_recordings.py").read_text(encoding="utf-8")
+    source = (REPO / "devtools/archives/inventory_recordings.py").read_text(encoding="utf-8")
     assert "sys.path.insert" not in source
     assert "_RECORDER_ROOT" not in source
     assert "_SIMULATOR_ROOT" not in source

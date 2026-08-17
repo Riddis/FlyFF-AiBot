@@ -15,7 +15,7 @@ from position.NativeTraceTargets import (
     TraceTargetEvidence,
 )
 from position.Win32ProcessMemory import ModuleInfo
-from tools.test_native_independent_reader import (
+from devtools.native.test_native_independent_reader import (
     _derive_slot_lifecycle_events,
     _state_map,
 )

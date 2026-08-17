@@ -7,11 +7,7 @@ import time
 from pathlib import Path
 
 import numpy as np
-from farming.map_context import FarmingMapContext
-from farming.map_features import FarmingMapFeatures
-from farming.model_contract import sha256_file
-from farming.native_world import NativeWorldReader
-from farming.telemetry import (
+from devtools.telemetry.observation_telemetry import (
     HeadingSource,
     TelemetryObserver,
     TelemetrySessionRole,
@@ -21,6 +17,10 @@ from farming.telemetry import (
     open_session,
     verify_session_role_commitment,
 )
+from farming.map_context import FarmingMapContext
+from farming.map_features import FarmingMapFeatures
+from farming.model_contract import sha256_file
+from farming.native_world import NativeWorldReader
 from mapper.CoordinateFrame import CoordinateFrame
 from position.native_process_service import NativePointerSnapshot
 from position.NativeFlyffMonsterProvider import (
@@ -31,7 +31,7 @@ from position.NativeFlyffMonsterProvider import (
 from position.PositionProvider import PlayerPose
 from worker_manager import CancellationToken
 
-TELEMETRY_SOURCE = Path(__file__).resolve().parents[1] / "farming" / "telemetry.py"
+TELEMETRY_SOURCE = Path(__file__).resolve().parents[1] / "devtools" / "telemetry" / "observation_telemetry.py"
 
 
 # --------------------------------------------------------------------------
@@ -423,7 +423,7 @@ def test_writer_drops_and_counts_when_queue_is_full() -> None:
     # guarantee deterministically instead of racing a live thread.
     import queue as queue_module
 
-    from farming.telemetry import TelemetryWriter as _Writer
+    from devtools.telemetry.observation_telemetry import TelemetryWriter as _Writer
 
     writer = object.__new__(_Writer)
     writer._path = Path("unused.jsonl")

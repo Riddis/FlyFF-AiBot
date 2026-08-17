@@ -340,13 +340,14 @@ def test_export_demonstrations_preserves_simultaneous_steering_and_event(tmp_pat
 
 
 def test_inventory_tool_classifies_recording_retroactively(tmp_path: Path) -> None:
-    """tools/inventory_recordings.py must work purely from archived frame
-    data (position, focus, key mask), since that's what lets it classify
-    archives that predate recorder 1.11's embedded classification."""
+    """devtools/archives/inventory_recordings.py must work purely from
+    archived frame data (position, focus, key mask), since that's what
+    lets it classify archives that predate recorder 1.11's embedded
+    classification."""
 
     import sys
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "devtools" / "archives"))
     import inventory_recordings
 
     map_data = MapModel.load()

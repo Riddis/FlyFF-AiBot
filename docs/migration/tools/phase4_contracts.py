@@ -48,7 +48,6 @@ BOT_ONLY_MODULES = (
     "sb3_adapter",
     "sb3_training",
     "startup",
-    "telemetry",
     "trainer",
 )
 EXPECTED_CALL_SITES = {
@@ -361,10 +360,10 @@ def check_b1(repo: Path) -> tuple[list[str], dict[str, Any]]:
     farming_root = (repo / "farming").resolve()
     evidence: dict[str, Any] = {"contexts": {}, "shims": {}}
     active_sources = (
-        "foreground_vision_farm.py",
+        "apps/dev_app.py",
         "conftest.py",
-        "tools/run_observation_telemetry.py",
-        "app.py",
+        "apps/telemetry_cli.py",
+        "apps/recorder_app.py",
         "recorder/session.py",
         "FlyffFarmingRecorder.spec",
         "farming/__init__.py",
