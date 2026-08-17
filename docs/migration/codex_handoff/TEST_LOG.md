@@ -2219,3 +2219,47 @@ B4/scientific/current-dev-app material was deleted or altered. **PHASE
 13 SAFE TO CONSIDER: YES (readiness only). PHASE 13 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+### Process correction (P12-CORRECTION)
+
+The instruction preceding `abb496d` (P12-A2) authorized the sentinel
+`NEVER_WITHOUT_TEST_CONTRACT_RETIREMENT` **only if it already existed**
+in `CANONICAL_OWNERS.toml`'s schema (condition 4); otherwise the
+instruction was to STOP and report, not substitute. It did not exist --
+only bare `removal_gate = "NEVER"` had precedent. P12-A2 substituted
+bare `NEVER` instead of stopping. **This substitution was not
+authorized** -- a genuine process deviation, stated here rather than
+hidden. It does not reopen the P12-A deletion audit (unaffected, not
+redone; the 16 shims remain currently required by intentionally retained
+migration/test compatibility contracts, shim implementations remain
+behavior-free, no G5/G5-P2/ABI/B4 material was ever touched).
+
+Repair: bare `removal_gate = "NEVER"` **retained** on all 16 (the
+existing "no automatic phase-number expiry" sentinel; removing it
+reintroduces the `ok: false` bridge-expiry failure). A new, separate,
+explicit field `retirement_condition = "TEST_CONTRACT_RETIREMENT"` added
+to exactly the same 16 -- carrying the actual conditional-retirement
+semantics bare `NEVER` alone does not convey for these (unlike the 3
+genuinely permanent shims, which do not receive this field). New test:
+`docs/migration/tests/test_migration_integrity.py::
+test_phase12_transitioned_shims_carry_explicit_test_contract_retirement_condition`
+-- asserts exactly the 16 are tagged, zero shims anywhere still claim
+`removal_gate == "PHASE_12"`, `canonical_owner`/`reason`/`bridge_id`
+remain intact, the 3 permanent shims are not swept in, and
+`integrity.bridge_errors` stays empty.
+
+`pytest docs/migration/tests/`: **77 passed** (76 + 1 new), 0 failed.
+`migration_integrity.py check`: `ok=true` (`R6=0 R7a=0 R7b=0 R7c=204`
+unchanged, `R9=0 R10=0`). `python -m future_runtime_profile.
+derive_runtime_manifest`: still `PASS`. `git diff --check` clean. Full
+`tests/` suite intentionally not re-run this pass (metadata-only, no
+product-code dependency touched -- consistent with the correction's own
+scope). Not touched: the 16 shim implementation files, frozen baselines,
+historical evidence, checkpoints, `position/`/`farming/`/`navigation/`
+runtime, GUI, devtools, R1b, G5/G5-P2. No live execution, no training.
+
+**PHASE 12 COMPLETE: YES.**
+**PHASE 13 SAFE TO CONSIDER: YES** (readiness only). **PHASE 13
+AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**

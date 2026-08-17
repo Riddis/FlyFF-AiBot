@@ -233,6 +233,7 @@ canonical_owner = "farming/__init__.py"
 reason = "Phase-7 retained repository-qualified farming public API facade. Phase-12 finding: still required by docs/migration/tests/test_phase4_contracts.py::test_canonical_package_preserves_bot_public_api_lazily (direct read + AST parse of this file's __all__, identity-checked against canonical farming) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that this test's B1 API-facade contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "foreground_vision_bot/farming/actions.py"
@@ -246,6 +247,7 @@ canonical_owner = "farming/actions.py"
 reason = "Phase-7 retained repository-qualified farming compatibility re-export. Phase-12 finding: still required by docs/migration/tests/test_phase4_contracts.py::check_b1 (unconditional file read verifying shim purity/API parity against the frozen historical union) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b1's B1 shim-purity contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "foreground_vision_bot/farming/model_contract.py"
@@ -259,6 +261,7 @@ canonical_owner = "farming/model_contract.py"
 reason = "Phase-7 retained repository-qualified farming compatibility re-export. Phase-12 finding: still required by docs/migration/tests/test_phase4_contracts.py::check_b1 (unconditional file read verifying shim purity/API parity against the frozen historical union) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b1's B1 shim-purity contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "foreground_vision_bot/farming/map_masks.py"
@@ -267,6 +270,7 @@ canonical_owner = "farming/map_masks.py"
 reason = "Phase-7 retained repository-qualified farming compatibility re-export. Phase-12 finding: still required by docs/migration/tests/test_phase4_contracts.py::check_b1 (unconditional file read verifying shim purity/API parity against the frozen historical union) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b1's B1 shim-purity contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "foreground_vision_bot/farming/reward.py"
@@ -275,6 +279,7 @@ canonical_owner = "farming/reward.py"
 reason = "Phase-7 retained repository-qualified farming compatibility re-export. Phase-12 finding: still required by docs/migration/tests/test_phase4_contracts.py::check_b1 (unconditional file read verifying shim purity/API parity against the frozen historical union) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b1's B1 shim-purity contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "foreground_vision_bot/farming/session.py"
@@ -286,6 +291,7 @@ canonical_owner = "farming/session.py"
 reason = "Phase-7 retained repository-qualified farming compatibility re-export. Phase-12 finding: still required by docs/migration/tests/test_phase4_contracts.py::check_b1 (unconditional file read verifying shim purity/API parity against the frozen historical union) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b1's B1 shim-purity contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "foreground_vision_bot/farming/map_profile.py"
@@ -294,6 +300,7 @@ canonical_owner = "farming/map_profile.py"
 reason = "Phase-7 retained repository-qualified farming map-profile re-export. Phase-12 finding: still required by docs/migration/tests/test_phase4_contracts.py::check_b1 (unconditional file read verifying shim purity/API parity against the frozen historical union) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b1's B1 shim-purity contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "foreground_vision_bot/farming/observation.py"
@@ -314,6 +321,7 @@ canonical_owner = "farming/observation.py"
 reason = "Phase-7 retained repository-qualified farming observation re-export including the depended-on private actor-field tuple. Phase-12 finding: still required by docs/migration/tests/test_phase4_contracts.py::check_b1 (unconditional file read verifying shim purity/API parity, including the private _DIRECT_ACTOR_FIELD_NAMES tuple, against the frozen historical union) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b1's B1 shim-purity contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "foreground_vision_bot/farming/map_features.py"
@@ -329,6 +337,7 @@ canonical_owner = "farming/map_features.py"
 reason = "Phase-7 retained repository-qualified farming map-feature superset re-export. Phase-12 finding: still required by docs/migration/tests/test_phase4_contracts.py::check_b1 (unconditional file read verifying shim purity/API parity against the frozen historical union) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b1's B1 shim-purity contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "flyff_farming_recorder/position/__init__.py"
@@ -337,6 +346,7 @@ canonical_owner = "position/__init__.py"
 reason = "Phase-7 retained repository-qualified position package re-export. Phase-12 finding: still required by docs/migration/tests/test_phase5_contracts.py::check_b2 (exact glob(flyff_farming_recorder/position/*.py)==23 count against the frozen docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv, plus a live subprocess identity-import probe that requires this package __init__ to exist/execute before any submodule import) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b2's B2 shim-purity/manifest contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "flyff_farming_recorder/position/attachment_factory.py"
@@ -345,6 +355,7 @@ canonical_owner = "position/attachment_factory.py"
 reason = "Phase-7 retained repository-qualified position attachment re-export. Phase-12 finding: still required by docs/migration/tests/test_phase5_contracts.py::check_b2 (exact glob(flyff_farming_recorder/position/*.py)==23 count against the frozen docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b2's B2 shim-purity/manifest contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "flyff_farming_recorder/position/factory.py"
@@ -353,6 +364,7 @@ canonical_owner = "position/factory.py"
 reason = "Phase-7 retained repository-qualified position-factory re-export. Phase-12 finding: still required by docs/migration/tests/test_phase5_contracts.py::check_b2 (exact glob(flyff_farming_recorder/position/*.py)==23 count against the frozen docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b2's B2 shim-purity/manifest contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "flyff_farming_recorder/position/monster_factory.py"
@@ -361,6 +373,7 @@ canonical_owner = "position/monster_factory.py"
 reason = "Phase-7 retained repository-qualified monster-factory re-export. Phase-12 finding: still required by docs/migration/tests/test_phase5_contracts.py::check_b2 (exact glob(flyff_farming_recorder/position/*.py)==23 count against the frozen docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b2's B2 shim-purity/manifest contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "flyff_farming_recorder/position/NativeFlyffMonsterProvider.py"
@@ -369,6 +382,7 @@ canonical_owner = "position/NativeFlyffMonsterProvider.py"
 reason = "Phase-7 retained repository-qualified native-monster re-export. Phase-12 finding: still required by docs/migration/tests/test_phase5_contracts.py::check_b2 (exact glob(flyff_farming_recorder/position/*.py)==23 count against the frozen docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b2's B2 shim-purity/manifest contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "flyff_farming_recorder/position/NativeFlyffPositionProvider.py"
@@ -377,6 +391,7 @@ canonical_owner = "position/NativeFlyffPositionProvider.py"
 reason = "Phase-7 retained repository-qualified native-position re-export. Phase-12 finding: still required by docs/migration/tests/test_phase5_contracts.py::check_b2 (exact glob(flyff_farming_recorder/position/*.py)==23 count against the frozen docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b2's B2 shim-purity/manifest contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "flyff_farming_recorder/position/native_process_service.py"
@@ -385,6 +400,7 @@ canonical_owner = "position/native_process_service.py"
 reason = "Phase-7 retained repository-qualified process-service re-export. Phase-12 finding: still required by docs/migration/tests/test_phase5_contracts.py::check_b2 (exact glob(flyff_farming_recorder/position/*.py)==23 count against the frozen docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv) -- the PHASE_12 removal_gate was a Phase-7-era assumption that did not anticipate this dependency. Corrected to NEVER; actual retirement condition is that check_b2's B2 shim-purity/manifest contract must first be intentionally retired or replaced and its consumers proven unnecessary, not a phase number."
 bridge_id = "NONE"
 removal_gate = "NEVER"
+retirement_condition = "TEST_CONTRACT_RETIREMENT"
 
 [[shim]]
 location = "simulator/kinodynamic_route_planner.py"

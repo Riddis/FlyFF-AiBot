@@ -621,3 +621,72 @@ def test_actual_repository_integrity_gate_is_green_via_frozen_baseline_plus_supp
         supplement=supplement,
     )
     assert ratchet == [f"new_baseline_violation:{bogus.key}"]
+
+
+# Phase-12 P12-CORRECTION: bare removal_gate = "NEVER" means "no automatic
+# phase-number expiry" (the pre-existing sentinel), not "permanently
+# immortal" -- for the 16 shims transitioned off removal_gate = "PHASE_12"
+# in P12-A2, the separate retirement_condition field carries the actual
+# conditional-retirement semantics (eligible once the named migration test
+# contract is deliberately retired/replaced, not tied to any phase number).
+_PHASE12_TRANSITIONED_SHIMS = {
+    "foreground_vision_bot/farming/__init__.py",
+    "foreground_vision_bot/farming/actions.py",
+    "foreground_vision_bot/farming/model_contract.py",
+    "foreground_vision_bot/farming/map_masks.py",
+    "foreground_vision_bot/farming/reward.py",
+    "foreground_vision_bot/farming/session.py",
+    "foreground_vision_bot/farming/map_profile.py",
+    "foreground_vision_bot/farming/observation.py",
+    "foreground_vision_bot/farming/map_features.py",
+    "flyff_farming_recorder/position/__init__.py",
+    "flyff_farming_recorder/position/attachment_factory.py",
+    "flyff_farming_recorder/position/factory.py",
+    "flyff_farming_recorder/position/monster_factory.py",
+    "flyff_farming_recorder/position/NativeFlyffMonsterProvider.py",
+    "flyff_farming_recorder/position/NativeFlyffPositionProvider.py",
+    "flyff_farming_recorder/position/native_process_service.py",
+}
+
+
+def test_phase12_transitioned_shims_carry_explicit_test_contract_retirement_condition() -> None:
+    registry = integrity.load_registry(REPO)
+    shims = {shim["location"]: shim for shim in registry.get("shim", [])}
+
+    assert _PHASE12_TRANSITIONED_SHIMS <= shims.keys()
+
+    tagged = {
+        location
+        for location, shim in shims.items()
+        if shim.get("retirement_condition") == "TEST_CONTRACT_RETIREMENT"
+    }
+    assert tagged == _PHASE12_TRANSITIONED_SHIMS, (
+        f"missing={_PHASE12_TRANSITIONED_SHIMS - tagged} extra={tagged - _PHASE12_TRANSITIONED_SHIMS}"
+    )
+
+    for location in _PHASE12_TRANSITIONED_SHIMS:
+        shim = shims[location]
+        assert shim.get("removal_gate") == "NEVER", f"{location}: {shim.get('removal_gate')}"
+        assert shim.get("canonical_owner"), location
+        assert shim.get("reason"), location
+        assert shim.get("bridge_id") == "NONE", location
+
+    # No shim anywhere still claims the expired PHASE_12 gate.
+    assert [s["location"] for s in registry["shim"] if s.get("removal_gate") == "PHASE_12"] == []
+
+    # The genuinely permanent shims (unrelated to this Phase-12 finding)
+    # must not be swept into the same conditional-retirement bucket.
+    permanent_never = {
+        "farming/observation.py",
+        "simulator/kinodynamic_route_planner.py",
+        "simulator/movement_kernel.py",
+    }
+    for location in permanent_never:
+        shim = shims[location]
+        assert shim.get("removal_gate") == "NEVER", location
+        assert "retirement_condition" not in shim, (
+            f"{location} was incorrectly given a retirement_condition -- it is permanent, not test-contract-gated"
+        )
+
+    # The extra field does not upset the ruler's own bridge/shim validation.
+    assert integrity.bridge_errors(REPO, registry) == []
