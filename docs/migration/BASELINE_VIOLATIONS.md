@@ -30,7 +30,7 @@ Base: `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`. Phase: 4 (from `CANONICAL_OWNE
 |---|---|---|
 | _none_ | _none_ | rule currently green |
 
-### R7c (180)
+### R7c (183)
 
 | concept/symbol | exact file | evidence |
 |---|---|---|
@@ -171,6 +171,8 @@ Base: `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`. Phase: 4 (from `CANONICAL_OWNE
 | `SplitSteeringNavigationPolicy` | `flyff_farming_simulator/scratchpad_ppo_pure_navigation_v2.py` | `reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy` |
 | `SplitSteeringNavigationPolicy` | `flyff_farming_simulator/tests/test_fine_tune_steering_branch.py` | `reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy` |
 | `SplitSteeringNavigationPolicy` | `flyff_farming_simulator/tests/test_steering_expansion_transplant.py` | `reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy` |
+| `SplitSteeringNavigationPolicy` | `scratchpad_generalized_waypoint_train_reward_ablation.py` | `reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy` |
+| `SplitSteeringNavigationPolicy` | `scratchpad_single_obstacle_train.py` | `reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy` |
 | `SteeringAction` | `flyff_farming_simulator/scratchpad_coarse_route_proof_of_mechanism_v2.py` | `reexport_from=farming.actions:SteeringAction` |
 | `SteeringAction` | `flyff_farming_simulator/scratchpad_coarse_route_rollout_verification.py` | `reexport_from=farming.actions:SteeringAction` |
 | `SteeringAction` | `flyff_farming_simulator/scratchpad_debug_waypoint_no_effect.py` | `reexport_from=farming.actions:SteeringAction` |
@@ -195,6 +197,7 @@ Base: `dc734bb82a4d6c99deb7dd1251c4f7c3f0c99e34`. Phase: 4 (from `CANONICAL_OWNE
 | `SteeringAction` | `flyff_farming_simulator/tests/test_temporal_sidecar_parity.py` | `reexport_from=farming.actions:SteeringAction` |
 | `SteeringAction` | `foreground_vision_bot/farming/environment.py` | `reexport_from=.actions:SteeringAction` |
 | `SteeringAction` | `foreground_vision_bot/tests/test_factorized_control_v19.py` | `reexport_from=farming.actions:SteeringAction` |
+| `SteeringAction` | `scratchpad_single_obstacle_train.py` | `reexport_from=farming.actions:SteeringAction` |
 | `TerminalPrefixRolloutBuffer` | `foreground_vision_bot/farming/trainer.py` | `reexport_from=.sb3_training:TerminalPrefixRolloutBuffer` |
 | `TerminalPrefixRolloutBuffer` | `foreground_vision_bot/tests/test_farming_sb3_training.py` | `reexport_from=farming.sb3_training:TerminalPrefixRolloutBuffer` |
 | `TrainingBoundary` | `foreground_vision_bot/tests/test_farming_training_session.py` | `reexport_from=farming.sb3_training:TrainingBoundary` |
