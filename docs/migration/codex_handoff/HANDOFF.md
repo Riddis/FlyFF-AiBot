@@ -1263,3 +1263,50 @@ Read `PHASE10_REPORT.md` sections 39–40 for the full corrected account
 **PHASE 11 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 11 — Dependency / Package Boundary + Future Deployment-Derivation Readiness (complete)
+
+Entry HEAD `77dc6e5` (exact). Commits `07dcca5` (P11-A: dependency/
+resource/entrypoint audit), `c6f1d4f` (P11-B: dependency profile +
+dry-run resolver), `0af2a44` (P11-C: sys.path bootstrap registry +
+canonical-invocation/derivability/CWD-independence tests + two
+profile-precision fixes), plus this P11-DOC commit.
+
+Static/architectural only — no `apps/live_bot.py`, no second `Bot`
+implementation, no copied runtime source tree, no standalone build, no
+final-model selection, no game-control wiring, no FlyFF launch, no
+training. `future_runtime_profile/` (not `packaging/` — that name
+collides with the real PyPI `packaging` library, confirmed installed;
+see `PHASE11_REPORT.md` section 8) holds a machine-readable dependency
+profile (`dependency_profiles.toml`) and a dry-run, non-building resolver
+(`derive_runtime_manifest.py`). `python -m future_runtime_profile.
+derive_runtime_manifest` → **PASS**: 89 candidate first-party modules, 3
+ABI-compatibility modules, 0 forbidden edges, 0 missing tracked files, 0
+duplicate-ownership issues, 1 exception applied (the unwidened Phase-10
+R1b coupling). Two real precision bugs found and fixed while building
+the formal gate test around this resolver (training-only files bundled
+inside `farming/`/`mapper/rl/` inflating the closure; `simulator.schema`/
+`legacy` wrongly forbidden despite being SHARED_RUNTIME_CORE) — neither
+had produced a false result yet, both caught before they could.
+
+New tests (24, all passed): `tests/test_path_bootstrap_registry.py` (3),
+`tests/test_canonical_module_invocation.py` (4),
+`tests/test_future_derivation_profile.py` (12, the Section-10
+future-derivability gate as individually named proof points),
+`tests/test_phase11_cwd_independence.py` (5).
+
+`pytest tests/`: 1190 passed (1166 + 24 new), 2 skipped, 1 xfailed, 4
+failed — identical 4 pre-existing/unrelated failures, zero new.
+`pytest docs/migration/tests/`: 76 passed. `migration_integrity.py
+check`: `ok=true` (`R6=0 R7a=0 R7b=0 R7c=204` unchanged, `R9=0 R10=0`).
+`git diff --check` clean. R10 not reloaded (no ABI-relevant module
+changed this phase; ruler's R10 result already sufficient per the
+authorization's own Section-18 condition).
+
+Read `PHASE11_REPORT.md` for the full 26-section account.
+
+**PHASE 11 COMPLETE: YES.**
+**PHASE 12 SAFE TO CONSIDER: YES** — readiness only.
+**PHASE 12 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**

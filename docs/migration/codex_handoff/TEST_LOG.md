@@ -2008,3 +2008,95 @@ exception. **PHASE 11 SAFE TO CONSIDER: YES (readiness only). PHASE 11
 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 11 -- dependency/package boundary + future deployment-derivation readiness
+
+Entry HEAD `77dc6e5` exact. No product/import-path code affecting the
+checkpoint ABI changed this phase (`git diff HEAD -- runtime_controller.py
+simulator/split_branch_policy.py simulator/kinodynamic_route_planner.py
+simulator/movement_kernel.py` empty throughout) -- R10 was not reloaded;
+the ruler's own R10 result (0 failures, 313 checkpoints, 317 module
+reference rows) is sufficient per the authorization's Section 18.
+
+### New tests (24, all passed)
+- `tests/test_path_bootstrap_registry.py` (3): AST-based scan (real
+  `sys.path.insert`/`append` `Call` nodes only, never a docstring or
+  f-string-template mention -- the same false-positive class caught in
+  Phase 10's PYTHONPATH check) against
+  `docs/migration/tools/phase11_path_bootstrap_registry.py`'s
+  `REGISTERED_BOOTSTRAPS` (38 files); fails on any new unregistered
+  bootstrap or stale registry entry.
+- `tests/test_canonical_module_invocation.py` (4): `apps.dev_app` via
+  `importlib.util.find_spec` only (never imported -- it constructs a
+  live `Bot()`/`Gui(...)` unconditionally at true module level, confirmed
+  via direct source read of lines 21-22, not inside `main()`, not
+  guarded); `apps.recorder_app` via a plain `import` (its `run_gui()` is
+  guarded by `if __name__ == "__main__"`, which is false for a plain
+  import); `apps.simulator_cli`/`apps.telemetry_cli` via their real
+  `-m ... --help` form. No GUI window opened, no game process touched by
+  any test in this file.
+- `tests/test_future_derivation_profile.py` (12): the Section-10
+  future-derivability gate, formalized as individually named proof-point
+  tests wrapping `future_runtime_profile.derive_runtime_manifest.
+  derive()` and the profile itself, rather than only an aggregate
+  PASS/FAIL string.
+- `tests/test_phase11_cwd_independence.py` (5): extends the Phase-10
+  `SessionContext` CWD-independence precedent
+  (`tests/test_devtools_process_orchestrator.py`) to `project_paths.
+  APP_ROOT`/`resolve_app_path` and the new `derive_runtime_manifest`
+  resolver, plus a direct re-confirmation of the Phase-10 precedent
+  itself within this phase's own test plan.
+
+### Two precision bugs found and fixed while building the gate test
+Neither had produced a false PASS/FAIL result yet (neither code path was
+reached before the fix), but both were real latent misclassifications:
+1. `farming/{sb3_adapter,sb3_training,trainer}.py` and
+   `mapper/rl/{FeatureExtractor,GymEnv,OfflineTraining}.py` were walked
+   as unconditional entry points merely for living inside an otherwise
+   `shared_runtime_packages` directory -- `farming.trainer` should be
+   reachable only through the registered R1b exact exception, not as if
+   it were itself a legitimate shared-runtime file. Fixed via
+   `excluded_from_shared_entry_walk`; candidate-module count 96 -> 88.
+2. `forbidden_first_party_prefixes` wrongly forbade `simulator.schema`
+   and `legacy`(`.manifest_compat`) -- both are SHARED_RUNTIME_CORE per
+   this same document's own section 1 (the canonical archive/recording
+   reader and its compat logic). Fixed via `additional_shared_entry_
+   files`, which walks and vouches for their own closure (confirmed:
+   both import only stdlib + `msgpack`) instead of merely not-forbidding
+   them by omission. Candidate-module count 88 -> 89.
+
+### `python -m future_runtime_profile.derive_runtime_manifest` (final)
+```
+FUTURE DEPLOYMENT DERIVATION PROFILE: PASS
+  candidate first-party modules: 89
+  ABI compatibility modules: 3
+  candidate resources: 3
+  exceptions applied: 1 (runtime_controller.py -> farming.trainer)
+  forbidden dependency edges: []
+  missing tracked files: []
+  duplicate ownership issues: []
+```
+
+### Full suite
+`pytest tests/`: **1190 passed** (1166 baseline + 24 new), 2 skipped, 1
+xfailed, **4 failed** -- the identical 4 pre-existing/unrelated failures
+as every prior phase (`test_focus_loss_during_eva_discards_kill_and_
+transition`, `test_normal_training_status_is_concise_and_uses_total_
+model_steps`, `test_training_callback_publishes_structured_session_
+statistics`, `test_mine_navigation_dataset_produces_all_four_categories_
+on_real_layouts` -- the last a pre-existing gitignored-artifact gap),
+zero new. `pytest docs/migration/tests/`: **76 passed**. Ruler: `ok=true`
+(`R6=0 R7a=0 R7b=0 R7c=204` unchanged, `R9=0 R10=0`). `git diff --check`
+clean. Protected tags unchanged. Worktree clean, index empty, branch
+unpushed, no upstream, not on origin. No live execution anywhere in this
+phase: no FlyFF launch, no training, no G5/G5-P2, no game-process attach.
+
+Read `PHASE11_REPORT.md` for the full 26-section account.
+
+**PHASE 11 COMPLETE: YES** -- the dependency/package boundary is
+audited, machine-profiled, and gate-tested; the R1b exception remains
+exactly one, unwidened; no standalone/live bot was built, packaged, or
+made runnable. **PHASE 12 SAFE TO CONSIDER: YES (readiness only). PHASE
+12 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**
