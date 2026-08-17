@@ -2100,3 +2100,122 @@ made runnable. **PHASE 12 SAFE TO CONSIDER: YES (readiness only). PHASE
 12 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 12 -- gated deletion/retention consolidation
+
+Entry HEAD `6a68615` exact. No product/ABI/dev-app/`position/` source
+was touched this phase (`git diff HEAD` against every such path empty
+throughout).
+
+### The audit and its headline finding
+
+All 16 `CANONICAL_OWNERS.toml`-registered `removal_gate = "PHASE_12"`
+shims (9 `foreground_vision_bot/farming/*.py` B1 facades + 7 registered
+`flyff_farming_recorder/position/*.py` B2 facades), and on tracing the
+full closure all 34 of the 36 audited files, were found to be
+mechanically load-bearing for the migration's own frozen
+historical-reproduction contract tests:
+
+- `docs/migration/tools/phase4_contracts.py::check_b1` does
+  `(repo / relative).read_text(...)` **unconditionally** for each of 8
+  named B1 shims (`shim_names` tuple), and
+  `docs/migration/tests/test_phase4_contracts.py::
+  test_canonical_package_preserves_bot_public_api_lazily` separately,
+  directly reads `foreground_vision_bot/farming/__init__.py` (the 9th).
+- `docs/migration/tools/phase5_contracts.py::check_b2` requires
+  `len(glob(RECORDER_POSITION/*.py)) == 23` **exactly matching** the
+  frozen 23-row `docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv`'s path set
+  -- an exact-count, exact-set contract covering all 23
+  `flyff_farming_recorder/position/*.py` files, not just the 7
+  individually registered in `CANONICAL_OWNERS.toml` (a registry
+  completeness gap noted, not fixed, this phase). The same check also
+  runs a live subprocess identity-import probe requiring
+  `flyff_farming_recorder/position/__init__.py` and
+  `IndependentNativeReader.py` to exist and correctly re-export the
+  canonical class object.
+- `check_g9` reads `flyff_farming_recorder/position/native_monsters.json`
+  directly and compares it against
+  `docs/migration/EFFECTIVE_CONFIG_BASELINE.json`'s frozen values.
+
+All 11 of these tests were **re-run this phase** (not inferred from the
+Phase-11 baseline): `pytest docs/migration/tests/test_phase4_contracts.py
+docs/migration/tests/test_phase5_contracts.py -v` -> **11 passed**.
+
+Several of the 16 unregistered B2-facade siblings have names that echo
+the G5 contract directly (`RecoveredNativeProfile.py`,
+`NativePointerRecovery.py`, `AuthoritativeActorDiscovery.py`) --
+individually confirmed to contain **zero class/function definitions**
+(pure re-export, `behavioral_statements == []` per `check_b2`). The real
+G5-relevant implementation is the canonical root `position/*.py`
+equivalents -- current dev-app source, never a Phase-12 candidate.
+
+**Conclusion: zero destructive deletions are justified.** This is the
+outcome the authorization itself explicitly accepts as complete. No
+deletion gate was weakened, no test was adapted to permit a deletion, no
+file was removed to make this phase look complete.
+
+Two small, unrelated items (`flyff_farming_recorder/requirements.txt`,
+`foreground_vision_bot/foreground_vision_farm.json`) carry a stale
+Phase-7 `resolution_phase = PHASE_11` deferred-collision label that
+Phase 11 never actually resolved -- deferred to Phase 13 alongside
+`pyproject.toml`'s already-known stale Ruff ignore path, rather than
+decided unilaterally.
+
+### Full verification
+
+Focused (42, all passed): `test_future_derivation_profile.py` (12),
+`test_path_bootstrap_registry.py` (3), `test_canonical_module_
+invocation.py` (4), `test_phase11_cwd_independence.py` (5),
+`test_dev_app_import_closure.py` (10), `test_devtools_dependency_
+direction.py` (2), `test_pickle_module_identity_compat.py` (6).
+
+`pytest tests/`: **1190 passed** (unchanged -- no tests added/removed
+this phase), 2 skipped, 1 xfailed, **4 failed** -- the identical 4
+pre-existing/unrelated failures as every prior phase, zero new. `pytest
+docs/migration/tests/`: **76 passed**. Ruler: `ok=true` (`R6=0 R7a=0
+R7b=0 R7c=204` unchanged, `R9=0 R10=0`). `git diff --check` clean.
+Protected tags unchanged. Worktree clean, index empty, branch unpushed,
+no upstream, not on origin. No live execution anywhere in this phase.
+
+### Gate correction (`abb496d`, P12-A2)
+
+Advancing `current_phase` to 12 triggers `migration_integrity.py`'s
+bridge/shim-expiry check (`removal_gate_expired`), which treats a bare
+`removal_gate = "PHASE_N"` as required-gone-by-Phase-N -- the same
+mechanism that already retired B1/B2/B3. Since all 16 registered shims
+were proven, by the audit above, currently unsafe to delete, this
+correctly flipped the ruler to `ok: false` (16 "expired" errors) --
+never committed in that state. The `PHASE_12` gate on all 16 was simply
+wrong: a Phase-7-era assumption that did not anticipate the migration
+tooling's own later dependency on these files.
+
+Per `BRIDGES.md`'s own rule (a `PHASE_N` gate must be removed **or
+explicitly transitioned**), each of the 16 shims was individually
+re-checked against five conditions before editing: already proven
+undeletable; a real test contract (not a tautological "file exists"
+check); deletion currently breaks that contract (re-confirmed); the
+replacement sentinel already exists in the `[[shim]]` schema (bare
+`"NEVER"`, used by `farming/observation.py`'s shim and the two ABI
+shims) rather than being invented; the change is metadata-only. All 16
+qualified. `removal_gate` corrected `PHASE_12` -> `NEVER` on all 16;
+each `reason` field appended with the specific finding and the real
+retirement condition (the relevant `test_phase{4,5}_contracts.py` check
+must first be intentionally retired/replaced -- not a phase number).
+
+Re-verified after the correction: `migration_integrity.py check` ->
+`ok=true`, zero bridge/shim errors.
+`docs/migration/tests/test_migration_integrity.py` (25) +
+`test_phase4_contracts.py` + `test_phase5_contracts.py` (11) = **48
+passed**. The 42-test focused Phase-11/R1b/ABI suite re-run and still
+passes. No shim file, test, or frozen baseline was touched -- metadata
+only.
+
+Read `PHASE12_REPORT.md` for the full account.
+
+**PHASE 12 COMPLETE: YES** -- the deletion/retention audit is complete
+and evidence-backed; every retained item has an explicit gate and
+category in `docs/migration/PHASE12_RETAINED_DEBT.tsv`; no G5/G5-P2/ABI/
+B4/scientific/current-dev-app material was deleted or altered. **PHASE
+13 SAFE TO CONSIDER: YES (readiness only). PHASE 13 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**

@@ -1310,3 +1310,69 @@ Read `PHASE11_REPORT.md` for the full 26-section account.
 **PHASE 12 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 12 — Gated Deletion / Retention Consolidation (complete)
+
+Entry HEAD `6a68615` (exact). Commit `2956e0b` (P12-A: deletion/retention
+audit), plus this P12-DOC commit. No P12-B/P12-C exists — the audit found
+zero safe deletion candidates.
+
+**Headline finding: all 16 `CANONICAL_OWNERS.toml`-registered
+`removal_gate = "PHASE_12"` shims (9 `foreground_vision_bot/farming/*.py`
+B1 facades + 7 registered `flyff_farming_recorder/position/*.py` B2
+facades) — and, once the full closure is traced, all 34 of 36 audited
+files — are mechanically load-bearing for the migration's own frozen
+historical-reproduction contract tests
+(`docs/migration/tests/test_phase4_contracts.py::check_b1`,
+`test_phase5_contracts.py::check_b2`/`check_g9`)**, part of the required
+`docs/migration/tests/: 76 passed` baseline. `check_b1` does
+unconditional file reads of each B1 shim; `check_b2` requires an
+**exact** `glob(*.py)` count of 23 against the frozen 23-row
+`docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv`, plus a live subprocess
+identity-import probe. All 11 of these tests were re-run this phase (not
+inferred) and pass. **Zero destructive deletions were justified** — the
+authorization explicitly accepts this as a complete, successful outcome,
+and no deletion gate was weakened to manufacture one.
+
+Two small, unrelated items (`flyff_farming_recorder/requirements.txt`,
+`foreground_vision_bot/foreground_vision_farm.json`) carry a stale
+Phase-7 "resolution_phase = PHASE_11" deferred-collision label Phase 11
+never actually resolved — deferred forward to Phase 13 rather than
+decided unilaterally, alongside `pyproject.toml`'s already-known stale
+Ruff ignore path.
+
+New docs (no code changed): `docs/migration/PHASE12_DELETION_AUDIT.tsv`
+(36 rows), `PHASE12_RETENTION_ANALYSIS.md`, `PHASE12_DELETED_PATHS.tsv`
+(documented zero-deletion record), `PHASE12_RETAINED_DEBT.tsv` (14 rows
+across `MIGRATION_TEST_CONTRACT`/`RESOURCE`/`G5`/`G5_P2`/`RUNTIME_ABI`/
+`B4_HISTORICAL`/`PHASE13_CLEANUP`/`CURRENT_DEV_RUNTIME`).
+
+`pytest tests/`: 1190 passed (unchanged — no tests added/removed this
+phase), 2 skipped, 1 xfailed, 4 failed — identical 4 pre-existing/
+unrelated failures, zero new. `pytest docs/migration/tests/`: 76 passed.
+`migration_integrity.py check`: `ok=true` (`R6=0 R7a=0 R7b=0 R7c=204`
+unchanged, `R9=0 R10=0`). `git diff --check` clean. No ABI, dev-app, or
+`position/` source touched. No live validation or training occurred.
+
+**Gate correction (`abb496d`, P12-A2):** advancing `current_phase` to 12
+triggers the ruler's own bridge/shim-expiry check, which treats a bare
+`removal_gate = "PHASE_N"` as required-gone-by-Phase-N — the same
+mechanism that retired B1/B2/B3. Since the audit above proved all 16
+registered shims are currently unsafe to delete, `removal_gate =
+"PHASE_12"` on all 16 was simply wrong — a Phase-7-era assumption that
+never anticipated the migration tooling's own dependency on these files.
+Corrected to `"NEVER"` (an already-existing sentinel in the `[[shim]]`
+schema — not invented for this incident), with each shim's `reason`
+field recording the real retirement condition: the relevant
+`test_phase{4,5}_contracts.py` check must first be intentionally retired
+or replaced. Metadata-only; no shim, test, or frozen baseline touched.
+Ruler transiently showed `ok: false` between the phase bump and this
+fix — never committed in that state, re-verified `ok: true` after.
+
+Read `PHASE12_REPORT.md` for the full account.
+
+**PHASE 12 COMPLETE: YES.**
+**PHASE 13 SAFE TO CONSIDER: YES** — readiness only.
+**PHASE 13 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**
