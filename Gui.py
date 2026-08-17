@@ -10,6 +10,13 @@ from time import monotonic
 
 import cv2 as cv
 import PySimpleGUI as sg
+from devtools.gui_tools import (
+    ARTIFACT_TABLE_HEADINGS,
+    artifact_table_rows,
+    command_name_from_choice,
+    display_choices,
+    DevToolsGuiController,
+)
 from mapper.ManualMapEditor import ManualMapEditorSession
 from mapper.MapCatalog import MapCatalog
 from mapper.OccupancyGrid import OccupancyGrid
@@ -57,6 +64,14 @@ class Gui:
         self._status_mode = "Idle"
         self._last_status_message = "Ready"
         self.runtime_bus = RuntimeBus(max_logs=1500)
+        # Specialist tools (recorder/telemetry/simulator/native diagnostics/
+        # archive/calibration) are launched as independent OS processes via
+        # devtools.processes.SpecialistProcessManager, never imported into
+        # this process -- see tests/test_dev_app_import_closure.py's R1b
+        # boundary. Sharing self.runtime_bus means specialist stdout/stderr
+        # flows through the exact same bounded-log surface __refresh_runtime
+        # already drains below; no second logging mechanism.
+        self.dev_tools = DevToolsGuiController(bus=self.runtime_bus)
         self.map_catalog = MapCatalog()
         self.map_names = list(self.map_catalog.names())
         self._selected_map_name = self.map_catalog.default_name
@@ -75,6 +90,8 @@ class Gui:
         self._last_preview_render_at = 0.0
         self._last_map_render_at = 0.0
         self._last_log_render_at = 0.0
+        self._devtools_last_status_text: str | None = None
+        self._devtools_last_selected_command: str | None = None
         self._preview_render_interval = 1.0 / 10.0
         self._map_render_interval = 1.0 / 4.0
         sg.theme(theme)
@@ -91,6 +108,7 @@ class Gui:
         )
         sg.cprint_set_output_destination(self.window, "-ML-")
         sg.user_settings_filename(path=".")
+        self.window["-DEVTOOLS-ARTIFACTS-TABLE-"].update(values=artifact_table_rows())
         self.__set_hotkeys()
         return self.window
 
@@ -127,6 +145,8 @@ class Gui:
                             truncated_game_window_name
                         )
                         self.__set_rl_buttons(attached=True, running=False)
+
+            self.__handle_devtools_event(event, values)
 
             if event == "-START_BOT-":
                 self.__start_control(
@@ -297,8 +317,58 @@ class Gui:
         self.__set_rl_buttons(attached=True, running=True)
         self.runtime_bus.log(message, "msg_blue")
 
+    def __handle_devtools_event(self, event, values):
+        """Thin glue only -- all real launch/cancel/status logic lives in
+        devtools.gui_tools.DevToolsGuiController (tested directly, no
+        window needed). launch()/cancel() never block: the process
+        manager starts a subprocess and returns immediately; output
+        reading and exit-waiting happen on daemon threads, and specialist
+        stdout/stderr flows into self.runtime_bus -- the exact same
+        bounded-log surface __refresh_runtime already drains, not a
+        second logging mechanism."""
+        if event == "-DEVTOOLS-LAUNCH-":
+            choice = values.get("-DEVTOOLS-COMMAND-")
+            if not choice:
+                return
+            name = command_name_from_choice(choice)
+            result = self.dev_tools.launch(name, values.get("-DEVTOOLS-ARGS-", ""))
+            self.runtime_bus.log(result.message, "msg_blue" if result.ok else "msg_red")
+            return
+        if event == "-DEVTOOLS-CANCEL-":
+            choice = values.get("-DEVTOOLS-COMMAND-")
+            if not choice:
+                return
+            name = command_name_from_choice(choice)
+            result = self.dev_tools.cancel(name)
+            self.runtime_bus.log(result.message, "msg_blue" if result.ok else "msg_yellow")
+            return
+        if event == "-DEVTOOLS-ARTIFACTS-REFRESH-":
+            self.window["-DEVTOOLS-ARTIFACTS-TABLE-"].update(values=artifact_table_rows())
+            return
+
+    def __refresh_devtools_status(self, values):
+        """Polled every __refresh_runtime tick (<=20/s, same cadence as
+        the rest of the status surface) -- only updates the widget when
+        the selected command or its status text actually changed, mirroring
+        the version-gated pattern the rest of this method already uses for
+        RuntimeBus keys."""
+        choice = values.get("-DEVTOOLS-COMMAND-") if values else None
+        name = command_name_from_choice(choice) if choice else None
+        if name is None:
+            return
+        status_text = self.dev_tools.status_text(name)
+        if (
+            name == self._devtools_last_selected_command
+            and status_text == self._devtools_last_status_text
+        ):
+            return
+        self._devtools_last_selected_command = name
+        self._devtools_last_status_text = status_text
+        self.window["-DEVTOOLS-STATUS-"].update(f"{name}: {status_text}")
+
     def __refresh_runtime(self, values):
         now = monotonic()
+        self.__refresh_devtools_status(values)
 
         # High-rate preview: latest frame only, rendered at <=10 FPS.
         version, frame = self.runtime_bus.read_latest(
@@ -569,6 +639,12 @@ class Gui:
     def __shutdown(self, bot) -> bool:
         del bot
         self.__set_status("Stopping", "Stopping workers safely…")
+        # Ownership policy: any specialist subprocess this GUI session
+        # launched (recorder/telemetry/simulator/native/archive/calibration
+        # tools) is terminated on close, mirroring WorkerManager.shutdown()'s
+        # existing behavior for CAPTURE/PREVIEW/CONTROL/DIAGNOSTIC workers
+        # below -- nothing is left orphaned.
+        self.dev_tools.shutdown(timeout=5.0)
         results = self.controller.shutdown(timeout=8.0)
         timed_out = [kind.value for kind, stopped in results.items() if not stopped]
         if not timed_out:
@@ -1556,6 +1632,68 @@ class Gui:
             expand_x=True,
         )
 
+        dev_tools_choices = display_choices()
+        dev_tools = sg.Frame(
+            "Development Tools:",
+            [
+                [
+                    sg.Combo(
+                        dev_tools_choices,
+                        default_value=dev_tools_choices[0] if dev_tools_choices else "",
+                        readonly=True,
+                        enable_events=True,
+                        key="-DEVTOOLS-COMMAND-",
+                        expand_x=True,
+                    ),
+                ],
+                [
+                    sg.Text("Args:"),
+                    sg.Input(
+                        "",
+                        key="-DEVTOOLS-ARGS-",
+                        expand_x=True,
+                        tooltip=(
+                            "Optional extra command-line arguments, e.g. "
+                            "--window-title Flyff --duration-seconds 60. "
+                            "Leave blank for tools that support running with "
+                            "no arguments -- nothing here is filled in "
+                            "automatically."
+                        ),
+                    ),
+                ],
+                [
+                    sg.Button("Launch", key="-DEVTOOLS-LAUNCH-", expand_x=True),
+                    sg.Button("Cancel", key="-DEVTOOLS-CANCEL-", expand_x=True),
+                ],
+                [
+                    sg.Text(
+                        "not started",
+                        key="-DEVTOOLS-STATUS-",
+                        size=(38, 2),
+                    )
+                ],
+                [sg.HorizontalSeparator()],
+                [
+                    sg.Text("Artifact inventory (read-only):"),
+                    sg.Push(),
+                    sg.Button("Refresh", key="-DEVTOOLS-ARTIFACTS-REFRESH-"),
+                ],
+                [
+                    sg.Table(
+                        values=[],
+                        headings=ARTIFACT_TABLE_HEADINGS,
+                        key="-DEVTOOLS-ARTIFACTS-TABLE-",
+                        auto_size_columns=False,
+                        col_widths=[10, 30, 18, 24],
+                        num_rows=8,
+                        justification="left",
+                        expand_x=True,
+                    ),
+                ],
+            ],
+            expand_x=True,
+        )
+
         controls = sg.Column(
             [
                 [actions],
@@ -1563,6 +1701,7 @@ class Gui:
                 [mobs_config],
                 [options],
                 [status],
+                [dev_tools],
             ],
             size=(335, 820),
             pad=((0, 8), (0, 0)),
