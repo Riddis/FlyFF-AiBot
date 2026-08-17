@@ -1484,3 +1484,138 @@ Worktree clean, index empty, branch unpushed, no upstream, not on origin.
 
 **REPOSITORY COMPLETENESS REPAIR: PASS. PHASE 8 SAFE TO CONSIDER: YES
 (readiness only). PHASE 8 AUTHORIZED: NO.**
+
+---
+
+## Phase 8 — archive compatibility extraction + B3 retirement
+
+### Entry verification
+- HEAD `3634de895f5031d8cddb4e3f9879cefc913f4ecd`, exact subject match;
+  worktree clean, index empty, no upstream, absent from origin.
+- Ruler: `ok=true`, `R6=0 R7a=0 R7b=0 R7c=171 R9=0 R10=0`.
+- `BASELINE_VIOLATIONS.json`/`.md` byte-identical to Phase-7 HEAD;
+  `POST_PHASE7_R7C_SUPPLEMENT.tsv` present; no `snapshot` run since `1bad0fb`.
+- B1/B2 removed, B3 existing (`removal_gate=PHASE_8`), B4 permanent;
+  `current_phase=7`. Protected tags and external snapshot verified exact.
+
+### Pre-mutation source/legacy-rule audit
+- `simulator/schema.py` already the sole canonical archive reader before
+  this phase, 9 tracked consumers. `recorder/session.py`/`recorder/
+  format.py` (the writer) deliberately import nothing from it.
+- All 8 archives' `manifest.json` opened directly from the external Phase-0
+  snapshot: `schema_version=2` uniform across all 8 (no wire-format version
+  branching exists); 7 of 8 (recorder 1.7.0×1, 1.9.0×6) lack
+  `policy_contract`/`map_contract`/`recording_provenance` entirely; 1 of
+  those 7 is attested via `recording_provenance.json`'s external registry
+  (confirmed by hash lookup against the real 2-entry registry file).
+- Full detail: `docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md`.
+
+### Pre-mutation G7 baseline (frozen before any code change)
+- `phase3_capture.py check --corpus <Phase-0 snapshot>`: **PASS**,
+  `byte_identical=true`, 10/10 fixtures exact, `recordings.json`
+  `de493e4c55355074a5722ac8c5f0ad577d88c3f50805f6ba60cb3cebffdbeddb`.
+
+### P8-A (commit `4b549c4`)
+- `docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md` +
+  `tests/test_archive_schema_legacy_compat.py` (7 new characterization
+  tests against synthetic archives): **7/7 passed** against current,
+  pre-cutover `simulator.schema`. No behavior change.
+
+### P8-B attempt: `archives/schema.py` (reverted, never committed)
+- `git mv simulator/schema.py archives/schema.py`, updated all 9
+  consumers, corrected R7b's `legacy_path_segments`, retired B3. Ruler
+  reached `ok=true` after fixing an intermediate B3-bridge-evidence and R9
+  staging issue.
+- **G7 post-mutation check FAILED**: `RuntimeError: fixture byte mismatch:
+  ['recordings.json']`. Diagnosed per the explicit "STOP, do not repair the
+  golden evidence, report the exact field/source responsible" instruction
+  rather than assumed benign:
+  - Direct single-archive `_recording_worker` re-run:
+    `manifest_semantic_sha256` and `inputs.sha256` (plain tuples, no
+    dataclass) matched the frozen baseline exactly; `frames.sha256`/
+    `events.sha256`/`overall_decoded_semantic_sha256` (both dataclass-typed
+    streams) did not.
+  - Root cause: `phase3_capture.py`'s `typed_encode()` (the frozen G7
+    encoder) embeds `f"{type(value).__module__}.{type(value).__qualname__}"`
+    for every dataclass instance. Moving `RecordedFrame`/`RecordedActor`/
+    `RecordedEvent` out of `simulator.schema` changed that identity string
+    even though every decoded field value was provably bit-identical.
+  - A stale full-fixture-regenerate run (started before the fix, using the
+    broken `archives/`-based code) later confirmed the diagnosis exactly:
+    all 9 non-recording fixtures byte-identical to frozen, only
+    `recordings.json` differed (`c203f164...` vs frozen `de493e4c...`).
+- Reverted in full, in the working tree, before any commit:
+  `git mv archives/schema.py simulator/schema.py`, `git mv archives/legacy/
+  manifest_compat.py legacy/manifest_compat.py`, `rm -rf archives/`, all 9
+  consumer imports reverted to their exact original text.
+- Single-archive re-run after the revert: **exact match** —
+  `overall_decoded_semantic_sha256`/`frames.sha256`/`events.sha256` all
+  identical to the frozen baseline values.
+
+### P8-B/P8-C corrected design (commit `08d5a0d`)
+- `simulator/schema.py` stays at its original location and module identity;
+  only the genuinely historical, non-dataclass-touching compatibility logic
+  (missing-contract warnings, provenance-registry fallback) moved to a new
+  top-level `legacy/manifest_compat.py`. Dependency direction canonical ->
+  legacy only (parameters, not an import, carry the current contract
+  values into the legacy module -- no cycle).
+- `CANONICAL_OWNERS.toml` R7b: `allowed_importer_prefixes` gained the exact
+  path `"simulator/schema.py"` (not a directory prefix).
+- B3: `tools/inventory_recordings.py`'s sys.path bootstrap removed
+  (confirmed redundant post-Phase-7-collapse except for its plain-script
+  invocation form, by direct simulation); invocation converted to `python
+  -m tools.inventory_recordings`. `BRIDGES.md` B3: removed, `locations=[]`.
+- Verification: `docs/migration/tests/` **36 passed** (5 new: B3-removed,
+  bootstrap-absent, origin-resolves, and 2 more R7b containment tests plus
+  a live-tree R7b scan -- all pass, zero violations). Consumer closure (13
+  files whose import graph reaches `simulator.schema`): **175 passed, 1
+  pre-existing xfail, 0 failed**. `python -m tools.inventory_recordings`
+  smoke-tested against a real 1.11.0 current-format archive and the real
+  1.7.0 legacy-attested archive from the external snapshot -- both correct
+  (`direct_movement_provenance_source: "sha256_attestation_registry"` for
+  the legacy one).
+- Ruler: `ok=true`, `R6=0 R7a=0 R7b=0 R7c=171 R9=0 R10=0` (unchanged from
+  entry).
+
+### G7 post-mutation (definitive, primary Phase-8 gate)
+- `phase3_capture.py check --corpus <Phase-0 snapshot>`: **PASS**,
+  `byte_identical=true`, 10/10 fixtures exact, `recordings.json`
+  `de493e4c55355074a5722ac8c5f0ad577d88c3f50805f6ba60cb3cebffdbeddb` —
+  byte-for-byte identical to the pre-mutation freeze. All 8 archives
+  individually exact; no averaging, no tolerance, no fixture rewrite.
+
+### R9/R10 and checkpoint smoke check
+- R9=0, R10=0 failures across the frozen 313-checkpoint/317-reference
+  corpus, `torch_modules_added=[]` (all via the ruler check above).
+- One read-only `PPO.load("models/generalized_waypoint_both_seed2_0051200.zip")`,
+  performed out of caution (a different module in the same top-level
+  `simulator` package was touched): SHA
+  `87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50` exact;
+  `simulator.split_branch_policy.SplitSteeringNavigationPolicy`;
+  `Box(-1.0, 1.0, (928,), float32)`; `MultiDiscrete([3 3])`;
+  `num_timesteps=51200`.
+
+### Historical immutability
+- `verify_historical_snapshot()`: PASS, unedited.
+- `git diff` of the 5 protected product files
+  (`kinodynamic_route_planner.py`, `navigation_history.py`,
+  `movement_kernel.py`, `movement_kinematics.py`, `split_branch_policy.py`)
+  against entry HEAD: empty.
+- B4 unchanged. No 820M, no G5, no G5-P2, no live FlyFF access.
+
+### Broad-suite decision
+**Not run** -- documented rationale in `PHASE8_REPORT.md` section 17: no
+shared package initializer touched, no top-level import-resolution change
+beyond the already-tested B3 removal, test discovery unaffected beyond one
+new file, and the actually-reachable consumer closure was explicitly
+enumerated (`git grep`) and fully run (175+ tests, 0 failures, 0 new
+skips/xfails).
+
+### Final state
+`current_phase` advanced `7` -> `8`. Worktree clean, index empty, branch
+unpushed, no upstream, not on origin. Protected tags unchanged.
+
+**PHASE 8 COMPLETE: YES. PHASE 9 SAFE TO CONSIDER: YES (readiness only).
+PHASE 9 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**

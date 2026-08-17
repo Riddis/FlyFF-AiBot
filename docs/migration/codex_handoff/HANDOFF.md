@@ -796,3 +796,83 @@ coordinator authorization.
 **G5: PENDING. G5-P2: PENDING.**
 
 **PHASE 8 SAFE TO CONSIDER: YES. PHASE 8 AUTHORIZED: NO.**
+
+---
+
+## Phase 8 (executor: Claude) — archive compatibility extraction + B3 retirement, complete
+
+Authorized narrowly: canonical archive schema/reader boundary, isolate
+version-specific historical decode compatibility, preserve the current
+recorder write path, make every consumer use the canonical reader, retire
+B3 if cleanly possible, prove all 8 historical archives decode exactly per
+the frozen G7 contract. Entry HEAD `3634de895f5031d8cddb4e3f9879cefc913f4ecd`
+verified exact; ruler `R6=0 R7a=0 R7b=0 R7c=171 R9=0 R10=0`; pre-mutation G7
+frozen before any code change.
+
+Mechanical audit (`PHASE8_ARCHIVE_OWNER_ANALYSIS.md`, commit `4b549c4`)
+found `simulator/schema.py` was already the single canonical reader with 9
+tracked consumers, and that all 8 historical archives already share the
+same wire `schema_version` — the only legacy conditions are manifest-field
+presence (missing `policy_contract`/`map_contract` → warn-not-fail; missing
+embedded `recording_provenance` → external hash-registry fallback,
+empirically confirmed against `recording_provenance.json` for the one
+attested legacy archive).
+
+Implementing the planned `archives/schema.py` physical relocation broke the
+frozen G7 fixture on exactly one stream family: the G7 encoder embeds each
+decoded dataclass's fully-qualified class name in its hash, so moving
+`RecordedFrame`/`RecordedActor`/`RecordedEvent` changed that identity even
+though every field value was provably unchanged (confirmed by a targeted
+single-archive re-run: `manifest`/`inputs` hashes matched exactly,
+`frames`/`events` did not). Per this phase's explicit "do not repair the
+golden evidence, do not create a tolerance, STOP and report the source-backed
+conflict" instruction, the move was reverted in the working tree before any
+commit — never part of git history. Final, source-supported design:
+`simulator/schema.py` stays exactly where it was; only the genuinely
+historical, non-dataclass compatibility logic moved to a new top-level
+`legacy/manifest_compat.py` (dependency direction canonical → legacy only).
+Full account: `PHASE8_ARCHIVE_OWNER_ANALYSIS.md` section F.
+
+B3 retired cleanly: `tools/inventory_recordings.py`'s sys.path bootstrap was
+confirmed redundant post-Phase-7-collapse except for its plain-script
+invocation form; removed, converted to `python -m
+tools.inventory_recordings`, smoke-tested against real current-format and
+legacy-attested archives. `BRIDGES.md` B3: removed, locations `[]`. R7b's
+`allowed_importer_prefixes` gained one exact-path entry
+(`simulator/schema.py`) so the canonical reader alone may dispatch into
+`legacy/`; 5 new regression tests prove the containment still holds
+everywhere else, including a full scan of the real tracked tree.
+
+**G7 — the primary gate**: pre-mutation and post-mutation
+`phase3_capture.py check --corpus <Phase-0 snapshot>` both `PASS`,
+`byte_identical=true`, 10/10 fixtures exact, `recordings.json` hash
+identical both times. All 8 archives individually exact; no averaging, no
+tolerance, no fixture rewrite. Ruler unchanged (`R6=0 R7a=0 R7b=0 R7c=171
+R9=0 R10=0`); `docs/migration/tests/` 36 passed; every consumer whose
+import closure reaches `simulator.schema` (13 files) 175 passed, 1
+pre-existing xfail, 0 failed. One read-only 0051200 smoke load reproduced
+its exact SHA/policy/spaces/timesteps, performed out of caution since a
+different module in the same top-level `simulator` package was touched.
+Historical guard PASS unedited; the 5 protected product files and B4 are
+zero-diff. Broad 1154-test suite deliberately **not** rerun — no shared
+package initializer or top-level import-resolution mechanism changed
+beyond the already-tested B3 removal, and the actually-reachable closure
+was explicitly enumerated and fully green (see `PHASE8_REPORT.md` section
+17 for the complete reasoning).
+
+`current_phase` advanced to `8`. Worktree clean, index empty, branch
+unpushed, no upstream, not on origin.
+
+No FlyFF launch, no training, no recording, no 820M, no G5, no G5-P2, no
+`navigation/` package, no router/movement/policy change.
+
+Read `PHASE8_REPORT.md` for the exact audit, legacy-rule inventory, the
+`archives/schema.py` STOP-and-adjust account, gate results, and
+preservation proof. Exact next action: STOP. Do not begin Phase 9 without
+separate coordinator authorization.
+
+**REPOSITORY/PHASE 8: COMPLETE.**
+**PHASE 9 SAFE TO CONSIDER: YES** — readiness only.
+**PHASE 9 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**
