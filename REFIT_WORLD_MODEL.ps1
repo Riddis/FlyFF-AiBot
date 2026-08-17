@@ -21,8 +21,8 @@ $python = "python"
 if (Test-Path "..\.venv\Scripts\python.exe") {
     $python = (Resolve-Path "..\.venv\Scripts\python.exe").Path
 }
-$Cli = Join-Path $PSScriptRoot "run_simulator.py"
-$DiscoveryTool = Join-Path $PSScriptRoot "tools\list_world_model_eligible.py"
+$Cli = Join-Path $PSScriptRoot "apps\simulator_cli.py"
+$DiscoveryTool = Join-Path $PSScriptRoot "devtools\archives\list_world_model_eligible.py"
 foreach ($required in @($python, $Cli, $DiscoveryTool)) {
     if (-not (Test-Path $required)) {
         throw "Missing required path: $required"

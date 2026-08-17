@@ -5,7 +5,7 @@ from PyInstaller.utils.hooks import collect_submodules
 
 spec_path = Path(SPEC).resolve()
 app_root = spec_path.parent
-entry_script = app_root / "app.py"
+entry_script = app_root / "apps" / "recorder_app.py"
 
 hidden = collect_submodules("position") + [
     "msgpack",
