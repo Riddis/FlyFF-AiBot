@@ -1229,3 +1229,145 @@ repeated.
 - P6-A commit: `2f2b6be0dd765df5705be089dc07ac7c24af319a`.
 - Final post-report migration suite: **52 passed in 83.76s**; direct Phase-6
   checker `ok=true`; ruler `ok=true` at 0/0/0/168 with R9/R10 zero.
+
+---
+
+## Phase 7 (executor: Claude)
+
+### Focused migration-integrity suite
+- Command: `pytest docs/migration/tests/ -q --basetemp=<writable>`
+- Result: **60 passed** in 71.26s. Exit code captured directly (redirected to
+  file, `$?` checked without a `tail`/`head` pipe in between).
+
+### Formal ruler
+- Command: `migration_integrity.py check`
+- Result: `ok=true`, R6=0 R7a=0 R7b=0 R7c=168 R9=0 R10=0 failures (313
+  checkpoints, 317 references, `torch_modules_added=[]`). Re-run identically
+  post-P7-WIRE-commit with the same result.
+
+### Historical reproduction guard
+- `verify_historical_snapshot()` called directly from the collapsed root,
+  guard source untouched. PASS.
+
+### 0051200 read-only load
+- SHA verified (`87bd8d3e...`) before load. `PPO.load(device="cpu")`:
+  `simulator.split_branch_policy.SplitSteeringNavigationPolicy`,
+  `Box(-1,1,(928,),float32)`, `MultiDiscrete([3,3])`. PASS.
+
+### G8c router/kernel focused suite (first pass, pre-fix)
+- Command: `pytest tests/test_kinodynamic_route_planner.py
+  tests/test_router_waypoint_env.py tests/test_target_hysteresis.py
+  tests/test_kinodynamic_arc_edge_check.py
+  tests/test_kinodynamic_transition_fidelity.py
+  tests/test_environment_planner_kernel_agreement.py -q`
+- Result: **55 passed, 1 skipped, 1 failed** in 39.75s. The one failure:
+  `ModuleNotFoundError: No module named scratchpad_single_obstacle_train`.
+  Traced to a module never tracked in this branch's git history at any
+  commit (`git log --all` empty, `git ls-tree` at Phase-6 HEAD empty),
+  present only in the preserved original reference tree.
+
+### Broad collapsed-root run, first attempt (no ignores)
+- Command: `pytest tests/ -q`
+- Result: **collection aborted, 2 errors** -- `ModuleNotFoundError: No module
+  named scratchpad_generalized_waypoint_train_reward_ablation` in
+  `tests/test_beginner_navigation_mix_train.py` and
+  `tests/test_reward_ablation_wrapper_contract.py`. Same never-tracked-helper
+  class as the G8c failure. Note: this background task's own exit-code
+  reporting from the harness read 0 despite the collection error; the
+  authoritative signal was the literal "Interrupted: 2 errors during
+  collection" text in the captured output plus the absent EXIT= line in the
+  redirected file, not the harness's summary. Root-caused before trusting the
+  "completed (exit code 0)" notification.
+
+### Broad collapsed-root run, second attempt (--ignore the two blocked files)
+- Result: **7 failed, 1063 passed, 2 skipped, 1 xfailed** in 549.17s. Real
+  exit code captured via direct file redirection.
+- Failures: 3 pre-existing accepted baseline
+  (test_focus_loss_during_eva_discards_kill_and_transition,
+  test_normal_training_status_is_concise_and_uses_total_model_steps,
+  test_training_callback_publishes_structured_session_statistics) + the
+  G8c scratchpad-helper case + test_navigation_dataset.py's
+  gitignored-model-artifact case + 2 new:
+  test_recorder_core.py::test_recorder_profiles_and_uses_instantiated_field_as_verified_hint
+  and
+  test_recorder_core.py::test_player_discovery_does_not_gate_on_monster_instantiated_field,
+  both FileNotFoundError on a path under
+  C:\Users\Ridd\Documents\Repos\foreground_vision_bot\position\ (note: not
+  even inside either Flyff RL tree -- a sibling of Documents\Repos itself,
+  from a parents[2] overshoot).
+
+### Diagnosis and fix: test_recorder_core.py
+- Read both failing test bodies in full. Confirmed both used
+  `parents[2] / "foreground_vision_bot" / "position" / <file>.py`, correct
+  only when the test lived at `flyff_farming_recorder/tests/<file>.py`
+  (two levels deep). Post-collapse the file lives at `tests/<file>.py` (one
+  level deep) -- `parents[1]` is correct, matching every other working
+  assertion in the same file.
+- Confirmed `foreground_vision_bot/position/` no longer contains this source
+  at all (`ls` shows only `__pycache__` and `profiling`) -- Phase 5 already
+  merged the content into canonical `position/`.
+- Fixed both to `parents[1] / "position" / <file>.py`. Verified all four
+  target strings (`_scan_monsters_presence_optimized`, "rotating presence
+  and full-verification batches", `install_validated_presence_offset`,
+  `exact_monster_bases = {int(item.base) for item in anchors}`) present at
+  the new location via `grep -c` (1-3 hits each) before trusting the fix.
+- Re-ran `pytest tests/test_recorder_core.py -q`: **23 passed** in 0.65s.
+
+### Diagnosis: neighbour_boundary.json / observation_expected.json
+- `phase3_capture.py check --corpus <external snapshot>`:
+  `RuntimeError: fixture byte mismatch: [neighbour_boundary.json,
+  observation_expected.json]`.
+- Regenerated to a scratch directory (`phase3_capture.py generate
+  --output-root <scratch>`), byte-diffed against tracked fixtures. Frozen
+  fixture: KNOWN_HYPOT_VS_SQUARED_ONLY, 4 direct mismatches, 1 bit-level
+  float32 divergence. Regenerated: BIT_EQUIVALENT, 0 mismatches.
+- Verified canonical `farming/observation.py`'s `_nearby_counts` uses
+  `hypot(...) <= radius` (the safe, live-validated algorithm) via direct
+  `grep` of the source, not inference.
+- Cross-referenced PHASE4_REPORT.md: confirms this exact outcome was
+  already produced and accepted during Phase 4, with the revised-G3 gate
+  (10,016/10,016 vectors, 4,126 boundary cases, zero mismatch to hypot) as
+  the authoritative check -- separately re-run this session via
+  `phase4_contracts.py all`, `ok=true`.
+- `docs/migration/PHASE3_FIXTURE_MANIFEST.tsv` was already updated
+  (inherited, unstaged) with the new expected hashes, matching this
+  session's independent regeneration exactly.
+- Ran `phase3_capture.py generate` at the real tracked fixture location
+  (default output-root/manifest). Verified both resulting file hashes
+  against the manifest's already-declared values directly (both matched).
+  Verified the other 8/10 fixtures unchanged.
+
+### Resolving the two pre-existing untracked-artifact gaps
+- Origin-pin verification script run first: 7 canonical modules (farming,
+  position, simulator, simulator.kinodynamic_route_planner,
+  simulator.movement_kernel, simulator.navigation_history,
+  simulator.split_branch_policy) all confirmed resolving inside
+  Flyff RL - Phase1, with PYTHONPATH = collapsed-root then
+  reference-tree/flyff_farming_simulator (collapsed root first). Only the
+  two untracked scratchpad names resolved from the reference tree.
+- Ran the one kinodynamic_route_planner test plus both full scratchpad-
+  blocked files with that PYTHONPATH: **22 passed** in 22.45s.
+- test_navigation_dataset.py's model-dependent test: CWD set to
+  reference-tree/flyff_farming_simulator (so the relative models/... path
+  resolves there), PYTHONPATH pinned to the collapsed root only (no
+  reference-tree product-code access): **1 passed** in 139.91s, matching
+  PHASE4_REPORT.md's identical precedent (112.23s there).
+
+### Final clean-collapsed-root confirmation (post-fix)
+- `pytest tests/ -q --ignore=tests/test_beginner_navigation_mix_train.py
+  --ignore=tests/test_reward_ablation_wrapper_contract.py`
+- Result: **5 failed, 1065 passed, 2 skipped, 1 xfailed** in 500.36s. The 5
+  failures are exactly the 3 known baseline + the 2 artifact-gap cases
+  already independently confirmed passing above. No unexplained non-pass.
+
+### Post-P7-WIRE-commit re-verification
+- `git status --short --branch -uall`: clean.
+- `migration_integrity.py check`: `ok=true`, identical counts to pre-commit.
+- All three protected tags resolved to their exact expected SHAs.
+- `git ls-remote origin`: branch absent (only the two preservation tags and
+  the pre-existing feature/standalone-farming-recorder-simulator branch
+  present).
+
+Combined total this phase: 1088 passing, 3 known pre-existing accepted
+failures, 0 unexplained non-passes, 2 skipped, 1 xfailed. P7-WIRE commit:
+`fc1862369a26e9e4bbb0dbd5a8ed0c29b1345a18`.

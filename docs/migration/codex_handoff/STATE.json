@@ -1,7 +1,9 @@
 {
-  "phase": "Phase 5 complete",
-  "task": "PHASE 5 COMPLETE - canonical shared position, explicit attach policies, profiling separation, and B2 installed; Phase 6 unauthorized",
-  "timestamp_local": "2026-08-16T22:50:31+02:00",
+  "phase": "Phase 7 complete",
+  "task": "PHASE 7 COMPLETE - physical root collapse (P7-MOVE + P7-WIRE), B1/B2 retired, B3 retained for Phase 8, B4 unchanged; Phase 8 unauthorized",
+  "current_phase": 7,
+  "executor_phase7": "Claude (independent Phase 0-6 re-verification not repeated; P7-MOVE purity re-proven; P7-WIRE completed, committed, reported)",
+  "timestamp_local": "2026-08-17T04:30:00+02:00",
   "worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL - Phase1",
   "reference_worktree_path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL",
   "branch": "refactor/consolidation-phase1",
@@ -357,5 +359,29 @@
   "phase6_branch_push_status": "UNPUSHED; no upstream",
   "phase6_report": "docs/migration/codex_handoff/PHASE6_REPORT.md",
   "phase7_safe_to_consider": "YES",
-  "phase7_authorized": false
+  "phase7_authorized": true,
+  "phase7_complete": true,
+  "phase8_authorized": false,
+  "phase7_preflight_commit": "06c67c71f2d32f4c5937833d8b7b9f407a45d214",
+  "phase7_move_commit": "bfc5c6d261761fb8d083c1f8962a7610aa11f222",
+  "phase7_move_purity": "PASS - re-proven independently: git diff-tree -M100 shows 1486/1486 rows type R, zero non-rename entries",
+  "phase7_wire_commit": "fc1862369a26e9e4bbb0dbd5a8ed0c29b1345a18",
+  "phase7_wire_scope": "path/structural consequences of the collapse only (B1/B2 bootstrap removal, conftest merge, migration-tool path adaptation, registry relocation, one test path-arithmetic fix, two Phase-4-documented-supersession fixture files); zero product algorithm/observation/reward/position/map/router/movement/checkpoint/archive changes; see PHASE7_REPORT.md section 3 and 8",
+  "phase7_findings_resolved": {
+    "test_recorder_core_path_bug": "FIXED in P7-WIRE - two assertions used parents[2] from the old two-level-deep test location; corrected to parents[1] + canonical position/ path; 23/23 tests pass",
+    "phase3_fixture_supersession": "COMPLETED in P7-WIRE - neighbour_boundary.json and observation_expected.json regenerated to match the already-Phase-4-documented and already-manifest-declared canonical values (PHASE4_REPORT.md: 'Phase 4 intentionally supersedes two old simulator-side observation targets'); other 8/10 fixtures confirmed byte-identical",
+    "scratchpad_helper_gap": "PRE-EXISTING, not Phase-7-caused - scratchpad_single_obstacle_train.py / scratchpad_generalized_waypoint_train_reward_ablation.py never tracked at any commit in this branch's history; resolved read-only via preserved reference tree per approved technique, 22/22 pass, product origins verified pinned to collapsed root",
+    "model_artifact_gap": "PRE-EXISTING, not Phase-7-caused, precedented in PHASE4_REPORT.md - models/split_branch_pilot_15000.zip is gitignored by Phase-0 policy; resolved read-only via preserved reference tree, 1/1 pass"
+  },
+  "phase7_ruler_status": "R6=0 R7a=0 R7b=0 R9=0 R10=0 failures; R7c 200->168 (dropped, never grew; residual = retained rollback-only recorder position/ shims)",
+  "phase7_test_accounting": "clean collapsed-root: 1065 passed, 5 failed (3 pre-existing accepted baseline + 2 pre-existing artifact-gap, both independently confirmed passing with read-only helper), 2 skipped, 1 xfailed; helper-dependent: 23/23 passed; combined: 1088 passing, 0 unexplained non-passes; focused migration suite 60/60",
+  "phase7_gates": "G4/G10a/G11 (phase2_fingerprints) ok=true; revised-G3/G-GEO/B1 (phase4_contracts) ok=true; G1/NP/G9/B2 (phase5_contracts) ok=true; MAP6 (phase6_map_profiles) ok=true; G7/G12/G8c/effective-config (phase3_capture) 8/10 fixtures byte-identical unconditionally, 2/10 resolved per documented supersession; historical reproduction guard PASS unedited; one read-only 0051200 PPO.load PASS (SplitSteeringNavigationPolicy, Box(928,),MultiDiscrete[3,3]); import-origin probe PASS (7 canonical modules pinned to collapsed root)",
+  "phase7_B1_B2_B3_B4": "B1 removed (0 locations); B2 removed (0 locations); B3 existing, removal_gate=PHASE_8, unchanged; B4 permanent-historical, tag exact at a90de59232b81753c1b2ea35b8990325c26674e5, unchanged",
+  "phase7_immutable_artifacts": "PASS - zero checkpoint/model/map/archive/evaluation bytes touched; verified by reading every diff in the P7-WIRE commit, not inferred",
+  "phase7_branch_push_status": "UNPUSHED; no upstream; not on origin (git ls-remote origin shows only the two preservation tags and the pre-existing feature/standalone-farming-recorder-simulator branch)",
+  "phase7_G5_status": "PENDING - not attempted, requires live FlyFF client, out of scope",
+  "phase7_G5_P2_status": "PENDING - not attempted, requires live FlyFF client, out of scope",
+  "phase7_report": "docs/migration/codex_handoff/PHASE7_REPORT.md",
+  "phase7_worktree_status_post_commit": "clean, empty index",
+  "phase8_safe_to_consider": "YES - readiness only, not self-authorized"
 }

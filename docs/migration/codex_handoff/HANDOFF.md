@@ -634,3 +634,67 @@ Do not begin Phase 7 without separate coordinator authorization.
 **G5: PENDING. G5-P2: PENDING.**
 
 **PHASE 7 SAFE TO CONSIDER: YES. PHASE 7 AUTHORIZED: NO.**
+
+---
+
+## Phase 7 (executor: Claude) — physical root collapse, complete
+
+Inherited state: P7-MOVE already committed and pure (`bfc5c6d`), P7-WIRE
+partway through with two conftest deletions staged and 56 other edits
+unstaged, after Codex's execution-service approval quota was exhausted.
+Independently re-proved P7-MOVE purity (1,486/1,486 renames, zero
+non-rename entries) rather than trusting the handoff, then read every
+unstaged diff (not sampled) before touching anything.
+
+Four genuine issues were found by actually running the gates, each
+investigated to a definitive root cause rather than assumed or routed
+around:
+
+1. `tests/test_recorder_core.py` had two path-arithmetic bugs left over
+   from the one-level collapse (`parents[2]` should have been `parents[1]`,
+   and the target content had already moved into canonical `position/` per
+   Phase 5). Fixed in P7-WIRE; verified the exact asserted strings exist at
+   the corrected path; 23/23 tests pass.
+2. Two Phase-3 golden fixtures (`neighbour_boundary.json`,
+   `observation_expected.json`) mismatched on raw bytes. Investigated to the
+   value level, not just the byte level: confirmed via direct source
+   inspection and cross-reference against `PHASE4_REPORT.md` that this is
+   an already-documented, already-G3-gate-verified consequence of Phase 4's
+   canonicalization (the bot's safe `hypot` algorithm won; the simulator's
+   optimized alternative was correctly retired) — not a new regression. The
+   fixture manifest had already been updated to declare the new values
+   (inherited, unstaged); this session brought the fixture file bytes into
+   agreement with it. The other 8/10 Phase-3 fixtures are confirmed
+   byte-identical.
+3. Two scratchpad-module test dependencies were confirmed **never tracked
+   in this branch's git history at any commit** (not a Phase-7 loss).
+   Resolved read-only against the preserved original tree using the
+   coordinator-approved technique (product-code origins asserted pinned to
+   the collapsed root first); 22/22 pass.
+4. One gitignored-model-artifact test dependency, same category as #3 and
+   already precedented in `PHASE4_REPORT.md`'s identical handling. Resolved
+   the same way; 1/1 pass.
+
+**Combined test accounting**: clean collapsed-root 1065 passed / 5 failed
+(3 pre-existing accepted baseline + 2 resolved artifact-gaps) / 2 skipped /
+1 xfailed; helper-dependent 23/23 passed; **1088 passing total, zero
+unexplained non-passes, no fourth real failure accepted**.
+
+All gates green: ruler (R6=0 R7a=0 R7b=0 R9=0 R10=0, R7c 200->168 dropped
+never grew), historical guard, one read-only 0051200 load, import-origin
+probe, G4/G10a/G11/revised-G3/G-GEO/G1/NP/G9/B2/MAP6/G7/G12/G8c. B1 and B2
+removed (0 locations each). B3 unchanged, retained for Phase 8. B4
+unchanged, permanent.
+
+P7-WIRE committed as `fc1862369a26e9e4bbb0dbd5a8ed0c29b1345a18`. Worktree
+clean, index empty, branch unpushed, no upstream, not on origin.
+
+No FlyFF launch, no training, no 820M, no G5, no G5-P2.
+
+Read `PHASE7_REPORT.md` for the exact audit, findings, gate results, and
+preservation proof. Exact next action: STOP. Do not begin Phase 8 without
+separate coordinator authorization.
+
+**G5: PENDING. G5-P2: PENDING.**
+
+**PHASE 8 SAFE TO CONSIDER: YES. PHASE 8 AUTHORIZED: NO.**
