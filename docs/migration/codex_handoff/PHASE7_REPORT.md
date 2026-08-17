@@ -457,7 +457,13 @@ with zero semantic change. Read in full (not just import lines) to confirm
 this before promotion; no internal root-relative assumption was invalidated
 by the Phase-7 collapse, so no STOP condition applied.
 
-### 11.4 R7c baseline extension (narrow, additive only)
+### 11.4 R7c baseline extension (corrected: forward supplement, not a baseline edit)
+
+**This subsection was corrected forward by commit `1bad0fb`, after
+independent review. It describes the accepted final mechanism directly;
+§11.12 documents what was wrong with the first attempt (commit `860a990`)
+and exactly what changed. `860a990` remains in git history unaltered — this
+is a correction, not a rewrite.**
 
 Re-running the ruler (`docs/migration/tools/migration_integrity.py check`)
 after promotion reported `R7c` growing from 168 to 171
@@ -468,30 +474,33 @@ after promotion reported `R7c` growing from 168 to 171
 promotion is the qualifying event that made the ruler's R7c detector able to
 see them, not new coupling.
 
-**The tool's own `snapshot` subcommand was deliberately NOT used to update
-this.** Running it once, read-only, to inspect its output showed it would
-rewrite `docs/migration/BASELINE_VIOLATIONS.json` wholesale: every existing
-entry's path translated from pre-Phase-7 layout (e.g.
+**The tool's own `snapshot` subcommand was deliberately NOT used.** Running
+it once, read-only, to inspect its output showed it would rewrite
+`docs/migration/BASELINE_VIOLATIONS.json` wholesale: every existing entry's
+path translated from pre-Phase-7 layout (e.g.
 `flyff_farming_simulator/scratchpad_ppo_pure_navigation.py`) to the collapsed
 layout, and `"phase"` bumped from `4` to `7`. That is exactly the kind of
-frozen-historical-evidence rewrite this migration's discipline forbids —
-`check`'s own `ratchet_errors()` already translates the frozen baseline's
-pre-Phase-7 paths forward through `PHASE7_MOVE_MANIFEST.tsv` at comparison
-time, so the baseline file itself is meant to stay frozen at its original
-capture-time paths and phase number. That `snapshot` output was discarded
-(`git checkout --`) before anything was staged.
+frozen-historical-evidence rewrite this migration's discipline forbids. That
+`snapshot` output was discarded (`git checkout --`) before anything was
+staged.
 
-Instead, exactly the 3 new entries were hand-added to
-`docs/migration/BASELINE_VIOLATIONS.json` and
-`docs/migration/BASELINE_VIOLATIONS.md`, at the promoted files' current
-(post-collapse) paths — since these two files were never part of the
-Phase-7 move set, there is no pre-collapse path to translate. Every
-pre-existing frozen entry, the `"phase": 4` field, and `base_sha` were left
-byte-for-byte untouched. Committed separately at `860a990` ("Extend R7c
-baseline for newly promoted helper dependencies"), keeping the promotion
-commit itself free of any file beyond the two source files. Post-edit
-`check` reports `ok: true`, zero errors, `R6=0 R7a=0 R7b=0 R9=0 R10
-failures=[]`, `R7c=171` with no `new_baseline_violation`.
+**The accepted mechanism is an explicit forward supplement, evaluated
+alongside the frozen baseline without ever editing it.**
+`docs/migration/BASELINE_VIOLATIONS.json` and `.md` are byte-for-byte
+identical to their state at the Phase-7 HEAD (`70ede05`) — unchanged by this
+repair. The 3 new edges are instead recorded in a new, dedicated file,
+`docs/migration/POST_PHASE7_R7C_SUPPLEMENT.tsv`, at the promoted files'
+current (post-collapse) paths (no pre-collapse path exists to translate,
+since these two files were never part of the Phase-7 move set). `check`'s
+own `ratchet_errors()` was extended (`supplement` parameter,
+`load_supplement`/`supplement_keys`) to accept the frozen baseline's keys
+plus the supplement's keys — each supplement entry grants forward acceptance
+for its own exact `rule|concept|path|detail` key only, never a rule-wide or
+path-wide exemption, so any other new finding still ratchets as growth (a
+dedicated regression test proves this: `test_ratchet_accepts_explicit_
+forward_supplement_but_rejects_unrelated_growth`). `check` reports `ok:
+true`, zero errors, `R6=0 R7a=0 R7b=0 R9=0 R10 failures=[]`, `R7c=171` (168
+frozen + 3 supplement) with no `new_baseline_violation`.
 
 ### 11.5 Full gate re-run (clean root, no old-tree access)
 
@@ -574,16 +583,20 @@ inventory, the Phase-0 manifest, the Phase-2 baseline (fingerprints), and the
 Phase-3 fixture manifest were not rewritten by this repair — verified by an
 empty `git diff` against the Phase-7 HEAD (`70ede05`) for each. The
 historical reproduction guard's `REQUIRED_FILES` hash list was not edited.
-`docs/migration/BASELINE_VIOLATIONS.json`'s pre-existing entries, `"phase"`
-field, and `base_sha` were not rewritten (§11.4) — only 3 new entries were
-appended at their current paths.
+`docs/migration/BASELINE_VIOLATIONS.json` and `.md` are, after the §11.12
+correction, byte-for-byte identical to the Phase-7 HEAD as well — the 3 new
+R7c edges live entirely in the separate forward supplement
+(`POST_PHASE7_R7C_SUPPLEMENT.tsv`), never in the frozen baseline itself.
 
 ### 11.10 Repository state and journal updates
 
-Full diff since the Phase-7 HEAD (`70ede05`) across all three new commits
-(`4f4d965`, `966f5fb`, `860a990`): 7 files changed, 587 insertions, 1
-deletion — 2 promoted source files, 3 new audit TSVs, and a narrow additive
-extension to the 2 baseline ledger files. `current_phase` in
+Full diff since the Phase-7 HEAD (`70ede05`) across all commits through the
+§11.12 correction (`4f4d965`, `966f5fb`, `860a990`, the documentation commit
+`b2a62b7`, and the correction commit `1bad0fb`): `docs/migration/
+BASELINE_VIOLATIONS.json` and `.md` end byte-identical to `70ede05`; the net
+new tracked content is 2 promoted source files, 3 new audit TSVs, one new
+forward-supplement TSV, the `migration_integrity.py` supplement mechanism,
+8 new regression tests, and journal/report updates. `current_phase` in
 `CANONICAL_OWNERS.toml` remains `7`. `BRIDGES.md` bridge states are
 unchanged: B1 removed, B2 removed, B3 existing (`removal_gate = "PHASE_8"`,
 not reactivated as B2), B4 permanent-historical. Worktree clean, index
@@ -592,16 +605,76 @@ empty, branch unpushed, no upstream, not on origin (unchanged from §9).
 this repair's specific new fields; `current_phase`, `phase8_authorized`,
 `G5`, and `G5_P2` were left exactly as Phase 7 left them.
 
-### 11.11 Conclusion
+### 11.12 Correction: R7c baseline mechanism (commit `1bad0fb`)
+
+Independent review after this addendum's initial commit (`b2a62b7`)
+identified that commit `860a990` had hand-edited
+`docs/migration/BASELINE_VIOLATIONS.json`/`.md` directly to absorb the 3
+newly-visible R7c edges. That conflicted with the ruler's own
+frozen-evidence contract — the generated markdown's own header states "Do
+not normalize this debt away by hand... growth fails" — and with this
+migration's established discipline of supplementing frozen evidence forward
+rather than rewriting it (the same principle already followed for Phase-2
+checkpoint metadata when Phase 0 had not captured enough information).
+Editing the frozen baseline directly was wrong even though every individual
+fact recorded in it remained true and even though the edit was narrow,
+additive, and reviewed before committing — the file's own contract is that
+it is generated evidence, not a hand-maintained ledger.
+
+Corrected forward, without reset/amend/rebase — `860a990` and `b2a62b7`
+remain in git history exactly as committed:
+
+1. `docs/migration/BASELINE_VIOLATIONS.json` and `.md` restored byte-for-byte
+   to their state immediately before `860a990` (`git checkout
+   966f5fb5c4c06091d55c1161abf80a34ed09b602 -- <paths>`), verified by
+   SHA-256 against that commit's blobs.
+2. `docs/migration/POST_PHASE7_R7C_SUPPLEMENT.tsv` added: the same 3 edges,
+   now recorded as dedicated, explicit forward evidence instead of being
+   baked into the frozen baseline.
+3. `migration_integrity.py`'s `check()` now evaluates the frozen baseline
+   plus this explicit forward supplement (`load_supplement`,
+   `supplement_keys`, `ratchet_errors(..., supplement=...)`) rather than
+   requiring the historical baseline itself to absorb post-Phase-7
+   additions. A supplement entry accepts only its own exact
+   `rule|concept|path|detail` key — never a rule-wide or path-wide
+   exemption.
+4. 8 new regression tests in `docs/migration/tests/test_migration_
+   integrity.py` prove: the frozen baseline bytes are restored exactly
+   (compared against the `966f5fb` blob); a supplement entry is accepted
+   while an unrelated new finding for the same rule still ratchets as
+   growth; supplement key validation rejects a malformed key; the actual
+   `POST_PHASE7_R7C_SUPPLEMENT.tsv` covers exactly the 3 documented edges;
+   and the live repository gate is green through this mechanism with
+   `baseline_counts` exactly `R6=0 R7a=0 R7b=0 R7c=171`.
+5. §11.9's "frozen evidence unmodified" claim and §11.4's description now
+   correctly state that `BASELINE_VIOLATIONS.json`/`.md` were never modified
+   by this repair — the earlier version of this addendum (as committed in
+   `b2a62b7`) incorrectly described the `860a990` hand-edit as the accepted
+   mechanism; that description is superseded by this section, not by
+   silently editing `b2a62b7`'s content.
+
+Verified after the correction: `docs/migration/tests/` (66 tests) pass;
+`migration_integrity.py check` reports `ok: true`, zero errors,
+`baseline_counts` `R6=0 R7a=0 R7b=0 R7c=171`, `r9_violations=0`,
+`r10_failures=[]`; one further read-only 0051200 `PPO.load` reproduces its
+exact SHA/policy/spaces/timesteps. The full broad test suite (§11.6) was
+**not** rerun for this correction — it touches only migration tooling and
+evidence files, not runtime source, per the same reasoning §11.5's gate
+selection already applies elsewhere in this report.
+
+### 11.13 Conclusion
 
 **REPOSITORY COMPLETENESS REPAIR: PASS.** The complete missing-local-source
 dependency closure (2 files) was identified mechanically, provenance was
 established against both the original reference tree and the external
 Phase-0 snapshot before any copy, both files were promoted byte-for-byte with
-no logic/formatting/path changes, the ruler's R7c ledger was extended
-narrowly and additively (never regenerated wholesale), all Phase 1-7 gates
-this executor could mechanically re-run are green, the full clean-root test
-suite shows zero new failures and zero new skips/xfails, and zero remaining
+no logic/formatting/path changes, the 3 R7c edges this promotion made visible
+are recorded in a dedicated forward supplement evaluated alongside the frozen
+baseline (§11.4/§11.12) — the frozen baseline itself was never edited, and an
+initial attempt to do so (`860a990`) was identified and corrected forward
+(`1bad0fb`) rather than left standing — all Phase 1-7 gates this executor
+could mechanically re-run are green, the full clean-root test suite shows
+zero new failures and zero new skips/xfails, and zero remaining
 tracked-repository dependency on the old dirty worktree was proven
 mechanically for every normal test/dev/migration/product path.
 

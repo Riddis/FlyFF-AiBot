@@ -734,11 +734,21 @@ both files import `SplitSteeringNavigationPolicy`; one also imports
 files are tracked). The tool's own `snapshot` subcommand was deliberately
 **not** used to fix this — inspecting its output first showed it would
 rewrite the entire frozen baseline's paths and phase number wholesale, which
-is exactly the frozen-evidence rewrite this migration forbids. Instead the 3
-new entries were hand-added at their current paths, leaving every
-pre-existing entry, `"phase"`, and `base_sha` untouched — committed
-separately as `860a990` so the promotion commit itself stays limited to the
-two source files. `check` now reports `ok: true`, zero errors.
+is exactly the frozen-evidence rewrite this migration forbids.
+
+**Correction (commit `1bad0fb`):** the first fix (`860a990`) hand-added the
+3 new entries directly into `BASELINE_VIOLATIONS.json`/`.md`. Independent
+review correctly identified that as still wrong — the frozen baseline's own
+contract is that it is generated evidence, never hand-edited, regardless of
+how narrow the edit is. Corrected forward (not reset/amended — `860a990`
+stays in history): both files restored byte-for-byte to their pre-`860a990`
+state, the 3 edges moved into a new dedicated file,
+`docs/migration/POST_PHASE7_R7C_SUPPLEMENT.tsv`, and `migration_integrity.py
+check()` extended to evaluate the frozen baseline plus this explicit forward
+supplement (accepting only each supplement entry's own exact key, never a
+rule-wide exemption — proven by a dedicated regression test). 8 new
+regression tests added; `docs/migration/tests/` (66 tests) pass. `check`
+reports `ok: true`, zero errors, `R7c=171` (168 frozen + 3 supplement).
 
 All Phase 1-7 gates this executor could mechanically re-run are green from
 this clean root with `PYTHONPATH` unset: ruler, G4/G10a/G11, one read-only
@@ -766,18 +776,18 @@ suite ran with no reference-tree fallback. The five protected product files
 have zero diff since the Phase-7 HEAD — no change was needed. Frozen evidence
 (`PHASE7_MOVE_MANIFEST.tsv`, the 160-test conservation inventory, Phase-0
 manifest, Phase-2 baseline, Phase-3 fixture manifest, historical-guard
-`REQUIRED_FILES`) is untouched.
+`REQUIRED_FILES`, and — after the `1bad0fb` correction —
+`BASELINE_VIOLATIONS.json`/`.md`) is untouched.
 
-Full diff since the Phase-7 HEAD across the three new commits: 7 files
-changed, 587 insertions, 1 deletion. Worktree clean, index empty, branch
-unpushed, no upstream, not on origin. `current_phase` remains `7`. Bridge
-states unchanged: B1/B2 removed, B3 existing (not reactivated as B2), B4
-permanent.
+Worktree clean, index empty, branch unpushed, no upstream, not on origin.
+`current_phase` remains `7`. Bridge states unchanged: B1/B2 removed, B3
+existing (not reactivated as B2), B4 permanent.
 
 Read `PHASE7_REPORT.md` section 11 for the exact audit, evidence, and gate
-results (a forward addendum; sections 0-10 are unmodified). Exact next
-action: STOP. Do not begin Phase 8 without separate coordinator
-authorization.
+results (a forward addendum; sections 0-10 are unmodified; section 11.12 is
+itself a forward correction of 11.4 as originally committed, not a rewrite
+of it). Exact next action: STOP. Do not begin Phase 8 without separate
+coordinator authorization.
 
 **REPOSITORY COMPLETENESS REPAIR: PASS.**
 **PHASE 8 SAFE TO CONSIDER: YES** — readiness only, unchanged.

@@ -1395,9 +1395,27 @@ tracked status. Full detail: `PHASE7_REPORT.md` section 11.
 - `migration_integrity.py snapshot` run once to inspect: would have rewritten
   the entire frozen baseline (every path translated to the collapsed layout,
   `"phase"` 4→7). Discarded via `git checkout --`, never staged.
-- 3 entries hand-added to `BASELINE_VIOLATIONS.json`/`.md` at current paths
-  only; every pre-existing entry, `"phase"`, `base_sha` untouched. Re-run:
-  `ok=true`, zero errors, `R6=0 R7a=0 R7b=0 R9=0 R10=0`, `R7c=171`.
+- First fix (commit `860a990`): 3 entries hand-added to
+  `BASELINE_VIOLATIONS.json`/`.md` at current paths only; every pre-existing
+  entry, `"phase"`, `base_sha` untouched. Re-run: `ok=true`, zero errors,
+  `R6=0 R7a=0 R7b=0 R9=0 R10=0`, `R7c=171`.
+- **Correction (commit `1bad0fb`), after independent review**: hand-editing
+  the frozen baseline at all -- even narrowly, even additively -- conflicts
+  with its own generated-evidence contract. Corrected forward (not reset,
+  not amended; `860a990` stays in git history): both files restored
+  byte-for-byte to their pre-`860a990` state (verified against the
+  `966f5fb` git blob via SHA-256); the 3 edges moved to a new
+  `docs/migration/POST_PHASE7_R7C_SUPPLEMENT.tsv`; `migration_integrity.py
+  check()` extended (`load_supplement`/`supplement_keys`/
+  `ratchet_errors(supplement=...)`) to evaluate the frozen baseline plus
+  this explicit forward supplement, accepting only each entry's own exact
+  key. 8 new regression tests added, including one proving an unrelated
+  new R7c finding still ratchets as growth. `docs/migration/tests/` (66
+  tests) pass. Re-run: `ok=true`, zero errors,
+  `R6=0 R7a=0 R7b=0 R9=0 R10=0`, `R7c=171` (168 frozen + 3 supplement).
+  One further read-only 0051200 `PPO.load` reproduced its exact
+  SHA/policy/spaces/timesteps. Full broad suite intentionally not rerun --
+  migration tooling/evidence only, no runtime source touched.
 
 ### Full Phase 1-7 gate re-run (clean root, `PYTHONPATH` unset)
 - `phase2_fingerprints.py all`: `ok=true`, 0 failures; 313/313 checkpoints,
@@ -1451,11 +1469,16 @@ tracked status. Full detail: `PHASE7_REPORT.md` section 11.
 - 5 protected product files: zero diff since Phase-7 HEAD (`70ede05`).
 - Frozen evidence (move manifest, 160-test conservation inventory, Phase-0
   manifest, Phase-2 baseline, Phase-3 fixture manifest, historical-guard
-  `REQUIRED_FILES`): zero diff since Phase-7 HEAD.
+  `REQUIRED_FILES`, and -- after the `1bad0fb` correction --
+  `BASELINE_VIOLATIONS.json`/`.md`): zero diff since Phase-7 HEAD.
 
 Commits: `4f4d965e94d60280faa5f0caae50c80cc8ab11c8` (audit-only),
 `966f5fb5c4c06091d55c1161abf80a34ed09b602` (byte-preserving promotion),
-`860a9902a291df4b83a42be134e55b3f2edac82e` (narrow R7c baseline extension).
+`860a9902a291df4b83a42be134e55b3f2edac82e` (superseded first attempt at the
+R7c baseline extension, hand-edited the frozen baseline -- left in history,
+corrected forward), `b2a62b7` (documentation commit, its section 11.4
+description superseded by section 11.12), `1bad0fb` (correction: frozen
+baseline restored, forward supplement + tool mechanism added).
 Worktree clean, index empty, branch unpushed, no upstream, not on origin.
 `current_phase` remains `7`; `phase8_authorized` remains `false`.
 
