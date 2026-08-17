@@ -45,6 +45,9 @@ training_logs/
 *.bundle
 *.patch
 
+# Generated repository review snapshots (tools/create_clean_repo_snapshot.py)
+exports/
+
 # Local RL models and checkpoints
 models/
 
