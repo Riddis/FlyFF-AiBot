@@ -36,6 +36,7 @@ DEFAULT_BRIDGES = "BRIDGES.md"
 DEFAULT_BASELINE = "docs/migration/BASELINE_VIOLATIONS.json"
 DEFAULT_BASELINE_MD = "docs/migration/BASELINE_VIOLATIONS.md"
 DEFAULT_D1 = "docs/migration/DUPLICATE_CONTENT_REPORT.tsv"
+PHASE7_MOVE_MANIFEST = "docs/migration/PHASE7_MOVE_MANIFEST.tsv"
 BRIDGE_BEGIN = "<!-- bridge-registry:begin -->"
 BRIDGE_END = "<!-- bridge-registry:end -->"
 _MISSING = object()
@@ -410,6 +411,8 @@ def bridge_errors(repo: Path, registry: dict[str, Any], current_phase: int | Non
             errors.append(f"Bridge {bridge['id']} expired at {bridge['removal_gate']}")
         if bridge["status"] == "future" and bridge["locations"]:
             errors.append(f"Future bridge {bridge['id']} claims installed locations")
+        if bridge["status"] == "removed" and bridge["locations"]:
+            errors.append(f"Removed bridge {bridge['id']} claims installed locations")
         for location in bridge["locations"]:
             if bridge["status"] == "existing" and not (repo / location).exists():
                 errors.append(f"Bridge {bridge['id']} location missing: {location}")
@@ -418,10 +421,19 @@ def bridge_errors(repo: Path, registry: dict[str, Any], current_phase: int | Non
         missing = required_shim - shim.keys()
         if missing:
             errors.append(f"Shim {shim.get('location', '?')} missing fields: {sorted(missing)}")
-        if shim.get("bridge_id") not in ids:
+        if shim.get("bridge_id") not in ids | {"NONE"}:
             errors.append(f"Shim {shim.get('location', '?')} references unknown bridge {shim.get('bridge_id')}")
+        if shim.get("bridge_id") == "NONE":
+            location = str(shim.get("location", "?"))
+            if removal_gate_expired(str(shim.get("removal_gate", "")), current_phase):
+                errors.append(f"Retained shim {location} expired at {shim.get('removal_gate')}")
+            if not (repo / location).is_file():
+                errors.append(f"Retained shim location missing: {location}")
+            owner = str(shim.get("canonical_owner", ""))
+            if not owner or not (repo / owner).is_file():
+                errors.append(f"Retained shim canonical owner missing: {location} -> {owner}")
     b1 = next((bridge for bridge in bridges if bridge["id"] == "B1"), None)
-    if current_phase >= 4 and (b1 is None or b1.get("status") != "existing"):
+    if 4 <= current_phase < 7 and (b1 is None or b1.get("status") != "existing"):
         errors.append("B1 must be installed while Phase 4 is active")
     if b1 and b1.get("status") == "existing":
         marker = "# BRIDGE B1 — removed in Phase 7"
@@ -449,7 +461,7 @@ def bridge_errors(repo: Path, registry: dict[str, Any], current_phase: int | Non
         missing = required_b3 - b3.keys()
         if missing:
             errors.append(f"Bridge B3 missing source-evidence fields: {sorted(missing)}")
-        source_path = repo / "flyff_farming_simulator/tools/inventory_recordings.py"
+        source_path = repo / "tools/inventory_recordings.py"
         source = source_path.read_text(encoding="utf-8") if source_path.is_file() else ""
         if missing or not _b3_source_matches(source, b3.get("target_module", ""), b3.get("target_symbol", "")):
             errors.append("B3 source evidence no longer matches inventory_recordings.py")
@@ -671,8 +683,33 @@ def load_baseline(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def ratchet_errors(current: Sequence[Finding], baseline: dict[str, Any]) -> tuple[list[str], list[str]]:
-    baseline_keys = {item["key"] for items in baseline.get("violations", {}).values() for item in items}
+def phase7_move_paths(repo: Path) -> dict[str, str]:
+    with (repo / PHASE7_MOVE_MANIFEST).open(encoding="utf-8", newline="") as handle:
+        rows = [
+            row
+            for row in csv.DictReader(handle, delimiter="\t")
+            if row["phase7_action"] == "MOVE"
+        ]
+    moves = {row["old_path"]: row["new_path"] for row in rows}
+    if len(moves) != len(rows) or len(set(moves.values())) != len(rows):
+        raise RuntimeError("Phase-7 MOVE manifest is not one-to-one")
+    return moves
+
+
+def ratchet_errors(
+    current: Sequence[Finding],
+    baseline: dict[str, Any],
+    *,
+    path_moves: dict[str, str] | None = None,
+) -> tuple[list[str], list[str]]:
+    baseline_keys: set[str] = set()
+    for items in baseline.get("violations", {}).values():
+        for item in items:
+            frozen = Finding(item["rule"], item["concept"], item["path"], item["detail"])
+            if item["key"] != frozen.key:
+                raise RuntimeError(f"Malformed frozen baseline key: {item['key']}")
+            path = (path_moves or {}).get(frozen.path, frozen.path)
+            baseline_keys.add(Finding(frozen.rule, frozen.concept, path, frozen.detail).key)
     current_keys = {finding.key for finding in current}
     added = sorted(current_keys - baseline_keys)
     resolved = sorted(baseline_keys - current_keys)
@@ -711,6 +748,14 @@ def write_baseline_markdown(
             lines.append("| _none_ | _none_ | rule currently green |")
         lines.append("")
     unresolved = (
+        [
+            "- Shared farming and position ownership are canonical at repository root; R6 and R7a are green.",
+            "- B1 and B2 are removed; retained old paths are registered behavior-free compatibility surfaces through Phase 12.",
+            "- B3 remains active through Phase 7 and expires at the Phase-8 archive extraction boundary.",
+            "- R7b remains active with current-layout semantics and tightens as legacy/archive boundaries appear.",
+        ]
+        if phase >= 7
+        else
         [
             "- Shared farming ownership is canonical under `flyff_farming_simulator/farming`; R6 and farming R7a are green.",
             "- Native position ownership debt resolves during Phase 5 after its real-client gate.",
@@ -802,7 +847,11 @@ def summary(result: dict[str, Any], *, d1_rows: Sequence[dict[str, str]] | None 
 
 def check(repo: Path) -> tuple[dict[str, Any], list[str]]:
     result = collect(repo, load_registry(repo))
-    ratchet, resolved = ratchet_errors(result["findings"], load_baseline(repo / DEFAULT_BASELINE))
+    ratchet, resolved = ratchet_errors(
+        result["findings"],
+        load_baseline(repo / DEFAULT_BASELINE),
+        path_moves=phase7_move_paths(repo),
+    )
     errors = [
         *result["ownership_errors"],
         *result["bridge_errors"],

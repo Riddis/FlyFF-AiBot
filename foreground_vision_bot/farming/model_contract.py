@@ -1,7 +1,6 @@
-"""B1 compatibility re-exports for the canonical model contract."""
+"""Retained repository-qualified re-exports for the canonical model contract."""
 
-# BRIDGE B1 — removed in Phase 7
-from flyff_farming_simulator.farming.model_contract import (
+from farming.model_contract import (
     ACTIVE_METADATALESS_MODEL_CONTRACT_HASH,
     ACTIVE_METADATALESS_MODEL_SHA256,
     CURRENT_MODEL_CONTRACT,

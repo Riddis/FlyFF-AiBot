@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from position.native_process_service import NativeProcessService as _NativeProcessService
 from position.policy import LIVE_ATTACH_POLICY, RECORDING_ATTACH_POLICY
 
-from foreground_vision_bot.tests.test_native_trace_targets import _discover
+from test_native_trace_targets import _discover
 
 
 def test_b2_fake_memory_preserves_live_and_recording_player_discrimination() -> None:
@@ -20,9 +20,7 @@ def test_b2_fake_memory_preserves_live_and_recording_player_discrimination() -> 
     assert recording.outcome == "success"
     assert recording.player is not None
     assert recording.player.base == player_base
-    assert "foreground_vision_bot" in str(
-        Path(type(recording).__module__.replace(".", "/"))
-    ) or type(recording).__module__.startswith("position.")
+    assert type(recording).__module__.startswith("position.")
 
 
 def test_b2_fake_reader_preserves_attach_time_presence_policy() -> None:

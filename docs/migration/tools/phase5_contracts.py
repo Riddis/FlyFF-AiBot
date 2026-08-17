@@ -15,6 +15,7 @@ REPO_DEFAULT = Path(__file__).resolve().parents[3]
 PHASE4_ENTRY = "210e4e91a1cce8f6f7db56b8f4b77f4522f56d73"
 BOT_POSITION = "foreground_vision_bot/position"
 RECORDER_POSITION = "flyff_farming_recorder/position"
+CANONICAL_POSITION = "position"
 PRESENCE_KEYS = (
     "presence_clear_confirmation_samples",
     "presence_cold_poll_batch_size",
@@ -77,7 +78,7 @@ def check_g1(repo: Path) -> tuple[list[str], dict[str, Any]]:
     old_modules = _historical_bindings(repo)
     missing: dict[str, list[str]] = {}
     for module, expected in sorted(old_modules.items()):
-        current = repo / BOT_POSITION / module
+        current = repo / CANONICAL_POSITION / module
         if not current.is_file():
             missing[module] = sorted(expected)
             continue
@@ -89,13 +90,13 @@ def check_g1(repo: Path) -> tuple[list[str], dict[str, Any]]:
     return failures, {
         "historical_module_count": len(old_modules),
         "missing": missing,
-        "canonical_owner": BOT_POSITION,
+        "canonical_owner": CANONICAL_POSITION,
     }
 
 
 def check_np(repo: Path) -> tuple[list[str], dict[str, Any]]:
     failures: list[str] = []
-    layer1 = repo / BOT_POSITION
+    layer1 = repo / CANONICAL_POSITION
     profiling_importers: list[str] = []
     for path in sorted(layer1.glob("*.py")):
         source = path.read_text(encoding="utf-8-sig")
@@ -122,7 +123,7 @@ def check_np(repo: Path) -> tuple[list[str], dict[str, Any]]:
     probe = r'''
 import json, pathlib, sys
 root = pathlib.Path(sys.argv[1])
-sys.path[:0] = [str(root / "foreground_vision_bot")]
+sys.path.insert(0, str(root))
 import position
 import position.attachment_factory
 print(json.dumps({
@@ -156,14 +157,14 @@ def check_g9(repo: Path) -> tuple[list[str], dict[str, Any]]:
     probe = r'''
 import dataclasses, json, pathlib, sys
 root = pathlib.Path(sys.argv[1])
-sys.path[:0] = [str(root / "foreground_vision_bot"), str(root / "flyff_farming_recorder")]
+sys.path.insert(0, str(root))
 from position.MonsterConfig import load_native_monster_config
 from position.PositionConfig import load_native_position_config
 from recorder.config import RecorderConfig
-bot_monster = dataclasses.asdict(load_native_monster_config(root / "foreground_vision_bot/position/native_monsters.json"))
+bot_monster = dataclasses.asdict(load_native_monster_config(root / "position/native_monsters.json"))
 rec_monster = dataclasses.asdict(load_native_monster_config(root / "flyff_farming_recorder/position/native_monsters.json"))
 recorder = dataclasses.asdict(RecorderConfig.load(root / "flyff_farming_recorder/recorder_config.json"))
-position = dataclasses.asdict(load_native_position_config(root / "foreground_vision_bot/position/native_position.json"))
+position = dataclasses.asdict(load_native_position_config(root / "position/native_position.json"))
 print(json.dumps({"bot_monster": bot_monster, "rec_monster": rec_monster, "recorder": recorder, "position": position}, sort_keys=True))
 '''
     result = subprocess.run(
@@ -246,8 +247,8 @@ def check_b2(repo: Path) -> tuple[list[str], dict[str, Any]]:
         }
         module_name = Path(relative).name
         missing_bindings = historical[module_name] - imported
-        if "# BRIDGE B2 — removed in Phase 7" not in source:
-            failures.append(f"B2 marker missing: {relative}")
+        if "BRIDGE B2" in source:
+            failures.append(f"B2 bootstrap marker remains: {relative}")
         if behavior:
             failures.append(f"B2 behavioral statements in {relative}: {behavior}")
         if missing_bindings:
@@ -262,10 +263,16 @@ def check_b2(repo: Path) -> tuple[list[str], dict[str, Any]]:
     probe = r'''
 import importlib, json, pathlib, sys
 root = pathlib.Path(sys.argv[1])
-sys.path[:0] = [str(root / "flyff_farming_simulator"), str(root / "foreground_vision_bot"), str(root / "flyff_farming_recorder")]
+sys.path.insert(0, str(root))
 names = ["position", "position.IndependentNativeReader", "position.NativeTraceTargets", "position.native_process_service", "position.RecoveredNativeProfile"]
 origins = {name: str(pathlib.Path(importlib.import_module(name).__file__).resolve()) for name in names}
-print(json.dumps(origins, sort_keys=True))
+compat = importlib.import_module("flyff_farming_recorder.position.IndependentNativeReader")
+canonical = importlib.import_module("position.IndependentNativeReader")
+print(json.dumps({
+    "origins": origins,
+    "compat_origin": str(pathlib.Path(compat.__file__).resolve()),
+    "identity": compat.IndependentNativeReader is canonical.IndependentNativeReader,
+}, sort_keys=True))
 '''
     result = subprocess.run(
         [sys.executable, "-I", "-c", probe, str(repo)],
@@ -274,8 +281,9 @@ print(json.dumps(origins, sort_keys=True))
         text=True,
         check=True,
     )
-    origins = json.loads(result.stdout)
-    owner = (repo / "foreground_vision_bot/position").resolve()
+    payload = json.loads(result.stdout)
+    origins = payload["origins"]
+    owner = (repo / CANONICAL_POSITION).resolve()
     wrong = {
         name: origin
         for name, origin in origins.items()
@@ -283,8 +291,15 @@ print(json.dumps(origins, sort_keys=True))
     }
     if wrong:
         failures.append(f"B2 noncanonical origins: {wrong}")
+    compatibility_owner = (repo / RECORDER_POSITION).resolve()
+    if not Path(payload["compat_origin"]).resolve().is_relative_to(compatibility_owner):
+        failures.append(f"B2 retained facade origin escaped repository: {payload['compat_origin']}")
+    if not payload["identity"]:
+        failures.append("B2 retained facade does not re-export the canonical implementation")
     return failures, {
         "origins": origins,
+        "compat_origin": payload["compat_origin"],
+        "identity": payload["identity"],
         "manifest_rows": len(rows),
         "shims": shim_evidence,
     }

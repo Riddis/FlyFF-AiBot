@@ -1,7 +1,6 @@
-"""B1 compatibility re-exports for canonical map features."""
+"""Retained repository-qualified re-exports for canonical map features."""
 
-# BRIDGE B1 — removed in Phase 7
-from flyff_farming_simulator.farming.map_features import (
+from farming.map_features import (
     DEFAULT_CONTEXT_MAP_RADIUS_CELLS,
     DEFAULT_CONTEXT_MAP_SIDE,
     DEFAULT_GEODESIC_CACHE_SIZE,

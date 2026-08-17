@@ -1,7 +1,6 @@
-"""B1 compatibility re-exports for the canonical observation contract."""
+"""Retained repository-qualified re-exports for the observation contract."""
 
-# BRIDGE B1 — removed in Phase 7
-from flyff_farming_simulator.farming.observation import (
+from farming.observation import (
     ACTOR_FEATURES,
     CONTEXT_MAP_RADIUS_CELLS,
     CONTEXT_MAP_SIDE,

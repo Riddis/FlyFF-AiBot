@@ -20,12 +20,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_RECORDER_ROOT = _REPO_ROOT / "flyff_farming_recorder"
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_RECORDER_ROOT = _REPO_ROOT
 if str(_RECORDER_ROOT) not in sys.path:
     sys.path.insert(0, str(_RECORDER_ROOT))
 
-_SIMULATOR_ROOT = Path(__file__).resolve().parents[1]
+_SIMULATOR_ROOT = _REPO_ROOT
 if str(_SIMULATOR_ROOT) not in sys.path:
     sys.path.insert(0, str(_SIMULATOR_ROOT))
 

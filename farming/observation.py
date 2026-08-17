@@ -24,7 +24,6 @@ from .map_features import (
     LOCAL_MAP_TELEPORT_BUFFER,
     LOCAL_MAP_TELEPORT_TRIGGER,
 )
-# BRIDGE B1 — removed in Phase 7
 from .observation_contract import OBSERVATION_SCHEMA_HASH, OBSERVATION_SCHEMA_ID
 
 FloatArray = NDArray[np.float32]

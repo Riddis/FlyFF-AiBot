@@ -51,33 +51,22 @@ BOT_ONLY_MODULES = (
     "telemetry",
     "trainer",
 )
-B1_PREIMPORT_ORDER = {
-    "foreground_vision_bot/foreground_vision_farm.py": "from Bot import Bot",
-    "foreground_vision_bot/conftest.py": "import pytest",
-    "foreground_vision_bot/tests/conftest.py": "sys.path[:] = [str(CANONICAL_FARMING_PARENT)",
-    "foreground_vision_bot/tools/run_observation_telemetry.py": "from assets.Assets import MobInfo",
-    "flyff_farming_recorder/app.py": "from recorder.gui import run_gui",
-    "flyff_farming_recorder/recorder/session.py": "from position.IndependentMonsterRediscovery import",
-    "flyff_farming_recorder/tests/conftest.py": "sys.path[:] = [",
-    "flyff_farming_recorder/FlyffFarmingRecorder.spec": "a = Analysis(",
-}
-
 EXPECTED_CALL_SITES = {
     "bounded_geodesic_field": {
         "docs/migration/tools/phase3_capture.py": 2,
-        "flyff_farming_simulator/simulator/demonstrations.py": 1,
-        "flyff_farming_simulator/simulator/environment.py": 1,
-        "flyff_farming_simulator/simulator/route_waypoint_generator.py": 1,
-        "flyff_farming_simulator/tests/test_deep_review.py": 1,
-        "flyff_farming_simulator/tests/test_reward_audit_v17.py": 1,
+        "simulator/demonstrations.py": 1,
+        "simulator/environment.py": 1,
+        "simulator/route_waypoint_generator.py": 1,
+        "tests/test_deep_review.py": 1,
+        "tests/test_reward_audit_v17.py": 1,
     },
     "geodesic_distance": {
         "docs/migration/tools/phase3_capture.py": 1,
-        "flyff_farming_simulator/tests/test_deep_review.py": 1,
-        "foreground_vision_bot/tests/test_farming_map_features.py": 4,
+        "tests/test_deep_review.py": 1,
+        "tests/test_farming_map_features.py": 4,
     },
     "geodesic_distances": {
-        "foreground_vision_bot/farming/native_world.py": 1,
+        "farming/native_world.py": 1,
     },
 }
 
@@ -123,7 +112,7 @@ def check_observation(repo: Path) -> tuple[list[str], dict[str, Any]]:
         phase3._run(
             repo,
             "_obs_worker",
-            str(repo / "flyff_farming_simulator"),
+            str(repo),
             str(input_path),
             str(output),
             str(meta_path),
@@ -167,7 +156,7 @@ def check_observation(repo: Path) -> tuple[list[str], dict[str, Any]]:
         phase3._run(
             repo,
             "_nearby_worker",
-            str(repo / "flyff_farming_simulator"),
+            str(repo),
             str(cases_path),
             str(direct_path),
         )
@@ -229,7 +218,7 @@ def geodesic_call_sites(repo: Path) -> dict[str, dict[str, int]]:
     methods = tuple(EXPECTED_CALL_SITES)
     found = {method: Counter() for method in methods}
     for relative in _tracked_python(repo):
-        if relative.endswith("/farming/map_features.py"):
+        if relative == "farming/map_features.py" or relative.endswith("/farming/map_features.py"):
             continue
         path = repo / relative
         tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
@@ -268,7 +257,7 @@ def check_geodesic(repo: Path) -> tuple[list[str], dict[str, Any]]:
         phase3._run(
             repo,
             "_geodesic_worker",
-            str(repo / "flyff_farming_simulator"),
+            str(repo),
             str(output),
         )
         actual = _json(output)
@@ -308,34 +297,23 @@ _B1_PROBE = r"""
 import importlib, json, pathlib, sys
 mode, repo_raw = sys.argv[1:3]
 repo = pathlib.Path(repo_raw)
-sim = repo / "flyff_farming_simulator"
-bot = repo / "foreground_vision_bot"
-recorder = repo / "flyff_farming_recorder"
-if mode.startswith("bot-"):
-    sys.path[:0] = [str(sim), str(bot)]
-elif mode.startswith("recorder-"):
-    sys.path[:0] = [str(sim), str(bot), str(recorder)]
-elif mode == "simulator":
-    sys.path.insert(0, str(sim))
-else:
+if mode not in {"bot-app", "bot-test", "recorder-app", "recorder-test", "simulator"}:
     raise RuntimeError(mode)
+sys.path.insert(0, str(repo))
+package = importlib.import_module("farming")
 shared = {}
 bot_only = {}
-if mode.startswith("bot-") or mode == "simulator":
-    package = importlib.import_module("farming")
-    for name in json.loads(sys.argv[3]):
-        shared[name] = str(pathlib.Path(importlib.import_module(f"farming.{name}").__file__).resolve())
-    if mode.startswith("bot-"):
-        for name in json.loads(sys.argv[4]):
-            bot_only[name] = str(pathlib.Path(importlib.import_module(f"farming.{name}").__file__).resolve())
-    package_origin = str(pathlib.Path(package.__file__).resolve())
-else:
-    contract = importlib.import_module("farming.observation_contract")
+for name in json.loads(sys.argv[3]):
+    shared[name] = str(pathlib.Path(importlib.import_module(f"farming.{name}").__file__).resolve())
+for name in json.loads(sys.argv[4]):
+    bot_only[name] = str(pathlib.Path(importlib.import_module(f"farming.{name}").__file__).resolve())
+if mode.startswith("recorder-"):
+    before_session = set(sys.modules)
     importlib.import_module("recorder.session")
-    shared["observation_contract"] = str(pathlib.Path(contract.__file__).resolve())
-    package_origin = str(pathlib.Path(importlib.import_module("farming").__file__).resolve())
-blocked = sorted(name for name in sys.modules if mode.startswith("recorder-") and (name == "numpy" or name.startswith(("numpy.", "gymnasium", "stable_baselines3", "torch"))))
-print(json.dumps({"package": package_origin, "shared": shared, "bot_only": bot_only, "blocked": blocked}, sort_keys=True))
+else:
+    before_session = set(sys.modules)
+blocked = sorted(name for name in set(sys.modules) - before_session if mode.startswith("recorder-") and (name == "numpy" or name.startswith(("numpy.", "gymnasium", "stable_baselines3", "torch"))))
+print(json.dumps({"package": str(pathlib.Path(package.__file__).resolve()), "shared": shared, "bot_only": bot_only, "blocked": blocked}, sort_keys=True))
 """
 
 
@@ -367,9 +345,7 @@ def _shim_api(repo: Path, relative: str) -> tuple[set[str], set[str], bool]:
     imported: set[str] = set()
     exported: set[str] = set()
     for node in tree.body:
-        if isinstance(node, ast.ImportFrom) and (
-            (node.module or "").startswith("flyff_farming_simulator.farming")
-        ):
+        if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("farming"):
             imported.update(alias.asname or alias.name for alias in node.names)
         if isinstance(node, ast.Assign) and any(
             isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets
@@ -380,31 +356,31 @@ def _shim_api(repo: Path, relative: str) -> tuple[set[str], set[str], bool]:
 
 
 def check_b1(repo: Path) -> tuple[list[str], dict[str, Any]]:
-    """Prove canonical origins, bot-only package visibility, shim API, and purity."""
+    """Prove B1 removal, root origins, retained facade API, and purity."""
     failures: list[str] = []
-    sim_root = (repo / "flyff_farming_simulator").resolve()
-    bot_root = (repo / "foreground_vision_bot").resolve()
+    farming_root = (repo / "farming").resolve()
     evidence: dict[str, Any] = {"contexts": {}, "shims": {}}
-    marker = "# BRIDGE B1 — removed in Phase 7"
-    evidence["preimport_order"] = {}
-    for relative, first_consumer in B1_PREIMPORT_ORDER.items():
-        source = (repo / relative).read_text(encoding="utf-8")
-        marker_index = source.find(marker)
-        consumer_index = source.find(first_consumer)
-        ordered = marker_index >= 0 and consumer_index >= 0 and marker_index < consumer_index
-        evidence["preimport_order"][relative] = ordered
-        if not ordered:
-            failures.append(f"B1 marker/bootstrap is not before the first consumer in {relative}")
-    spec_source = (repo / "flyff_farming_recorder/FlyffFarmingRecorder.spec").read_text(encoding="utf-8")
-    expected_pathex = (
-        "pathex=[str(canonical_farming_parent), str(canonical_position_parent), "
-        "str(app_root)]"
+    active_sources = (
+        "foreground_vision_farm.py",
+        "conftest.py",
+        "tools/run_observation_telemetry.py",
+        "app.py",
+        "recorder/session.py",
+        "FlyffFarmingRecorder.spec",
+        "farming/__init__.py",
+        "farming/observation.py",
     )
+    evidence["active_sources"] = {}
+    for relative in active_sources:
+        source = (repo / relative).read_text(encoding="utf-8")
+        clean = "BRIDGE B1" not in source and "flyff_farming_simulator" not in source
+        evidence["active_sources"][relative] = clean
+        if not clean:
+            failures.append(f"B1 bootstrap or marker remains in active source {relative}")
+    spec_source = (repo / "FlyffFarmingRecorder.spec").read_text(encoding="utf-8")
+    expected_pathex = "pathex=[str(app_root)]"
     if expected_pathex not in spec_source:
-        failures.append(
-            "B1/B2 recorder PyInstaller pathex does not put canonical farming and "
-            "position before the recorder root"
-        )
+        failures.append("B1/B2 recorder PyInstaller pathex is not the repository root only")
     for mode in ("bot-app", "bot-test", "recorder-app", "recorder-test", "simulator"):
         try:
             payload = _b1_probe(repo, mode)
@@ -412,14 +388,14 @@ def check_b1(repo: Path) -> tuple[list[str], dict[str, Any]]:
             failures.append(str(error))
             continue
         evidence["contexts"][mode] = payload
-        if not Path(payload["package"]).is_relative_to(sim_root):
+        if not Path(payload["package"]).is_relative_to(farming_root):
             failures.append(f"B1 {mode} farming package origin is not canonical: {payload['package']}")
         for name, origin in payload["shared"].items():
-            if not Path(origin).is_relative_to(sim_root):
+            if not Path(origin).is_relative_to(farming_root):
                 failures.append(f"B1 {mode} farming.{name} origin is not canonical: {origin}")
         for name, origin in payload["bot_only"].items():
-            if not Path(origin).is_relative_to(bot_root):
-                failures.append(f"B1 {mode} bot-only farming.{name} is hidden: {origin}")
+            if not Path(origin).is_relative_to(farming_root):
+                failures.append(f"B1 {mode} farming.{name} origin is not canonical: {origin}")
         if payload["blocked"]:
             failures.append(f"B1 {mode} recorder metadata import loaded heavy modules: {payload['blocked']}")
 

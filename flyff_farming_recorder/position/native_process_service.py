@@ -1,6 +1,5 @@
 """B2 compatibility exports for the canonical position implementation."""
 
-# BRIDGE B2 — removed in Phase 7
 from position.native_process_service import (
     Callable,
     DEFAULT_RECOVERY_TIMEOUT_SECONDS,

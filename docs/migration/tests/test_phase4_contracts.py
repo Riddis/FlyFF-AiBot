@@ -47,7 +47,7 @@ blocked = sorted(name for name in sys.modules if name == 'numpy' or name.startsw
 print(json.dumps({'id': OBSERVATION_SCHEMA_ID, 'hash': OBSERVATION_SCHEMA_HASH, 'blocked': blocked}))
 """
     result = subprocess.run(
-        [sys.executable, "-I", "-c", probe, str(REPO / "flyff_farming_simulator")],
+        [sys.executable, "-I", "-c", probe, str(REPO)],
         cwd=REPO,
         capture_output=True,
         text=True,
@@ -85,7 +85,7 @@ def test_canonical_package_preserves_bot_public_api_lazily() -> None:
         if isinstance(node, ast.Assign)
         and any(isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets)
     )
-    sys.path.insert(0, str(REPO / "flyff_farming_simulator"))
+    sys.path.insert(0, str(REPO))
     try:
         import farming
 
@@ -94,3 +94,61 @@ def test_canonical_package_preserves_bot_public_api_lazily() -> None:
         assert farming.__all__ == expected
     finally:
         sys.path.pop(0)
+
+
+def test_phase7_conftest_merge_preserves_the_two_required_behaviors() -> None:
+    root_source = (REPO / "conftest.py").read_text(encoding="utf-8")
+    suite_source = (REPO / "tests/conftest.py").read_text(encoding="utf-8")
+
+    assert "def pytest_configure" in root_source
+    assert "config.option.basetemp" in root_source
+    assert 'ROOT = Path(__file__).resolve().parents[1]' in suite_source
+    assert "sys.path.insert(0, str(ROOT))" in suite_source
+    assert not (REPO / "flyff_farming_recorder/tests/conftest.py").exists()
+    assert not (REPO / "foreground_vision_bot/tests/conftest.py").exists()
+
+
+def test_phase7_canonical_origins_hold_in_all_historical_test_contexts() -> None:
+    expected = {
+        "farming": "farming/__init__.py",
+        "farming.observation": "farming/observation.py",
+        "farming.model_contract": "farming/model_contract.py",
+        "farming.map_features": "farming/map_features.py",
+        "farming.map_profile": "farming/map_profile.py",
+        "position": "position/__init__.py",
+        "position.IndependentNativeReader": "position/IndependentNativeReader.py",
+        "position.NativeTraceTargets": "position/NativeTraceTargets.py",
+        "position.native_process_service": "position/native_process_service.py",
+        "simulator": "simulator/__init__.py",
+        "simulator.split_branch_policy": "simulator/split_branch_policy.py",
+        "simulator.navigation_history": "simulator/navigation_history.py",
+        "simulator.kinodynamic_route_planner": "simulator/kinodynamic_route_planner.py",
+        "simulator.movement_kernel": "simulator/movement_kernel.py",
+        "recorder": "recorder/__init__.py",
+        "runtime_bus": "runtime_bus.py",
+        "mapper": "mapper/__init__.py",
+        "mapper.Mapper": "mapper/Mapper.py",
+    }
+    probe = r"""
+import importlib.util, json, pathlib, sys
+repo = pathlib.Path(sys.argv[1]).resolve()
+sys.path.insert(0, str(repo))
+names = json.loads(sys.argv[2])
+origins = {}
+for name in names:
+    spec = importlib.util.find_spec(name)
+    origins[name] = None if spec is None or spec.origin is None else str(pathlib.Path(spec.origin).resolve())
+print(json.dumps(origins, sort_keys=True))
+"""
+    for context in (REPO, REPO / "foreground_vision_bot", REPO / "flyff_farming_simulator", REPO / "flyff_farming_recorder"):
+        result = subprocess.run(
+            [sys.executable, "-I", "-c", probe, str(REPO), json.dumps(list(expected))],
+            cwd=context,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        origins = json.loads(result.stdout)
+        assert origins == {
+            name: str((REPO / relative).resolve()) for name, relative in expected.items()
+        }

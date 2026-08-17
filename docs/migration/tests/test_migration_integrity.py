@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import csv
 from pathlib import Path
 
 
@@ -244,8 +245,115 @@ def test_actual_bridge_removal_schedule_is_exact() -> None:
     assert not integrity.removal_gate_expired(gates["B4"], 999)
 
 
+def test_removed_bridge_cannot_claim_an_installed_location(tmp_path: Path) -> None:
+    payload = '''
+<!-- bridge-registry:begin -->
+```toml
+[[bridge]]
+id = "B1"
+status = "removed"
+reason = "fixture"
+locations = ["bridge.py"]
+users = ["fixture"]
+protecting_rule = "fixture"
+removal_gate = "PHASE_7"
+live_closure_allowed = false
+owner = "fixture"
+```
+<!-- bridge-registry:end -->
+'''
+    (tmp_path / "BRIDGES.md").write_text(payload, encoding="utf-8")
+    errors = integrity.bridge_errors(tmp_path, {"compatibility_surface": []}, current_phase=7)
+    assert "Removed bridge B1 claims installed locations" in errors
+
+
+def test_non_bridge_retained_shim_registers_reexports() -> None:
+    files = {
+        "canonical.py": "VALUE = 1\n",
+        "compat.py": "from canonical import VALUE\n__all__ = ['VALUE']\n",
+    }
+    registry = {
+        "concept": [
+            {
+                "id": "value",
+                "rule": "R7a",
+                "symbols": ["VALUE"],
+                "current_owners": ["canonical.py"],
+                "minimum_owners": 1,
+                "accepted_baseline_violation": False,
+            }
+        ],
+        "shim": [
+            {
+                "location": "compat.py",
+                "symbols": ["VALUE"],
+                "canonical_owner": "canonical.py",
+                "reason": "fixture",
+                "bridge_id": "NONE",
+                "removal_gate": "PHASE_12",
+            }
+        ],
+    }
+    findings, errors = integrity._concept_findings(files, registry)
+    assert findings == []
+    assert errors == []
+
+
+def test_actual_non_bridge_retained_shims_are_accepted_by_bridge_validator() -> None:
+    registry = integrity.load_registry(REPO)
+    retained = [shim for shim in registry["shim"] if shim["bridge_id"] == "NONE"]
+    assert len(retained) == 17
+    errors = integrity.bridge_errors(REPO, registry, current_phase=7)
+    assert not [error for error in errors if error.startswith("Retained shim")]
+
+
+def test_phase7_ratchet_relocates_only_exact_one_to_one_move_rows() -> None:
+    baseline = integrity.load_baseline(REPO / integrity.DEFAULT_BASELINE)
+    moves = integrity.phase7_move_paths(REPO)
+    assert len(moves) == 1_486
+    assert moves["flyff_farming_simulator/simulator/environment.py"] == "simulator/environment.py"
+    assert "foreground_vision_bot/farming/observation.py" not in moves
+
+    relocated = [
+        integrity.Finding(
+            item["rule"],
+            item["concept"],
+            moves.get(item["path"], item["path"]),
+            item["detail"],
+        )
+        for items in baseline["violations"].values()
+        for item in items
+    ]
+    frozen_count = sum(len(items) for items in baseline["violations"].values())
+    assert len(relocated) == frozen_count
+    assert len({finding.key for finding in relocated}) == frozen_count
+    errors, resolved = integrity.ratchet_errors(relocated, baseline, path_moves=moves)
+    assert errors == []
+    assert resolved == []
+
+
+def test_phase7_test_migration_manifest_conserves_all_160_tests() -> None:
+    with (REPO / "docs/migration/PHASE7_TEST_MIGRATION.tsv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    assert len(rows) == 160
+    assert {action: sum(row["action"] == action for row in rows) for action in {row["action"] for row in rows}} == {
+        "MOVE": 151,
+        "MERGE": 2,
+        "RETAIN-COMPAT": 7,
+    }
+    for row in rows:
+        assert (REPO / row["destination"]).is_file()
+        if row["action"] == "MOVE":
+            assert not (REPO / row["old_path"]).exists()
+        elif row["action"] == "MERGE":
+            assert row["destination"] == "tests/conftest.py"
+            assert not (REPO / row["old_path"]).exists()
+
+
 def test_b3_source_evidence_includes_registered_module_and_symbol() -> None:
-    source = (REPO / "flyff_farming_simulator/tools/inventory_recordings.py").read_text(encoding="utf-8")
+    source = (REPO / "tools/inventory_recordings.py").read_text(encoding="utf-8")
     assert integrity._b3_source_matches(
         source,
         "recorder.movement_classification",

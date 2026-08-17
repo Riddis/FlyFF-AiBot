@@ -3,9 +3,8 @@
 This tool is deliberately CHEAP and Torch-free. It never imports torch,
 stable_baselines3, or any product runtime into its own process:
 
-* G4 evaluates each farming owner in an isolated subprocess, because
-  ``farming.observation`` exists in two roots and cannot be imported twice in
-  one interpreter. The recorder's metadata-only copy is read via AST.
+* G4 evaluates the root-level canonical farming owner in an isolated
+  subprocess. The recorder's metadata-only consumer is read via AST.
 * G10a reads checkpoint ZIPs as data. ``policy_class`` and serialized module
   references are recovered by walking pickle OPCODES (never unpickling, so no
   repo/torch import happens). Observation/action spaces are unpickled through a
@@ -171,7 +170,7 @@ def check_g4(repo: Path, fp: dict[str, Any]) -> tuple[list[str], dict[str, Any]]
         if actual != pinned:
             failures.append(f"G4 {label}: source={actual!r} pinned={pinned!r}")
 
-    for root in ("flyff_farming_simulator", "foreground_vision_bot"):
+    for root in (".",):
         probe = probe_root(repo, root)
         evidence[f"{root}.probe"] = probe
         expect(f"{root}.OBSERVATION_SCHEMA_ID", probe["OBSERVATION_SCHEMA_ID"], g4["observation_schema_id"]["value"])
@@ -191,7 +190,7 @@ def check_g4(repo: Path, fp: dict[str, Any]) -> tuple[list[str], dict[str, Any]]
             probe["MODEL_CONTRACT_METADATA_VERSION"],
             g4["model_contract_metadata_version"]["value"],
         )
-        if root == "flyff_farming_simulator":
+        if root == ".":
             expect(f"{root}.RAW_OBSERVATION_SIZE", probe["RAW_OBSERVATION_SIZE"], g4["raw_observation_size"]["value"])
             expect(f"{root}.SIDECAR_SIZE", probe["SIDECAR_SIZE"], g4["sidecar_size"]["value"])
             expect(f"{root}.POLICY_INPUT_SIZE", probe["POLICY_INPUT_SIZE"], g4["policy_input_size"]["value"])
@@ -216,7 +215,7 @@ def check_g4(repo: Path, fp: dict[str, Any]) -> tuple[list[str], dict[str, Any]]
 
     # Recorder consumes dependency-free canonical metadata and defines no copy.
     recorder_imports = _ast_imports(
-        repo / "flyff_farming_recorder/recorder/session.py",
+        repo / "recorder/session.py",
         "farming.observation_contract",
         ("OBSERVATION_SCHEMA_ID", "OBSERVATION_SCHEMA_HASH"),
     )
@@ -229,7 +228,7 @@ def check_g4(repo: Path, fp: dict[str, Any]) -> tuple[list[str], dict[str, Any]]
         },
     )
     recorder_literals = _ast_constants(
-        repo / "flyff_farming_recorder/recorder/session.py",
+        repo / "recorder/session.py",
         ("OBSERVATION_SCHEMA_ID", "OBSERVATION_SCHEMA_HASH"),
     )
     expect("recorder.schema_literal_copies", recorder_literals, {})
@@ -501,7 +500,7 @@ SUPPLEMENT_FIELDS = (
 
 def check_g10a(repo: Path, fp: dict[str, Any], corpus: Path, write_supplement: bool) -> tuple[list[str], dict[str, Any]]:
     failures: list[str] = []
-    roots = ["foreground_vision_bot", "flyff_farming_simulator", "flyff_farming_recorder", "."]
+    roots = ["."]
     is_local = _repo_local_modules(repo, roots)
 
     with (repo / PHASE0_INVENTORY).open(encoding="utf-8", newline="") as handle:

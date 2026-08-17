@@ -1,7 +1,6 @@
-"""B1 compatibility re-exports for the canonical reward contract."""
+"""Retained repository-qualified re-exports for the canonical reward contract."""
 
-# BRIDGE B1 — removed in Phase 7
-from flyff_farming_simulator.farming.reward import (
+from farming.reward import (
     RewardCalculator,
     RewardComponents,
     RewardConfig,

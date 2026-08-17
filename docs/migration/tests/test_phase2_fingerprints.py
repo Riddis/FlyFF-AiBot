@@ -54,7 +54,7 @@ def test_g4_contract_fingerprints_match_current_source() -> None:
 def test_g4_requires_live_schema_hash_recomputation() -> None:
     """5.2: catching descriptor drift needs recomputation, not constant equality."""
     pinned = FP["g4"]["observation_schema_hash"]["value"]
-    for root in ("flyff_farming_simulator", "foreground_vision_bot"):
+    for root in (".",):
         probe = fingerprints.probe_root(REPO, root)
         assert probe["OBSERVATION_SCHEMA_HASH_RECOMPUTED"] == pinned, root
         # The declared constant and the recomputed value must also agree.

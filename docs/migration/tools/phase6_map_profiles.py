@@ -62,7 +62,7 @@ def check_profiles(repo: Path) -> tuple[list[str], dict[str, Any]]:
 import dataclasses, json, pathlib, sys
 repo = pathlib.Path(sys.argv[1])
 sys.path.insert(0, str(repo))
-from flyff_farming_simulator.farming.map_profile import LIVE_TOWER_PROFILE, SIM_TOWER_PROFILE, TowerMapProfile
+from farming.map_profile import LIVE_TOWER_PROFILE, SIM_TOWER_PROFILE, TowerMapProfile
 immutable = True
 try:
     LIVE_TOWER_PROFILE.obstacle_radius_cells = 99
@@ -94,7 +94,7 @@ print(json.dumps({
         for key, value in expected.items()
         if evidence.get(key) != value
     ]
-    expected_origin = (repo / "flyff_farming_simulator/farming/map_profile.py").resolve()
+    expected_origin = (repo / "farming/map_profile.py").resolve()
     if Path(evidence["origin"]).resolve() != expected_origin:
         failures.append(f"profile origin is not canonical: {evidence['origin']}")
     return failures, evidence
@@ -111,8 +111,8 @@ def _import_aliases(path: Path) -> dict[tuple[str, str], str]:
 
 
 def check_wiring(repo: Path) -> tuple[list[str], dict[str, Any]]:
-    live_path = repo / "foreground_vision_bot/farming/map_context.py"
-    simulator_path = repo / "flyff_farming_simulator/simulator/map_model.py"
+    live_path = repo / "farming/map_context.py"
+    simulator_path = repo / "simulator/map_model.py"
     live_source = live_path.read_text(encoding="utf-8")
     simulator_source = simulator_path.read_text(encoding="utf-8")
     live_aliases = _import_aliases(live_path)
@@ -133,7 +133,7 @@ def check_wiring(repo: Path) -> tuple[list[str], dict[str, Any]]:
 import json, pathlib, sys
 import numpy as np
 repo = pathlib.Path(sys.argv[1])
-sys.path.insert(0, str(repo / "foreground_vision_bot"))
+sys.path.insert(0, str(repo))
 import farming.map_context as module
 loaded = module.FarmingMapContext.load("Tower AoE", obstacle_buffer_radius_cells=0, teleport_buffer_radius_cells=1.0)
 expected = module.inflate_map_masks(loaded.features.traversable, loaded.features.forbidden, obstacle_radius_cells=0, teleport_radius_cells=1)
@@ -143,7 +143,7 @@ print(json.dumps({"safe_exact": bool(np.array_equal(loaded.features.safe_travers
 import json, pathlib, sys
 import numpy as np
 repo = pathlib.Path(sys.argv[1])
-sys.path.insert(0, str(repo / "flyff_farming_simulator"))
+sys.path.insert(0, str(repo))
 from farming.map_masks import inflate_map_masks
 from simulator.map_model import MapModel
 walkable = np.ones((11, 11), dtype=bool)

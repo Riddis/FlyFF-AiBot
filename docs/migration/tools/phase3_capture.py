@@ -120,7 +120,35 @@ def _typed_json(value: Any) -> Any:
 
 
 def _source_hash(repo: Path, relative: str) -> str:
-    return sha256_file(repo / relative)
+    row = _phase7_row(repo, relative)
+    return row["sha256_before"] if row is not None else sha256_file(repo / relative)
+
+
+def _phase7_row(repo: Path, historical_relative: str) -> dict[str, str] | None:
+    manifest = repo / "docs/migration/PHASE7_MOVE_MANIFEST.tsv"
+    with manifest.open(encoding="utf-8", newline="") as handle:
+        matches = [
+            row
+            for row in csv.DictReader(handle, delimiter="\t")
+            if row["old_path"] == historical_relative
+        ]
+    if len(matches) > 1:
+        raise RuntimeError(f"Duplicate Phase-7 rows for frozen source {historical_relative}")
+    return matches[0] if matches else None
+
+
+def _phase7_source(repo: Path, historical_relative: str) -> Path:
+    """Resolve one frozen label through an exact P7 MOVE row, if needed."""
+    historical = repo / historical_relative
+    if historical.is_file():
+        return historical
+    row = _phase7_row(repo, historical_relative)
+    if row is None or row["phase7_action"] != "MOVE":
+        raise RuntimeError(f"No unique Phase-7 MOVE row for frozen source {historical_relative}")
+    physical = repo / row["new_path"]
+    if not physical.is_file():
+        raise RuntimeError(f"Phase-7 destination is missing for {historical_relative}: {row['new_path']}")
+    return physical
 
 
 def _base_case(index: int, rng: np.random.Generator) -> dict[str, Any]:
@@ -231,7 +259,7 @@ def capture_observations(repo: Path, temporary: Path) -> tuple[dict[str, bytes],
     input_path.write_bytes(input_bytes)
     outputs = []
     metas = []
-    for kind, root_rel in (("bot", "foreground_vision_bot"), ("simulator", "flyff_farming_simulator")):
+    for kind, root_rel in (("bot", "."), ("simulator", ".")):
         output = temporary / f"observation_{kind}.f32"
         meta = temporary / f"observation_{kind}.json"
         _run(repo, "_obs_worker", str(repo / root_rel), str(input_path), str(output), str(meta))
@@ -306,7 +334,7 @@ def capture_boundary(repo: Path, temporary: Path, observation: dict[str, Any]) -
     cases = build_boundary_cases()
     cases_path = temporary / "boundary_cases.json"; cases_path.write_bytes(json_bytes(cases))
     results = []
-    for kind, root_rel in (("bot", "foreground_vision_bot"), ("simulator", "flyff_farming_simulator")):
+    for kind, root_rel in (("bot", "."), ("simulator", ".")):
         output = temporary / f"boundary_{kind}.json"
         _run(repo, "_nearby_worker", str(repo / root_rel), str(cases_path), str(output))
         results.append(json.loads(output.read_text(encoding="utf-8")))
@@ -369,7 +397,7 @@ def _geodesic_worker(root: Path, output_path: Path) -> None:
 
 def capture_geodesic(repo: Path, temporary: Path) -> bytes:
     output = temporary / "geodesic.json"
-    _run(repo, "_geodesic_worker", str(repo / "flyff_farming_simulator"), str(output))
+    _run(repo, "_geodesic_worker", str(repo), str(output))
     return output.read_bytes()
 
 
@@ -418,7 +446,7 @@ def capture_maps(repo: Path, temporary: Path) -> dict[str, bytes]:
     if g11.returncode:
         raise RuntimeError(f"G11 precondition failed\n{g11.stdout}\n{g11.stderr}")
     payloads = {}
-    for kind, root_rel in (("live", "foreground_vision_bot"), ("simulator", "flyff_farming_simulator")):
+    for kind, root_rel in (("live", "."), ("simulator", ".")):
         output = temporary / f"map_{kind}.json"; _run(repo, "_map_worker", kind, str(repo / root_rel), str(output)); payloads[kind] = json.loads(output.read_text(encoding="utf-8"))
     live_safe = _decode_bool_array(payloads["live"]["arrays"]["safe_traversable"])
     sim_safe = _decode_bool_array(payloads["simulator"]["arrays"]["safe_traversable"])
@@ -487,38 +515,29 @@ def _router_worker(root: Path, output_path: Path) -> None:
 
 
 def capture_router(repo: Path, temporary: Path) -> bytes:
-    output = temporary / "router.json"; _run(repo, "_router_worker", str(repo / "flyff_farming_simulator"), str(output), timeout=900); return output.read_bytes()
+    output = temporary / "router.json"; _run(repo, "_router_worker", str(repo), str(output), timeout=900); return output.read_bytes()
 
 
 def _config_worker(kind: str, root: Path, repo: Path, output_path: Path) -> None:
-    if kind == "recorder":
-        canonical_position_parent = repo / "foreground_vision_bot"
-        if not (canonical_position_parent / "position" / "policy.py").is_file():
-            raise RuntimeError(
-                f"canonical position package is missing at {canonical_position_parent}"
-            )
-        # BRIDGE B2 — removed in Phase 7
-        sys.path[:0] = [str(canonical_position_parent), str(root)]
-    else:
-        sys.path.insert(0, str(root))
+    sys.path.insert(0, str(root))
     from dataclasses import asdict
     from position.MonsterConfig import load_native_monster_config
     from position.PositionConfig import load_native_position_config
     prefix = "foreground_vision_bot" if kind == "bot" else "flyff_farming_recorder"
     def record(class_name: str, value: Any, source: str, loader: str) -> dict[str, Any]:
-        return {"class": class_name, "effective": asdict(value), "loader_module": {"exists": True, "path": loader, "sha256": sha256_file(repo / loader)}, "source": {"exists": True, "path": source, "sha256": sha256_file(repo / source)}}
+        return {"class": class_name, "effective": asdict(value), "loader_module": {"exists": True, "path": loader, "sha256": sha256_file(_phase7_source(repo, loader))}, "source": {"exists": True, "path": source, "sha256": sha256_file(_phase7_source(repo, source))}}
     monster_source = f"{prefix}/position/native_monsters.json"; position_source = f"{prefix}/position/native_position.json"
-    result = {"import_root": prefix, "monster_config": record("position.MonsterConfig.NativeMonsterConfig", load_native_monster_config(repo / monster_source), monster_source, f"{prefix}/position/MonsterConfig.py"), "position_config": record("position.PositionConfig.NativePositionConfig", load_native_position_config(repo / position_source), position_source, f"{prefix}/position/PositionConfig.py")}
+    result = {"import_root": prefix, "monster_config": record("position.MonsterConfig.NativeMonsterConfig", load_native_monster_config(_phase7_source(repo, monster_source)), monster_source, f"{prefix}/position/MonsterConfig.py"), "position_config": record("position.PositionConfig.NativePositionConfig", load_native_position_config(_phase7_source(repo, position_source)), position_source, f"{prefix}/position/PositionConfig.py")}
     if kind == "recorder":
         from recorder.config import RecorderConfig
         source = "flyff_farming_recorder/recorder_config.json"; loader = "flyff_farming_recorder/recorder/config.py"
-        result["recorder_config"] = record("recorder.config.RecorderConfig", RecorderConfig.load(repo / source), source, loader)
+        result["recorder_config"] = record("recorder.config.RecorderConfig", RecorderConfig.load(_phase7_source(repo, source)), source, loader)
     output_path.write_bytes(json_bytes(result))
 
 
 def capture_config(repo: Path, temporary: Path) -> bytes:
     components = {}
-    for kind, root_rel, key in (("bot", "foreground_vision_bot", "foreground_vision_bot"), ("recorder", "flyff_farming_recorder", "flyff_farming_recorder")):
+    for kind, root_rel, key in (("bot", ".", "foreground_vision_bot"), ("recorder", ".", "flyff_farming_recorder")):
         output = temporary / f"config_{kind}.json"; _run(repo, "_config_worker", kind, str(repo / root_rel), str(repo), str(output)); components[key] = json.loads(output.read_text(encoding="utf-8"))
     values = {"presence_clear_confirmation_samples": 3, "presence_cold_poll_batch_size": 1024, "presence_cold_verification_batch_size": 256, "presence_dead_read_grace_seconds": 2.0}
     current = {"components": components, "loading_isolation": {"cross_root_import_contamination": False, "flyff_farming_recorder_import_root": "flyff_farming_recorder", "foreground_vision_bot_import_root": "foreground_vision_bot", "method": "separate python -I subprocesses"}, "phase": "Phase 0", "presence_field_ownership": {"equal_effective_values": values, "flyff_farming_recorder": {"config_layer": "recorder.config.RecorderConfig", "owner": "flyff_farming_recorder/recorder_config.json", "recorder_position_monster_config_contains_presence_fields": False, "values": values}, "foreground_vision_bot": {"config_layer": "position.MonsterConfig.NativeMonsterConfig", "owner": "foreground_vision_bot/position/native_monsters.json", "values": values}, "ownership_conclusion": "Values are equal, but ownership is intentionally different; Phase 0 does not unify them."}, "purpose": "Effective resolved config baseline for the future position/ merge; preservation evidence only, not a unification."}
@@ -545,9 +564,9 @@ def capture_config(repo: Path, temporary: Path) -> bytes:
             # primitive, but recorder ownership of these values remains in
             # RecorderConfig and the recorder JSON still contains no copy.
             recorder_current["monster_config"]["effective"].pop(key, None)
-        b2_marker = "# BRIDGE B2 — removed in Phase 7"
         b2_installed = all(
-            b2_marker in (repo / relative).read_text(encoding="utf-8")
+            "from position." in (repo / relative).read_text(encoding="utf-8")
+            and "BRIDGE B2" not in (repo / relative).read_text(encoding="utf-8")
             for relative in (
                 "flyff_farming_recorder/position/MonsterConfig.py",
                 "flyff_farming_recorder/position/PositionConfig.py",
@@ -591,7 +610,7 @@ def capture_recordings(repo: Path, corpus: Path, temporary: Path) -> bytes:
         source = corpus / Path(relative)
         if not source.is_file() or source.stat().st_size != expected_size or sha256_file(source).lower() != expected_sha:
             raise RuntimeError(f"Phase-0 archive source mismatch: {relative}")
-        output = temporary / f"recording_{index}.json"; _run(repo, "_recording_worker", str(repo / "flyff_farming_simulator"), str(source), str(output), timeout=900)
+        output = temporary / f"recording_{index}.json"; _run(repo, "_recording_worker", str(repo), str(source), str(output), timeout=900)
         row = json.loads(output.read_text(encoding="utf-8")); row.update({"path": relative, "size_bytes": expected_size, "source_sha256": expected_sha}); output_rows.append(row)
     return json_bytes({"fixture_format_version": FORMAT_VERSION, "archive_count": len(output_rows), "typed_encoding": "FlyffRL-typed-v1", "archives": output_rows})
 

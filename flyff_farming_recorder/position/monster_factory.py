@@ -1,6 +1,5 @@
 """B2 compatibility exports for the canonical position implementation."""
 
-# BRIDGE B2 — removed in Phase 7
 from position.monster_factory import (
     Callable,
     DEFAULT_MONSTER_CONFIG_PATH,

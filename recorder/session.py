@@ -13,7 +13,6 @@ from statistics import median
 from time import monotonic
 from typing import Any
 
-# BRIDGE B1 — removed in Phase 7
 from farming.observation_contract import (
     OBSERVATION_SCHEMA_HASH as _OBSERVATION_SCHEMA_HASH,
     OBSERVATION_SCHEMA_ID as _OBSERVATION_SCHEMA_ID,

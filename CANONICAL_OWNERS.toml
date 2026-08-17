@@ -1,15 +1,10 @@
 schema_version = 1
-current_phase = 6
+current_phase = 7
 strategy = "C -> A, defer B"
 purpose = "Machine-consumed current/target ownership registry for behaviorally sensitive concepts"
 
 [repository]
-python_roots = [
-  "foreground_vision_bot",
-  "flyff_farming_simulator",
-  "flyff_farming_recorder",
-  ".",
-]
+python_roots = ["."]
 
 [rules.R7b]
 status = "active-ratcheted-current-layout"
@@ -22,9 +17,9 @@ id = "tower_map_profiles"
 rule = "R7a"
 symbols = ["TowerMapProfile", "LIVE_TOWER_PROFILE", "SIM_TOWER_PROFILE"]
 current_owners = [
-  "flyff_farming_simulator/farming/map_profile.py",
+  "farming/map_profile.py",
 ]
-target_owner = "flyff_farming_simulator/farming/map_profile.py"
+target_owner = "farming/map_profile.py"
 status = "green-canonical-named-consumer-profiles"
 accepted_baseline_violation = false
 minimum_owners = 1
@@ -35,13 +30,13 @@ id = "observation_schema_id"
 rule = "R6"
 symbols = ["OBSERVATION_SCHEMA_ID"]
 current_owners = [
-  "flyff_farming_simulator/farming/observation_contract.py",
+  "farming/observation_contract.py",
 ]
-target_owner = "flyff_farming_simulator/farming/observation_contract.py"
+target_owner = "farming/observation_contract.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-permitted_bridge = "B1 installed through Phase 6"
+permitted_compatibility = "root-level canonical API; retained old paths own no behavior"
 resolution_phase = "PHASE_4"
 
 [[concept]]
@@ -49,13 +44,13 @@ id = "observation_size"
 rule = "R6"
 symbols = ["OBSERVATION_SIZE"]
 current_owners = [
-  "flyff_farming_simulator/farming/observation.py",
+  "farming/observation.py",
 ]
-target_owner = "flyff_farming_simulator/farming/observation.py"
+target_owner = "farming/observation.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-permitted_bridge = "B1 installed through Phase 6"
+permitted_compatibility = "root-level canonical API; retained old paths own no behavior"
 resolution_phase = "PHASE_4"
 
 [[concept]]
@@ -63,13 +58,13 @@ id = "policy_action_nvecs"
 rule = "R6"
 symbols = ["POLICY_ACTION_NVECS"]
 current_owners = [
-  "flyff_farming_simulator/farming/actions.py",
+  "farming/actions.py",
 ]
-target_owner = "flyff_farming_simulator/farming/actions.py"
+target_owner = "farming/actions.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-permitted_bridge = "B1 installed through Phase 6"
+permitted_compatibility = "root-level canonical API; retained old paths own no behavior"
 resolution_phase = "PHASE_4"
 
 [[concept]]
@@ -77,9 +72,9 @@ id = "farming_action_contract"
 rule = "R7a"
 symbols = ["FarmingAction", "SteeringAction", "FarmingEvent", "POLICY_ACTION_NVECS"]
 current_owners = [
-  "flyff_farming_simulator/farming/actions.py",
+  "farming/actions.py",
 ]
-target_owner = "flyff_farming_simulator/farming/actions.py"
+target_owner = "farming/actions.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
@@ -90,10 +85,10 @@ id = "farming_observation_contract"
 rule = "R7a"
 symbols = ["OBSERVATION_SCHEMA_ID", "OBSERVATION_SIZE", "ObservationBuilder"]
 current_owners = [
-  "flyff_farming_simulator/farming/observation_contract.py",
-  "flyff_farming_simulator/farming/observation.py",
+  "farming/observation_contract.py",
+  "farming/observation.py",
 ]
-target_owner = "flyff_farming_simulator/farming; recorder archive metadata is a consumer"
+target_owner = "farming; recorder archive metadata is a consumer"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
@@ -104,9 +99,9 @@ id = "farming_model_contract"
 rule = "R7a"
 symbols = ["CURRENT_MODEL_CONTRACT", "ModelContractMetadata", "validate_model_contract"]
 current_owners = [
-  "flyff_farming_simulator/farming/model_contract.py",
+  "farming/model_contract.py",
 ]
-target_owner = "flyff_farming_simulator/farming/model_contract.py"
+target_owner = "farming/model_contract.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
@@ -117,9 +112,9 @@ id = "farming_reward_contract"
 rule = "R7a"
 symbols = ["RewardCalculator", "RewardComponents"]
 current_owners = [
-  "flyff_farming_simulator/farming/reward.py",
+  "farming/reward.py",
 ]
-target_owner = "flyff_farming_simulator/farming/reward.py"
+target_owner = "farming/reward.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
@@ -130,9 +125,9 @@ id = "farming_session_contract"
 rule = "R7a"
 symbols = ["SessionOutcome", "SessionEndReason"]
 current_owners = [
-  "flyff_farming_simulator/farming/session.py",
+  "farming/session.py",
 ]
-target_owner = "flyff_farming_simulator/farming/session.py"
+target_owner = "farming/session.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
@@ -143,22 +138,22 @@ id = "native_position_stack"
 rule = "R7a"
 symbols = ["NativeFlyffPositionProvider", "NativeFlyffMonsterProvider", "NativeProcessService"]
 current_owners = [
-  "foreground_vision_bot/position/NativeFlyffMonsterProvider.py",
-  "foreground_vision_bot/position/NativeFlyffPositionProvider.py",
-  "foreground_vision_bot/position/native_process_service.py",
+  "position/NativeFlyffMonsterProvider.py",
+  "position/NativeFlyffPositionProvider.py",
+  "position/native_process_service.py",
 ]
-target_owner = "foreground_vision_bot/position with explicit live/recording attach policies and profiling subtree"
+target_owner = "position with explicit live/recording attach policies and profiling subtree"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-permitted_bridge = "B2"
+permitted_compatibility = "root-level canonical API; retained old paths own no behavior"
 resolution_phase = "PHASE_5"
 
 [[concept]]
 id = "qualified_persistent_waypoint_selector"
 rule = "R7a"
 symbols = ["select_persistent_waypoint"]
-current_owners = ["flyff_farming_simulator/simulator/kinodynamic_route_planner.py"]
+current_owners = ["simulator/kinodynamic_route_planner.py"]
 target_owner = "future shared production navigation owner after validated closure preservation"
 status = "green-current-single-owner"
 accepted_baseline_violation = false
@@ -169,7 +164,7 @@ resolution_phase = "LATER_NAVIGATION_PHASE"
 id = "serialized_split_policy_api"
 rule = "R7a"
 symbols = ["SplitSteeringNavigationPolicy", "SplitSteeringEventPolicy"]
-current_owners = ["flyff_farming_simulator/simulator/split_branch_policy.py"]
+current_owners = ["simulator/split_branch_policy.py"]
 target_owner = "simulator namespace retained as checkpoint ABI unless a separately gated compatibility shim is introduced"
 status = "green-frozen-checkpoint-abi"
 accepted_baseline_violation = false
@@ -180,7 +175,7 @@ resolution_phase = "NEVER_WITHOUT_CHECKPOINT_GATE"
 id = "serialized_farming_training_api"
 rule = "R7a"
 symbols = ["TerminalPrefixRolloutBuffer", "TrainingBoundary", "TrainingBoundaryKind"]
-current_owners = ["foreground_vision_bot/farming/sb3_training.py"]
+current_owners = ["farming/sb3_training.py"]
 target_owner = "farming.sb3_training namespace retained as checkpoint ABI unless a separately gated compatibility shim is introduced"
 status = "green-frozen-checkpoint-abi"
 accepted_baseline_violation = false
@@ -188,12 +183,12 @@ minimum_owners = 1
 resolution_phase = "NEVER_WITHOUT_CHECKPOINT_GATE"
 
 [[shim]]
-location = "flyff_farming_simulator/farming/observation.py"
+location = "farming/observation.py"
 symbols = ["OBSERVATION_SCHEMA_HASH", "OBSERVATION_SCHEMA_ID"]
-canonical_owner = "flyff_farming_simulator/farming/observation_contract.py"
-reason = "Canonical observation API compatibility re-export of dependency-free metadata"
-bridge_id = "B1"
-removal_gate = "PHASE_7"
+canonical_owner = "farming/observation_contract.py"
+reason = "Permanent canonical observation API compatibility re-export"
+bridge_id = "NONE"
+removal_gate = "NEVER"
 
 [[shim]]
 location = "foreground_vision_bot/farming/__init__.py"
@@ -211,10 +206,10 @@ symbols = [
   "SessionEvidence", "SessionOutcome", "classify_session_outcome",
   "coerce_farming_action", "coerce_farming_command", "validate_model_contract",
 ]
-canonical_owner = "flyff_farming_simulator/farming/__init__.py"
-reason = "B1 fallback facade for the canonical shared farming public API"
-bridge_id = "B1"
-removal_gate = "PHASE_7"
+canonical_owner = "farming/__init__.py"
+reason = "Phase-7 retained repository-qualified farming public API facade"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "foreground_vision_bot/farming/actions.py"
@@ -224,10 +219,10 @@ symbols = [
   "FarmingEvent", "SteeringAction", "coerce_event", "coerce_farming_action",
   "coerce_farming_command", "coerce_steering", "command_from_legacy_action",
 ]
-canonical_owner = "flyff_farming_simulator/farming/actions.py"
-reason = "B1 thin compatibility re-export"
-bridge_id = "B1"
-removal_gate = "PHASE_7"
+canonical_owner = "farming/actions.py"
+reason = "Phase-7 retained repository-qualified farming compatibility re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "foreground_vision_bot/farming/model_contract.py"
@@ -237,26 +232,26 @@ symbols = [
   "ModelContract", "ModelContractError", "ModelContractMetadata", "ModelContractSource",
   "ModelContractValidation", "ModelSpaceSignature", "sha256_file", "validate_model_contract",
 ]
-canonical_owner = "flyff_farming_simulator/farming/model_contract.py"
-reason = "B1 thin compatibility re-export"
-bridge_id = "B1"
-removal_gate = "PHASE_7"
+canonical_owner = "farming/model_contract.py"
+reason = "Phase-7 retained repository-qualified farming compatibility re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "foreground_vision_bot/farming/map_masks.py"
 symbols = ["InflatedMapMasks", "dilate_mask", "inflate_map_masks"]
-canonical_owner = "flyff_farming_simulator/farming/map_masks.py"
-reason = "B1 thin compatibility re-export"
-bridge_id = "B1"
-removal_gate = "PHASE_7"
+canonical_owner = "farming/map_masks.py"
+reason = "Phase-7 retained repository-qualified farming compatibility re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "foreground_vision_bot/farming/reward.py"
 symbols = ["RewardCalculator", "RewardComponents", "RewardConfig", "RewardEvidence", "RewardResult"]
-canonical_owner = "flyff_farming_simulator/farming/reward.py"
-reason = "B1 thin compatibility re-export"
-bridge_id = "B1"
-removal_gate = "PHASE_7"
+canonical_owner = "farming/reward.py"
+reason = "Phase-7 retained repository-qualified farming compatibility re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "foreground_vision_bot/farming/session.py"
@@ -264,18 +259,18 @@ symbols = [
   "SessionClassification", "SessionEndReason", "SessionEvidence", "SessionOutcome",
   "classify_session_outcome",
 ]
-canonical_owner = "flyff_farming_simulator/farming/session.py"
-reason = "B1 thin compatibility re-export"
-bridge_id = "B1"
-removal_gate = "PHASE_7"
+canonical_owner = "farming/session.py"
+reason = "Phase-7 retained repository-qualified farming compatibility re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "foreground_vision_bot/farming/map_profile.py"
 symbols = ["LIVE_TOWER_PROFILE", "SIM_TOWER_PROFILE", "TowerMapProfile"]
-canonical_owner = "flyff_farming_simulator/farming/map_profile.py"
-reason = "B1 thin compatibility re-export of the named Tower map profiles"
-bridge_id = "B1"
-removal_gate = "PHASE_7"
+canonical_owner = "farming/map_profile.py"
+reason = "Phase-7 retained repository-qualified farming map-profile re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "foreground_vision_bot/farming/observation.py"
@@ -292,10 +287,10 @@ symbols = [
   "ObservationFrame", "ObservationScales", "PlayerObservation", "_DIRECT_ACTOR_FIELD_NAMES",
   "observation_schema_descriptor", "observation_schema_hash",
 ]
-canonical_owner = "flyff_farming_simulator/farming/observation.py"
-reason = "B1 thin compatibility re-export including the depended-on private actor-field tuple"
-bridge_id = "B1"
-removal_gate = "PHASE_7"
+canonical_owner = "farming/observation.py"
+reason = "Phase-7 retained repository-qualified farming observation re-export including the depended-on private actor-field tuple"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "foreground_vision_bot/farming/map_features.py"
@@ -307,63 +302,63 @@ symbols = [
   "LOCAL_MAP_TELEPORT_BUFFER", "LOCAL_MAP_TELEPORT_TRIGGER", "BoolArray", "Cell",
   "DirectPathState", "FarmingMapFeatures", "FloatArray", "MapCellRisk", "bresenham_cells",
 ]
-canonical_owner = "flyff_farming_simulator/farming/map_features.py"
-reason = "B1 thin compatibility re-export of the simulator superset"
-bridge_id = "B1"
-removal_gate = "PHASE_7"
+canonical_owner = "farming/map_features.py"
+reason = "Phase-7 retained repository-qualified farming map-feature superset re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "flyff_farming_recorder/position/__init__.py"
 symbols = ["NativeFlyffMonsterProvider", "NativeFlyffPositionProvider", "NativeProcessService"]
-canonical_owner = "foreground_vision_bot/position/__init__.py"
-reason = "B2 package compatibility re-export"
-bridge_id = "B2"
-removal_gate = "PHASE_7"
+canonical_owner = "position/__init__.py"
+reason = "Phase-7 retained repository-qualified position package re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "flyff_farming_recorder/position/attachment_factory.py"
 symbols = ["NativeFlyffMonsterProvider", "NativeFlyffPositionProvider", "NativeProcessService"]
-canonical_owner = "foreground_vision_bot/position/attachment_factory.py"
-reason = "B2 attachment compatibility re-export"
-bridge_id = "B2"
-removal_gate = "PHASE_7"
+canonical_owner = "position/attachment_factory.py"
+reason = "Phase-7 retained repository-qualified position attachment re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "flyff_farming_recorder/position/factory.py"
 symbols = ["NativeFlyffPositionProvider", "NativeProcessService"]
-canonical_owner = "foreground_vision_bot/position/factory.py"
-reason = "B2 position-factory compatibility re-export"
-bridge_id = "B2"
-removal_gate = "PHASE_7"
+canonical_owner = "position/factory.py"
+reason = "Phase-7 retained repository-qualified position-factory re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "flyff_farming_recorder/position/monster_factory.py"
 symbols = ["NativeFlyffMonsterProvider", "NativeProcessService"]
-canonical_owner = "foreground_vision_bot/position/monster_factory.py"
-reason = "B2 monster-factory compatibility re-export"
-bridge_id = "B2"
-removal_gate = "PHASE_7"
+canonical_owner = "position/monster_factory.py"
+reason = "Phase-7 retained repository-qualified monster-factory re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "flyff_farming_recorder/position/NativeFlyffMonsterProvider.py"
 symbols = ["NativeFlyffMonsterProvider", "NativeProcessService"]
-canonical_owner = "foreground_vision_bot/position/NativeFlyffMonsterProvider.py"
-reason = "B2 native-monster compatibility re-export"
-bridge_id = "B2"
-removal_gate = "PHASE_7"
+canonical_owner = "position/NativeFlyffMonsterProvider.py"
+reason = "Phase-7 retained repository-qualified native-monster re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "flyff_farming_recorder/position/NativeFlyffPositionProvider.py"
 symbols = ["NativeFlyffPositionProvider", "NativeProcessService"]
-canonical_owner = "foreground_vision_bot/position/NativeFlyffPositionProvider.py"
-reason = "B2 native-position compatibility re-export"
-bridge_id = "B2"
-removal_gate = "PHASE_7"
+canonical_owner = "position/NativeFlyffPositionProvider.py"
+reason = "Phase-7 retained repository-qualified native-position re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"
 
 [[shim]]
 location = "flyff_farming_recorder/position/native_process_service.py"
 symbols = ["NativeProcessService"]
-canonical_owner = "foreground_vision_bot/position/native_process_service.py"
-reason = "B2 process-service compatibility re-export"
-bridge_id = "B2"
-removal_gate = "PHASE_7"
+canonical_owner = "position/native_process_service.py"
+reason = "Phase-7 retained repository-qualified process-service re-export"
+bridge_id = "NONE"
+removal_gate = "PHASE_12"

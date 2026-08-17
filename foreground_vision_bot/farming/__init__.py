@@ -1,21 +1,25 @@
-"""B1 fallback facade for the canonical farming public API."""
+"""Retained repository-qualified facade for the canonical farming API."""
 
 from __future__ import annotations
 
-import os
-import sys
+import importlib.util
 from pathlib import Path
 
-# BRIDGE B1 — removed in Phase 7
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-_repository_key = os.path.normcase(str(_REPOSITORY_ROOT.resolve()))
-if all(
-    os.path.normcase(str(Path(entry or ".").resolve())) != _repository_key
-    for entry in sys.path
-):
-    sys.path.insert(0, str(_REPOSITORY_ROOT))
+_EXPECTED_CANONICAL = (_REPOSITORY_ROOT / "farming" / "__init__.py").resolve()
+_canonical_spec = importlib.util.find_spec("farming")
+_canonical_origin = (
+    Path(_canonical_spec.origin).resolve()
+    if _canonical_spec is not None and _canonical_spec.origin is not None
+    else None
+)
+if _canonical_origin != _EXPECTED_CANONICAL:
+    raise ImportError(
+        "The retained foreground_vision_bot.farming facade requires the "
+        f"repository-root farming package at {_EXPECTED_CANONICAL}; got {_canonical_origin}."
+    )
 
-from flyff_farming_simulator.farming import (
+from farming import (
     ACTION_COUNT,
     ACTION_NAMES,
     ACTIVE_METADATALESS_MODEL_CONTRACT_HASH,

@@ -1,7 +1,6 @@
-"""B1 compatibility re-exports for canonical farming actions."""
+"""Retained repository-qualified re-exports for canonical farming actions."""
 
-# BRIDGE B1 — removed in Phase 7
-from flyff_farming_simulator.farming.actions import (
+from farming.actions import (
     ACTION_COUNT,
     ACTION_NAMES,
     EVENT_NAMES,

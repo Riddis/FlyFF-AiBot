@@ -531,14 +531,12 @@ def test_recorder_profiles_and_uses_instantiated_field_as_verified_hint() -> Non
         Path(__file__).resolve().parents[1] / "recorder" / "native_capture.py"
     ).read_text(encoding="utf-8")
     reader_source = (
-        Path(__file__).resolve().parents[2]
-        / "foreground_vision_bot"
+        Path(__file__).resolve().parents[1]
         / "position"
         / "IndependentNativeReader.py"
     ).read_text(encoding="utf-8")
     promotion_source = (
-        Path(__file__).resolve().parents[2]
-        / "foreground_vision_bot"
+        Path(__file__).resolve().parents[1]
         / "position"
         / "profiling"
         / "presence_promotion.py"
@@ -742,8 +740,7 @@ def test_quantizer_cannot_overflow_msgpack_on_stale_pointer_values() -> None:
 
 def test_player_discovery_does_not_gate_on_monster_instantiated_field() -> None:
     source = (
-        Path(__file__).resolve().parents[2]
-        / "foreground_vision_bot"
+        Path(__file__).resolve().parents[1]
         / "position"
         / "NativeTraceTargets.py"
     ).read_text(encoding="utf-8")
