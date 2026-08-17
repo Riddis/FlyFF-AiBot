@@ -2263,3 +2263,88 @@ runtime, GUI, devtools, R1b, G5/G5-P2. No live execution, no training.
 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 13 -- living project knowledge + agent operating rules + context hygiene + final consolidation cleanup
+
+Entry HEAD `da92d43` exact. Two addenda incorporated mid-execution
+(shutdown/overnight-autonomy skills, clean-repo-snapshot skill) --
+neither skipped because of the interruption.
+
+### New offline tests (9, all passed)
+
+- `tests/test_check_project_knowledge.py` (4): proves the knowledge
+  checker's own mechanics -- catches a broken documentation-index
+  reference, catches an inconsistent G5 status claim, catches missing
+  `CLAUDE.md`/`AGENTS.md` rule linkage, and confirms the current
+  repository passes every check.
+- `tests/test_create_clean_repo_snapshot.py` (5): proves the snapshot
+  tool's filtering -- `.git`/venv/cache exclusion (including nested
+  `__pycache__`), database/`.pyc` exclusion by name, bulk-artifact
+  exclusion scoped to `models/`/`recordings/`/`evaluations/` only (not
+  small sibling manifests), sensitive-filename detection, and that a
+  real build-plan run against this repository excludes `.git`/`.venv`/
+  `__pycache__` and finds zero sensitive files.
+
+### Two real bugs found and fixed during test-driven development
+
+1. `tools/check_project_knowledge.py`'s referenced-path check originally
+   flagged bare filenames (`MISTAKES.md`, `map.json`, `SKILL.md`) and
+   `docs/README.md`'s own doc-relative links (`architecture/
+   SYSTEM_OVERVIEW.md`) as missing, because the regex matched any
+   backtick-quoted extensioned string and resolved it only against the
+   repo root. Fixed: require a `/` in the candidate (bare filenames are
+   inherently ambiguous and not worth checking), and resolve relative to
+   either the repo root or the containing document's own directory.
+2. `tools/create_clean_repo_snapshot.py`'s directory exclusion only
+   matched root-anchored prefixes (`__pycache__` at the tree root),
+   missing the same directory name nested inside every package
+   subdirectory (`farming/__pycache__`, etc.) -- exactly where Python
+   actually creates them. Fixed: match cache-directory names at any path
+   depth, not only at the root.
+
+### Documentation-accuracy findings
+
+`docs/{ARCHITECTURE,CONFIGURATION,RUNBOOK}.md` (pre-migration, still
+present, now cross-referenced as superseded rather than deleted)
+describe a `Discrete(5)` action space / 923-dim observation /
+`foreground_vision_farm.py` entrypoint -- all stale relative to the
+current frozen checkpoint (`MultiDiscrete([3,3])`, 928-dim = 923 raw +
+5 sidecar, `apps/dev_app.py`). Corrected facts now live in
+`docs/architecture/DATA_AND_MODEL_CONTRACTS.md` and `SYSTEM_OVERVIEW.md`,
+grounded in direct reads of `simulator/split_branch_policy.py` and the
+Phase 9-12 reports, not copied uncritically from the old docs.
+`CLAUDE.md` incorrectly claimed `MISTAKES.md` was in the same directory
+as itself; the real tracked file is `flyff_farming_simulator/
+MISTAKES.md` (both files were touched by the same Phase-7 collapse
+commit, `bfc5c6d`, which is where this went stale) -- corrected.
+
+### Verification
+
+`migration_integrity.py check`: `ok=true` (`R6=0 R7a=0 R7b=0 R7c=204`
+unchanged, `R9=0 R10=0`). `python -m future_runtime_profile.
+derive_runtime_manifest`: still `PASS`, unaffected by any Phase-13
+change. `pytest docs/migration/tests/`: **77 passed** (unchanged).
+`python -m tools.check_project_knowledge`: **PROJECT KNOWLEDGE: PASS**
+(all 9 checks). `git diff --check` clean. The full `tests/` product
+suite was intentionally **not** re-run this phase -- nothing this phase
+touches product/runtime behavior or import structure (the one
+`pyproject.toml` change is a Ruff config correction confirmed unwired
+from any test/CI gate); Phase-12's accepted baseline (1190 passed, 4
+established failures, 2 skipped, 1 xfailed) stands unverified-by-rerun
+this phase, by design, per the authorization's own instruction not to
+automatically rerun the full suite for documentation changes. No live
+execution occurred anywhere in this phase; neither operating-mode skill
+(`finish-current-task-and-shutdown`, `overnight-autonomous-work`) was
+activated.
+
+Read `PHASE13_REPORT.md` for the full 25-section account.
+
+**PHASE 13 COMPLETE: YES** -- durable current-state documentation,
+shared agent rules, six project skills, and a lightweight knowledge-
+integrity gate now exist; the one remaining Phase-12 cleanup item with
+a mechanical fix was resolved, and the two requiring a product decision
+were explicitly re-deferred rather than invented. **PHASE 14 SAFE TO
+CONSIDER: YES (readiness only). PHASE 14 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**
+**AGENT LIVE EXECUTION: NONE.**

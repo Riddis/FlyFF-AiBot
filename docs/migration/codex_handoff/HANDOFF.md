@@ -1415,3 +1415,77 @@ re-run (metadata-only, no product-code dependency touched).
 **PHASE 13 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 13 — Living Project Knowledge + Agent Operating Rules + Context Hygiene + Final Consolidation Cleanup (complete)
+
+Entry HEAD `da92d43` (exact). Commits `0d1b1ad` (P13-A: current-state
+docs), `ef647ad` (P13-B: agent entrypoints + rules + six skills),
+`79efad9` (P13-C: knowledge-check + snapshot tooling), `7aeb568`
+(P13-D: Phase-12 Ruff-path cleanup), plus this P13-DOC commit. Two
+addenda received mid-execution — shutdown/overnight-autonomy skills
+(cap 3→5) and clean-repo-snapshot (cap 5→6) — both incorporated in
+full.
+
+**Durable current-state documentation** now exists at `docs/README.md`
+(cold-start index) → `docs/architecture/` (7 files: system overview,
+component ownership, checkpoint ABI, position/pointer-recovery,
+recorder/archives/telemetry, maps/coordinate frames, navigation/
+movement) → `docs/validation/` (G5's real, PENDING status — no
+fabricated result) → `docs/operations/` → `docs/decisions/` (6 ADRs) →
+`docs/KNOWN_DEBT.md`/`docs/GLOSSARY.md`. `docs/migration/` remains the
+untouched historical/forensic record. Corrected several stale claims
+inherited from pre-migration `docs/{ARCHITECTURE,CONFIGURATION,
+RUNBOOK}.md` (still present, now cross-referenced as superseded): the
+action space is `MultiDiscrete([3,3])` on the current frozen checkpoint,
+not `Discrete(5)`; the canonical entrypoint is `apps/dev_app.py`, not
+`foreground_vision_farm.py`.
+
+**`CLAUDE.md`/`MISTAKES.md` path fixed** — `CLAUDE.md` claimed
+`MISTAKES.md` was in the same directory; the real tracked file is
+`flyff_farming_simulator/MISTAKES.md`. **`AGENTS.md`** created as
+Codex's synced entrypoint. **`docs/agent/PROJECT_RULES.md`** is now the
+one canonical shared rules document (product direction, absolute
+live-execution prohibition, canonical ownership, test/gate discipline,
+scientific integrity, immutable artifacts, git discipline,
+`MISTAKES.md`, documentation-maintenance rule, forward-correction,
+context hygiene, STOP conditions).
+
+**Six project skills** (`.claude/skills/<name>/SKILL.md`):
+`maintaining-project-knowledge`, `preparing-controlled-validation`,
+`making-safe-repository-changes`, `finish-current-task-and-shutdown`
+(user-invoked only — explicit shutdown request is sufficient
+authorization, no second confirmation), `overnight-autonomous-work`
+(user-invoked only — standing offline-work authorization bounded by the
+same hard rules, dated log under `docs/agent/overnight/`, defined
+project-complete stop condition), `prepare-clean-repo-snapshot`
+(current-worktree ZIP via `tools/create_clean_repo_snapshot.py`,
+`REVIEW_CLEAN` profile, excludes caches/venvs/databases/bulk artifacts,
+refuses on sensitive-file detection, output gitignored under
+`exports/`). **Neither operating-mode skill was activated this phase.**
+
+**`tools/check_project_knowledge.py`** — one consolidated, lightweight
+documentation-integrity gate (9 checks). **PASS** on the final
+repository state. Does not reproduce product behavior tests.
+
+**Phase-12 cleanup items**: (A) `pyproject.toml`'s stale Ruff
+per-file-ignore corrected to the canonical `mapper/` path (zero
+test/CI impact — ruff isn't wired into any gate); (B)/(C)
+(`flyff_farming_recorder/requirements.txt`,
+`foreground_vision_bot/foreground_vision_farm.json`) re-audited and
+explicitly re-deferred — resolving either requires a product decision
+this phase is forbidden from inventing.
+
+`migration_integrity.py check`: `ok=true` (`R6=0 R7a=0 R7b=0 R7c=204`
+unchanged, `R9=0 R10=0`). `docs/migration/tests/`: 77 passed. Future
+derivation profile: still PASS. `git diff --check` clean. The full
+`tests/` suite was intentionally **not** re-run — nothing this phase
+touches product/runtime behavior or import structure. No live
+execution occurred anywhere in this phase.
+
+Read `PHASE13_REPORT.md` for the full 25-section account.
+
+**PHASE 13 COMPLETE: YES.**
+**PHASE 14 SAFE TO CONSIDER: YES** — readiness only.
+**PHASE 14 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**
