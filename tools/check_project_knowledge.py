@@ -230,44 +230,88 @@ def _parse_skill_frontmatter(text: str) -> dict[str, str]:
 
 
 def check_skill_metadata() -> CheckResult:
+    """Six logical skills, exposed through TWO client-native discovery
+    surfaces (Claude Code's .claude/skills/ and Codex's .agents/skills/
+    -- verified against each client's own current documentation, see
+    docs/migration/codex_handoff/PHASE13_REPORT.md's correction
+    section). This must not pass merely because .claude/skills/ exists
+    -- that was the exact Phase-13 mistake this check now guards
+    against (flyff_farming_simulator/MISTAKES.md)."""
     problems: list[str] = []
-    skills_dir = REPO / ".claude/skills"
-    if not skills_dir.is_dir():
-        return CheckResult("skill metadata/discovery", False, [".claude/skills/ missing"])
+    claude_dir = REPO / ".claude/skills"
+    codex_dir = REPO / ".agents/skills"
 
-    discovered = sorted(p.name for p in skills_dir.iterdir() if p.is_dir())
-    if len(discovered) > MAX_SKILLS:
-        problems.append(f"more than {MAX_SKILLS} skills present: {discovered}")
+    if not claude_dir.is_dir():
+        problems.append(".claude/skills/ missing (Claude Code discovery surface)")
+    if not codex_dir.is_dir():
+        problems.append(".agents/skills/ missing (Codex discovery surface)")
+    if problems:
+        return CheckResult("skill metadata/discovery", False, problems)
+
+    claude_discovered = sorted(p.name for p in claude_dir.iterdir() if p.is_dir())
+    codex_discovered = sorted(p.name for p in codex_dir.iterdir() if p.is_dir())
+    if len(claude_discovered) > MAX_SKILLS:
+        problems.append(f"more than {MAX_SKILLS} skills present under .claude/skills/: {claude_discovered}")
+    if len(codex_discovered) > MAX_SKILLS:
+        problems.append(f"more than {MAX_SKILLS} skills present under .agents/skills/: {codex_discovered}")
+    if set(claude_discovered) != set(SKILL_NAMES):
+        problems.append(f".claude/skills/ names disagree with the intended six: {claude_discovered}")
+    if set(codex_discovered) != set(SKILL_NAMES):
+        problems.append(f".agents/skills/ names disagree with the intended six: {codex_discovered}")
 
     for name in SKILL_NAMES:
-        skill_md = skills_dir / name / "SKILL.md"
-        if not skill_md.is_file():
-            problems.append(f"{name}: SKILL.md missing")
+        # Canonical Claude Code body: full frontmatter + workflow content.
+        claude_md = claude_dir / name / "SKILL.md"
+        if not claude_md.is_file():
+            problems.append(f"{name}: .claude/skills/{name}/SKILL.md missing")
+            claude_text = ""
+        else:
+            claude_text = claude_md.read_text(encoding="utf-8")
+            meta = _parse_skill_frontmatter(claude_text)
+            if meta.get("name") != name:
+                problems.append(f"{name}: .claude frontmatter name={meta.get('name')!r} does not match directory")
+            if not meta.get("description"):
+                problems.append(f"{name}: .claude frontmatter missing description")
+
+        # Codex wrapper: same name/description (for implicit matching),
+        # and must explicitly point back at the canonical Claude body
+        # rather than reimplementing it.
+        codex_md = codex_dir / name / "SKILL.md"
+        if not codex_md.is_file():
+            problems.append(f"{name}: .agents/skills/{name}/SKILL.md missing")
             continue
-        text = skill_md.read_text(encoding="utf-8")
-        meta = _parse_skill_frontmatter(text)
-        if meta.get("name") != name:
-            problems.append(f"{name}: frontmatter name={meta.get('name')!r} does not match directory")
-        if not meta.get("description"):
-            problems.append(f"{name}: frontmatter missing description")
+        codex_text = codex_md.read_text(encoding="utf-8")
+        codex_meta = _parse_skill_frontmatter(codex_text)
+        if codex_meta.get("name") != name:
+            problems.append(f"{name}: .agents frontmatter name={codex_meta.get('name')!r} does not match directory")
+        if not codex_meta.get("description"):
+            problems.append(f"{name}: .agents frontmatter missing description")
+        canonical_ref = f".claude/skills/{name}/SKILL.md"
+        if canonical_ref not in codex_text:
+            problems.append(f"{name}: .agents wrapper does not reference the canonical {canonical_ref}")
+        # A wrapper should be thin -- flag one that looks like a second
+        # full implementation rather than a pointer (heuristic: it
+        # should be much shorter than the canonical body it wraps).
+        if claude_text and len(codex_text) > 0.6 * len(claude_text):
+            problems.append(f"{name}: .agents wrapper is not thin (risk of a divergent second implementation)")
 
-    finish_text = (skills_dir / "finish-current-task-and-shutdown" / "SKILL.md")
-    if finish_text.is_file() and "User-invoked only" not in finish_text.read_text(encoding="utf-8"):
-        problems.append("finish-current-task-and-shutdown does not declare explicit-invocation-only")
+    finish_claude = (claude_dir / "finish-current-task-and-shutdown" / "SKILL.md")
+    if finish_claude.is_file() and "User-invoked only" not in finish_claude.read_text(encoding="utf-8"):
+        problems.append("finish-current-task-and-shutdown (.claude) does not declare explicit-invocation-only")
 
-    overnight_md = skills_dir / "overnight-autonomous-work" / "SKILL.md"
-    if overnight_md.is_file():
-        overnight_text = overnight_md.read_text(encoding="utf-8")
+    overnight_claude_md = claude_dir / "overnight-autonomous-work" / "SKILL.md"
+    if overnight_claude_md.is_file():
+        overnight_text = overnight_claude_md.read_text(encoding="utf-8")
         if "User-invoked only" not in overnight_text:
-            problems.append("overnight-autonomous-work does not declare explicit-invocation-only")
+            problems.append("overnight-autonomous-work (.claude) does not declare explicit-invocation-only")
         if not re.search(r"never permits.*launching or attaching to FlyFF|All live FlyFF execution remains user-run", overnight_text):
-            problems.append("overnight-autonomous-work does not restate the absolute no-live-execution rule")
+            problems.append("overnight-autonomous-work (.claude) does not restate the absolute no-live-execution rule")
         if "docs/agent/overnight/" not in overnight_text:
-            problems.append("overnight-autonomous-work does not require a dated durable log location")
+            problems.append("overnight-autonomous-work (.claude) does not require a dated durable log location")
 
-    snapshot_md = skills_dir / "prepare-clean-repo-snapshot" / "SKILL.md"
-    if snapshot_md.is_file():
-        snapshot_text = snapshot_md.read_text(encoding="utf-8")
+    snapshot_claude_md = claude_dir / "prepare-clean-repo-snapshot" / "SKILL.md"
+    if snapshot_claude_md.is_file():
+        snapshot_text = snapshot_claude_md.read_text(encoding="utf-8")
         if not (REPO / "tools/create_clean_repo_snapshot.py").is_file():
             problems.append("prepare-clean-repo-snapshot's tool (tools/create_clean_repo_snapshot.py) is missing")
         if "current worktree" not in snapshot_text.lower():
@@ -278,6 +322,20 @@ def check_skill_metadata() -> CheckResult:
     gitignore_path = REPO / ".gitignore"
     if gitignore_path.is_file() and "exports/" not in gitignore_path.read_text(encoding="utf-8"):
         problems.append("exports/ (snapshot output directory) is not gitignored")
+
+    # Both entrypoints must point at their OWN correct discovery surface
+    # -- this is exactly what the original Phase-13 mistake got wrong
+    # for AGENTS.md (it claimed no Codex-native mechanism existed).
+    claude_md_entry = REPO / "CLAUDE.md"
+    if claude_md_entry.is_file() and ".claude/skills" not in claude_md_entry.read_text(encoding="utf-8"):
+        problems.append("CLAUDE.md does not reference .claude/skills/")
+    agents_md_entry = REPO / "AGENTS.md"
+    if agents_md_entry.is_file():
+        agents_text = agents_md_entry.read_text(encoding="utf-8")
+        if ".agents/skills" not in agents_text:
+            problems.append("AGENTS.md does not reference .agents/skills/ (Codex-native discovery)")
+        if re.search(r"no separate first-class Codex skill", agents_text, re.IGNORECASE):
+            problems.append("AGENTS.md still contains the corrected 'no separate Codex skill mechanism' claim")
 
     return CheckResult("skill metadata/discovery", not problems, problems)
 

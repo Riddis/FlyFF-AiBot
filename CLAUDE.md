@@ -46,3 +46,14 @@ skimmable):
   `docs/agent/PROJECT_RULES.md` section 11.
 - Compact context at safe natural checkpoints when useful; recommend a
   fresh context after a fully completed independent task.
+
+## Project skills
+
+Claude Code's repository-local skill discovery location is
+`.claude/skills/<name>/SKILL.md` — the same six skills are also
+installed for Codex as thin wrappers under `.agents/skills/<name>/
+SKILL.md` (Codex's own native discovery location, a genuinely separate
+mechanism, not the same directory read two ways). See `AGENTS.md` if
+you need the Codex-side detail; the canonical, authoritative body for
+every skill lives under `.claude/skills/` regardless of which client
+reads it.

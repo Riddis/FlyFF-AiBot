@@ -37,7 +37,7 @@ All entry conditions held; no STOP triggered at entry.
 
 ## 2. Final HEAD
 
-Resolve with `git rev-parse HEAD` after the P13-DOC commit lands.
+Resolve with `git rev-parse HEAD` after the correction commit lands.
 
 ## 3. Phase-13 commits
 
@@ -47,7 +47,8 @@ Resolve with `git rev-parse HEAD` after the P13-DOC commit lands.
 | `ef647ad` | P13-B: agent entrypoints, shared project rules, six project skills |
 | `79efad9` | P13-C: project-knowledge check + clean-repo-snapshot tooling |
 | `7aeb568` | P13-D: correct the stale Ruff per-file-ignore path (Phase-12 cleanup item A) |
-| *(pending)* | P13-DOC: report, journals, `current_phase=13` |
+| `59cda01` | P13-DOC: report, journals, `current_phase=13` |
+| *(pending)* | P13-CORRECTION: Codex-native skill discovery + refactor_logs snapshot audit (section 24a above) |
 
 No commit was reset, amended, rebased, or force-pushed. No `git add -A`/
 `.`/`-u` was used — every commit staged explicit paths.
@@ -429,9 +430,131 @@ sections 4–17 above are the full account. `docs/migration/` itself was
 not rewritten (only this new report was added, per the established
 forward-only convention).
 
+## 24a. Forward correction — Codex-native skill discovery (post-Phase-13 review)
+
+Section 15 above is preserved exactly as originally written and is not
+rewritten by this section — this is a forward correction, per the
+convention established in Phases 7/9/10/11/12.
+
+**What was wrong.** Section 15 (and the `AGENTS.md` this phase wrote)
+claimed "this repository does not currently have a separate
+first-class Codex skill mechanism" and installed the six project
+skills only under `.claude/skills/<name>/SKILL.md` (Claude Code's
+convention). That claim was never checked against Codex's own current
+official documentation — it was inferred from the absence of any
+existing skill directory in this repository, which is evidence about
+what had been implemented here, not about what Codex actually supports.
+
+**What was verified this correction, against current official
+documentation (not assumed):**
+- Claude Code: repository-local skill discovery is
+  `.claude/skills/<name>/SKILL.md` (repo-level) plus
+  `~/.claude/skills/<name>/SKILL.md` (user-level) — confirmed via
+  `code.claude.com/docs/en/skills` and `platform.claude.com/docs/en/
+  agents-and-tools/agent-skills/overview`.
+- Codex: repository-local skill discovery is
+  `.agents/skills/<name>/SKILL.md`, scanned in every directory from the
+  current working directory up to the repository root, supporting both
+  explicit invocation (`$skill-name`) and implicit selection when a
+  task matches the skill's `description` field — confirmed via
+  `developers.openai.com/codex/skills` (redirects to
+  `learn.chatgpt.com/docs/build-skills`) and cross-referenced against
+  `github.com/openai/codex/blob/main/docs/skills.md`.
+
+**The fix.** The six canonical skill bodies remain exactly where Section
+15 put them, under `.claude/skills/<name>/SKILL.md` — unchanged, not
+duplicated. Added a thin wrapper `SKILL.md` under
+`.agents/skills/<name>/` for each of the same six names (same
+`name`/`description` frontmatter for Codex's implicit-matching to work;
+body is a short pointer to the canonical `.claude/skills/<name>/
+SKILL.md`, stating the canonical body controls if wording ever
+diverges). This is six logical skills exposed through two client-native
+discovery surfaces, not twelve independent skills — no seventh skill was
+added. Corrected `AGENTS.md` to state the real Codex-native discovery
+path and remove the "no separate mechanism" claim; `CLAUDE.md` gained a
+matching short "Project skills" section for symmetry (it already
+implicitly assumed `.claude/skills/` but never stated the path
+explicitly, so the knowledge checker's new symmetric check — see
+below — could not previously have verified it either).
+
+**Knowledge-checker correction.** `tools/check_project_knowledge.py`'s
+`check_skill_metadata` previously only inspected `.claude/skills/` and
+therefore returned `PASS` even with Codex-native discovery completely
+absent — the checker validated the convention the implementation itself
+had invented, not the client's real contract. Rewritten to require:
+exactly the intended six names under both `.claude/skills/` and
+`.agents/skills/`; each Codex wrapper's frontmatter name/description
+present and its body referencing the corresponding canonical
+`.claude/skills/<name>/SKILL.md` path (with a thinness heuristic
+flagging a wrapper that looks like a second, divergent implementation
+rather than a pointer); both `CLAUDE.md` and `AGENTS.md` referencing
+their own correct discovery surface; and `AGENTS.md` no longer
+containing the corrected "no separate Codex skill mechanism" claim.
+Added two new focused tests
+(`test_catches_missing_codex_skill_discovery_surface`,
+`test_catches_codex_wrapper_missing_canonical_reference`) proving the
+checker actually catches the exact failure mode this correction fixes,
+alongside the four pre-existing tests (six total in that file).
+
+**`MISTAKES.md` update.** Two new entries added under "process / meta"
+in `flyff_farming_simulator/MISTAKES.md`: the Codex-skill-discovery
+assumption (what happened, root cause, how caught, fix, lesson —
+external tool/client contracts must be checked against that tool's own
+current documentation, never inferred from repository-local absence),
+and a restated Ruff producer-exit-code pipeline-masking risk (found
+live during this correction's own re-verification, no incorrect claim
+had reached the committed record, but the risk pattern recurred and is
+worth a fresh, dated reminder alongside the original `pytest | tail`
+entry).
+
+**Snapshot-exclusion audit (`refactor_logs/`).** Audited per this
+correction's own instructions: 76 tracked files, ~1.1 MB total, almost
+entirely small text/markdown/json/csv — the pre-Phase-0 predecessor
+refactor's own `STATE.json`/`HANDOFF.md`/`DECISIONS.md`/journal set.
+Genuinely unique review-relevant evidence, not represented anywhere in
+`docs/migration/` (which starts at Phase 0 and does not cover what came
+before it), and not bulky. The blanket `refactor_logs` exclusion in
+`tools/create_clean_repo_snapshot.py` was removed (previously justified
+by an unmeasured "large" assumption); a new focused test
+(`test_refactor_logs_is_retained_not_blanket_excluded`) proves the
+tool now includes it by default. `.git`/venv/cache/database/bulk-ML-
+artifact exclusions are unchanged.
+
+**Ruff producer-exit-code re-verification.** Re-ran the N999 diagnostic
+capturing Ruff's own exit code directly (no `tail`/`head` pipe):
+`ruff check mapper/*.py --select N999` → exit `0`, "All checks
+passed!" (confirms the corrected `mapper/[A-Z]*.py` ignore covers
+exactly its intended direct-child-file scope). `ruff check mapper/
+--select N999` (recursive) → exit `1`, 13 findings, all under
+`mapper/rl/*.py` — a nested subdirectory neither the original stale
+ignore nor the Section-16 correction ever covered; confirmed
+out-of-scope, not a regression, and not expanded into this correction
+per its own explicit instruction not to fix unrelated nested findings.
+No exit-code claim in the original Section 16 text was actually
+incorrect (it cited finding counts, not an exit code) — nothing to
+forward-correct there beyond this confirmatory re-verification.
+
+**Validation (this correction only, proportional, offline):**
+```
+pytest tests/test_check_project_knowledge.py
+  tests/test_create_clean_repo_snapshot.py -> 12 passed (6 + 6, was 4 + 5)
+python -m tools.check_project_knowledge -> PROJECT KNOWLEDGE: PASS
+pytest docs/migration/tests/ -> 77 passed, 0 failed (unchanged)
+python -m future_runtime_profile.derive_runtime_manifest -> PASS (unaffected)
+migration_integrity.py check -> ok=true, R6=0 R7a=0 R7b=0 R7c=204
+  (unchanged) R9=0 R10=0
+git diff --check -> clean
+```
+Full `tests/` product suite intentionally not re-run — this correction
+touches only documentation, agent-rule/skill files, and offline tooling,
+with zero product/runtime/import-structure impact. `current_phase`
+remains `13`. No live FlyFF execution, no G5/G5-P2, no live training
+occurred at any point in this correction.
+
 ## 25. Final conclusion
 
-**PHASE 13 COMPLETE: YES.**
+**PHASE 13 COMPLETE: YES** (as corrected by section 24a above — the
+skill-discovery gap identified in post-Phase-13 review is resolved).
 **PHASE 14 SAFE TO CONSIDER: YES** (readiness only — the durable
 documentation/rules/tooling foundation this phase built is a
 prerequisite for lower-context-cost future work, not a decision about

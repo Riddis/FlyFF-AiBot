@@ -64,3 +64,55 @@ def test_catches_missing_agent_rule_linkage(tmp_path, monkeypatch) -> None:
     result = checker.check_agent_rule_linkage()
     assert not result.ok
     assert any("PROJECT_RULES.md" in d for d in result.details)
+
+
+def test_catches_missing_codex_skill_discovery_surface(tmp_path, monkeypatch) -> None:
+    """Regression test for the Phase-13 mistake this check exists to
+    prevent recurring: a repository with a fully valid .claude/skills/
+    but NO .agents/skills/ (Codex's native discovery location) must
+    fail, not silently pass because the Claude surface alone looked
+    complete."""
+    claude_dir = tmp_path / ".claude" / "skills"
+    for name in checker.SKILL_NAMES:
+        skill_dir = claude_dir / name
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: test skill.\n---\nUser-invoked only.\n"
+            "never permits ... launching or attaching to FlyFF\ndocs/agent/overnight/\n",
+            encoding="utf-8",
+        )
+    # Deliberately no .agents/skills/ directory at all.
+
+    monkeypatch.setattr(checker, "REPO", tmp_path)
+
+    result = checker.check_skill_metadata()
+    assert not result.ok
+    assert any(".agents/skills" in d for d in result.details)
+
+
+def test_catches_codex_wrapper_missing_canonical_reference(tmp_path, monkeypatch) -> None:
+    """A .agents wrapper that does not point back at its canonical
+    .claude body (e.g. a second, divergent implementation) must fail."""
+    claude_dir = tmp_path / ".claude" / "skills"
+    codex_dir = tmp_path / ".agents" / "skills"
+    for name in checker.SKILL_NAMES:
+        for base in (claude_dir, codex_dir):
+            skill_dir = base / name
+            skill_dir.mkdir(parents=True)
+            body = (
+                f"---\nname: {name}\ndescription: test skill.\n---\n"
+                "User-invoked only.\nnever permits ... launching or attaching to FlyFF\n"
+                "docs/agent/overnight/\ncurrent worktree\ngitignored\n"
+            )
+            (skill_dir / "SKILL.md").write_text(body, encoding="utf-8")
+    # Corrupt exactly one wrapper: no reference to its canonical body.
+    bad = codex_dir / "maintaining-project-knowledge" / "SKILL.md"
+    bad.write_text("---\nname: maintaining-project-knowledge\ndescription: x\n---\nstandalone body\n", encoding="utf-8")
+
+    monkeypatch.setattr(checker, "REPO", tmp_path)
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools" / "create_clean_repo_snapshot.py").write_text("", encoding="utf-8")
+
+    result = checker.check_skill_metadata()
+    assert not result.ok
+    assert any("does not reference the canonical" in d for d in result.details)

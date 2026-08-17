@@ -649,3 +649,75 @@ Entry template:
   a citation to rely on directly, especially for anything involving
   coordinate systems, denominators, default-argument semantics, or other
   easy-to-miscount/misremember details.
+
+### [2026-08-18] Phase 13 wrongly claimed Codex has no repository-local skill discovery mechanism
+- What happened: Phase 13 created six project skills under
+  `.claude/skills/<name>/SKILL.md` (Claude Code's convention) and wrote
+  `AGENTS.md` to explicitly state "this repository does not currently
+  have a separate first-class Codex skill mechanism" and that Codex
+  should read the `.claude/skills/` files as ordinary procedural
+  documentation. `tools/check_project_knowledge.py`'s "skill metadata/
+  discovery" check then returned PASS despite Codex-native discovery
+  being completely absent, because it only ever looked under
+  `.claude/skills/`.
+- Root cause: repository-local absence (no existing `.agents/skills/`
+  or similar directory in this repo) was treated as evidence about an
+  external client's supported discovery contract, instead of checking
+  that client's own current official documentation. This is the same
+  root-cause pattern as the entry immediately above (treating
+  incomplete/indirect evidence as equivalent to a fresh, authoritative
+  check) applied to an external tool contract instead of internal code.
+- How caught: post-Phase-13 independent review against current official
+  Claude Code and OpenAI/Codex documentation, prompted by the user.
+- Fix: verified via `code.claude.com/docs/en/skills` (Claude Code:
+  `.claude/skills/<name>/SKILL.md`, repo + user level) and
+  `developers.openai.com/codex/skills` (redirects to
+  `learn.chatgpt.com/docs/build-skills`; Codex: `.agents/skills/<name>/
+  SKILL.md`, scanned from CWD up through the repository root, supports
+  both `$skill-name` explicit invocation and description-based implicit
+  selection). Added thin Codex-native wrapper `SKILL.md` files under
+  `.agents/skills/<name>/` for all six skills, each pointing back at its
+  canonical `.claude/skills/<name>/SKILL.md` body rather than
+  reimplementing it. Corrected `AGENTS.md`'s claim. Corrected the
+  knowledge checker so "skill metadata/discovery" verifies BOTH
+  surfaces exist, agree on names, and that each Codex wrapper actually
+  references its canonical Claude body -- it can no longer pass merely
+  because `.claude/skills/` exists.
+- Lesson: when a task's claim is about what an EXTERNAL tool/client
+  supports (a discovery convention, a config format, an API contract),
+  do not infer the answer from what already exists (or doesn't) in this
+  repository -- that only proves what was implemented here, not what the
+  external tool actually supports. Check that tool's own current,
+  authoritative documentation directly before writing "X does not
+  support Y" or "the mechanism for Z is W" into a rules file, a skill,
+  or a checker. This applies especially to any repository checker that
+  validates a convention: make sure the checker validates against the
+  external authority's real contract, not merely against whatever the
+  implementation itself happened to invent.
+
+### [2026-08-18] Ruff producer exit code piped through `head`/`tail` masks the real result
+- What happened: while auditing the Phase-12-deferred stale Ruff
+  per-file-ignore path in Phase 13, `ruff check ... | tail -N`-style
+  commands were used to inspect N999 findings; the actual exit code
+  observed in that shell session is `tail`'s, not `ruff`'s, exactly the
+  same masking class of mistake already documented for `pytest | tail`
+  (see `docs/migration/codex_handoff/STATE.json`'s
+  `phase10_pytest_exit_code_note`). No incorrect claim ended up in the
+  committed Phase-13 record because the actual finding counts (not the
+  exit code) were what got cited, but the risk was live in-session.
+- Root cause: reflexively piping a diagnostic command's output through
+  `tail`/`head` for readability, without separately capturing/checking
+  the producer's own exit code when that code might matter.
+- How caught: user-directed re-audit requiring Ruff's real exit code to
+  be captured explicitly.
+- Fix: re-ran the diagnostic capturing Ruff's exit code directly
+  (without piping through `tail`/`head`) to confirm the corrected
+  `mapper/[A-Z]*.py` ignore behaves as intended and to enumerate the
+  remaining out-of-scope `mapper/rl/*.py` N999 findings accurately.
+- Lesson: this is the general rule, restated because it recurred in a
+  new context -- a shell pipeline's exit code is the LAST command's exit
+  code, not the first/producing command's. Whenever a command's exit
+  code is evidence for a claim (not just its printed output), either
+  capture that command's exit code directly (no pipe), or pipe through
+  something that preserves it (e.g. `set -o pipefail` in bash), never
+  assume the pipeline's own exit code represents the producer.

@@ -55,3 +55,13 @@ def test_build_plan_excludes_git_from_real_repo() -> None:
     assert not any(".venv/" in f for f in plan.included)
     assert not any("__pycache__" in f for f in plan.included)
     assert plan.excluded_sensitive == []
+
+
+def test_refactor_logs_is_retained_not_blanket_excluded() -> None:
+    """Phase-13 correction: refactor_logs/ was audited and found to be
+    small (~1.1 MB, 76 files, almost entirely text/markdown/json) and
+    genuinely unique pre-Phase-0 review evidence, not redundant with
+    docs/migration/ -- it must not be swept into the blanket exclusion
+    list."""
+    assert not snapshot._is_excluded_dir("refactor_logs")
+    assert not snapshot._is_excluded_dir("refactor_logs/DECISIONS.md")

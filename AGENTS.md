@@ -29,12 +29,19 @@ maintained as a divergent copy. Read in this order:
 
 ## Project skills
 
-Six project skills are defined under `.claude/skills/<name>/SKILL.md`
-(Claude Code's repository-local skill discovery location — this
-repository does not currently have a separate first-class Codex skill
-mechanism, so these are ordinary repository files Codex should read and
-follow like any other procedural documentation when a task matches one
-of them, even without automatic tool-level invocation):
+Codex's native repository-local skill discovery location is
+`.agents/skills/<name>/SKILL.md` — Codex scans `.agents/skills` in
+every directory from the current working directory up to the
+repository root, and supports both explicit invocation (`$skill-name`)
+and implicit selection when a task matches a skill's `description`
+(confirmed against Codex's own skills documentation,
+`developers.openai.com/codex/skills`). This is a genuinely separate
+mechanism from Claude Code's `.claude/skills/<name>/SKILL.md` — an
+earlier version of this file incorrectly claimed no such mechanism
+existed; see `flyff_farming_simulator/MISTAKES.md` for that correction.
+
+The same six skills are installed for both clients, as thin,
+non-divergent surfaces over one canonical implementation each:
 
 1. `maintaining-project-knowledge`
 2. `preparing-controlled-validation`
@@ -44,9 +51,17 @@ of them, even without automatic tool-level invocation):
 5. `overnight-autonomous-work` (user-invoked only — see its `SKILL.md`)
 6. `prepare-clean-repo-snapshot`
 
-No further skill should be added without explicit authorization. Do not
-maintain a second, divergent copy of any skill's substantive content —
-`.claude/skills/` is the one canonical source both tools read.
+**Canonical bodies** (the full workflow/procedure/rules for each skill)
+live at `.claude/skills/<name>/SKILL.md`. **`.agents/skills/<name>/
+SKILL.md`** holds a thin wrapper for each — same name, same
+description (for Codex's implicit-matching to work), and a pointer
+telling Codex to read and follow the canonical body. If a wrapper's
+wording ever differs from its canonical body, the canonical body
+controls. This is six logical skills exposed through two client-native
+discovery surfaces, not twelve skills — no further skill should be
+added to either surface without explicit authorization, and neither
+surface should become a second, independently-maintained
+implementation.
 
 ## Context hygiene (tool-agnostic)
 

@@ -1489,3 +1489,54 @@ Read `PHASE13_REPORT.md` for the full 25-section account.
 **PHASE 14 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 13 forward correction — Codex-native skill discovery
+
+Post-Phase-13 review found `AGENTS.md` wrongly claimed Codex has no
+separate first-class skill-discovery mechanism — inferred from
+repository-local absence, never checked against Codex's own current
+documentation. Verified this correction against real, current official
+sources: Claude Code discovery is `.claude/skills/<name>/SKILL.md`
+(`code.claude.com/docs/en/skills`); Codex-native discovery is
+`.agents/skills/<name>/SKILL.md`, scanned from the working directory up
+through the repository root, supporting both `$skill-name` explicit
+invocation and description-based implicit selection
+(`developers.openai.com/codex/skills`, cross-referenced against
+`github.com/openai/codex/blob/main/docs/skills.md`).
+
+**Fix**: the six canonical skill bodies stay exactly where Phase 13 put
+them, under `.claude/skills/<name>/SKILL.md` — unchanged. Added six
+thin `.agents/skills/<name>/SKILL.md` wrappers (same name/description
+for Codex's implicit matching; body points at the canonical
+`.claude/skills/` file, which controls if wording ever diverges). Still
+six logical skills, not twelve. Corrected `AGENTS.md`'s false claim;
+gave `CLAUDE.md` a matching explicit "Project skills" section.
+`tools/check_project_knowledge.py`'s skill check — which previously
+returned `PASS` despite Codex-native discovery being completely absent
+— now verifies both surfaces exist, agree on names, and that each
+wrapper references its canonical body; two new tests prove it. Two new
+`MISTAKES.md` entries record the lesson (external tool contracts must
+be checked against that tool's own docs, never inferred from
+repository-local absence) and a restated Ruff producer-exit-code
+pipeline-masking risk found live during this correction's own
+re-verification. `refactor_logs/`'s blanket snapshot exclusion (
+previously justified by an unmeasured "large" assumption) was removed
+after audit — 76 files, ~1.1 MB, genuinely unique pre-Phase-0 review
+evidence, now included by default. Re-verified the Ruff N999 fix's real
+exit code directly (no `tail`/`head` masking): 0 at `mapper/`'s intended
+scope, 1 (13 findings, all pre-existing-out-of-scope under
+`mapper/rl/`) recursively — no regression.
+
+`git diff --check` clean; `docs/migration/tests/` 77 passed;
+`migration_integrity.py check` `ok=true` unchanged; future derivation
+profile still PASS; `python -m tools.check_project_knowledge` PASS.
+Full `tests/` suite intentionally not re-run — zero product/runtime
+impact. `current_phase` remains 13. No live execution.
+
+Read `PHASE13_REPORT.md` section 24a for the full account.
+
+**PHASE 13 COMPLETE: YES** (corrected).
+**PHASE 14 SAFE TO CONSIDER: YES** — readiness only.
+**PHASE 14 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**

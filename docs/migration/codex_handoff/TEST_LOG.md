@@ -2348,3 +2348,88 @@ CONSIDER: YES (readiness only). PHASE 14 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
 **AGENT LIVE EXECUTION: NONE.**
+
+### Forward correction -- Codex-native skill discovery
+
+Post-Phase-13 review found `AGENTS.md` incorrectly claimed Codex has no
+separate first-class skill-discovery mechanism -- inferred from
+repository-local absence (no existing `.agents/skills/`-style
+directory in this repo), never checked against Codex's own current
+documentation. Verified this correction against real, current official
+sources: Claude Code discovery is `.claude/skills/<name>/SKILL.md`
+(`code.claude.com/docs/en/skills`); Codex-native discovery is
+`.agents/skills/<name>/SKILL.md`, scanned from the working directory up
+through the repository root, supporting both `$skill-name` explicit
+invocation and description-based implicit selection
+(`developers.openai.com/codex/skills`, cross-referenced against
+`github.com/openai/codex/blob/main/docs/skills.md`).
+
+Added six thin `.agents/skills/<name>/SKILL.md` wrappers pointing at
+the unchanged canonical `.claude/skills/<name>/SKILL.md` bodies --
+still six logical skills, not twelve. Corrected `AGENTS.md`; gave
+`CLAUDE.md` a symmetric explicit skill-discovery section.
+
+`tools/check_project_knowledge.py`'s `check_skill_metadata` previously
+returned **PASS** despite Codex-native discovery being completely
+absent -- it only ever inspected `.claude/skills/`. Rewritten to
+require both surfaces, name agreement, wrapper-to-canonical references,
+and correct entrypoint linkage from both `CLAUDE.md` and `AGENTS.md`.
+`tests/test_check_project_knowledge.py` grew from 4 to **6** tests
+(`test_catches_missing_codex_skill_discovery_surface`,
+`test_catches_codex_wrapper_missing_canonical_reference` added), both
+proving the checker now actually catches this exact regression class.
+
+`refactor_logs/`'s blanket snapshot exclusion (`tools/create_clean_repo_
+snapshot.py`) was audited per this correction's own instructions: 76
+tracked files, ~1.1 MB total, almost entirely small text/markdown/json/
+csv -- the pre-Phase-0 predecessor refactor's own journal set,
+genuinely unique and not represented in `docs/migration/` (which starts
+at Phase 0). The exclusion (previously justified by an unmeasured
+"large" assumption) was removed; `refactor_logs/` is now included by
+default. `tests/test_create_clean_repo_snapshot.py` grew from 5 to
+**6** tests (`test_refactor_logs_is_retained_not_blanket_excluded`
+added).
+
+Re-ran the Ruff N999 diagnostic capturing its real producer exit code
+directly (no `tail`/`head` pipe masking it, the same risk class already
+documented for `pytest | tail`): `ruff check mapper/*.py --select N999`
+(the corrected ignore's intended direct-child-file scope) -> **exit 0**,
+"All checks passed!"; `ruff check mapper/ --select N999` (recursive) ->
+**exit 1**, 13 findings, all under `mapper/rl/*.py` -- confirmed
+pre-existing out-of-scope for both the original stale ignore and the
+Phase-13 correction (neither ever covered nested files), not a
+regression, and deliberately not expanded into this correction. No
+exit-code claim in the original Phase-13 record was actually incorrect
+(it cited finding counts, not an exit code) -- nothing to
+forward-correct there beyond this confirmatory re-verification.
+
+Two new `flyff_farming_simulator/MISTAKES.md` entries record: (1) the
+external-tool-contract lesson (verify against the tool's own current
+documentation, never infer from repository-local absence) -- this
+applies to any repository checker validating an external convention,
+not only skills; (2) a restated Ruff producer-exit-code pipeline-masking
+risk, found live during this correction's own re-verification work.
+
+### Validation (this correction, proportional, offline)
+
+`pytest tests/test_check_project_knowledge.py tests/test_create_clean_
+repo_snapshot.py`: **12 passed** (6 + 6, was 4 + 5). `python -m tools.
+check_project_knowledge`: **PROJECT KNOWLEDGE: PASS**. `pytest docs/
+migration/tests/`: **77 passed** (unchanged). `python -m future_
+runtime_profile.derive_runtime_manifest`: still **PASS** (unaffected).
+`migration_integrity.py check`: `ok=true` (`R6=0 R7a=0 R7b=0 R7c=204`
+unchanged, `R9=0 R10=0`). `git diff --check` clean. Full `tests/`
+product suite intentionally **not** re-run -- this correction touches
+only documentation, agent-rule/skill files, and offline tooling, with
+zero product/runtime/import-structure impact. `current_phase` remains
+`13`. No live FlyFF execution, no G5/G5-P2, no live training occurred
+at any point.
+
+Read `PHASE13_REPORT.md` section 24a for the full account.
+
+**PHASE 13 COMPLETE: YES** (corrected -- both Claude Code and Codex now
+have genuine native skill discovery for the same six skills). **PHASE
+14 SAFE TO CONSIDER: YES (readiness only). PHASE 14 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**
+**AGENT LIVE EXECUTION: NONE.**
