@@ -64,7 +64,7 @@ from scratchpad_single_obstacle_transfer_eval_calibrated_arc import (
     FORWARD_OFFSET_CELLS, LATERAL_MARGIN_CELLS, SUBGOAL_RADIUS_CELLS, compute_subgoal_cells,
 )
 from simulator.environment import RecordedFarmingEnv
-from simulator.kinodynamic_route_planner import _clearance_cells_native
+from navigation.kinodynamic_route_planner import _clearance_cells_native
 from simulator.navigation_history import NavigationHistoryWrapper
 from simulator.single_obstacle_env import (
     GAP_SIDE_SEED_OFFSET, GAP_SIDES, MAP_HALF_SIZE_CELLS, ObstacleSpec, SUCCESS_RADIUS_CELLS,

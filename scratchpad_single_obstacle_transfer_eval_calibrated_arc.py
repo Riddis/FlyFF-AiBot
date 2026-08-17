@@ -50,7 +50,7 @@ import numpy as np
 from stable_baselines3 import PPO
 
 from simulator.environment import RecordedFarmingEnv
-from simulator.kinodynamic_route_planner import _clearance_cells_native
+from navigation.kinodynamic_route_planner import _clearance_cells_native
 from simulator.navigation_history import NavigationHistoryWrapper
 from simulator.single_obstacle_env import (
     GAP_SIDES, MAP_HALF_SIZE_CELLS, ObstacleSpec, SUCCESS_RADIUS_CELLS, _wall_cell_bounds,
