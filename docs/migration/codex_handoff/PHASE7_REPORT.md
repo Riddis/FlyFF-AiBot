@@ -354,3 +354,259 @@ of prior-phase work rather than new problems.
 
 **PHASE 8 AUTHORIZED: NO.** Phase 8 (archive extraction / B3 removal) is not
 begun and is not self-authorized by this report.
+
+---
+
+## 11. Post-Phase-7 repository-completeness repair (forward addendum)
+
+**This section is a forward addendum appended after Phase-7 completion. It
+does not amend, backdate, or reinterpret sections 0-10 above, which describe
+the state exactly as it was at the P7-WIRE commit (`fc18623`).**
+
+§4's finding 3 (`scratchpad_helper_gap`) documented that
+`scratchpad_single_obstacle_train.py` and
+`scratchpad_generalized_waypoint_train_reward_ablation.py` were never tracked
+at any commit in this branch's history, and resolved the two dependent test
+files' collection read-only against the preserved original tree. That was a
+correct, narrowly-scoped fix for Phase 7 itself, but it left tracked test
+collection permanently dependent on a worktree outside this repository. This
+addendum closes that dependency under a separately, narrowly authorized
+repository-completeness repair: *"identify the COMPLETE required untracked
+dependency closure ... promote only justified source dependencies into Git
+... remove the clean-repository dependency on the old dirty worktree."*
+Phase 8 itself was explicitly not authorized by that instruction and is not
+begun here.
+
+### 11.1 Dependency-closure audit (read-only, before any copy)
+
+An AST-based scanner (`docs/migration/PHASE7_UNTRACKED_DEPENDENCY_AUDIT.tsv`,
+committed read-only at `4f4d965` before any source was copied) parsed every
+import statement in all 446 tracked `.py` files and resolved each top-level
+imported name against stdlib, installed site-packages, and tracked repository
+source. Six names failed to resolve:
+
+- Four (`win32api`, `win32con`, `win32gui`, `win32ui`) were false positives —
+  legitimate `pywin32` external dependencies nested under
+  `site-packages/win32/` and `site-packages/pythonwin/` rather than flat in
+  site-packages, which a naive top-level directory scan misses. Verified by
+  direct `import` and resolution path. Classified `OPTIONAL_EXTERNAL`, not
+  promoted.
+- Two (`scratchpad_single_obstacle_train`,
+  `scratchpad_generalized_waypoint_train_reward_ablation`) were genuine
+  missing local source (`ModuleNotFoundError` class, not merely
+  untracked-but-present — a different failure class than what R9 already
+  checks). Classified `PROMOTE_REQUIRED`.
+
+Both `PROMOTE_REQUIRED` candidates were confirmed closed leaves: every import
+inside each file itself resolves to stdlib, external, or already-tracked
+`farming.*`/`simulator.*` source, so no further transitive files were
+required. Neither is a scientific artifact (checkpoint, log, evaluation
+output, recording) — both are pure Python source; no STOP condition on the
+source/artifact distinction was triggered.
+
+### 11.2 Provenance (before copying)
+
+`docs/migration/PHASE7_UNTRACKED_SOURCE_PROVENANCE.tsv` (committed at
+`4f4d965`) establishes, for each candidate, SHA-256 and byte-size in both the
+original reference tree (`C:\Users\Ridd\Documents\Repos\Flyff RL\`) and the
+external Phase-0 snapshot
+(`C:\Users\Ridd\FlyffRL_Backups\pre_consolidation_20260815\Flyff RL\`):
+
+| file | sha256 | both sources byte-equal |
+|---|---|---|
+| `scratchpad_single_obstacle_train.py` | `9b7e925b...4d1b99` | yes |
+| `scratchpad_generalized_waypoint_train_reward_ablation.py` | `afcce260...9e286d` | yes |
+
+Both sources agreed exactly; no `AMBIGUOUS_STOP` condition was triggered.
+Both files were already pure-LF (0 CRLF bytes) in the reference tree,
+matching the repository's `* text=auto eol=lf` policy exactly, so staging
+under the standard attribute rule alters zero bytes — confirmed by comparing
+the staged Git blob's SHA-256 (`git cat-file -p :<path> | sha256sum`) against
+the pre-copy source hash after `git add`. No `-text` attribute exception was
+needed (unlike the 8 historical-guard-hash-sensitive files carrying that
+exception since `a90de59`).
+
+`docs/migration/PHASE7_UNTRACKED_DEPENDENCY_CATCHUP.tsv` (committed at
+`4f4d965`) reasons per file per Phase-0-through-7 gate: neither file is a
+fingerprinted module (Phase 2), produces or consumes a golden fixture (Phase
+3), implements farming/geometry logic (Phase 4), touches position/farming
+bridge logic (Phase 5), or defines/edits a map profile (Phase 6). Both were
+untracked at Phase-7 move time, so they are correctly absent from
+`PHASE7_MOVE_MANIFEST.tsv` and the 160-test conservation inventory — neither
+frozen artifact was rewritten; this addendum is the forward record instead.
+
+### 11.3 Promotion (byte-preserving)
+
+Both files were copied byte-for-byte from the reference tree into the
+collapsed root (destination determined mechanically from their plain
+top-level import names — e.g. `scratchpad_single_obstacle_train.py`, not
+under any subdirectory) and staged by explicit path only. Post-copy SHA-256
+matched the pre-copy source exactly, and the staged Git blob hash matched
+too, before commit. Commit `966f5fb` ("Preserve previously untracked test
+helper dependencies") contains only the two source files, byte-identical to
+both provenance sources, with no logic, formatting, or path-arithmetic
+changes.
+
+No separate path-adaptation commit was needed. Both files compute their own
+root as `ROOT = Path(__file__).resolve().parent` — a single, self-relative
+`.parent`, not a hardcoded `parents[N]` jump — so placing them at the
+collapsed repository root makes `ROOT` equal that root automatically, which
+is exactly correct: `farming.*`/`simulator.*` now live at that same root
+post-collapse, so `sys.path.insert(0, str(ROOT))` remains exactly correct
+with zero semantic change. Read in full (not just import lines) to confirm
+this before promotion; no internal root-relative assumption was invalidated
+by the Phase-7 collapse, so no STOP condition applied.
+
+### 11.4 R7c baseline extension (narrow, additive only)
+
+Re-running the ruler (`docs/migration/tools/migration_integrity.py check`)
+after promotion reported `R7c` growing from 168 to 171
+(`new_baseline_violation` for 3 entries): both promoted files import
+`SplitSteeringNavigationPolicy` from `simulator.split_branch_policy`, and
+`scratchpad_single_obstacle_train.py` also imports `SteeringAction` from
+`farming.actions`. Both files always contained these exact imports —
+promotion is the qualifying event that made the ruler's R7c detector able to
+see them, not new coupling.
+
+**The tool's own `snapshot` subcommand was deliberately NOT used to update
+this.** Running it once, read-only, to inspect its output showed it would
+rewrite `docs/migration/BASELINE_VIOLATIONS.json` wholesale: every existing
+entry's path translated from pre-Phase-7 layout (e.g.
+`flyff_farming_simulator/scratchpad_ppo_pure_navigation.py`) to the collapsed
+layout, and `"phase"` bumped from `4` to `7`. That is exactly the kind of
+frozen-historical-evidence rewrite this migration's discipline forbids —
+`check`'s own `ratchet_errors()` already translates the frozen baseline's
+pre-Phase-7 paths forward through `PHASE7_MOVE_MANIFEST.tsv` at comparison
+time, so the baseline file itself is meant to stay frozen at its original
+capture-time paths and phase number. That `snapshot` output was discarded
+(`git checkout --`) before anything was staged.
+
+Instead, exactly the 3 new entries were hand-added to
+`docs/migration/BASELINE_VIOLATIONS.json` and
+`docs/migration/BASELINE_VIOLATIONS.md`, at the promoted files' current
+(post-collapse) paths — since these two files were never part of the
+Phase-7 move set, there is no pre-collapse path to translate. Every
+pre-existing frozen entry, the `"phase": 4` field, and `base_sha` were left
+byte-for-byte untouched. Committed separately at `860a990` ("Extend R7c
+baseline for newly promoted helper dependencies"), keeping the promotion
+commit itself free of any file beyond the two source files. Post-edit
+`check` reports `ok: true`, zero errors, `R6=0 R7a=0 R7b=0 R9=0 R10
+failures=[]`, `R7c=171` with no `new_baseline_violation`.
+
+### 11.5 Full gate re-run (clean root, no old-tree access)
+
+All commands below ran with `PYTHONPATH` unset and CWD inside this worktree
+only — no access to `C:\Users\Ridd\Documents\Repos\Flyff RL\` at any point.
+
+| Gate | Tool | Result |
+|---|---|---|
+| Ruler (R6/R7a/R7b/R7c/R9/R10) | `migration_integrity.py check` | `ok: true`, 0 errors, `R6=0 R7a=0 R7b=0 R9=0 R10=0`, `R7c=171` |
+| G4/G10a/G11 | `phase2_fingerprints.py all` | `ok: true`, 0 failures; 313/313 checkpoints, 317/317 module references |
+| One read-only 0051200 load | direct `PPO.load` | SHA `87bd8d3e...cda50` exact; `simulator.split_branch_policy.SplitSteeringNavigationPolicy`; `Box(-1,1,(928,),float32)`; `MultiDiscrete([3,3])`; `num_timesteps=51200`; no write, no training |
+| Historical reproduction guard | `verify_historical_snapshot()` | PASS, unedited, `REQUIRED_FILES` hashes exact against the frozen 2026-08-15 snapshot |
+| Revised-G3/G-GEO/B1 | `phase4_contracts.py all` | `ok: true`, 0 failures; G3 10016/10016 exact, `direct_hypot_mismatch_count=0` |
+| G1/NP/G9/B2 | `phase5_contracts.py` | `ok: true`, 0 failures; `NP.live_import.origin` pinned inside this collapsed worktree |
+| G11/G12/MAP6 | `phase6_map_profiles.py` | `ok: true`, 0 failures; profile origin pinned inside this collapsed worktree |
+| G7/G8c/G12/effective-config (Phase-3 fixtures) | `phase3_capture.py check --corpus <Phase-0 snapshot>` | `PASS`, `byte_identical: true`, all 10/10 fixtures exact (no supersession needed this time — both previously-superseded fixtures were already resolved in P7-WIRE and remain untouched) |
+| G8c focused suite | `pytest` on the 6 named G8c files + reward-ablation contract | 72 passed, 1 skipped (same pre-existing legacy-physics skip as Phase 4-7) |
+
+### 11.6 Full clean-root test suite
+
+`pytest -q` from this worktree, `PYTHONPATH` unset, CWD inside this worktree
+only: **1154 collected, 1147 passed, 4 failed, 2 skipped, 1 xfailed.**
+
+The 4 failures are individually the same, already-documented, pre-existing
+failures section 5's inherited-failure table lists — none introduced by this
+repair:
+
+| test | classification |
+|---|---|
+| `test_focus_loss_during_eva_discards_kill_and_transition` | Pre-existing accepted baseline failure (Phase-0 origin, unchanged) |
+| `test_normal_training_status_is_concise_and_uses_total_model_steps` | Pre-existing accepted baseline failure (Phase-0 origin, unchanged) |
+| `test_training_callback_publishes_structured_session_statistics` | Pre-existing accepted baseline failure (Phase-0 origin, unchanged) |
+| `test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts` | Pre-existing gitignored-model-artifact gap (`models/split_branch_pilot_15000.zip`), same category as §4 finding 4, already documented, not this repair's scope — a scientific artifact correctly excluded from source-dependency promotion |
+
+The 2 previously-exposed `ModuleNotFoundError`-class collection failures on
+the 2 scratchpad imports are **gone** — confirmed structurally, not just by
+absence from the failure list: a clean `--collect-only` run collected all
+1154 tests with zero collection errors, which would be impossible if either
+import still failed. A second full run with the 4 known failures deselected
+confirmed **zero further failures**: 1147 passed, 2 skipped (both
+pre-existing and unrelated — the same legacy-physics skip plus one
+pre-existing minimap-heading skip), 1 xfailed, 0 failed. No skip or xfail was
+added by this repair to conceal anything.
+
+### 11.7 Zero remaining old-dirty-worktree dependency (mechanical proof)
+
+- `git grep` across all tracked `.py` files for `Flyff RL` (the old
+  worktree's directory name) outside `Flyff RL - Phase1` and outside
+  `docs/migration/` documentation: **zero hits**.
+- `git grep` for `flyff_farming_simulator`, `foreground_vision_bot`, and
+  `flyff_farming_recorder` (the old root names) outside `docs/migration/`:
+  the only hits are pre-existing, already-known retained compatibility
+  paths/comments inside this repository's own tracked tree (e.g.
+  `foreground_vision_bot/farming/__init__.py`, a retained B1-era facade file
+  that itself lives at that path inside this worktree) — none reference the
+  other worktree.
+- `phase5_contracts.py`'s `NP.live_import.origin` and
+  `phase6_map_profiles.py`'s `profiles.origin` both resolved to paths inside
+  `C:\Users\Ridd\Documents\Repos\Flyff RL - Phase1\`, not the old tree.
+- The full clean-root test suite (§11.6) and full collection ran with
+  `PYTHONPATH` unset and CWD confined to this worktree; the two previously
+  scratchpad-import-dependent test files collected and passed without any
+  reference-tree fallback.
+- The old dirty worktree remains untouched, used only as a one-time,
+  read-only provenance/copy source (§11.2-11.3); it is no longer required
+  for any test, dev, migration, or product path in this repository.
+
+### 11.8 Protected product files (unchanged)
+
+`git diff 70ede05..HEAD -- simulator/kinodynamic_route_planner.py
+simulator/navigation_history.py simulator/movement_kernel.py
+simulator/movement_kinematics.py simulator/split_branch_policy.py` is empty.
+No change was needed to any of the five; the repair's premise ("no changes
+should be needed for this repair") held exactly.
+
+### 11.9 Frozen evidence (unmodified)
+
+`docs/migration/PHASE7_MOVE_MANIFEST.tsv`, the 160-test conservation
+inventory, the Phase-0 manifest, the Phase-2 baseline (fingerprints), and the
+Phase-3 fixture manifest were not rewritten by this repair — verified by an
+empty `git diff` against the Phase-7 HEAD (`70ede05`) for each. The
+historical reproduction guard's `REQUIRED_FILES` hash list was not edited.
+`docs/migration/BASELINE_VIOLATIONS.json`'s pre-existing entries, `"phase"`
+field, and `base_sha` were not rewritten (§11.4) — only 3 new entries were
+appended at their current paths.
+
+### 11.10 Repository state and journal updates
+
+Full diff since the Phase-7 HEAD (`70ede05`) across all three new commits
+(`4f4d965`, `966f5fb`, `860a990`): 7 files changed, 587 insertions, 1
+deletion — 2 promoted source files, 3 new audit TSVs, and a narrow additive
+extension to the 2 baseline ledger files. `current_phase` in
+`CANONICAL_OWNERS.toml` remains `7`. `BRIDGES.md` bridge states are
+unchanged: B1 removed, B2 removed, B3 existing (`removal_gate = "PHASE_8"`,
+not reactivated as B2), B4 permanent-historical. Worktree clean, index
+empty, branch unpushed, no upstream, not on origin (unchanged from §9).
+`STATE.json`/`HANDOFF.md`/`COMMAND_LOG.tsv`/`TEST_LOG.md` were updated with
+this repair's specific new fields; `current_phase`, `phase8_authorized`,
+`G5`, and `G5_P2` were left exactly as Phase 7 left them.
+
+### 11.11 Conclusion
+
+**REPOSITORY COMPLETENESS REPAIR: PASS.** The complete missing-local-source
+dependency closure (2 files) was identified mechanically, provenance was
+established against both the original reference tree and the external
+Phase-0 snapshot before any copy, both files were promoted byte-for-byte with
+no logic/formatting/path changes, the ruler's R7c ledger was extended
+narrowly and additively (never regenerated wholesale), all Phase 1-7 gates
+this executor could mechanically re-run are green, the full clean-root test
+suite shows zero new failures and zero new skips/xfails, and zero remaining
+tracked-repository dependency on the old dirty worktree was proven
+mechanically for every normal test/dev/migration/product path.
+
+**PHASE 8 SAFE TO CONSIDER: YES** — readiness only, unchanged from §10's
+conclusion; this repair closes a completeness gap, it does not itself
+constitute Phase-8 readiness review.
+
+**PHASE 8 AUTHORIZED: NO.**

@@ -383,5 +383,32 @@
   "phase7_G5_P2_status": "PENDING - not attempted, requires live FlyFF client, out of scope",
   "phase7_report": "docs/migration/codex_handoff/PHASE7_REPORT.md",
   "phase7_worktree_status_post_commit": "clean, empty index",
-  "phase8_safe_to_consider": "YES - readiness only, not self-authorized"
+  "phase8_safe_to_consider": "YES - readiness only, not self-authorized",
+  "untracked_dependency_repair": "complete",
+  "untracked_dependency_repair_commits": {
+    "4f4d965": "audit-only: PHASE7_UNTRACKED_DEPENDENCY_AUDIT.tsv, PHASE7_UNTRACKED_SOURCE_PROVENANCE.tsv, PHASE7_UNTRACKED_DEPENDENCY_CATCHUP.tsv",
+    "966f5fb": "byte-preserving promotion of the 2 PROMOTE_REQUIRED source files",
+    "860a990": "narrow additive R7c baseline extension (3 entries; no snapshot regeneration, no rewrite of pre-existing entries)"
+  },
+  "promoted_source_count": 2,
+  "promoted_source_manifest": [
+    "scratchpad_single_obstacle_train.py",
+    "scratchpad_generalized_waypoint_train_reward_ablation.py"
+  ],
+  "dependency_closure": "PASS",
+  "dependency_closure_detail": "AST scan of all 446 tracked .py files found exactly 6 unresolved top-level names: 4 OPTIONAL_EXTERNAL (win32api/win32con/win32gui/win32ui, pywin32 packaging false positives) + 2 PROMOTE_REQUIRED (both promoted, both confirmed closed leaves, no transitive gap)",
+  "clean_root_test_dependency_closure": "PASS",
+  "clean_root_test_dependency_closure_detail": "pytest -q from this worktree, PYTHONPATH unset, CWD confined to this worktree: 1154 collected (zero collection errors), 1147 passed, 4 failed (all pre-existing/documented, none new), 2 skipped (pre-existing), 1 xfailed (pre-existing); second run with the 4 known failures deselected: 0 failed",
+  "old_dirty_worktree_helper_dependency": "NONE",
+  "old_dirty_worktree_helper_dependency_detail": "git grep for 'Flyff RL' and for flyff_farming_simulator/foreground_vision_bot/flyff_farming_recorder outside docs/migration/ shows zero references to the other worktree; NP.live_import.origin and map_profile origin both pinned inside this collapsed worktree; old tree used only as a one-time read-only provenance/copy source, no longer required for any test/dev/migration/product path",
+  "repair_ruler_status": "R6=0 R7a=0 R7b=0 R9=0 R10=0 failures; R7c 168->171 (narrow additive extension only, 3 new entries for the 2 promoted files' pre-existing imports; no baseline regeneration, no rewrite of pre-existing entries/phase/base_sha)",
+  "repair_gates": "G4/G10a/G11 (phase2_fingerprints) ok=true; revised-G3/G-GEO/B1 (phase4_contracts) ok=true; G1/NP/G9/B2 (phase5_contracts) ok=true; MAP6/G11/G12 (phase6_map_profiles) ok=true; Phase-3 fixtures (phase3_capture check --corpus) PASS 10/10 byte-identical; historical reproduction guard PASS unedited; one read-only 0051200 PPO.load PASS (SHA 87bd8d3e...cda50, SplitSteeringNavigationPolicy, Box(928,),MultiDiscrete[3,3], num_timesteps=51200)",
+  "repair_protected_product_files": "PASS - zero diff on kinodynamic_route_planner.py/navigation_history.py/movement_kernel.py/movement_kinematics.py/split_branch_policy.py since Phase-7 HEAD",
+  "repair_frozen_evidence_unmodified": "PASS - PHASE7_MOVE_MANIFEST.tsv, 160-test conservation inventory, Phase-0 manifest, Phase-2 baseline, Phase-3 fixture manifest, historical guard REQUIRED_FILES all zero-diff since Phase-7 HEAD",
+  "repair_report_addendum": "docs/migration/codex_handoff/PHASE7_REPORT.md section 11 (forward addendum, sections 0-10 unmodified)",
+  "repair_worktree_status_post_commits": "clean, empty index, branch unpushed, no upstream, not on origin",
+  "current_phase": 7,
+  "phase8_authorized": false,
+  "G5_status": "PENDING - unchanged, not attempted",
+  "G5_P2_status": "PENDING - unchanged, not attempted"
 }

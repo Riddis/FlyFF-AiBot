@@ -1371,3 +1371,93 @@ repeated.
 Combined total this phase: 1088 passing, 3 known pre-existing accepted
 failures, 0 unexplained non-passes, 2 skipped, 1 xfailed. P7-WIRE commit:
 `fc1862369a26e9e4bbb0dbd5a8ed0c29b1345a18`.
+
+---
+
+## Post-Phase-7 repository-completeness repair
+
+Closes the two `ModuleNotFoundError`-class scratchpad-import gaps the
+"Resolving the two pre-existing untracked-artifact gaps" section above
+resolved read-only against the reference tree, by promoting both files into
+tracked status. Full detail: `PHASE7_REPORT.md` section 11.
+
+### Dependency-closure scan (before any copy)
+- AST scan of all 446 tracked `.py` files' import statements: 6 unresolved
+  top-level names. 4 (`win32api`/`win32con`/`win32gui`/`win32ui`) confirmed
+  false positives (pywin32 nests under `site-packages/win32/`; verified
+  importable). 2 genuine missing local source, both confirmed closed leaves.
+
+### Ruler re-run after promotion
+- `migration_integrity.py check` immediately post-promotion (commit
+  `966f5fb`): `ok=false`, `R7c` 168→171, 3 `new_baseline_violation` (both
+  files' pre-existing imports of `SplitSteeringNavigationPolicy` and
+  `SteeringAction`, now visible because the files are tracked).
+- `migration_integrity.py snapshot` run once to inspect: would have rewritten
+  the entire frozen baseline (every path translated to the collapsed layout,
+  `"phase"` 4→7). Discarded via `git checkout --`, never staged.
+- 3 entries hand-added to `BASELINE_VIOLATIONS.json`/`.md` at current paths
+  only; every pre-existing entry, `"phase"`, `base_sha` untouched. Re-run:
+  `ok=true`, zero errors, `R6=0 R7a=0 R7b=0 R9=0 R10=0`, `R7c=171`.
+
+### Full Phase 1-7 gate re-run (clean root, `PYTHONPATH` unset)
+- `phase2_fingerprints.py all`: `ok=true`, 0 failures; 313/313 checkpoints,
+  317/317 module references.
+- One read-only `PPO.load("models/generalized_waypoint_both_seed2_0051200.zip")`:
+  SHA `87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50`
+  exact; `simulator.split_branch_policy.SplitSteeringNavigationPolicy`;
+  `Box(-1.0, 1.0, (928,), float32)`; `MultiDiscrete([3 3])`;
+  `num_timesteps=51200`.
+- `verify_historical_snapshot()`: PASS, unedited, all `REQUIRED_FILES`
+  hashes exact against the frozen 2026-08-15 snapshot.
+- `phase4_contracts.py all`: `ok=true`, 0 failures; G3 10016/10016 exact,
+  `direct_hypot_mismatch_count=0`.
+- `phase5_contracts.py`: `ok=true`, 0 failures; `NP.live_import.origin`
+  resolves inside this collapsed worktree.
+- `phase6_map_profiles.py`: `ok=true`, 0 failures; profile origin resolves
+  inside this collapsed worktree.
+- `phase3_capture.py check --corpus <Phase-0 external snapshot>`: **PASS**,
+  `byte_identical=true`, **10/10 fixtures exact** (541.85s run; both
+  previously-superseded fixtures remain resolved from P7-WIRE, untouched
+  here).
+- G8c focused suite (6 named files + reward-ablation contract test): **72
+  passed, 1 skipped** (same pre-existing legacy-physics skip as every prior
+  phase).
+
+### Full clean-root test suite
+- `pytest -q`, `PYTHONPATH` unset, CWD confined to this worktree: **1154
+  collected (zero collection errors), 1147 passed, 4 failed, 2 skipped, 1
+  xfailed** in 693.92s.
+- The 4 failures, individually verified against `PHASE7_REPORT.md`'s
+  inherited-failure table: `test_focus_loss_during_eva_discards_kill_and_transition`,
+  `test_normal_training_status_is_concise_and_uses_total_model_steps`,
+  `test_training_callback_publishes_structured_session_statistics` (all 3
+  Phase-0-origin accepted baseline, unchanged) and
+  `test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts`
+  (pre-existing `models/split_branch_pilot_15000.zip` gitignored-artifact
+  gap, same category as Phase-7 finding 4, out of this repair's
+  source-dependency scope). None new.
+- The two previously-exposed scratchpad-import collection failures are
+  gone -- proven structurally: a clean `--collect-only` run collected all
+  1154 tests with zero collection errors.
+- Second run deselecting the 4 known failures: **1147 passed, 2 skipped
+  (same legacy-physics skip plus one pre-existing minimap-heading skip), 1
+  xfailed, 0 failed** in 541.85s. No skip or xfail added by this repair.
+
+### Zero remaining old-dirty-worktree dependency
+- `git grep` for `Flyff RL` and for `flyff_farming_simulator`/
+  `foreground_vision_bot`/`flyff_farming_recorder` outside `docs/migration/`:
+  only pre-existing retained-compatibility paths inside this repository
+  itself; zero references to the other worktree.
+- 5 protected product files: zero diff since Phase-7 HEAD (`70ede05`).
+- Frozen evidence (move manifest, 160-test conservation inventory, Phase-0
+  manifest, Phase-2 baseline, Phase-3 fixture manifest, historical-guard
+  `REQUIRED_FILES`): zero diff since Phase-7 HEAD.
+
+Commits: `4f4d965e94d60280faa5f0caae50c80cc8ab11c8` (audit-only),
+`966f5fb5c4c06091d55c1161abf80a34ed09b602` (byte-preserving promotion),
+`860a9902a291df4b83a42be134e55b3f2edac82e` (narrow R7c baseline extension).
+Worktree clean, index empty, branch unpushed, no upstream, not on origin.
+`current_phase` remains `7`; `phase8_authorized` remains `false`.
+
+**REPOSITORY COMPLETENESS REPAIR: PASS. PHASE 8 SAFE TO CONSIDER: YES
+(readiness only). PHASE 8 AUTHORIZED: NO.**

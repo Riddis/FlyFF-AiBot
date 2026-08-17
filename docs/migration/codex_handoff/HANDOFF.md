@@ -697,4 +697,92 @@ separate coordinator authorization.
 
 **G5: PENDING. G5-P2: PENDING.**
 
+---
+
+## Post-Phase-7 repository-completeness repair (executor: Claude), complete
+
+Separately, narrowly authorized: close the two `ModuleNotFoundError`-class
+test dependencies Phase 7's finding 3 (`scratchpad_helper_gap`) had resolved
+read-only against the preserved original tree, so tracked test collection no
+longer depends on any worktree outside this repository. Phase 8 itself was
+explicitly not authorized and is not begun.
+
+A read-only AST scan of all 446 tracked `.py` files' imports (before any copy)
+found exactly 6 unresolved top-level names: 4 `win32api`/`win32con`/
+`win32gui`/`win32ui` false positives (pywin32 nests real modules under
+`site-packages/win32/`, missed by a naive scan; verified importable) and 2
+genuine missing local source — `scratchpad_single_obstacle_train.py` and
+`scratchpad_generalized_waypoint_train_reward_ablation.py`. Both are closed
+leaves (every import inside each resolves to stdlib/external/already-tracked
+source) and pure Python source, not scientific artifacts. Provenance was
+established against both the original reference tree and the external
+Phase-0 snapshot before copying: byte-identical in both, no ambiguity.
+
+Audit-only commit `4f4d965` records the three required TSVs
+(`PHASE7_UNTRACKED_DEPENDENCY_AUDIT.tsv`,
+`PHASE7_UNTRACKED_SOURCE_PROVENANCE.tsv`,
+`PHASE7_UNTRACKED_DEPENDENCY_CATCHUP.tsv`). Promotion commit `966f5fb` copies
+both files byte-for-byte (verified via SHA-256 before and after staging; both
+already pure-LF, so the repository's standard `eol=lf` policy alters zero
+bytes) with no logic, formatting, or path change — both compute their own
+root via a single self-relative `Path(__file__).resolve().parent`, which
+resolves correctly at the collapsed root automatically.
+
+Re-running the ruler afterward showed `R7c` growing 168→171 (3 new entries:
+both files import `SplitSteeringNavigationPolicy`; one also imports
+`SteeringAction` — imports that always existed, now visible because the
+files are tracked). The tool's own `snapshot` subcommand was deliberately
+**not** used to fix this — inspecting its output first showed it would
+rewrite the entire frozen baseline's paths and phase number wholesale, which
+is exactly the frozen-evidence rewrite this migration forbids. Instead the 3
+new entries were hand-added at their current paths, leaving every
+pre-existing entry, `"phase"`, and `base_sha` untouched — committed
+separately as `860a990` so the promotion commit itself stays limited to the
+two source files. `check` now reports `ok: true`, zero errors.
+
+All Phase 1-7 gates this executor could mechanically re-run are green from
+this clean root with `PYTHONPATH` unset: ruler, G4/G10a/G11, one read-only
+0051200 load (exact SHA/policy/spaces/timesteps), historical guard (PASS,
+unedited), revised-G3/G-GEO/B1, G1/NP/G9/B2, G11/G12/MAP6, and Phase-3
+fixtures (`phase3_capture.py check --corpus <Phase-0 snapshot>`: **10/10
+byte-identical**, no supersession needed this run). Full clean-root
+`pytest -q`: 1154 collected (zero collection errors), 1147 passed, 4 failed,
+2 skipped, 1 xfailed. All 4 failures are the same, already-documented,
+pre-existing failures (3 Phase-0-origin accepted-baseline + 1
+`split_branch_pilot_15000.zip` gitignored-model-artifact gap, same category
+as Phase-7 finding 4) — none new. The two previous scratchpad-import
+collection failures are gone, confirmed structurally by a clean
+`--collect-only` run. A second run deselecting the 4 known failures showed
+zero further failures.
+
+Zero remaining dependence on the old dirty worktree was proven mechanically:
+`git grep` for the old worktree name and old root names outside
+`docs/migration/` finds nothing but pre-existing retained-compatibility
+paths inside this repository itself; `NP.live_import.origin` and the map
+profile origin both resolve inside this collapsed worktree; the full test
+suite ran with no reference-tree fallback. The five protected product files
+(`kinodynamic_route_planner.py`, `navigation_history.py`,
+`movement_kernel.py`, `movement_kinematics.py`, `split_branch_policy.py`)
+have zero diff since the Phase-7 HEAD — no change was needed. Frozen evidence
+(`PHASE7_MOVE_MANIFEST.tsv`, the 160-test conservation inventory, Phase-0
+manifest, Phase-2 baseline, Phase-3 fixture manifest, historical-guard
+`REQUIRED_FILES`) is untouched.
+
+Full diff since the Phase-7 HEAD across the three new commits: 7 files
+changed, 587 insertions, 1 deletion. Worktree clean, index empty, branch
+unpushed, no upstream, not on origin. `current_phase` remains `7`. Bridge
+states unchanged: B1/B2 removed, B3 existing (not reactivated as B2), B4
+permanent.
+
+Read `PHASE7_REPORT.md` section 11 for the exact audit, evidence, and gate
+results (a forward addendum; sections 0-10 are unmodified). Exact next
+action: STOP. Do not begin Phase 8 without separate coordinator
+authorization.
+
+**REPOSITORY COMPLETENESS REPAIR: PASS.**
+**PHASE 8 SAFE TO CONSIDER: YES** — readiness only, unchanged.
+**PHASE 8 AUTHORIZED: NO.**
+
+**G5: PENDING. G5-P2: PENDING.**
+
 **PHASE 8 SAFE TO CONSIDER: YES. PHASE 8 AUTHORIZED: NO.**
