@@ -242,6 +242,10 @@ def derive(profile: dict | None = None, repo: Path = REPO) -> DerivationReport:
             single = repo / f"{package}.py"
             if single.is_file() and single.resolve() not in excluded:
                 entry_files.append(single)
+    for rel in frc.get("additional_shared_entry_files", []):
+        extra = repo / rel
+        if extra.is_file() and extra.resolve() not in excluded:
+            entry_files.append(extra)
 
     closure = walk_closure(entry_files, repo, exceptions=exceptions)
     report.candidate_first_party_modules = sorted(

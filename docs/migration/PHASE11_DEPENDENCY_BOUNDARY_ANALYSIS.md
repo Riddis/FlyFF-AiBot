@@ -61,9 +61,18 @@ produced a determinate `DUAL_ROLE` classification, not an unresolved one.
 
 ## 3. `sys.path.insert`/`sys.path.append` inventory (Section 7)
 
-Full inventory and classification: `packaging/path_bootstrap_registry.py`'s
+Full inventory and classification:
+`docs/migration/tools/phase11_path_bootstrap_registry.py`'s
 `REGISTERED_BOOTSTRAPS` (also the source of truth for
-`tests/test_path_bootstrap_registry.py`, section 9). Summary by category:
+`tests/test_path_bootstrap_registry.py`, section 9) -- built as P11-C,
+after this document was first written. Not placed under `packaging/`
+(this document's own suggested location at the time) for the same
+PyPI-name-collision reason section 6 below documents for the dependency
+profile; also not placed under `future_runtime_profile/`, since this
+registry covers the whole live application/dev-tool/scratchpad surface,
+not specifically the future-runtime-candidate profile -- it lives
+alongside this migration's other phase-tooling in `docs/migration/tools/`
+instead. Summary by category:
 
 - **`apps/*.py`** (4 files, Phase-10-added): `Path(__file__).resolve().parents[1]`
   — developer-compatibility direct-script bootstraps, explicitly sanctioned
