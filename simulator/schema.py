@@ -6,11 +6,17 @@ import json
 import math
 import zipfile
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 from typing import Iterator
 
 import msgpack
+
+from legacy.manifest_compat import (
+    DEFAULT_PROVENANCE_REGISTRY,
+    attested_by_registry,
+    missing_map_contract_warning,
+    missing_policy_contract_warning,
+)
 
 SUPPORTED_RECORDING_SCHEMA_VERSIONS = frozenset({2})
 REQUIRED_ARCHIVE_MEMBERS = frozenset(
@@ -19,7 +25,6 @@ REQUIRED_ARCHIVE_MEMBERS = frozenset(
 
 DIRECT_KEYBOARD_RECORDING_ROLE = "direct_keyboard_demonstration"
 DIRECT_KEYBOARD_CONTROL_SCHEME = "keyboard_wasd"
-DEFAULT_PROVENANCE_REGISTRY = Path(__file__).resolve().parents[1] / "recording_provenance.json"
 
 
 def has_validated_presence(manifest: dict[str, object]) -> bool:
@@ -37,40 +42,17 @@ def has_validated_presence(manifest: dict[str, object]) -> bool:
     )
 
 
-@lru_cache(maxsize=8)
-def _trusted_direct_hashes(registry_path: str) -> frozenset[str]:
-    path = Path(registry_path)
-    if not path.is_file():
-        return frozenset()
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
-        raise ValueError(f"Invalid recording provenance registry: {path}")
-    recordings = payload.get("recordings")
-    if not isinstance(recordings, dict):
-        raise ValueError(f"Recording provenance registry has no recordings object: {path}")
-    trusted: set[str] = set()
-    for raw_hash, provenance in recordings.items():
-        digest = str(raw_hash).upper()
-        if len(digest) != 64 or any(character not in "0123456789ABCDEF" for character in digest):
-            raise ValueError(f"Invalid SHA-256 in recording provenance registry: {raw_hash!r}")
-        if not isinstance(provenance, dict):
-            raise ValueError(f"Invalid provenance entry for {digest}")
-        if (
-            provenance.get("recording_role") == DIRECT_KEYBOARD_RECORDING_ROLE
-            and provenance.get("movement_control_scheme") == DIRECT_KEYBOARD_CONTROL_SCHEME
-            and provenance.get("direct_movement_labels_allowed") is True
-        ):
-            trusted.add(digest)
-    return frozenset(trusted)
-
-
 def allows_direct_movement_labels(
     manifest: dict[str, object],
     *,
     recording_hash: str | None = None,
     registry_path: str | Path = DEFAULT_PROVENANCE_REGISTRY,
 ) -> bool:
-    """Require an explicit recorder declaration before exporting movement labels."""
+    """Require an explicit recorder declaration before exporting movement labels.
+
+    Current-format archives embed this directly. Archives predating the
+    embedded ``recording_provenance`` block fall back to the legacy external
+    attestation registry (``legacy.manifest_compat``)."""
 
     provenance = manifest.get("recording_provenance")
     embedded = bool(
@@ -81,9 +63,11 @@ def allows_direct_movement_labels(
     )
     if embedded:
         return True
-    return bool(
-        recording_hash is not None
-        and str(recording_hash).upper() in _trusted_direct_hashes(str(Path(registry_path).resolve()))
+    return attested_by_registry(
+        recording_hash=recording_hash,
+        required_role=DIRECT_KEYBOARD_RECORDING_ROLE,
+        required_scheme=DIRECT_KEYBOARD_CONTROL_SCHEME,
+        registry_path=registry_path,
     )
 
 
@@ -145,9 +129,7 @@ def validate_recording_contract(
     warnings: list[str] = []
     policy = archive.manifest.get("policy_contract")
     if policy is None:
-        warnings.append(
-            f"{archive.path.name}: legacy archive has no embedded policy contract"
-        )
+        warnings.append(missing_policy_contract_warning(archive.path.name))
     elif not isinstance(policy, dict):
         raise ValueError(f"{archive.path}: policy_contract must be an object")
     else:
@@ -174,9 +156,7 @@ def validate_recording_contract(
 
     mapping = archive.manifest.get("map_contract")
     if mapping is None:
-        warnings.append(
-            f"{archive.path.name}: legacy archive has no embedded coordinate-frame contract"
-        )
+        warnings.append(missing_map_contract_warning(archive.path.name))
     elif not isinstance(mapping, dict):
         raise ValueError(f"{archive.path}: map_contract must be an object")
     else:

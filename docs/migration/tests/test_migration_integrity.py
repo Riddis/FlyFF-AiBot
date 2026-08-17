@@ -352,18 +352,46 @@ def test_phase7_test_migration_manifest_conserves_all_160_tests() -> None:
             assert not (REPO / row["old_path"]).exists()
 
 
-def test_b3_source_evidence_includes_registered_module_and_symbol() -> None:
+def test_b3_removed_from_bridge_registry() -> None:
+    registry = integrity.load_registry(REPO)
+    bridges = integrity._extract_bridge_toml(REPO / integrity.DEFAULT_BRIDGES)["bridge"]
+    b3 = next(bridge for bridge in bridges if bridge["id"] == "B3")
+    assert b3["status"] == "removed"
+    assert b3["locations"] == []
+    errors = integrity.bridge_errors(REPO, registry, current_phase=8)
+    assert not [error for error in errors if error.startswith("B3")]
+
+
+def test_b3_bootstrap_pattern_no_longer_present_in_inventory_recordings() -> None:
+    """B3's old sys.path bootstrap (_RECORDER_ROOT/_SIMULATOR_ROOT insertion)
+    must not have been replaced by an equivalent hidden mechanism."""
     source = (REPO / "tools/inventory_recordings.py").read_text(encoding="utf-8")
-    assert integrity._b3_source_matches(
-        source,
-        "recorder.movement_classification",
-        "MovementControlClassifier",
-    )
-    assert not integrity._b3_source_matches(
-        source,
-        "recorder.movement_classification",
-        "DifferentClassifier",
-    )
+    assert "sys.path.insert" not in source
+    assert "_RECORDER_ROOT" not in source
+    assert "_SIMULATOR_ROOT" not in source
+
+
+def test_recorder_movement_classifier_resolves_as_a_normal_repository_import() -> None:
+    """Origin test: after B3's removal, recorder.movement_classification and
+    simulator.schema must resolve from this worktree through ordinary,
+    unmodified sys.path -- no bootstrap, no sibling/reference-tree fallback."""
+    spec = integrity.find_spec_without_import("recorder.movement_classification", [REPO])
+    assert spec is not None and spec.origin is not None
+    origin = Path(spec.origin).resolve()
+    assert origin.is_relative_to(REPO.resolve())
+    assert origin == (REPO / "recorder" / "movement_classification.py").resolve()
+
+    schema_spec = integrity.find_spec_without_import("simulator.schema", [REPO])
+    assert schema_spec is not None and schema_spec.origin is not None
+    schema_origin = Path(schema_spec.origin).resolve()
+    assert schema_origin.is_relative_to(REPO.resolve())
+    assert schema_origin == (REPO / "simulator" / "schema.py").resolve()
+
+    legacy_spec = integrity.find_spec_without_import("legacy.manifest_compat", [REPO])
+    assert legacy_spec is not None and legacy_spec.origin is not None
+    legacy_origin = Path(legacy_spec.origin).resolve()
+    assert legacy_origin.is_relative_to(REPO.resolve())
+    assert legacy_origin == (REPO / "legacy" / "manifest_compat.py").resolve()
 
 
 def test_b4_permanent_historical_tag_is_mechanically_protected() -> None:
@@ -383,6 +411,78 @@ def test_actual_repository_integrity_gate_is_green() -> None:
         "simulator.split_branch_policy": "repository-local",
         "stable_baselines3.common.policies": "external",
     }
+
+
+def _r7b_registry() -> dict[str, object]:
+    return integrity.load_registry(REPO)
+
+
+def test_r7b_flags_direct_legacy_import_from_ordinary_product_code() -> None:
+    registry = _r7b_registry()
+    edge = integrity.ImportEdge(
+        importer="simulator/some_consumer.py",
+        imported_name="archives.legacy.manifest_compat",
+        level=0,
+        resolved_path="archives/legacy/manifest_compat.py",
+    )
+    findings = integrity.r7b_findings([edge], registry)
+    assert len(findings) == 1
+    assert findings[0].rule == "R7b"
+
+
+def test_r7b_permits_canonical_archives_schema_import_from_ordinary_product_code() -> None:
+    """The bare 'archives' path segment was deliberately dropped from
+    legacy_path_segments (docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md
+    section E) so the canonical, non-legacy archives.schema module stays
+    importable from ordinary product code; only archives/legacy/* (and any
+    future _quarantine/*) is restricted."""
+    registry = _r7b_registry()
+    edge = integrity.ImportEdge(
+        importer="simulator/some_consumer.py",
+        imported_name="archives.schema",
+        level=0,
+        resolved_path="archives/schema.py",
+    )
+    findings = integrity.r7b_findings([edge], registry)
+    assert findings == []
+
+
+def test_r7b_permits_legacy_import_from_within_archives_itself() -> None:
+    registry = _r7b_registry()
+    edge = integrity.ImportEdge(
+        importer="archives/schema.py",
+        imported_name="archives.legacy.manifest_compat",
+        level=0,
+        resolved_path="archives/legacy/manifest_compat.py",
+    )
+    findings = integrity.r7b_findings([edge], registry)
+    assert findings == []
+
+
+def test_r7b_still_flags_quarantine_path_from_ordinary_product_code() -> None:
+    registry = _r7b_registry()
+    edge = integrity.ImportEdge(
+        importer="simulator/some_consumer.py",
+        imported_name="models._quarantine.something",
+        level=0,
+        resolved_path="models/_quarantine/something.py",
+    )
+    findings = integrity.r7b_findings([edge], registry)
+    assert len(findings) == 1
+    assert findings[0].rule == "R7b"
+
+
+def test_no_tracked_file_outside_archives_imports_archives_legacy_directly() -> None:
+    """Live/product-code containment, checked against the real tracked tree:
+    no tracked .py file outside archives/, legacy/, or research/ imports
+    from archives.legacy directly -- every consumer goes through
+    archives.schema's public surface instead."""
+    registry = _r7b_registry()
+    files, _errors = integrity._tracked_sources(REPO)
+    roots = integrity.python_roots(REPO, registry)
+    edges = integrity.collect_import_edges(REPO, files, roots)
+    findings = integrity.r7b_findings(edges, registry)
+    assert findings == [], [finding.as_dict() for finding in findings]
 
 
 def test_ratchet_accepts_explicit_forward_supplement_but_rejects_unrelated_growth() -> None:

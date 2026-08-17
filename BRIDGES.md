@@ -33,16 +33,14 @@ owner = "Phase-5 position canonicalization"
 
 [[bridge]]
 id = "B3"
-status = "existing"
-reason = "Simulator recording inventory imports the recorder movement classifier across current roots"
-locations = ["tools/inventory_recordings.py"]
+status = "removed"
+reason = "Phase 8: tools/inventory_recordings.py's sys.path bootstrap was redundant scaffolding post-Phase-7-collapse (both path variables already resolved to the same collapsed repository root); removed and the tool converted to normal package-relative invocation (python -m tools.inventory_recordings), which needs no bootstrap since -m already puts the repository root on sys.path"
+locations = []
 users = ["recorder.movement_classification.MovementControlClassifier"]
-protecting_rule = "bridge source-evidence check and R7b"
+protecting_rule = "R7b plus bridge expiry"
 removal_gate = "PHASE_8"
 live_closure_allowed = false
-owner = "simulator recording-inventory development tool"
-target_module = "recorder.movement_classification"
-target_symbol = "MovementControlClassifier"
+owner = "Phase-8 archive/historical-reader extraction"
 
 [[bridge]]
 id = "B4"
@@ -64,16 +62,25 @@ expected_target = "a90de59232b81753c1b2ea35b8990325c26674e5"
 |---|---|---|---|---|
 | B1 | REMOVED | none; canonical `farming` is root-visible | completed at Phase 7 root collapse | no |
 | B2 | REMOVED | none; canonical `position` is root-visible | completed at Phase 7 root collapse | no |
-| B3 | EXISTING / VERIFIED | `tools/inventory_recordings.py` | Phase 8 archive/historical-reader extraction | no |
+| B3 | REMOVED | none; `tools/inventory_recordings.py` uses normal package-relative imports | completed at Phase 8 archive extraction | no |
 | B4 | PERMANENT HISTORICAL | protected Git tag | NEVER | no |
 
-B3 was verified in Phase 1: the tool still computes `_RECORDER_ROOT` from the
-repository layout, inserts it into `sys.path`, and imports
-`recorder.movement_classification.MovementControlClassifier`. Before Phase 7,
-its removal gate was prospectively corrected from `PHASE_7` to `PHASE_8`.
-The accepted detailed sequence assigns only physical root collapse and B1/B2
-retirement to Phase 7; archive/historical-reader extraction, which owns B3's
-removal, is Phase 8. The correction changes no B3 source behavior or evidence.
+B3 was verified in Phase 1 and remained installed through Phase 7 (its
+removal gate was prospectively corrected from `PHASE_7` to `PHASE_8` before
+Phase 7, since the accepted detailed sequence assigns only physical root
+collapse and B1/B2 retirement to Phase 7; archive/historical-reader
+extraction, which owns B3's removal, is Phase 8). Removed in Phase 8: the
+tool's `_RECORDER_ROOT`/`_SIMULATOR_ROOT` sys.path bootstrap was confirmed
+redundant post-Phase-7-collapse (both variables already resolved to the same
+collapsed repository root; only the plain-script invocation form actually
+needed it) and was deleted; the tool now imports
+`recorder.movement_classification.MovementControlClassifier` and
+`simulator.schema` as ordinary same-repository-root imports, invoked via
+`python -m tools.inventory_recordings` (module form puts the repository root
+on `sys.path` with no bootstrap, `.pth`, `sitecustomize`, or environment-only
+`PYTHONPATH` needed). See
+`docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md` section D for the exact
+empirical resolution proof.
 
 The single active-phase source of truth is `current_phase` in
 `CANONICAL_OWNERS.toml`. At the opening checkpoint of every later migration

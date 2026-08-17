@@ -8,8 +8,8 @@ exactly what the recorder's own MovementControlClassifier does live, just
 replayed after the fact -- there is no separate/looser logic here.
 
 Usage:
-    python tools/inventory_recordings.py recordings/training recordings/eva_only
-    python tools/inventory_recordings.py --output recordings/INDEX.json recordings/**/*.zip
+    python -m tools.inventory_recordings recordings/training recordings/eva_only
+    python -m tools.inventory_recordings --output recordings/INDEX.json recordings/**/*.zip
 """
 
 from __future__ import annotations
@@ -20,18 +20,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-_RECORDER_ROOT = _REPO_ROOT
-if str(_RECORDER_ROOT) not in sys.path:
-    sys.path.insert(0, str(_RECORDER_ROOT))
-
-_SIMULATOR_ROOT = _REPO_ROOT
-if str(_SIMULATOR_ROOT) not in sys.path:
-    sys.path.insert(0, str(_SIMULATOR_ROOT))
-
-from recorder.movement_classification import MovementControlClassifier  # noqa: E402
-
-from simulator.schema import (  # noqa: E402
+from recorder.movement_classification import MovementControlClassifier
+from simulator.schema import (
     RecordingArchive,
     allows_direct_movement_labels,
     direct_movement_provenance_source,

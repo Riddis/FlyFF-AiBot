@@ -1,9 +1,12 @@
 """Characterizes the exact legacy/historical manifest-compatibility rules
-documented in docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md section C,
-against synthetic minimal archives -- BEFORE (this file) and AFTER
-(unchanged assertions, updated import path) the Phase-8 archives/ boundary
-extraction. Each rule is proven both positive (legacy archive triggers the
-adapter) and negative (current-format archive does not need it)."""
+documented in docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md sections C and
+F, against synthetic minimal archives -- before and after the Phase-8
+legacy/ isolation (simulator.schema.RecordingArchive/RecordedFrame/
+RecordedActor/RecordedEvent stayed at their original location; only the
+absence-driven compatibility logic moved into legacy/manifest_compat.py, so
+these imports are unchanged by that split). Each rule is proven both
+positive (legacy archive triggers the adapter) and negative (current-format
+archive does not need it)."""
 
 from __future__ import annotations
 

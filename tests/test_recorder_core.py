@@ -560,7 +560,7 @@ def test_recorder_profiles_and_uses_instantiated_field_as_verified_hint() -> Non
 
 
 def test_recording_provenance_emits_recording_role_the_simulator_gate_requires() -> None:
-    """simulator.schema.allows_direct_movement_labels only trusts an embedded
+    """archives.schema.allows_direct_movement_labels only trusts an embedded
     manifest when recording_provenance.recording_role equals
     "direct_keyboard_demonstration" -- the two projects ship independently so
     this string is duplicated, not shared. A prior version of session.py

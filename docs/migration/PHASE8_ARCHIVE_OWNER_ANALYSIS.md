@@ -25,9 +25,9 @@ module).** The only reference is a comment (line ~857): `# Must match
 simulator.schema.DIRECT_KEYBOARD_RECORDING_ROLE exactly ... the two projects
 ship independently, so this is a literal, not a shared import.` The writer
 and the canonical reader are already, deliberately, decoupled. This repair
-does not add a dependency in either direction between them; the comment's
-module-name reference is updated to the new canonical location as a
-documentation-only edit (see §H).
+does not add a dependency in either direction between them; the comment
+still reads `simulator.schema.DIRECT_KEYBOARD_RECORDING_ROLE` (unchanged --
+see §F for why the canonical reader's module stays `simulator.schema`).
 
 `recorder/format.py` (`FORMAT_VERSION = 1`, `atomic_json`, `PackedStreamWriter`,
 `read_packed_stream`, `package_session`, `remove_session_directory`,
@@ -96,8 +96,8 @@ contract fields are checked. Current consumers: `simulator/cli.py`,
 `simulator/demonstrations.py`, `simulator/world_model.py` (all call
 `validate_recording_contract`). Affects all 7 archives at recorder
 1.7.0/1.9.0. Existing evidence: none of the 6 tracked `.py` importers had a
-dedicated unit test for this specific branch before this phase (see §F.4 for
-the new characterization test added in P8-A).
+dedicated unit test for this specific branch before this phase (see
+`tests/test_archive_schema_legacy_compat.py`, added in P8-A).
 
 **Legacy rule 2 — missing `map_contract`.** Same function, lines ~175-179.
 Trigger/normalization/consumers: identical pattern to rule 1, for the
@@ -174,7 +174,7 @@ Only caller: `tools/inventory_recordings.py` itself (no other tracked file
 imports `recorder.movement_classification`). `live_closure_allowed = false`
 is already satisfied — this tool has no live-runtime callers.
 
-**Empirical resolution test** (see §H for the applied fix): `python -c
+**Empirical resolution test**: `python -c
 "import recorder.movement_classification, simulator.schema"` run from the
 repository root with `PYTHONPATH` unset succeeds today with zero bootstrap,
 because `-c` and `-m` invocations put the current working directory on
@@ -190,10 +190,17 @@ script-relative sys.path[0] and use the normal Python package-relative
 invocation (`python -m tools.inventory_recordings ...`, which needs no
 bootstrap since `-m` puts the repository root, the current working
 directory, on `sys.path[0]`) — no `.pth`, no `sitecustomize`, no new
-bootstrap module, no environment-only `PYTHONPATH`. See §H for the exact
-change and §F.6 for the origin test.
+bootstrap module, no environment-only `PYTHONPATH`. See
+`docs/migration/tests/test_migration_integrity.py`'s
+`test_recorder_movement_classifier_resolves_as_a_normal_repository_import`
+for the origin test.
 
-## E. R7b rule scope (must be corrected as part of establishing `archives/`)
+## E. R7b rule scope (as originally planned around `archives/schema.py`)
+
+**This section describes the plan as first drafted, before implementation
+uncovered the conflict documented in §F. It is retained as the reasoning
+record for why R7b's `legacy_path_segments` needed correcting at all; the
+*final* accepted rule shape is the one in §F, not the one derived here.**
 
 `CANONICAL_OWNERS.toml`'s `[rules.R7b]` currently reads:
 ```toml
@@ -212,13 +219,114 @@ training/data consumers use the canonical reader surface"). This is exactly
 the "current-layout semantics... tightens as boundaries appear" case: the
 rule's intent is that only the **historical/legacy subtree** is restricted,
 not the canonical boundary module that legitimately sits at the top of
-`archives/`. Corrected in this phase (§H) to
+`archives/`. As drafted at this point, the plan was to correct this to
 `legacy_path_segments = ["legacy", "_quarantine"]` — dropping the bare
 `"archives"` segment so only `archives/legacy/*` (and any future
 `_quarantine/*`) triggers the restriction, while `archives/schema.py` itself
 is importable normally from anywhere. `allowed_importer_prefixes` is
 unchanged. This keeps R7b's actual protective purpose (no direct legacy
 import from ordinary product code) while making it consistent with the
-accepted architecture; it does not weaken R7b — see §F.3 for the regression
-test proving direct `archives.legacy.*` imports from outside
-`archives/`/`legacy/`/`research/` still fail.
+plan as drafted at this point — see §F for how the plan changed and why the
+*final* rule differs from the one derived here.
+
+## F. STOP-and-adjust: `archives/schema.py` conflicts with the frozen G7 typed-encoding contract
+
+Implementing §B/§E's plan (physically `git mv simulator/schema.py
+archives/schema.py`, update all 9 consumers) and then re-running the G7
+post-mutation check produced an exact byte mismatch on exactly one fixture,
+`recordings.json` — all 9 other Phase-3 fixtures remained byte-identical.
+Diagnosed to a specific, source-backed root cause before touching anything
+further (per this phase's explicit instruction not to repair golden evidence
+or invent a tolerance):
+
+`docs/migration/tools/phase3_capture.py`'s `typed_encode()` (the frozen G7
+semantic encoder) has an explicit dataclass branch:
+```python
+if dataclasses.is_dataclass(value) and not isinstance(value, type):
+    name = f"{type(value).__module__}.{type(value).__qualname__}"
+    fields = tuple((field.name, getattr(value, field.name)) for field in dataclasses.fields(value))
+    return b"O" + typed_encode(name) + typed_encode(fields)
+```
+Every record `archive.frames()`/`archive.events()` yields is a `RecordedFrame`
+(containing nested `RecordedActor` instances) or `RecordedEvent` dataclass
+instance, so **each decoded record's fully-qualified class name
+(`__module__.__qualname__`) is itself part of the frozen semantic hash** —
+not just its field values. Moving `RecordedFrame`/`RecordedActor`/
+`RecordedEvent` from `simulator.schema` to `archives.schema` changes
+`__module__` from `"simulator.schema"` to `"archives.schema"` for every one
+of them, which changes `typed_encode`'s output, which changes `frames`'/
+`events`' block and overall hashes -- even though every actual field value
+(quantized coordinates, timestamps, action codes, event tuples, everything
+`archive.frames()`/`archive.events()` actually decode from the archive
+bytes) is provably bit-identical. Confirmed directly: a targeted
+single-archive re-run reproduced `manifest_semantic_sha256` and
+`inputs.sha256` exactly (`inputs()` yields plain tuples, not dataclasses, so
+it was unaffected) while `frames.sha256`/`events.sha256`/
+`overall_decoded_semantic_sha256` differed -- exactly the pattern a
+class-identity-sensitive encoder produces for a same-data, different-module
+relocation, and exactly the pattern that stopped once the classes' module
+was reverted.
+
+`RecordingArchive`/`RecordedFrame`/`RecordedActor`/`RecordedEvent` cannot be
+physically relocated out of `simulator.schema` without changing the frozen
+G7 baseline -- and changing that baseline to accommodate the move is exactly
+the "repair the golden evidence" / "create a tolerance" response this
+phase's instructions explicitly forbid. This is precisely the §4 STOP
+condition ("If current source evidence makes the literal `archives/
+schema.py` placement materially incoherent, STOP and report the exact
+source-backed conflict rather than inventing architecture") -- reported here
+and resolved by **not** performing that specific physical move, rather than
+by stopping the whole phase.
+
+**Nothing from the `archives/schema.py` attempt was ever committed** (P8-A,
+committed separately at `4b549c4`, only contains the analysis document and
+characterization tests -- no product code). The attempt was fully reverted
+in the working tree before any further commit: `git mv archives/schema.py
+simulator/schema.py` (restoring the original module identity exactly), all
+9 consumers' imports reverted to `.schema`/`simulator.schema`, and the empty
+`archives/` package tree removed entirely.
+
+**Final accepted design**, adjusted to fit the actual source constraint:
+
+- `simulator/schema.py` **stays** the canonical archive reader/schema
+  module, at its original location, with `RecordingArchive`/
+  `RecordedFrame`/`RecordedActor`/`RecordedEvent`'s fully-qualified class
+  identity exactly preserved (`simulator.schema.*`, matching the frozen G7
+  baseline).
+- The genuinely historical, absence-driven compatibility logic identified in
+  §C -- `missing_policy_contract_warning`/`missing_map_contract_warning`
+  (the two warn-not-fail branches) and `attested_by_registry`/
+  `_trusted_direct_hashes` (the provenance-registry fallback) -- moved into
+  a new top-level `legacy/manifest_compat.py` (not nested under `archives/`,
+  since no such package exists). None of these returns ever participates in
+  a `typed_encode()` call (they return plain `str`/`bool`, never streamed
+  through `archive.frames()`/`.events()`/`.inputs()`), so this move has zero
+  G7 exposure -- confirmed by the same post-adjustment G7 re-run passing
+  10/10.
+- The dependency direction stays canonical → legacy, never the reverse:
+  `legacy/manifest_compat.py` takes the current contract values
+  (`DIRECT_KEYBOARD_RECORDING_ROLE`/`DIRECT_KEYBOARD_CONTROL_SCHEME`) as
+  parameters rather than importing them from `simulator.schema`, so there is
+  no import cycle.
+- `CANONICAL_OWNERS.toml`'s `[rules.R7b]` final shape:
+  `legacy_path_segments = ["legacy", "_quarantine"]` (unaffected by this
+  adjustment either way), `allowed_importer_prefixes = ["archives/",
+  "legacy/", "research/", "simulator/schema.py"]` -- `simulator/schema.py`
+  is listed by **exact path**, not a directory prefix, so it alone (not the
+  rest of `simulator/`) may dispatch into `legacy/`; `"archives/"` is kept
+  for forward compatibility with a future, non-G7-sensitive canonical
+  package, but none exists yet. Regression tests prove: a direct
+  `legacy.manifest_compat` import from an ordinary product-code path still
+  ratchets as R7b growth; the same import from `simulator/schema.py`
+  specifically does not; and a full scan of the real tracked tree finds zero
+  R7b violations.
+- All 9 consumers' imports are therefore **unchanged from before this
+  phase** (`from .schema import ...` / `from simulator.schema import ...`)
+  -- this specific extraction turned out to require zero consumer-import
+  changes, only the internal legacy-logic relocation within
+  `simulator/schema.py` itself.
+
+This is a case where the initially-planned physical layout (§B/§E) was
+wrong and the correct response was to adjust the plan to what the source
+evidence actually supports, not to force the original plan through by
+weakening the G7 gate.

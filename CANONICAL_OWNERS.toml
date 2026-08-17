@@ -8,9 +8,9 @@ python_roots = ["."]
 
 [rules.R7b]
 status = "active-ratcheted-current-layout"
-legacy_path_segments = ["legacy", "archives", "_quarantine"]
-allowed_importer_prefixes = ["archives/", "legacy/", "research/"]
-activation_note = "Future physical legacy/archive/research boundaries do not yet all exist; exact current violations are frozen and growth fails."
+legacy_path_segments = ["legacy", "_quarantine"]
+allowed_importer_prefixes = ["archives/", "legacy/", "research/", "simulator/schema.py"]
+activation_note = "Phase 8 established the top-level legacy/ historical-compatibility subtree (legacy/manifest_compat.py), restricted to archives/, legacy/, research/, and simulator/schema.py importers. The canonical archive reader stays at simulator/schema.py (RecordingArchive/RecordedFrame/RecordedActor/RecordedEvent): the frozen Phase-3 G7 semantic contract encodes each decoded record's fully-qualified class name as part of its typed hash, so these classes cannot be relocated into a new top-level package without changing that frozen hash -- see docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md section F. simulator/schema.py is listed by exact path (not a directory prefix) as the sole non-legacy/-rooted file allowed to dispatch into legacy/, keeping every other ordinary product-code file restricted. 'archives/' remains listed for forward compatibility with a future, non-G7-sensitive canonical package, but no such package exists yet."
 
 [[concept]]
 id = "tower_map_profiles"
