@@ -51,16 +51,16 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
-from scratchpad_beginner_navigation_mix_pools import DEV_POOL_SPEC_SEED, eval_obstacle_manifest, load_manifest
 from scratchpad_beginner_routing_randomized_walls import sample_randomized_wall_spec
 from scratchpad_beginner_routing_two_wall_s_route import S_ROUTE_DIRECTIONS, sample_two_wall_spec
-from scratchpad_general_router_episode import build_multi_wall_world
 from scratchpad_generalized_waypoint_train_reward_ablation import eval_held_out
 from simulator.environment import RecordedFarmingEnv
 from simulator.navigation_history import NavigationHistoryWrapper
 from simulator.router_waypoint_env import ObstacleEpisodeSpec, RouterMixedWaypointWrapper
 from simulator.single_obstacle_env import GAP_SIDES
 from simulator.static_waypoint_env import sample_generalized_spec
+from tests.helpers.beginner_navigation_mix_harness import DEV_POOL_SPEC_SEED, eval_obstacle_manifest, load_manifest
+from tests.helpers.router_qualification_harness import build_multi_wall_world
 
 EpisodeMode = Literal["open", "single_wall", "two_wall"]
 
