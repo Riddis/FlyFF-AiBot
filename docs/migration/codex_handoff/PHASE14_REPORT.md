@@ -506,9 +506,7 @@ R6=0 R7a=0 R7b=0 R7c=204 R9=0`, `r10_failures=[]` — unchanged. `git
 diff --check` clean. No product/runtime code changed; no scientific
 artifact changed.
 
-**Correction HEAD:** resolve with `git rev-parse HEAD` after this
-section's own commit lands (see `COMMAND_LOG.tsv`'s `P14-correction`
-row).
+**Correction HEAD:** `4bb28a23dda07e22cb452daf8ac23a96856ec96f`.
 
 `current_phase` remains `14`. `migration_complete` remains `YES`.
 `overall_project_completion` remains `NO`. `G5` remains `PENDING`.
