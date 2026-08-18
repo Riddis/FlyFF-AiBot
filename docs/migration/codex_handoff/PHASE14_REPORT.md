@@ -193,8 +193,15 @@ See `docs/validation/FINAL_OFFLINE_MIGRATION_ACCEPTANCE.md` section 7
 for the full table and evidence. Summary:
 
 - `test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts`
-  — `PRE_EXISTING_ENVIRONMENTAL/ARTIFACT` (double-`.zip` path bug in the
-  test itself). Unchanged, not fixed.
+  — `PRE_EXISTING_ENVIRONMENTAL/ARTIFACT`. **Corrected 2026-08-18 (see
+  section 36):** the test calls `PPO.load("models/split_branch_pilot_15000.zip")`
+  (`tests/test_navigation_dataset.py:107`); the primary defect is that
+  this historical checkpoint predates consolidation and is not present
+  in the current worktree, not merely an extra `.zip` in a path string.
+  The `FileNotFoundError: ...zip.zip` observed is a secondary
+  Stable-Baselines3 missing-path/suffix-retry symptom. Unchanged, not
+  fixed — the missing checkpoint was not fabricated, substituted, or
+  retrained.
 - `test_normal_training_status_is_concise_and_uses_total_model_steps`,
   `test_training_callback_publishes_structured_session_statistics` —
   `RESOLVED_OFFLINE_NOW`. Root cause: both tests call
@@ -351,12 +358,18 @@ found to exist only in conversation history.
    now-unmasked assertion failure (focus not re-checked after
    `confirm_cast()`) — **documented, not fixed** (requires a product
    decision; see section 16 and section 33's blocker note).
-8. `test_mine_navigation_dataset...`'s double-`.zip` path bug —
-   **documented, not fixed** (pre-existing test bug, out of this
-   phase's narrow-fix scope).
-9. `apps/recorder_app.py` has no `--help`/argparse handling — **documented**
-   (not a defect requiring a fix within migration scope; a legitimate
-   GUI-only entrypoint design).
+8. `test_mine_navigation_dataset...` depends on the historical
+   `models/split_branch_pilot_15000.zip` checkpoint, absent from the
+   current worktree (the `.zip.zip` error is a secondary SB3 symptom,
+   not the primary defect — corrected 2026-08-18, see section 36) —
+   **documented, not fixed** (missing artifact; not fabricated,
+   substituted, or retrained; out of this phase's narrow-fix scope).
+9. `apps/recorder_app.py` has no `--help`/argparse handling —
+   **documented** (not a defect requiring a fix within migration
+   scope; a legitimate GUI-only entrypoint design). The process
+   mistake of invoking it without first confirming via source
+   inspection that `--help` terminates safely is recorded in
+   `MISTAKES.md` (corrected 2026-08-18, see section 36).
 
 ## 31. Every unresolved blocker
 
@@ -421,3 +434,84 @@ NOT recommend clearing and does NOT itself clear — the user/coordinator
 independently reviews first.
 
 **CONTEXT RESET CANDIDATE: YES.**
+
+## 36. Forward correction — 2026-08-18 (post-acceptance)
+
+Authorized: "PHASE-14 FINAL FORWARD CORRECTION — RECORD ACCURATE FINAL
+AUDIT KNOWLEDGE." The Phase-14 migration result itself remains accepted
+(sections 1–35 above are preserved exactly as originally written); this
+section corrects two pieces of audit knowledge and adds a process
+lesson, without reopening or reversing the acceptance.
+
+**36a. Navigation-dataset failure — corrected diagnosis.** Sections 16
+and 30 (item 8) originally described
+`test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts`'s
+failure as a "double-`.zip` path bug in the test itself." That
+shorthand understated the real defect. Re-reading the test
+(`tests/test_navigation_dataset.py:107`) shows it calls
+`PPO.load("models/split_branch_pilot_15000.zip", device="cpu")`. The
+primary defect is that `models/split_branch_pilot_15000.zip` is a
+historical checkpoint that predates consolidation and is not present
+in the preserved current worktree — it is not a tracked current model
+artifact. The `.zip.zip` observed in the `FileNotFoundError` is a
+*secondary* Stable-Baselines3 behavior (its own missing-path/suffix
+retry), not evidence that the primary defect is merely an extra `.zip`
+appended by the test. Corrected classification:
+`PRE_EXISTING_ENVIRONMENTAL/ARTIFACT` — the integration test depends
+on a historical artifact absent from the current worktree; the
+`.zip.zip` path is a secondary symptom, not the primary defect. Not
+fixed: the missing checkpoint was not fabricated, not substituted with
+an unrelated checkpoint (e.g. `0051200`) to force a pass, not
+retrained, and the test was not weakened. `docs/validation/FINAL_OFFLINE_MIGRATION_ACCEPTANCE.md`
+sections 7 and 14, this report's sections 16 and 30, `HANDOFF.md`, and
+`TEST_LOG.md` are all forward-corrected alongside this section; no
+earlier historical entry describing what was believed at the time was
+rewritten.
+
+**36b. `apps/recorder_app.py --help` — process mistake recorded.**
+During the original Phase-14 entrypoint audit (section 11),
+`python -m apps.recorder_app --help` was invoked before source
+inspection had established that the invocation was safe and actually
+implemented CLI help behavior. The process did not provide help and
+instead entered the recorder GUI event loop; it was stopped with
+`TaskStop` well within its timeout. No FlyFF attachment, telemetry,
+recording, native read, control, G5, G5-P2, or live training occurred
+at any point — confirmed both at the time and again during this
+correction. Root cause: `--help` was treated as presumptively
+non-executing/safe rather than checking the entrypoint's startup
+behavior first. A terse entry recording this mistake and its lesson —
+inspect source/static contract first for any entrypoint that could
+plausibly initialize GUI, native/runtime, recorder, telemetry, or
+live-client machinery; only execute a supposedly harmless `--help`/
+import probe after proving it terminates before unsafe initialization
+— has been added to root `MISTAKES.md`. This reinforces the existing
+rule that external/live-sensitive entrypoints are not assumed safe
+merely because a conventional CLI flag was supplied.
+
+**36c. Tag handling.** The original `consolidation-verified-20260818`
+tag (pointing to `dadb17f3543934d99ca7998b25f1adc240bb286e`, the
+pre-correction Phase-14 documentation commit) is retained unchanged as
+historical evidence of the originally declared Phase-14 closure — not
+moved, deleted, or overwritten. A new annotated local tag,
+`consolidation-verified-final-20260818`, is created pointing at this
+correction's own commit (see below), marking the corrected final
+acceptance record. Neither tag is pushed.
+
+**36d. Validation (documentation/MISTAKES-only change; full `tests/`
+suite intentionally not re-run).** `python tools/check_project_knowledge.py`
+PASS. `pytest tests/test_check_project_knowledge.py -q` passed.
+`pytest docs/migration/tests/ -q` 77 passed. `future_runtime_profile`
+derive: PASS, unchanged. `migration_integrity.py check`: `ok=true
+R6=0 R7a=0 R7b=0 R7c=204 R9=0`, `r10_failures=[]` — unchanged. `git
+diff --check` clean. No product/runtime code changed; no scientific
+artifact changed.
+
+**Correction HEAD:** resolve with `git rev-parse HEAD` after this
+section's own commit lands (see `COMMAND_LOG.tsv`'s `P14-correction`
+row).
+
+`current_phase` remains `14`. `migration_complete` remains `YES`.
+`overall_project_completion` remains `NO`. `G5` remains `PENDING`.
+`G5-P2` remains `PENDING/CONDITIONAL`.
+
+**AGENT LIVE EXECUTION: NONE.**

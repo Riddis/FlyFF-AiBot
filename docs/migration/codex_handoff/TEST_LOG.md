@@ -2516,3 +2516,29 @@ FlyFF interaction (the recorder does not attach to FlyFF at startup).
 **PHASE 14 COMPLETE: YES. MIGRATION COMPLETE: YES.**
 **G5: PENDING. G5-P2: PENDING/CONDITIONAL.**
 **AGENT LIVE EXECUTION: NONE.**
+
+## Phase 14 forward correction — 2026-08-18
+
+Corrects the Phase-14 entry above's description of
+`test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts`'s
+failure ("test's own double-`.zip` path bug"). The primary defect is
+that the test's `PPO.load("models/split_branch_pilot_15000.zip")`
+(`tests/test_navigation_dataset.py:107`) targets a historical
+checkpoint absent from the current worktree; the `FileNotFoundError:
+...zip.zip` is a secondary Stable-Baselines3 symptom, not the primary
+cause. Classification remains `PRE_EXISTING_ENVIRONMENTAL/ARTIFACT`;
+not fixed. Consistent with this repository's earlier, correctly-worded
+entries describing the same underlying gap as a "gitignored-model-
+artifact gap" (lines above, unchanged, predating Phase 14).
+
+Validation for this documentation/MISTAKES-only correction: `python
+tools/check_project_knowledge.py` PASS; `pytest
+tests/test_check_project_knowledge.py -q` passed; `pytest
+docs/migration/tests/ -q` 77 passed; `future_runtime_profile` derive
+PASS (unchanged); `migration_integrity.py check` `ok=true R6=0 R7a=0
+R7b=0 R7c=204 R9=0` (unchanged); `git diff --check` clean. Full
+`tests/` suite intentionally not re-run -- no product/runtime code
+changed.
+
+**PHASE 14 CORRECTION COMPLETE: YES.**
+**AGENT LIVE EXECUTION: NONE.**

@@ -1629,3 +1629,49 @@ model/deployment work remain outstanding.
 **AGENT LIVE EXECUTION: NONE.**
 **CONTEXT RESET CANDIDATE: YES** -- awaiting independent
 coordinator/user review before actually clearing.
+
+## Phase 14 forward correction — 2026-08-18 (post-acceptance audit-knowledge correction)
+
+Narrow correction, not a reopening of Phase-14 acceptance. See
+`PHASE14_REPORT.md` section 36 for the full account.
+
+**Navigation-dataset failure, corrected.** The Phase-14 entry above
+described `test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts`'s
+failure as "the test's own double-`.zip` path bug." That understated
+the real defect: the test calls `PPO.load("models/split_branch_pilot_15000.zip")`
+(`tests/test_navigation_dataset.py:107`), and this historical checkpoint
+is simply absent from the current worktree -- it predates consolidation
+and is not a tracked current artifact. The `.zip.zip` in the observed
+`FileNotFoundError` is a secondary Stable-Baselines3 missing-path/
+suffix-retry symptom, not the primary defect. Classification remains
+`PRE_EXISTING_ENVIRONMENTAL/ARTIFACT`; not fixed (the missing checkpoint
+was not fabricated, substituted, or retrained).
+
+**`apps/recorder_app.py --help` process mistake recorded.** The
+original entrypoint audit invoked `python -m apps.recorder_app --help`
+before source inspection had confirmed it terminates safely -- it
+instead entered the recorder GUI event loop and was stopped via
+`TaskStop`. No FlyFF attachment, telemetry, recording, native read,
+control, G5, G5-P2, or live training occurred. A terse entry recording
+this mistake and its lesson (inspect source/static contract first for
+any entrypoint that could plausibly initialize GUI/native/recorder/
+telemetry/live-client machinery, before treating a conventional
+`--help` flag as presumptively safe) has been added to root
+`MISTAKES.md`.
+
+**New tag.** `consolidation-verified-20260818` is retained unchanged,
+pointing at `dadb17f3543934d99ca7998b25f1adc240bb286e` (the
+pre-correction Phase-14 documentation commit), as historical evidence
+of the originally declared closure. A new annotated local tag,
+`consolidation-verified-final-20260818`, marks this correction's own
+commit as the corrected final acceptance record. Neither tag pushed.
+
+Documentation/MISTAKES-only change. `current_phase` remains `14`.
+`migration_complete` remains `YES`. `overall_project_completion`
+remains `NO`. `G5` remains `PENDING`. `G5-P2` remains
+`PENDING/CONDITIONAL`. Ruler unchanged (`R6=0 R7a=0 R7b=0 R7c=204
+R9=0`). Knowledge checker: PASS. Full `tests/` suite intentionally not
+re-run (no product/runtime code changed).
+
+**PHASE 14 CORRECTION COMPLETE: YES.**
+**AGENT LIVE EXECUTION: NONE.**

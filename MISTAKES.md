@@ -721,3 +721,29 @@ Entry template:
   capture that command's exit code directly (no pipe), or pipe through
   something that preserves it (e.g. `set -o pipefail` in bash), never
   assume the pipeline's own exit code represents the producer.
+
+### [2026-08-18] invoked `apps.recorder_app --help` before confirming it terminates safely
+
+- What happened: during Phase 14's user-facing entrypoint audit, ran
+  `python -m apps.recorder_app --help` expecting a conventional
+  argparse usage print. The process did not exit or print anything
+  within its timeout; it was stopped with `TaskStop`. Source inspection
+  afterward showed `apps/recorder_app.py` has no argparse/`--help`
+  handling at all -- its `__main__` guard calls `recorder.gui.run_gui()`
+  unconditionally, which blocks in a GUI event loop.
+- What did NOT happen: no FlyFF attachment, telemetry, recording,
+  native read, control, G5, G5-P2, or live training occurred at any
+  point. The recorder GUI does not attach to FlyFF at startup.
+- Root cause: treated `--help` as presumptively non-executing/safe
+  rather than checking the entrypoint's actual startup behavior first.
+- How caught: the command hung past its timeout instead of exiting;
+  stopped via `TaskStop`, then explained by reading the source.
+- Fix: documented the entrypoint's real behavior (no `--help` support,
+  unconditional GUI launch) in `docs/validation/FINAL_OFFLINE_MIGRATION_ACCEPTANCE.md`
+  and `PHASE14_REPORT.md` instead of re-invoking it.
+- Lesson: for any executable entrypoint that could plausibly initialize
+  GUI, native/runtime, recorder, telemetry, or live-client machinery,
+  inspect its source/static contract FIRST. Only execute a supposedly
+  harmless `--help`/import probe after that inspection has established
+  the probe terminates before any unsafe initialization -- a
+  conventional CLI flag is not evidence of safety on its own.
