@@ -12,8 +12,8 @@ maintained as a divergent copy. Read in this order:
 2. **`docs/README.md`** — the current-project-knowledge index. Find the
    architecture doc relevant to your task rather than reading
    everything.
-3. **`flyff_farming_simulator/MISTAKES.md`** — skim relevant entries
-   before non-trivial work, per `PROJECT_RULES.md` section 8.
+3. **`MISTAKES.md`** (repository root) — skim relevant entries before
+   non-trivial work, per `PROJECT_RULES.md` section 8.
 
 ## Non-negotiable
 
@@ -38,7 +38,7 @@ and implicit selection when a task matches a skill's `description`
 `developers.openai.com/codex/skills`). This is a genuinely separate
 mechanism from Claude Code's `.claude/skills/<name>/SKILL.md` — an
 earlier version of this file incorrectly claimed no such mechanism
-existed; see `flyff_farming_simulator/MISTAKES.md` for that correction.
+existed; see `MISTAKES.md` for that correction.
 
 The same six skills are installed for both clients, as thin,
 non-divergent surfaces over one canonical implementation each:

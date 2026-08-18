@@ -99,7 +99,7 @@ both depend on the *previous tick's* steering direction, not just the
 current action. Any evaluation harness that re-augments an observation
 without passing the actual previous steering value will silently
 default to `NONE` — this was a real, discovered bug (see
-`flyff_farming_simulator/MISTAKES.md` for the corrected-observation
+`MISTAKES.md` for the corrected-observation
 router evaluation incident) that corrupted every routing evaluation
 result produced before the fix. When writing or reviewing any evaluation
 harness around router/navigation behavior, always verify `previous_
@@ -153,8 +153,7 @@ behavior beyond pure waypoint navigation, without separate evidence.
   source reads, module docstrings)
 - `docs/migration/PHASE9_NAVIGATION_OWNER_ANALYSIS.md`,
   `docs/migration/codex_handoff/PHASE9_REPORT.md`
-- `flyff_farming_simulator/MISTAKES.md` (previous-steering observation
-  bug)
+- `MISTAKES.md` (previous-steering observation bug)
 - `CANONICAL_OWNERS.toml` (`qualified_persistent_waypoint_selector`,
   `shared_movement_kernel`, `shared_navigation_evidence` concepts)
 - `tests/test_navigation_dependency_boundary.py`,

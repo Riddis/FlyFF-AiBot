@@ -89,6 +89,37 @@ to stay free of `recorder`/`simulator` training code/`torch`/
 `gymnasium`/`stable_baselines3`, with subprocess launch as the sanctioned
 way to reach those specialists instead of importing them.
 
+## 3a. GUI settings persistence is CWD-dependent by construction
+
+**Confidence: VERIFIED_CONTRACT**, discovered during the Phase-14
+migration-closure audit and previously undocumented anywhere. `Gui.py`
+calls `sg.user_settings_filename(path=".")` (PySimpleGUI) with **no
+explicit filename** — PySimpleGUI derives one itself from
+`sys.modules["__main__"].__file__`'s basename (confirmed by reading
+PySimpleGUI's own `UserSettings._compute_filename` source directly).
+Two consequences:
+
+1. **The settings filename tracks the entrypoint's actual invoked file
+   name, not a fixed name.** Under the current canonical entrypoint
+   (`apps/dev_app.py`, however invoked), the generated filename is
+   `dev_app.json` — not `foreground_vision_farm.json`, the name it
+   produced under the pre-Phase-7 entrypoint (`foreground_vision_
+   farm.py`). This explains two now-removed tracked artifacts,
+   `foreground_vision_farm.json` (root) and
+   `foreground_vision_bot/foreground_vision_farm.json`: both were
+   PySimpleGUI-generated snapshots from the **old** entrypoint name,
+   orphaned the moment the entrypoint was renamed — confirmed via this
+   exact mechanism, not merely "zero current references." See
+   `docs/migration/codex_handoff/PHASE14_REPORT.md` for the full
+   resolution.
+2. **The settings file's location is CWD-relative** (`path="."`) — it
+   is written to whatever directory is current when the GUI launches,
+   not a fixed repo-relative path. Launching `apps/dev_app.py` from
+   different working directories produces different, ungoverned
+   `dev_app.json` files in different places. This is a real, current
+   limitation (not a bug introduced by consolidation — the same
+   `path="."` call pattern predates it) — see `docs/KNOWN_DEBT.md`.
+
 ## 4. The R1b exception — one real coupling, not yet resolved
 
 `runtime_controller.py` imports exactly four symbols

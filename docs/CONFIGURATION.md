@@ -1,5 +1,14 @@
 # Configuration Reference
 
+> **⚠ SUPERSEDED.** This document describes a pre-migration generation
+> of the bot (`Discrete(5)`/`Box(923,...)` model contract, paths
+> relative to `foreground_vision_bot`) that is **no longer current**.
+> For the current checkpoint/observation/action contract, see
+> [`docs/architecture/DATA_AND_MODEL_CONTRACTS.md`](architecture/DATA_AND_MODEL_CONTRACTS.md).
+> The `native_farming.json` key-level table below has not been
+> individually re-verified against current `farming/config.py` — see
+> [`docs/KNOWN_DEBT.md`](KNOWN_DEBT.md).
+
 Configuration is loaded read-only. Unknown keys and invalid numeric/boolean
 types fail before movement. Paths are resolved relative to
 `foreground_vision_bot`, not the shell's current directory.

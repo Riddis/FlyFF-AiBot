@@ -1,5 +1,14 @@
 # FlyFF AiBot Runbook
 
+> **⚠ SUPERSEDED.** The install/launch instructions below reference the
+> pre-migration entrypoint (`foreground_vision_farm.py`,
+> `Set-Location foreground_vision_bot`) which no longer exists. For the
+> current launch procedure, see
+> [`docs/operations/DEVELOPMENT_WORKFLOWS.md`](operations/DEVELOPMENT_WORKFLOWS.md)
+> (`python -m apps.dev_app`). The pointer-recovery workflow detail below
+> remains substantively accurate as a mechanism description — see
+> [`docs/architecture/POSITION_AND_POINTER_RECOVERY.md`](architecture/POSITION_AND_POINTER_RECOVERY.md).
+
 ## Install and launch
 
 Use 64-bit Windows, a visible FlyFF client, and Python 3.14-compatible packages.

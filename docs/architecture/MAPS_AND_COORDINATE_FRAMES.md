@@ -25,7 +25,7 @@ a divergence, a known and confirmed byte-identical pair.
 `(0,0)` regardless of grid size, computed per-map at construction — this
 was confirmed directly against source after a planning draft incorrectly
 claimed a coordinate-frame mismatch across different grid sizes (see
-`flyff_farming_simulator/MISTAKES.md`, category "coordinate systems /
+`MISTAKES.md`, category "coordinate systems /
 geometry", 2026-08-14 entry). **Never** reconstruct, smooth, or retrace
 the authoritative source map by hand — it is frozen Phase-2/6 evidence,
 byte-verified, not something to regenerate from a live session.
@@ -83,6 +83,5 @@ not individually re-checked here.
 - `farming/map_profile.py`
 - `docs/migration/codex_handoff/PHASE6_REPORT.md`
 - `docs/migration/PHASE11_RUNTIME_RESOURCE_MANIFEST.tsv` (rows 8–13)
-- `flyff_farming_simulator/MISTAKES.md` (coordinate-frame mismatch
-  correction, 2026-08-14)
+- `MISTAKES.md` (coordinate-frame mismatch correction, 2026-08-14)
 - `simulator/map_model.py`, `mapper/MapCatalog.py`

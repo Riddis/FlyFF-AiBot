@@ -29,8 +29,6 @@ everything retained is "debt" in the pejorative sense. Each item states
   runtime derivative.
 - Whether `runtime_controller.py`'s `farming.trainer` coupling (R1b) is
   omitted or redesigned for a future derivative.
-- Disposition of the orphaned `foreground_vision_farm.json` (root-level
-  copy; zero `.py` references).
 - Final entrypoint name/location for any future derivative (explicitly
   not `apps/live_bot.py` per every phase's own prohibition).
 - Whether `requirements.txt`/`requirements-training.txt`'s split changes
@@ -40,17 +38,45 @@ everything retained is "debt" in the pejorative sense. Each item states
 Source of record: `future_runtime_profile/dependency_profiles.toml`'s
 `unresolved_future_choices`.
 
-## Cleanup deferred from Phase 12, addressed or re-deferred in Phase 13
-
-See `docs/migration/codex_handoff/PHASE13_REPORT.md` for the outcome of
-each:
+## Cleanup deferred from Phase 12, resolved in Phase 13/14
 
 - `pyproject.toml`'s Ruff per-file-ignore
-  `"foreground_vision_bot/mapper/[A-Z]*.py"`.
-- `flyff_farming_recorder/requirements.txt` (stale Phase-7
-  `resolution_phase = PHASE_11` deferred-collision label).
-- `foreground_vision_bot/foreground_vision_farm.json` (same stale-label
-  situation; content genuinely differs from the root-level copy).
+  `"foreground_vision_bot/mapper/[A-Z]*.py"` — corrected in Phase 13.
+  See `docs/migration/codex_handoff/PHASE13_REPORT.md`.
+- `flyff_farming_recorder/requirements.txt` — **resolved in Phase 14**:
+  its content (`msgpack>=1.0`, `pywin32>=306`) was a genuine migration
+  gap — `msgpack` (needed by `simulator/schema.py`/`recorder/*`, DUAL_
+  ROLE per `PHASE11_DEPENDENCY_BOUNDARY_ANALYSIS.md`) was never merged
+  into the canonical root `requirements.txt` during the Phase-7
+  collapse. Merged (`pywin32` was already present; the installed
+  version 312 already satisfies the dropped `>=306` floor); the
+  now-fully-redundant file was removed (`git rm`). See
+  `docs/migration/codex_handoff/PHASE14_REPORT.md`.
+- `foreground_vision_bot/foreground_vision_farm.json` and the root-level
+  `foreground_vision_farm.json` — **resolved in Phase 14**: both are
+  PySimpleGUI-auto-generated settings snapshots keyed to the pre-
+  Phase-7 entrypoint's file name (`foreground_vision_farm.py`), proven
+  orphaned by reading PySimpleGUI's own filename-derivation source (see
+  `docs/architecture/SYSTEM_OVERVIEW.md` section 3a) — not merely
+  "zero current references." The `foreground_vision_bot/` copy was
+  removed (`git rm`); the root-level copy was left untouched (outside
+  this specific cleanup's authorized scope) but its `unresolved_future_
+  choices` entry was removed since the disposition question is now
+  answered.
+
+## Known runtime limitations
+
+- **GUI settings persistence is CWD-dependent.** `Gui.py`'s `sg.
+  user_settings_filename(path=".")` call lets PySimpleGUI derive both
+  the settings filename (from the entrypoint's own file name) and its
+  storage location (the process's current working directory) rather
+  than using a fixed, repo-relative path. Launching the dev app from
+  different working directories produces different, ungoverned
+  `dev_app.json` files. Not a migration regression (the same call
+  pattern predates consolidation) and not fixed in Phase 14 (a real
+  fix — pinning an explicit filename/path — is a product decision about
+  where user settings should canonically live, not evidence-driven
+  cleanup). See `docs/architecture/SYSTEM_OVERVIEW.md` section 3a.
 
 ## Real scientific uncertainty (reader timing / population)
 

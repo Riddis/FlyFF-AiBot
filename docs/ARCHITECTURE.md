@@ -1,5 +1,17 @@
 # FlyFF AiBot Architecture
 
+> **⚠ SUPERSEDED.** This document describes a pre-migration generation
+> of the bot (`foreground_vision_farm.py` entrypoint, `Discrete(5)`
+> action space) that is **no longer current**. For the current
+> architecture, start at [`docs/README.md`](README.md), specifically
+> [`docs/architecture/SYSTEM_OVERVIEW.md`](architecture/SYSTEM_OVERVIEW.md)
+> and [`docs/architecture/DATA_AND_MODEL_CONTRACTS.md`](architecture/DATA_AND_MODEL_CONTRACTS.md).
+> Retained because its native-process/pointer-recovery detail remains
+> substantively accurate (ported into
+> [`docs/architecture/POSITION_AND_POINTER_RECOVERY.md`](architecture/POSITION_AND_POINTER_RECOVERY.md)) —
+> not rewritten, since it is evidence of a real prior design, not a
+> mistake to erase.
+
 ## Production path
 
 `foreground_vision_farm.py` constructs `Gui` and `Bot`. The GUI translates

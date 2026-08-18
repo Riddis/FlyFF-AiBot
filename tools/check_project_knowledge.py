@@ -70,13 +70,22 @@ CODE_PATH_RE = re.compile(r"`([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+\.(?:py|toml|j
 # Paths that are explicitly, deliberately discussed as NOT existing
 # (e.g. "no apps/live_bot.py") -- checking their non-existence would be
 # backwards.
-INTENTIONALLY_NONEXISTENT_PATHS = frozenset({"apps/live_bot.py"})
+# Paths deliberately referenced by their OLD location to explain a
+# disposition (deleted-with-evidence, moved) -- checking their
+# non-existence at the old path would be backwards; the surrounding
+# prose is the evidence, not a live pointer.
+INTENTIONALLY_NONEXISTENT_PATHS = frozenset({
+    "apps/live_bot.py",
+    "flyff_farming_recorder/requirements.txt",
+    "foreground_vision_bot/foreground_vision_farm.json",
+    "flyff_farming_simulator/MISTAKES.md",
+})
 STALE_QUALIFIERS = (
     "facade", "shim", "compat", "superseded", "stale", "prior-generation",
     "legacy", "supersedes", "no longer exist", "not exist", "predates",
     "registered", "test_contract_retirement", "deferred", "old ",
     "old-root", "old-generation", "pre-migration", "before this migration",
-    "historical", "eliminat",
+    "historical", "eliminat", "corrected", "resolved", "removed",
 )
 
 
@@ -236,7 +245,7 @@ def check_skill_metadata() -> CheckResult:
     docs/migration/codex_handoff/PHASE13_REPORT.md's correction
     section). This must not pass merely because .claude/skills/ exists
     -- that was the exact Phase-13 mistake this check now guards
-    against (flyff_farming_simulator/MISTAKES.md)."""
+    against (MISTAKES.md)."""
     problems: list[str] = []
     claude_dir = REPO / ".claude/skills"
     codex_dir = REPO / ".agents/skills"

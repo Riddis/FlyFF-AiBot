@@ -1,2 +1,0 @@
-msgpack>=1.0
-pywin32>=306; platform_system == "Windows"

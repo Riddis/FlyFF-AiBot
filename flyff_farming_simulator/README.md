@@ -1,5 +1,19 @@
 # FlyFF Farming Simulator 1.5
 
+> **⚠ SUPERSEDED / HISTORICAL.** This describes the pre-migration
+> standalone simulator distribution (`run_simulator.py`,
+> `requirements.txt` — both since removed as fully redundant with the
+> canonical root `apps/simulator_cli.py` / `requirements.txt` /
+> `requirements-training.txt`, confirmed in Phase 14). It predates the
+> current `MultiDiscrete([3,3])`/928-dim checkpoint contract and the
+> `navigation/`-package kinodynamic router. Retained in place as
+> historical record of the simulator's design evolution (the "1.2
+> fixes"/"Retired" sections below have real narrative value); for
+> current usage see
+> [`docs/operations/DEVELOPMENT_WORKFLOWS.md`](../docs/operations/DEVELOPMENT_WORKFLOWS.md)
+> and
+> [`docs/architecture/NAVIGATION_AND_MOVEMENT.md`](../docs/architecture/NAVIGATION_AND_MOVEMENT.md).
+
 This is a standalone simulator. It does not attach to FlyFF and does not modify
 the live bot.
 

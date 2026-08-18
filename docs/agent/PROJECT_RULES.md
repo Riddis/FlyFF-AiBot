@@ -89,7 +89,7 @@ forward-correcting commit instead (see section 10).
 
 ## 8. `MISTAKES.md`
 
-`flyff_farming_simulator/MISTAKES.md` is the project's fast-retrieval
+`MISTAKES.md` (repository root) is the project's fast-retrieval
 mistake log — not an architecture manual (that's `docs/architecture/`).
 Before non-trivial work — especially coordinate systems/geometry,
 observation/reward/action wiring, statistics/counting, fallback/

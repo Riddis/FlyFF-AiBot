@@ -1,5 +1,16 @@
 # Native Pointer Recovery and Authoritative Actor Discovery Reference
 
+> **ℹ Prior-generation detail, largely still accurate.** Unlike this
+> repository's other pre-migration `docs/*.md` files, this one's
+> *mechanism-level* content is not stale — the `position/` package it
+> describes has been confirmed unchanged by every migration phase
+> (Phases 9–14). It predates the current `AttachPolicy`/
+> `RecoveredNativeProfile`/`presence_validation_source` terminology,
+> though. Start at
+> [`docs/architecture/POSITION_AND_POINTER_RECOVERY.md`](architecture/POSITION_AND_POINTER_RECOVERY.md)
+> for the current-terminology version of this same material, which
+> cross-links back here for the deeper mechanism narrative.
+
 This document records the working design, the evidence that led to it, the
 failed approaches, and the operational rules for future maintenance of FlyFF
 AiBot's native reader. It is intentionally more detailed than the runbook.

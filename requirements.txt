@@ -10,3 +10,4 @@ image # 1.5.33
 keyboard # 0.13.5
 pyautogui # 0.9.53
 pysimplegui # 4.60.3
+msgpack # 1.2.1

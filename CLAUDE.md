@@ -10,19 +10,19 @@ This is the agent entrypoint for this repository. Read in this order:
 2. **`docs/README.md`** — the current-project-knowledge index. Use it to
    find the architecture doc relevant to your task rather than reading
    everything.
-3. **`flyff_farming_simulator/MISTAKES.md`** (note: **not** the same
-   directory as this file — a stale reference from before the Phase-7
-   root collapse said otherwise; this is the corrected path) — skim
-   relevant entries before non-trivial work, per `PROJECT_RULES.md`
-   section 8.
+3. **`MISTAKES.md`** (repository root, same directory as this file —
+   moved here from `flyff_farming_simulator/MISTAKES.md` in Phase 14
+   once its project-wide scope and the absence of any hardcoded path
+   dependency were confirmed; see `docs/migration/codex_handoff/
+   PHASE14_REPORT.md`) — skim relevant entries before non-trivial work,
+   per `PROJECT_RULES.md` section 8.
 
 ## Cardinal rule: `MISTAKES.md`
 
 This project keeps a running log of mistakes and wrong assumptions at
-`flyff_farming_simulator/MISTAKES.md`. Upholding it is a standing rule,
-not a one-time task — see `docs/agent/PROJECT_RULES.md` section 8 for
-the full rule (this summary is intentionally short so it stays
-skimmable):
+`MISTAKES.md`. Upholding it is a standing rule, not a one-time task —
+see `docs/agent/PROJECT_RULES.md` section 8 for the full rule (this
+summary is intentionally short so it stays skimmable):
 
 - **Before** starting non-trivial work — especially anything touching
   coordinate systems/geometry, observation/reward wiring, statistics or

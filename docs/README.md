@@ -36,7 +36,7 @@
 
 | If you're working on... | Read |
 |---|---|
-| Navigation / routing / movement | [`NAVIGATION_AND_MOVEMENT.md`](architecture/NAVIGATION_AND_MOVEMENT.md) + `flyff_farming_simulator/MISTAKES.md` (coordinate-systems, observation/reward-wiring categories) |
+| Navigation / routing / movement | [`NAVIGATION_AND_MOVEMENT.md`](architecture/NAVIGATION_AND_MOVEMENT.md) + `MISTAKES.md` (coordinate-systems, observation/reward-wiring categories) |
 | Native position / pointer recovery | [`POSITION_AND_POINTER_RECOVERY.md`](architecture/POSITION_AND_POINTER_RECOVERY.md) + relevant `MISTAKES.md` entries |
 | Preparing G5 (or any live validation) | [`validation/G5_REAL_CLIENT_VALIDATION.md`](validation/G5_REAL_CLIENT_VALIDATION.md) + `POSITION_AND_POINTER_RECOVERY.md` + the `preparing-controlled-validation` skill |
 | Archive / recorder / telemetry | [`RECORDING_TELEMETRY_AND_ARCHIVES.md`](architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md) |
