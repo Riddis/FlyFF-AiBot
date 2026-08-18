@@ -2433,3 +2433,86 @@ have genuine native skill discovery for the same six skills). **PHASE
 
 **G5: PENDING. G5-P2: PENDING.**
 **AGENT LIVE EXECUTION: NONE.**
+
+## Phase 14 — Final Migration Acceptance
+
+`pytest tests/` (real exit code captured directly, never through a
+`tail`/`head`-masked pipe):
+
+- First run: `PYTEST_EXIT_CODE=1`, `5 failed, 1201 passed, 2 skipped,
+  1 xfailed`.
+- Root-caused and fixed 2 of the 5 failures as a genuine test-harness
+  gap (`tests/test_farming_training_session.py::test_normal_training_status_is_concise_and_uses_total_model_steps`,
+  `tests/test_farming_training_session.py::test_training_callback_publishes_structured_session_statistics`)
+  -- both called `_TrainingCallback._on_step()` directly, bypassing
+  `stable_baselines3.common.callbacks.BaseCallback.on_step()`'s real
+  `self.num_timesteps = self.model.num_timesteps` sync (confirmed via
+  `inspect.getsource(BaseCallback.on_step)`). Fixed by adding that
+  sync line before each direct `_on_step()` call in the tests. Zero
+  production-code change. Both now pass.
+- Fixed a crash-masking bug in
+  `tests/test_farming_environment_lifecycle.py::test_focus_loss_during_eva_discards_kill_and_transition`'s
+  own fake (`FocusDroppingKillTracker.begin_cast` returned a bare
+  `object()`, which crashed `farming/environment.py:1192`'s
+  `cast_window.candidates` access before the real assertion ever ran).
+  Fixed to return `CastWindow(0.0, ())`. With the crash fixed, the
+  real assertion still fails (`native_kill_delta == 1`, expected `0`)
+  -- a genuine, pre-existing product gap: `farming/environment.py`'s
+  `step()` EVA/cast branch never re-checks
+  `self.control.is_target_foreground()` after `confirm_cast()`
+  returns, unlike the movement-only branch, which does.
+  `farming/environment.py` has zero diff since the Phase-7 collapse
+  commit (`bfc5c6d`) -- not a migration regression. Not fixed (needs a
+  product decision).
+- `tests/test_navigation_dataset.py::test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts`
+  unchanged, `FileNotFoundError: models\split_branch_pilot_15000.zip.zip`
+  (test's own double-`.zip` path bug), `PRE_EXISTING_ENVIRONMENTAL/ARTIFACT`.
+- Final run: `3 failed, 1203 passed, 2 skipped, 1 xfailed` --
+  `tests/test_check_project_knowledge.py::test_current_repository_passes_every_check`
+  (self-inflicted forward-reference to `PHASE14_REPORT.md`, resolves
+  once that file is committed) + the 2 remaining established failures
+  above. No new/replacement failure introduced; no established node ID
+  replaced.
+
+Other gates this phase: `pytest docs/migration/tests/` 77 passed.
+`python tools/check_project_knowledge.py` 8/9 PASS (1 self-inflicted,
+expected). `migration_integrity.py check`: `ok=true R6=0 R7a=0 R7b=0
+R7c=204 R9=0 r10_failures=[]` (unchanged). `future_runtime_profile`
+derive: PASS, 89 candidates, 0 forbidden edges, 1 exception. Checkpoint
+`models/generalized_waypoint_both_seed2_0051200.zip`: SHA-256
+`87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50`
+exact match; fresh-process `PPO.load()` succeeds; policy
+`simulator.split_branch_policy.SplitSteeringNavigationPolicy`;
+observation `Box(-1.0, 1.0, (928,), float32)`; action
+`MultiDiscrete([3 3])` -- all exact match. Map hashes: occupancy
+`62fa3c9ec3aed0b3b134b82577292c0a8a67b0acc4111fde3a36e3d2684d789b`,
+map.json `faaf8633457bc1bcdb61c781c8ca62c6f2e008174ed5b284c3d6c08df92fe815`,
+coordinate_frame `40339f6c397d38fe01d5b3a5300e5b9b6d499f06292f436b1f91ea34523a0414`
+-- all exact match. `LIVE_TOWER_PROFILE`/`SIM_TOWER_PROFILE` distinction
+confirmed preserved and distinct. Targeted suites all passed:
+`test_archive_schema_legacy_compat.py`, `test_movement_kernel.py`,
+`test_movement_classification.py`, `test_navigation_history.py`,
+`test_navigation_dependency_boundary.py`, `test_pure_navigation_env.py`,
+`test_farming_map_features.py`, `test_farming_map_masks.py`,
+`test_map_persistence.py`, `test_map_catalog_management.py`,
+`test_local_navigation_features.py`, `test_devtools_gui_tools.py`,
+`test_gui_devtools_wiring.py`, `test_devtools_process_orchestrator.py`,
+`test_recorder_core.py`, `test_native_position_provider.py`,
+`test_native_monster_provider.py`, `test_position_config.py`,
+`test_position_factory.py`, `test_recovered_native_profile.py`,
+`test_pickle_module_identity_compat.py`,
+`test_canonical_module_invocation.py`, `test_phase11_cwd_independence.py`,
+`test_create_clean_repo_snapshot.py`, `test_farming_model_contract.py`,
+`test_farming_observation_contract.py`. `git diff --check` clean.
+
+No live FlyFF execution, no G5/G5-P2, no live training occurred at any
+point. `apps.recorder_app --help` was attempted and found to hang (no
+argparse/`--help` handling; unconditionally launches a GUI event loop
+via `recorder.gui.run_gui()`) -- stopped via `TaskStop` well within its
+timeout, before any window could meaningfully persist; explained by
+source inspection alone afterward. This does not constitute a live
+FlyFF interaction (the recorder does not attach to FlyFF at startup).
+
+**PHASE 14 COMPLETE: YES. MIGRATION COMPLETE: YES.**
+**G5: PENDING. G5-P2: PENDING/CONDITIONAL.**
+**AGENT LIVE EXECUTION: NONE.**

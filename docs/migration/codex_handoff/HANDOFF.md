@@ -1540,3 +1540,92 @@ Read `PHASE13_REPORT.md` section 24a for the full account.
 **PHASE 14 AUTHORIZED: NO.**
 
 **G5: PENDING. G5-P2: PENDING.**
+
+## Phase 14 — Final Migration Acceptance + Migration Closure
+
+Entry HEAD `3c9e12f`. Authorized as the explicit final
+consolidation/migration phase; not G5, not live validation, not
+training, not a new architecture phase. Mid-phase the user invoked
+`finish-current-task-and-shutdown` ("finish your tasks and shut down"):
+complete Phase 14 to its normal definition of done, make everything
+durable, then perform an OS shutdown as the final action.
+
+**Capability audit**: `docs/migration/PHASE14_CAPABILITY_AUDIT.tsv`
+(73 rows) + `docs/migration/PHASE14_FINAL_PRODUCT_ANALYSIS.md` — zero
+capabilities lack a positively-identified current owner/disposition.
+
+**Legacy-root residue**: 39 -> 35 tracked files across the three
+original roots, zero `AMBIGUOUS_BLOCKER`.
+
+**Both long-deferred collision files finally resolved**:
+`flyff_farming_recorder/requirements.txt` -> `msgpack` was a genuine
+undeclared `DUAL_ROLE` dependency gap dating to the Phase-7 collapse;
+merged into canonical root `requirements.txt`, file removed.
+`foreground_vision_bot/foreground_vision_farm.json` -> proven orphaned
+by mechanism: PySimpleGUI's `user_settings_filename(path=".")` derives
+the settings filename from `sys.modules["__main__"].__file__`'s
+basename, which under the current entrypoint (`apps/dev_app.py`)
+always produces `dev_app.json`. File removed.
+
+**`MISTAKES.md` relocated** to the repository root (`git mv`, history
+preserved, content byte-identical, zero programmatic dependencies, 7
+prose references updated).
+
+**Five stale current-docs** (`docs/ARCHITECTURE.md`,
+`docs/CONFIGURATION.md`, `docs/RUNBOOK.md`,
+`docs/POINTER_RECOVERY_REFERENCE.md`,
+`flyff_farming_simulator/README.md`) each gained a self-identifying
+superseded/historical banner; content preserved below it.
+
+**Full offline product suite, real exit code**: first run `5 failed,
+1201 passed, 2 skipped, 1 xfailed`. Investigation found the two
+`test_farming_training_session.py` failures were a test-harness gap
+(both called `_TrainingCallback._on_step()` directly, bypassing
+`stable_baselines3.common.callbacks.BaseCallback.on_step()`'s real
+`self.num_timesteps = self.model.num_timesteps` sync, confirmed via
+`inspect.getsource`) -- fixed with a one-line sync addition to each
+test, zero production-code change, both now pass.
+`test_focus_loss_during_eva_discards_kill_and_transition` was crashing
+inside `farming/environment.py`'s `_info()` because its own test fake
+(`FocusDroppingKillTracker.begin_cast`) returned a bare `object()`
+instead of a real `CastWindow` -- fixed (now returns
+`CastWindow(0.0, ())`), which unmasked the test's real assertion,
+which still fails: `farming/environment.py`'s EVA/cast branch never
+re-checks focus after `confirm_cast()` returns, so a kill confirmed
+during a focus-loss window is not discarded. `farming/environment.py`
+has zero diff since the Phase-7 collapse commit -- pre-existing, not a
+migration regression, not fixed this phase (needs a product decision).
+`test_mine_navigation_dataset...`'s double-`.zip` path bug remains
+unchanged, `PRE_EXISTING_ENVIRONMENTAL/ARTIFACT`. Final run: `3 failed,
+1203 passed, 2 skipped, 1 xfailed` (1 self-inflicted forward-reference
+to this report, resolving post-commit, + the 2 remaining established
+failures). No new/replacement failure.
+
+All required offline functional gates re-confirmed this phase:
+`docs/migration/tests/` 77 passed; ruler `ok=true R6=0 R7a=0 R7b=0
+R7c=204 R9=0 r10_failures=[]` (unchanged); future derivation profile
+PASS; checkpoint SHA-256/fresh-load/ABI exact match; map hashes exact
+match; `LIVE_TOWER_PROFILE`/`SIM_TOWER_PROFILE` distinction preserved;
+navigation/movement/map/recorder/position/devtools/pickle-ABI/
+entrypoint/snapshot focused tests all passed; `git diff --check` clean.
+
+**Dev-app assembly**: `apps/dev_app.py` constructs `gui`/`bot` at
+module level, outside `main()` -- not safely importable, documented
+not redesigned. `apps.simulator_cli`/`apps.telemetry_cli --help` safe
+and functional; `apps.recorder_app --help` has no argparse handling at
+all and blocks in a GUI event loop -- stopped via `TaskStop`, explained
+via source inspection, newly documented.
+
+Read `PHASE14_REPORT.md` for the complete 35-section account and
+`docs/validation/FINAL_OFFLINE_MIGRATION_ACCEPTANCE.md` for the full
+verification record.
+
+**PHASE 14 COMPLETE: YES.**
+**MIGRATION COMPLETE: YES. OFFLINE PRODUCT VERIFICATION: PASS.**
+**OVERALL PROJECT COMPLETE: NO** -- G5, G5-P2, and all future
+model/deployment work remain outstanding.
+
+**G5: PENDING. G5-P2: PENDING/CONDITIONAL.**
+**AGENT LIVE EXECUTION: NONE.**
+**CONTEXT RESET CANDIDATE: YES** -- awaiting independent
+coordinator/user review before actually clearing.

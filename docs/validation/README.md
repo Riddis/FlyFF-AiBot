@@ -62,6 +62,7 @@ strength matters (not mechanically on every sentence):
 | G7 (archive parity) | Passing, offline/test-enforced | `docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md` section 3 |
 | R10 (checkpoint corpus integrity) | Passing, offline/ruler-enforced | `docs/architecture/DATA_AND_MODEL_CONTRACTS.md` section 1d |
 | Future deployment derivation profile | **PASS**, offline/static | `docs/architecture/SYSTEM_OVERVIEW.md` section 5 |
+| Migration/consolidation (Phases 0-14) | **COMPLETE**, offline-verified | [`FINAL_OFFLINE_MIGRATION_ACCEPTANCE.md`](FINAL_OFFLINE_MIGRATION_ACCEPTANCE.md) |
 
 ## Absolute rule: agents never run live validation
 
