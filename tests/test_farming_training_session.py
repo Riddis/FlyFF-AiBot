@@ -235,6 +235,11 @@ def test_normal_training_status_is_concise_and_uses_total_model_steps() -> None:
     }
     callback._last_status = 0.0
 
+    # Mirrors stable_baselines3's BaseCallback.on_step(), which syncs
+    # self.num_timesteps from self.model.num_timesteps before calling
+    # self._on_step(); this test calls _on_step() directly, so it must
+    # replicate that sync itself.
+    callback.num_timesteps = callback.model.num_timesteps
     assert callback._on_step()
 
     message = statuses[-1]
@@ -475,6 +480,11 @@ def test_training_callback_publishes_structured_session_statistics() -> None:
         "rewards": [0.25],
     }
     callback._last_status = 0.0
+    # Mirrors stable_baselines3's BaseCallback.on_step(), which syncs
+    # self.num_timesteps from self.model.num_timesteps before calling
+    # self._on_step(); this test calls _on_step() directly, so it must
+    # replicate that sync itself.
+    callback.num_timesteps = callback.model.num_timesteps
     assert callback._on_step()
 
     callback.locals = {
@@ -482,6 +492,7 @@ def test_training_callback_publishes_structured_session_statistics() -> None:
         "rewards": [2.0],
     }
     callback._last_status = 0.0
+    callback.num_timesteps = callback.model.num_timesteps
     assert callback._on_step()
 
     latest = snapshots[-1]

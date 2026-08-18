@@ -11,7 +11,7 @@ from farming.environment import (
     FarmingEnvironmentState,
     UnifiedFarmingEnv,
 )
-from farming.kills import CastCandidate, NativeKillResult
+from farming.kills import CastCandidate, CastWindow, NativeKillResult
 from farming.map_context import FarmingMapContext
 from farming.map_features import FarmingMapFeatures
 from farming.native_world import NativeWorldFrame, NativeWorldUnavailable
@@ -261,7 +261,11 @@ def test_focus_loss_during_eva_discards_kill_and_transition() -> None:
 
     class FocusDroppingKillTracker:
         def begin_cast(self, _frame):
-            return object()
+            # A real CastWindow, not a bare sentinel: _info() reads
+            # cast_window.candidates unconditionally whenever cast_window
+            # is not None (farming/environment.py), matching what the
+            # real NativeKillTracker.begin_cast always returns.
+            return CastWindow(0.0, ())
 
         def confirm_cast(self, *_args, **_kwargs):
             keyboard.foreground = False
