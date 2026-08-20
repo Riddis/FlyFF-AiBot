@@ -63,6 +63,7 @@ strength matters (not mechanically on every sentence):
 | R10 (checkpoint corpus integrity) | Passing, offline/ruler-enforced | `docs/architecture/DATA_AND_MODEL_CONTRACTS.md` section 1d |
 | Future deployment derivation profile | **PASS**, offline/static | `docs/architecture/SYSTEM_OVERVIEW.md` section 5 |
 | Migration/consolidation (Phases 0-14) | **COMPLETE**, offline-verified | [`FINAL_OFFLINE_MIGRATION_ACCEPTANCE.md`](FINAL_OFFLINE_MIGRATION_ACCEPTANCE.md) |
+| Canonical dev app live acceptance | **PAUSED** — run 1 found 2 regressions (GUI layout, shutdown crash); offline fixes applied, user retest pending | [`CANONICAL_DEV_APP_LIVE_ACCEPTANCE.md`](CANONICAL_DEV_APP_LIVE_ACCEPTANCE.md) |
 
 ## Absolute rule: agents never run live validation
 

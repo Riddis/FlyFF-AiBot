@@ -747,3 +747,66 @@ Entry template:
   harmless `--help`/import probe after that inspection has established
   the probe terminates before any unsafe initialization -- a
   conventional CLI flag is not evidence of safety on its own.
+
+## Category: GUI / live application lifecycle
+
+### [2026-08-20] no Windows DPI-awareness declaration before the dev app's first Tk window
+
+- What happened: the first live human run of `python -m apps.dev_app`
+  showed a severely broken sidebar layout (buttons vertically stretched,
+  text clipped/pushed off the right edge). `Gui.py`'s layout code
+  (fixed pixel Column `size=` constants, `expand_x`/`expand_y` flags)
+  was unchanged since before the Phase-7 collapse and traced clean at
+  the PySimpleGUI construction-time layer -- no code-level row-expansion
+  bug found.
+- Root cause: nothing in the codebase ever declared Windows per-monitor
+  DPI awareness before creating the Tk window. Without it, Windows
+  applies its own bitmap compatibility scaling to the whole
+  DPI-unaware process while Tk's font-driven widget heights still scale
+  to the display's real DPI internally -- fixed raw-pixel layout
+  constants then no longer match the actual rendered proportions. This
+  is invisible in headless/offline tests (no real display DPI exists
+  there) and was simply never exercised on a real physically-scaled
+  Windows display before this run.
+- How caught: user-run live acceptance test (`live_validation/20260820_171803/`).
+- Fix: `apps/dev_app.py` now declares Per-Monitor-v2 DPI awareness
+  (`_declare_windows_dpi_awareness()`, Windows-only, best-effort) as the
+  first statement in `main()`, before `gui.init()` creates the window.
+  Not empirically confirmed against the user's real display -- see
+  `docs/validation/CANONICAL_DEV_APP_LIVE_ACCEPTANCE.md` for the full
+  evidence trail and retest status.
+- Lesson: a Windows-facing Tk/PySimpleGUI app with any fixed-pixel
+  layout constant needs an explicit DPI-awareness declaration checked
+  for early, before assuming a layout bug is a widget/expand
+  misconfiguration -- headless tests cannot catch this class of defect
+  at all; it only ever surfaces on a real, physically-scaled display.
+
+### [2026-08-20] main GUI loop refreshed against `values=None` before checking for window closure
+
+- What happened: closing `apps/dev_app.py` normally (not via the
+  in-window "Exit" button, but the OS window-close control) raised
+  `AttributeError: 'NoneType' object has no attribute 'get'` from
+  `Gui.py`'s `__refresh_runtime()`, instead of running the normal
+  shutdown/cleanup path.
+- Root cause: PySimpleGUI's `Window.read()` returns `values=None`
+  alongside `event=sg.WIN_CLOSED` (the window and its elements are
+  already gone), but `Gui.loop()` called
+  `self.__refresh_runtime(values)` unconditionally on every iteration,
+  before checking whether `event` indicated closure. No test ever
+  exercised a `WIN_CLOSED`/`values=None` read, since every existing GUI
+  test drove individual handler methods directly rather than the full
+  `loop()` dispatch order.
+- How caught: user-run live acceptance test; crash traceback and
+  `gui_crash.log` pinpointed the exact line.
+- Fix: `Gui.loop()` now checks `values is None or event == sg.WIN_CLOSED`
+  immediately after `window.read()`, before any element read/update,
+  and routes straight to the existing `__shutdown(bot)` path -- a
+  narrow reordering, not new shutdown logic. Regression test added:
+  `tests/test_gui_event_loop_lifecycle.py` (confirmed failing before
+  this fix via `git stash`, passing after).
+- Lesson: an event-loop's *first* per-iteration action must be checked
+  against every value the read call's contract allows (including the
+  documented `values=None` case on close), not just the specific event
+  names the rest of the loop happens to branch on -- a handler-level
+  unit test does not exercise dispatch-order bugs like this one; only a
+  full-loop test with a scripted read sequence does.

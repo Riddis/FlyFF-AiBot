@@ -39,6 +39,17 @@ debug/
 training_logs/
 **/mapper/mapping_runs/
 
+# PySimpleGUI local settings file -- derived from the running
+# entrypoint's own filename by PySimpleGUI itself (see
+# docs/architecture/SYSTEM_OVERVIEW.md section 3a); user-machine-
+# specific runtime state, not source.
+/dev_app.json
+
+# Local live-validation evidence staging (screenshots, crash logs,
+# human findings from a user-run live acceptance session); referenced
+# by path from docs/validation/, not committed as binary evidence.
+live_validation/
+
 # Generated support/debug packages and other archives
 *.zip
 *.zip.orig

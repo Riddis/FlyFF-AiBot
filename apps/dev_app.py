@@ -22,7 +22,34 @@ gui = Gui("DarkAmber")
 bot = Bot()
 
 
+def _declare_windows_dpi_awareness() -> None:
+    """Declare Per-Monitor-v2 DPI awareness before any Tk window exists.
+
+    Without this declaration, Windows applies its own bitmap compatibility
+    scaling to the whole (DPI-unaware) process while Tk's font-driven
+    widget sizes still scale to the display's real DPI internally --
+    fixed-pixel layout constants (e.g. Gui.py's Column ``size=`` values)
+    then no longer match the actual rendered button/frame heights. This
+    mismatch, only visible on a real scaled display, produced the
+    vertically stretched/clipped sidebar controls seen on the first live
+    acceptance run (see MISTAKES.md). No-op on non-Windows platforms;
+    best-effort and never blocks startup.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PER_MONITOR_DPI_AWARE
+    except Exception:  # noqa: BLE001 - best-effort DPI declaration only.
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def main():
+    _declare_windows_dpi_awareness()
     gui.init()
     try:
         gui.loop(bot)

@@ -117,11 +117,21 @@ class Gui:
         self.__load_settings(bot)
         while True:
             event, values = self.window.read(timeout=50)
+
+            # PySimpleGUI returns values=None alongside WIN_CLOSED (the
+            # window/its elements are already gone) -- refreshing against
+            # invalid values crashes here, not merely warns, so the close
+            # path must be handled before any element read/update.
+            if values is None or event == sg.WIN_CLOSED:
+                if self.__shutdown(bot):
+                    break
+                continue
+
             self.__service_log_window()
             self.__refresh_runtime(values)
 
             # ACTIONS - Button events
-            if event == "Exit" or event == sg.WIN_CLOSED:
+            if event == "Exit":
                 if self.__shutdown(bot):
                     break
                 continue

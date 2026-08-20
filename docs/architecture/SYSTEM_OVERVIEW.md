@@ -120,6 +120,27 @@ Two consequences:
    limitation (not a bug introduced by consolidation — the same
    `path="."` call pattern predates it) — see `docs/KNOWN_DEBT.md`.
 
+## 3b. GUI startup declares Windows DPI awareness before creating its window
+
+**Confidence: BEST_CURRENT_ESTIMATE**, added after the dev app's first
+live acceptance run (2026-08-20) surfaced a severely broken sidebar
+layout (buttons vertically stretched, content clipped) that traced
+clean at the PySimpleGUI layout-construction level — `Gui.py`'s Column/
+Frame `size=`/`expand_x`/`expand_y` code is unchanged since before the
+Phase-7 collapse. The concrete, confirmed gap: nothing in the codebase
+declared Windows per-monitor DPI awareness before `apps/dev_app.py`
+created its Tk window, so Windows applied its own bitmap compatibility
+scaling to the whole (DPI-unaware) process while Tk's font-driven
+widget heights still scaled to the display's real DPI internally —
+`Gui.py`'s raw-pixel Column size constants (`(1320, 990)`,
+`(335, 820)`) only match intended proportions at the DPI they were
+tuned against. `apps/dev_app.py._declare_windows_dpi_awareness()`
+(Windows-only, best-effort, called as the first statement in `main()`)
+now declares Per-Monitor-v2 DPI awareness before `gui.init()` creates
+the window. This is not yet empirically confirmed against a real
+display — see `docs/validation/CANONICAL_DEV_APP_LIVE_ACCEPTANCE.md`
+for the full evidence trail, current status, and retest procedure.
+
 ## 4. The R1b exception — one real coupling, not yet resolved
 
 `runtime_controller.py` imports exactly four symbols
