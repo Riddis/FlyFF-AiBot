@@ -19,15 +19,15 @@ New-Item -ItemType Directory -Path $pytestTemp -Force | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Simulator tests failed." }
 
 & $python apps\simulator_cli.py generate-synthetic `
-    --output synthetic_curriculum `
+    --output curricula\synthetic_curriculum `
     --count $Layouts `
     --seed $Seed `
     --reference-model models\recorded_world.json.gz `
     --overwrite
 if ($LASTEXITCODE -ne 0) { throw "Synthetic curriculum generation failed." }
 
-& $python apps\simulator_cli.py inspect-synthetic synthetic_curriculum\curriculum.json
+& $python apps\simulator_cli.py inspect-synthetic curricula\synthetic_curriculum\curriculum.json
 if ($LASTEXITCODE -ne 0) { throw "Generated curriculum could not be loaded." }
 
-Write-Host "Generated: synthetic_curriculum\curriculum.json"
+Write-Host "Generated: curricula\synthetic_curriculum\curriculum.json"
 

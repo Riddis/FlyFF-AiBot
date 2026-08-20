@@ -72,7 +72,7 @@ def log(msg: str) -> None:
 
 def get_reference_movement() -> tuple[MovementModel, ...]:
     entry, env = next(iter(iter_variant_environments(
-        "synthetic_curriculum/curriculum.json", stage="early", seed=0, episode_steps=10, episode_seconds=30.0,
+        "curricula/synthetic_curriculum/curriculum.json", stage="early", seed=0, episode_steps=10, episode_seconds=30.0,
     )))
     movement = env.model.movement
     env.close()

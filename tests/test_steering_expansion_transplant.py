@@ -32,7 +32,7 @@ def _build_new_policy() -> SplitSteeringNavigationPolicy:
 
 def _real_raw_observations(n: int) -> np.ndarray:
     entry, env = next(iter(iter_variant_environments(
-        "synthetic_curriculum/curriculum.json", stage="early", seed=0, episode_steps=n + 5, episode_seconds=30.0,
+        "curricula/synthetic_curriculum/curriculum.json", stage="early", seed=0, episode_steps=n + 5, episode_seconds=30.0,
     )))
     observation, _ = env.reset(seed=0)
     observations = [np.asarray(observation, dtype=np.float32)]

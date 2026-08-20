@@ -71,7 +71,7 @@ def test_evaluate_challenge_with_recovery_reports_intervention_stats() -> None:
         fixed_regression_scenarios=(
             FixedRegressionScenario(
                 id="irregular_low_bursty_unseen_seed1",
-                curriculum_path="synthetic_curriculum_unseen_templates/curriculum.json",
+                curriculum_path="curricula/synthetic_curriculum_unseen_templates/curriculum.json",
                 layout="02_early_irregular_plain_low_bursty",
                 seed=1,
                 episode_seconds=150.0,
@@ -80,7 +80,7 @@ def test_evaluate_challenge_with_recovery_reports_intervention_stats() -> None:
                 discovered="2026-08-06",
             ),
         ),
-        challenge_family_curriculum_path="synthetic_curriculum_unseen_templates/curriculum.json",
+        challenge_family_curriculum_path="curricula/synthetic_curriculum_unseen_templates/curriculum.json",
         challenge_family_layouts=(),
     )
 

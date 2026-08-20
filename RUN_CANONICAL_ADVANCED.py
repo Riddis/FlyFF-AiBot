@@ -55,7 +55,7 @@ GRADUATED_INTERMEDIATE_CHECKPOINT = MODELS_DIR / "canonical_intermediate_graduat
 BOOTSTRAP_DATASET_PATH = EVAL_DIR / "canonical_basic_bootstrap_dataset.npz"
 
 ADVANCED_STAGE = "advanced"
-ADVANCED_CURRICULUM = str(ROOT / "synthetic_curriculum_advanced_training_v1" / "curriculum.json")
+ADVANCED_CURRICULUM = str(ROOT / "curricula" / "synthetic_curriculum_advanced_training_v1" / "curriculum.json")
 ADVANCED_HELDOUT_MANIFEST = str(ROOT / "evaluations" / "manifests" / "advanced_heldout.json")
 
 FULL_EPISODE_SECONDS = 150.0

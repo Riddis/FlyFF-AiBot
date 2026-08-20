@@ -62,7 +62,7 @@ BOOTSTRAP_DATASET_PATH = EVAL_DIR / "canonical_basic_bootstrap_dataset.npz"
 # same overfitting mitigation Basic's own DAgger rounds used
 # (round_seeds = round_idx*100 + [0,1,2]) -- reusing an established
 # pattern rather than inventing a new one.
-BEGINNER_CURRICULUM = str(ROOT / "synthetic_curriculum_phase2_dagger_siblings_v2" / "curriculum.json")
+BEGINNER_CURRICULUM = str(ROOT / "curricula" / "synthetic_curriculum_phase2_dagger_siblings_v2" / "curriculum.json")
 
 EARLY_HELDOUT_MANIFEST = str(ROOT / "evaluations" / "manifests" / "early_heldout.json")
 EARLY_HELDOUT_UNSEEN_MANIFEST = str(ROOT / "evaluations" / "manifests" / "early_heldout_unseen_templates.json")

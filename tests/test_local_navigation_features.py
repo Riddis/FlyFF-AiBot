@@ -117,7 +117,7 @@ def test_agrees_reasonably_with_live_sample_heading_relative_clearance():
     agree = 0
     total = 0
     for entry, env in iter_variant_environments(
-        "synthetic_curriculum/curriculum.json", stage="early", seed=0, episode_steps=1, episode_seconds=5.0
+        "curricula/synthetic_curriculum/curriculum.json", stage="early", seed=0, episode_steps=1, episode_seconds=5.0
     ):
         rng = np.random.default_rng(hash(entry.name) % (2**32))
         for _ in range(50):

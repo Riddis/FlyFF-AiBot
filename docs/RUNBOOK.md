@@ -88,7 +88,7 @@ scan. If **Native Health** reports `pointer_unavailable` after a client update:
 5. Review the logged module identity, image size, pointer width, species/spawn anchors, optional HP anchor, strategy, monster base hypotheses and rejection stages, `world_hypotheses`, `spawn_world_hypotheses`, `player_slots`, `player_world_chains`, `player_world_rooted`, selected field offsets/support, and old-self near-match counters. Independent mode must still resolve exactly one stable player with a direct module alias; ambiguity remains a hard failure. If monster consensus, player ranking, movement, or ambiguity is inconclusive, stop and capture the complete log; do not loop recovery or weaken validation.
 
 The authoritative current-client sequence is
-`refactor_logs/manual_tests/PTR-LIVE-001_current_client_pointer_acceptance.md`.
+`docs/migration/refactor_logs/manual_tests/PTR-LIVE-001_current_client_pointer_acceptance.md`.
 
 For actor-specific inspection, with control stopped:
 

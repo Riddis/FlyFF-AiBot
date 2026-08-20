@@ -33,14 +33,14 @@ MODELS_DIR.mkdir(exist_ok=True)
 EVAL_DIR.mkdir(exist_ok=True)
 
 SEED = 0
-TRAINING_CURRICULUM = str(ROOT / "synthetic_curriculum" / "curriculum.json")
-DAGGER_CURRICULUM = str(ROOT / "synthetic_curriculum_phase2_dagger_siblings_v2" / "curriculum.json")
+TRAINING_CURRICULUM = str(ROOT / "curricula" / "synthetic_curriculum" / "curriculum.json")
+DAGGER_CURRICULUM = str(ROOT / "curricula" / "synthetic_curriculum_phase2_dagger_siblings_v2" / "curriculum.json")
 DAGGER_LAYOUTS = [
     "01_early_open_field_typical_fast", "02_early_open_field_low_fast", "03_early_open_field_high_typical",
     "04_early_wide_neck_high_typical", "05_early_wide_neck_typical_bursty",
     "06_early_irregular_plain_typical_fast", "07_early_split_field_typical_fast",
 ]
-MILESTONE_EVAL_CURRICULUM = str(ROOT / "synthetic_curriculum_navigation_calibration" / "curriculum.json")
+MILESTONE_EVAL_CURRICULUM = str(ROOT / "curricula" / "synthetic_curriculum_navigation_calibration" / "curriculum.json")
 MILESTONE_EVAL_LAYOUTS = [
     "01_early_open_field_typical_fast", "03_early_irregular_plain_typical_fast",
     "05_early_broad_lobes_typical_fast", "07_early_wide_neck_typical_fast",

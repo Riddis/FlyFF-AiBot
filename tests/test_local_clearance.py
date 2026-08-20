@@ -8,7 +8,7 @@ def test_clearance_scores_are_bounded_and_directionally_sensible() -> None:
     entry, env = next(
         iter(
             iter_variant_environments(
-                "synthetic_curriculum_heldout/curriculum.json", stage="early", seed=1,
+                "curricula/synthetic_curriculum_heldout/curriculum.json", stage="early", seed=1,
                 episode_steps=5, episode_seconds=5.0, variant_name="08_early_wide_neck_typical_bursty",
             )
         )
@@ -29,7 +29,7 @@ def test_clearance_agrees_with_movement_path_clear_most_of_the_time() -> None:
     entry, env = next(
         iter(
             iter_variant_environments(
-                "synthetic_curriculum_heldout/curriculum.json", stage="early", seed=1,
+                "curricula/synthetic_curriculum_heldout/curriculum.json", stage="early", seed=1,
                 episode_steps=150, episode_seconds=30.0, variant_name="08_early_wide_neck_typical_bursty",
             )
         )

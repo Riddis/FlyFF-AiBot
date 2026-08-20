@@ -10,9 +10,14 @@
 > historical record of the simulator's design evolution (the "1.2
 > fixes"/"Retired" sections below have real narrative value); for
 > current usage see
-> [`docs/operations/DEVELOPMENT_WORKFLOWS.md`](../docs/operations/DEVELOPMENT_WORKFLOWS.md)
+> [`docs/operations/DEVELOPMENT_WORKFLOWS.md`](../operations/DEVELOPMENT_WORKFLOWS.md)
 > and
-> [`docs/architecture/NAVIGATION_AND_MOVEMENT.md`](../docs/architecture/NAVIGATION_AND_MOVEMENT.md).
+> [`docs/architecture/NAVIGATION_AND_MOVEMENT.md`](../architecture/NAVIGATION_AND_MOVEMENT.md).
+>
+> Archived here (2026-08-21 repository cleanup) from its original
+> location at repo-root `flyff_farming_simulator/README.md` — the rest
+> of that directory has been removed; nothing else under it was
+> git-tracked or referenced by any current code path.
 
 This is a standalone simulator. It does not attach to FlyFF and does not modify
 the live bot.

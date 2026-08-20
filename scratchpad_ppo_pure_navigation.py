@@ -34,7 +34,7 @@ from simulator.pure_navigation_env import PureNavigationWrapper
 from simulator.split_branch_policy import SplitSteeringNavigationPolicy
 from simulator.synthetic import iter_variant_environments
 
-TRAINING_CURRICULUM = str(ROOT / "synthetic_curriculum" / "curriculum.json")
+TRAINING_CURRICULUM = str(ROOT / "curricula" / "synthetic_curriculum" / "curriculum.json")
 STAGE = "early"
 SEED = 0
 EPISODE_SECONDS = 150.0

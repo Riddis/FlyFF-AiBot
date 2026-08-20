@@ -21,7 +21,7 @@ $stem = [System.IO.Path]::GetFileNameWithoutExtension($Checkpoint)
 $output = "evaluations\factorized_${stem}_${Stage}.json"
 $cliArgs = @(
     "-B", "-m", $PipelineModule, "evaluate",
-    "synthetic_curriculum\curriculum.json", $Checkpoint,
+    "curricula\synthetic_curriculum\curriculum.json", $Checkpoint,
     "--stage", $Stage,
     "--episodes", $Episodes,
     "--episode-seconds", $EpisodeSeconds,

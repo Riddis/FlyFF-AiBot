@@ -10,7 +10,7 @@ Set-Location $PSScriptRoot
 # left the repo with SMOKE_TEST_FACTORIZED_V19/V192/V193.ps1 and
 # SMOKE_TEST_SYNTHETIC_CURRICULUM(_V16/V17/V18).ps1 all coexisting.
 
-python -B -m simulator.factorized_v193_cli smoke synthetic_curriculum\curriculum.json
+python -B -m simulator.factorized_v193_cli smoke curricula\synthetic_curriculum\curriculum.json
 if ($LASTEXITCODE -ne 0) { throw "Factorized pilot smoke test failed." }
 
 # Focused regression tests for the current pipeline: factorized action

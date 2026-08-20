@@ -42,7 +42,7 @@ Each episode starts at the designated spawn point for that generated map. The pl
 The generated files are under:
 
 ```text
-synthetic_curriculum/
+curricula/synthetic_curriculum/
     curriculum.json
     variants/
         <variant>/
@@ -58,7 +58,7 @@ synthetic_curriculum/
 ## Inspect the curriculum
 
 ```powershell
-python run_simulator.py inspect-synthetic synthetic_curriculum\curriculum.json
+python run_simulator.py inspect-synthetic curricula\synthetic_curriculum\curriculum.json
 ```
 
 ## Smoke-test every layout
@@ -71,7 +71,7 @@ A shorter direct command is:
 
 ```powershell
 python run_simulator.py smoke-test-synthetic `
-    synthetic_curriculum\curriculum.json `
+    curricula\synthetic_curriculum\curriculum.json `
     --stage all `
     --steps 250
 ```

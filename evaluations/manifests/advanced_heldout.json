@@ -2,7 +2,7 @@
   "schema_version": 1,
   "stage": "advanced",
   "role": "heldout",
-  "curriculum_path": "synthetic_curriculum_advanced_heldout/curriculum.json",
+  "curriculum_path": "curricula/synthetic_curriculum_advanced_heldout/curriculum.json",
   "layouts": [
     "01_advanced_open_field_low_variable",
     "02_advanced_open_field_high_slow",

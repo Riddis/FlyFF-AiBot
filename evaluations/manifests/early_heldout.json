@@ -2,7 +2,7 @@
   "schema_version": 1,
   "stage": "early",
   "role": "heldout",
-  "curriculum_path": "synthetic_curriculum_heldout/curriculum.json",
+  "curriculum_path": "curricula/synthetic_curriculum_heldout/curriculum.json",
   "layouts": [
     "01_early_open_field_typical_fast",
     "02_early_wide_neck_high_typical",

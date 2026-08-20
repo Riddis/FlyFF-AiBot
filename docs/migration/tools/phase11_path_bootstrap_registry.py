@@ -19,10 +19,12 @@ contains a real bootstrap call fails the test).
 
 Out of scope, by design: `docs/migration/**` (the migration-integrity
 tooling framework already governs its own sys.path handling under
-`migration_integrity.py`'s own rules) and `refactor_logs/profiles/*.py`
-(historical/dead code, confirmed zero current references -- documented as
-HISTORICAL_ONLY in the Phase-11 analysis doc rather than registered as a
-live bootstrap).
+`migration_integrity.py`'s own rules) -- this now also covers
+`docs/migration/refactor_logs/profiles/*.py` (historical/dead code,
+confirmed zero current references -- documented as HISTORICAL_ONLY in
+the Phase-11 analysis doc rather than registered as a live bootstrap;
+relocated here from root-level `refactor_logs/` in the 2026-08-21
+repository cleanup, no longer needing its own separate prefix entry).
 """
 
 from __future__ import annotations
@@ -114,5 +116,4 @@ REGISTERED_BOOTSTRAPS: frozenset[str] = (
 # has its own established governance (see module docstring).
 OUT_OF_SCOPE_PREFIXES = (
     "docs/migration/",
-    "refactor_logs/",
 )

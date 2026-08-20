@@ -37,14 +37,17 @@ EXCLUDED_DIR_PREFIXES = (
     "training_logs",
     "exports",
 )
-# refactor_logs/ was audited (Phase-13 correction) and is DELIBERATELY
-# NOT excluded: 76 tracked files, ~1.1 MB total, almost entirely small
-# text/markdown/json/csv (Phase-11's own classification called it
-# "large" -- that was wrong, never actually measured). It is the
-# pre-Phase-0 predecessor refactor's own STATE.json/HANDOFF.md/
-# DECISIONS.md/journal set, genuinely unique review context not
-# represented anywhere in docs/migration/ (which starts at Phase 0 and
-# does not cover what came before it). Kept in the default snapshot.
+# docs/migration/refactor_logs/ (relocated here from root-level
+# refactor_logs/ in the 2026-08-21 repository cleanup) was audited
+# (Phase-13 correction) and is DELIBERATELY NOT excluded: 76 tracked
+# files, ~1.1 MB total, almost entirely small text/markdown/json/csv
+# (Phase-11's own classification called it "large" -- that was wrong,
+# never actually measured). It is the pre-Phase-0 predecessor refactor's
+# own STATE.json/HANDOFF.md/DECISIONS.md/journal set, genuinely unique
+# review context not represented anywhere else in docs/migration/
+# (which otherwise starts at Phase 0 and does not cover what came
+# before it). Kept in the default snapshot -- no exclusion entry is
+# needed for it since ordinary content under docs/ was never excluded.
 
 # Directory names excluded WHEREVER they appear in the path (Python
 # creates __pycache__ inside every package directory, not only at repo

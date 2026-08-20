@@ -5,7 +5,7 @@
   "fixed_regression_scenarios": [
     {
       "id": "irregular_low_bursty_unseen_seed1",
-      "curriculum_path": "synthetic_curriculum_unseen_templates/curriculum.json",
+      "curriculum_path": "curricula/synthetic_curriculum_unseen_templates/curriculum.json",
       "layout": "02_early_irregular_plain_low_bursty",
       "seed": 1,
       "episode_seconds": 150.0,
@@ -15,7 +15,7 @@
     },
     {
       "id": "irregular_low_bursty_factorial_sibling1_seed0",
-      "curriculum_path": "synthetic_curriculum_factorial_probe/curriculum.json",
+      "curriculum_path": "curricula/synthetic_curriculum_factorial_probe/curriculum.json",
       "layout": "01_early_irregular_plain_low_bursty",
       "seed": 0,
       "episode_seconds": 150.0,
@@ -24,7 +24,7 @@
       "discovered": "2026-08-06"
     }
   ],
-  "challenge_family_curriculum_path": "synthetic_curriculum_factorial_probe/curriculum.json",
+  "challenge_family_curriculum_path": "curricula/synthetic_curriculum_factorial_probe/curriculum.json",
   "challenge_family_layouts": [
     "01_early_irregular_plain_low_bursty",
     "02_early_irregular_plain_low_bursty",

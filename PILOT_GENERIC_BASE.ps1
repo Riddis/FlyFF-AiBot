@@ -73,7 +73,7 @@ Write-Host "Every gate compares random, the scripted teacher, and the learned po
 Write-Host "PPO will not start unless the teacher-clone recognition/calibration gate AND the teacher-relative rollout gate both pass, on BOTH the scripted and human validation sets when human data is used."
 $pilotArgs = @(
   "-B", "-m", $PipelineModule, "pilot",
-  "synthetic_curriculum\curriculum.json",
+  "curricula\synthetic_curriculum\curriculum.json",
   "--output", "$OutputStem.zip",
   "--evaluations", "evaluations",
   "--tensorboard", "training_logs\factorized_pilot",

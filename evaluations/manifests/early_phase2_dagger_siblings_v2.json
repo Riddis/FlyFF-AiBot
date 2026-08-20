@@ -2,7 +2,7 @@
   "schema_version": 1,
   "stage": "early",
   "role": "heldout",
-  "curriculum_path": "synthetic_curriculum_phase2_dagger_siblings_v2/curriculum.json",
+  "curriculum_path": "curricula/synthetic_curriculum_phase2_dagger_siblings_v2/curriculum.json",
   "layouts": [
     "01_early_open_field_typical_fast",
     "02_early_open_field_low_fast",

@@ -75,7 +75,7 @@ def test_environment_applies_steering_during_eva_and_jump() -> None:
     entry, env = next(
         iter(
             iter_variant_environments(
-                "synthetic_curriculum/curriculum.json",
+                "curricula/synthetic_curriculum/curriculum.json",
                 stage="early",
                 episode_steps=20,
                 episode_seconds=3.0,
@@ -184,7 +184,7 @@ def test_obstacle_aware_teacher_returns_factorized_command() -> None:
     _entry, env = next(
         iter(
             iter_variant_environments(
-                "synthetic_curriculum/curriculum.json",
+                "curricula/synthetic_curriculum/curriculum.json",
                 stage="early",
                 episode_steps=20,
                 episode_seconds=3.0,

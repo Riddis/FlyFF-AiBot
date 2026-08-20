@@ -107,7 +107,7 @@ def test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts():
     model = PPO.load("models/split_branch_pilot_15000.zip", device="cpu")
     config = MiningConfig(max_events_per_layout_seed=15, max_events_per_episode=8)
     result = mine_navigation_dataset(
-        "synthetic_curriculum/curriculum.json",
+        "curricula/synthetic_curriculum/curriculum.json",
         ["01_early_open_field_typical_fast", "04_early_wide_neck_typical_bursty"],
         seeds=[100, 101, 102],
         model=model,

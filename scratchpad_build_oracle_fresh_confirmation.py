@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT))
 from simulator.synthetic import generate_curriculum_from_plan
 from simulator import curriculum_manifests
 
-OUT_DIR = ROOT / "synthetic_curriculum_oracle_fresh_confirmation"
+OUT_DIR = ROOT / "curricula" / "synthetic_curriculum_oracle_fresh_confirmation"
 FRESH_SEED_BASE = 23_000_000
 
 TEMPLATES = ("open_field", "irregular_plain", "broad_lobes", "split_field", "wide_neck", "open_center")
@@ -49,7 +49,7 @@ print(f"Generated: {curriculum_path}")
 layouts = tuple(v["name"] for v in json.loads(curriculum_path.read_text())["variants"])
 manifest = curriculum_manifests.HeldoutManifest(
     stage="early",
-    curriculum_path="synthetic_curriculum_oracle_fresh_confirmation/curriculum.json",
+    curriculum_path="curricula/synthetic_curriculum_oracle_fresh_confirmation/curriculum.json",
     layouts=layouts,
     notes=(
         "FRESH confirmation pool for the terminal-gated v3 steering oracle "
@@ -76,6 +76,6 @@ print(f"Saved manifest: {out_path}")
 print(f"Layouts ({len(layouts)}): {layouts}")
 
 curriculum_manifests.assert_disjoint_from_training(
-    manifest, "synthetic_curriculum/curriculum.json", manifest_root="."
+    manifest, "curricula/synthetic_curriculum/curriculum.json", manifest_root="."
 )
 print("Confirmed disjoint from the early-stage training curriculum.")

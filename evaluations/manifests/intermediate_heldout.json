@@ -2,7 +2,7 @@
   "schema_version": 1,
   "stage": "intermediate",
   "role": "heldout",
-  "curriculum_path": "synthetic_curriculum_intermediate_heldout/curriculum.json",
+  "curriculum_path": "curricula/synthetic_curriculum_intermediate_heldout/curriculum.json",
   "layouts": [
     "01_intermediate_irregular_plain_uneven_typical",
     "02_intermediate_irregular_plain_high_bursty",
