@@ -120,26 +120,50 @@ Two consequences:
    limitation (not a bug introduced by consolidation — the same
    `path="."` call pattern predates it) — see `docs/KNOWN_DEBT.md`.
 
-## 3b. GUI startup declares Windows DPI awareness before creating its window
+## 3b. The sidebar's fixed-width scrollable Column cannot host a wide multi-column Table
 
-**Confidence: BEST_CURRENT_ESTIMATE**, added after the dev app's first
-live acceptance run (2026-08-20) surfaced a severely broken sidebar
-layout (buttons vertically stretched, content clipped) that traced
-clean at the PySimpleGUI layout-construction level — `Gui.py`'s Column/
-Frame `size=`/`expand_x`/`expand_y` code is unchanged since before the
-Phase-7 collapse. The concrete, confirmed gap: nothing in the codebase
-declared Windows per-monitor DPI awareness before `apps/dev_app.py`
-created its Tk window, so Windows applied its own bitmap compatibility
-scaling to the whole (DPI-unaware) process while Tk's font-driven
-widget heights still scaled to the display's real DPI internally —
-`Gui.py`'s raw-pixel Column size constants (`(1320, 990)`,
-`(335, 820)`) only match intended proportions at the DPI they were
-tuned against. `apps/dev_app.py._declare_windows_dpi_awareness()`
-(Windows-only, best-effort, called as the first statement in `main()`)
-now declares Per-Monitor-v2 DPI awareness before `gui.init()` creates
-the window. This is not yet empirically confirmed against a real
-display — see `docs/validation/CANONICAL_DEV_APP_LIVE_ACCEPTANCE.md`
-for the full evidence trail, current status, and retest procedure.
+**Confidence: VERIFIED_CONTRACT**, root-caused after the dev app's
+first live acceptance run (2026-08-20) surfaced a severely broken
+sidebar layout (buttons apparently clipped/blank, content pushed off
+the right edge). An initial DPI/Windows-display-scaling hypothesis was
+proposed and shipped as a fix; direct local measurement of the real
+rendered widget geometry (`Gui().init()`, no live client) **falsified
+it** — the buttons' own `winfo_reqheight()` was a uniform, correct 26px
+regardless of `expand_x`, on the same machine, with the same fix in
+place, while the user's retest showed no visible change. The DPI
+declaration was reverted. See `MISTAKES.md`'s "[2026-08-20]" entries
+for the full falsified-hypothesis account.
+
+The real, measured cause: Phase 10 added a four-column,
+313+-row artifact `sg.Table` (`col_widths=[10, 30, 18, 24]`,
+`expand_x=True`) directly inside `-MAIN_COLUMN-` — the sidebar's
+fixed-width (335px), vertically-scroll-only, `scrollable=True` Column.
+The Table's real requested width (measured: ~740px) widened that
+Column's whole inner frame to ~779px, far past its 335px canvas
+viewport (measured: `TKFrame.winfo_reqwidth()` 779 vs
+`canvas.winfo_reqwidth()` 335). Because the Column is
+`vertical_scroll_only=True`, that excess width cannot be scrolled to —
+it is simply clipped by the canvas. Every sibling `expand_x=True`
+sidebar control (all of Actions, Redetect UI Panels, Show Log, Launch,
+Cancel) then filled to that oversized inner width and had its centered
+label pushed partially or fully outside the visible 335px, matching
+every observed symptom (blank-looking buttons, text visible only at
+the far right, paired-row buttons missing entirely).
+
+Fix: the artifact table was removed from `-MAIN_COLUMN-` and moved to
+its own separate, resizable window (`Gui.__show_artifact_window`,
+opened on demand via a compact "View Artifact Inventory" button and a
+cheap row-count summary in the sidebar — mirroring the pre-existing
+`_log_window`/`__show_log_window`/`__service_log_window` pattern).
+Measured post-fix: inner frame width dropped to ~398px (canvas 335px,
+a modest ~63px residual from pre-existing `size=(N chars, ...)` Text
+elements unrelated to this regression), and the widest sidebar button
+dropped from ~755px to ~374px. See
+`docs/validation/CANONICAL_DEV_APP_LIVE_ACCEPTANCE.md` for the full
+evidence trail; `tests/test_gui_sidebar_geometry.py` regression-tests
+this measured invariant directly (confirmed failing against the
+pre-fix layout, passing post-fix). Final visual acceptance remains
+USER-RUN.
 
 ## 4. The R1b exception — one real coupling, not yet resolved
 

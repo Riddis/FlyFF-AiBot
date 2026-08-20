@@ -60,6 +60,7 @@ class Gui:
         }
         self.controller = None
         self._log_window = None
+        self._artifact_window = None
         self._heading_overlay_detector = None
         self._status_mode = "Idle"
         self._last_status_message = "Ready"
@@ -108,7 +109,7 @@ class Gui:
         )
         sg.cprint_set_output_destination(self.window, "-ML-")
         sg.user_settings_filename(path=".")
-        self.window["-DEVTOOLS-ARTIFACTS-TABLE-"].update(values=artifact_table_rows())
+        self.__refresh_artifact_summary()
         self.__set_hotkeys()
         return self.window
 
@@ -128,6 +129,7 @@ class Gui:
                 continue
 
             self.__service_log_window()
+            self.__service_artifact_window()
             self.__refresh_runtime(values)
 
             # ACTIONS - Button events
@@ -352,8 +354,8 @@ class Gui:
             result = self.dev_tools.cancel(name)
             self.runtime_bus.log(result.message, "msg_blue" if result.ok else "msg_yellow")
             return
-        if event == "-DEVTOOLS-ARTIFACTS-REFRESH-":
-            self.window["-DEVTOOLS-ARTIFACTS-TABLE-"].update(values=artifact_table_rows())
+        if event == "-DEVTOOLS-ARTIFACTS-OPEN-":
+            self.__show_artifact_window()
             return
 
     def __refresh_devtools_status(self, values):
@@ -649,6 +651,9 @@ class Gui:
     def __shutdown(self, bot) -> bool:
         del bot
         self.__set_status("Stopping", "Stopping workers safely…")
+        if self._artifact_window is not None:
+            self._artifact_window.close()
+            self._artifact_window = None
         # Ownership policy: any specialist subprocess this GUI session
         # launched (recorder/telemetry/simulator/native/archive/calibration
         # tools) is terminated on close, mirroring WorkerManager.shutdown()'s
@@ -1684,21 +1689,18 @@ class Gui:
                 ],
                 [sg.HorizontalSeparator()],
                 [
-                    sg.Text("Artifact inventory (read-only):"),
-                    sg.Push(),
-                    sg.Button("Refresh", key="-DEVTOOLS-ARTIFACTS-REFRESH-"),
+                    sg.Text(
+                        "Artifact inventory: --",
+                        key="-DEVTOOLS-ARTIFACTS-SUMMARY-",
+                        size=(38, 1),
+                    )
                 ],
                 [
-                    sg.Table(
-                        values=[],
-                        headings=ARTIFACT_TABLE_HEADINGS,
-                        key="-DEVTOOLS-ARTIFACTS-TABLE-",
-                        auto_size_columns=False,
-                        col_widths=[10, 30, 18, 24],
-                        num_rows=8,
-                        justification="left",
+                    sg.Button(
+                        "View Artifact Inventory",
+                        key="-DEVTOOLS-ARTIFACTS-OPEN-",
                         expand_x=True,
-                    ),
+                    )
                 ],
             ],
             expand_x=True,
@@ -1968,6 +1970,62 @@ class Gui:
         if event in (sg.WIN_CLOSED, "Close"):
             self._log_window.close()
             self._log_window = None
+
+    def __refresh_artifact_summary(self):
+        """Cheap sidebar-only count; the full table lives in the separate
+        artifact window (__show_artifact_window) so the fixed-width main
+        controls Column is never widened by a wide multi-column table --
+        that widening is what clipped/pushed every sibling expand_x
+        control off the visible sidebar on the first live acceptance run
+        (see MISTAKES.md)."""
+        count = len(artifact_table_rows())
+        self.window["-DEVTOOLS-ARTIFACTS-SUMMARY-"].update(
+            f"Artifact inventory: {count:,} entries"
+        )
+
+    def __show_artifact_window(self):
+        if self._artifact_window is not None:
+            self._artifact_window.bring_to_front()
+            return
+
+        self._artifact_window = sg.Window(
+            "FlyFF AiBot Artifact Inventory",
+            [
+                [
+                    sg.Table(
+                        values=artifact_table_rows(),
+                        headings=ARTIFACT_TABLE_HEADINGS,
+                        key="-ARTIFACT-WINDOW-TABLE-",
+                        auto_size_columns=False,
+                        col_widths=[10, 30, 18, 24],
+                        num_rows=20,
+                        justification="left",
+                        expand_x=True,
+                        expand_y=True,
+                    )
+                ],
+                [
+                    sg.Button("Refresh", key="-ARTIFACT-WINDOW-REFRESH-"),
+                    sg.Button("Close"),
+                ],
+            ],
+            size=(1000, 500),
+            resizable=True,
+            finalize=True,
+        )
+
+    def __service_artifact_window(self):
+        if self._artifact_window is None:
+            return
+        event, _ = self._artifact_window.read(timeout=0)
+        if event in (sg.WIN_CLOSED, "Close"):
+            self._artifact_window.close()
+            self._artifact_window = None
+            return
+        if event == "-ARTIFACT-WINDOW-REFRESH-":
+            rows = artifact_table_rows()
+            self._artifact_window["-ARTIFACT-WINDOW-TABLE-"].update(values=rows)
+            self.__refresh_artifact_summary()
 
     def __make_live_map_placeholder(self, message):
         import numpy as np

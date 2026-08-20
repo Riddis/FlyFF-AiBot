@@ -48,49 +48,70 @@ and analyze returned evidence; the user runs it. See
 past H2 was exercised — the human live campaign paused here per the
 user's own report; untested items are not claimed to pass.**
 
-### Root-cause investigation (offline, source-only — no live execution by the agent)
+### FALSIFIED HYPOTHESIS: DPI / Windows display scaling
 
-**GUI layout.** Traced PySimpleGUI's construction-time layout logic
-(`PackFormIntoFrame`/`_add_expansion` in the installed
-`PySimpleGUI==4.60.5.1`) through three nesting levels (the scrollable
-`-MAIN_COLUMN-` Column → each inner `sg.Frame` → each button row) and
-found the row-expansion logic itself correctly gates on `expand_x`
-alone (does not propagate to vertical row expansion) — no code-level
-defect found there. `git log --follow` confirms `Gui.py` has not
-changed in this area since before the Phase-7 collapse (`bfc5c6d`);
-Phase 10's only touch (`0f9b7b2`) added a new `dev_tools` row to the
-pre-existing `controls` Column and did not touch any `expand_x`/
-`expand_y`/`size`/`scrollable` parameter. **This is not attributable to
-any Phase-10/13/14 diff** — the layout code is unchanged; this is the
-first time it has ever been exercised on a real, physically-scaled
-display.
+An initial investigation traced PySimpleGUI's construction-time layout
+logic (`PackFormIntoFrame`/`_add_expansion`) through three nesting
+levels and found no code-level row-expansion defect, then proposed
+that nothing in the codebase declared Windows per-monitor DPI
+awareness as the root cause, and shipped
+`apps/dev_app.py._declare_windows_dpi_awareness()` as a fix — **without
+ever constructing the real window and measuring its actual rendered
+geometry first.** The user retested: no visible change, and reported
+that the same installed packages had rendered this exact sidebar
+correctly before the migration — directly falsifying the hypothesis. A
+follow-on PySimpleGUI-version-drift theory (installed `4.60.5.1` vs. a
+`4.60.3` comment in `requirements.txt`, `4.60.3` no longer available on
+PyPI) was also chased and also falsified by the same "same packages,
+worked before" fact. **The DPI-awareness change was reverted.** Neither
+Windows display scaling, DPI awareness, the `ttk` "vista" theme (just
+Tk's internal identifier for the native-Windows renderer — unrelated
+to the Windows Vista OS), nor a package-version difference is
+implicated. See `MISTAKES.md`'s "[2026-08-20]" entries for the full
+account, including the process lesson (measure real rendered geometry
+before proposing a root cause).
 
-A concrete, confirmed gap was found instead: nothing in this codebase
-ever declares Windows per-monitor DPI awareness before creating the Tk
-window (`grep` for `SetProcessDpiAwareness`/`SetProcessDPIAware`
-returns nothing prior to this fix). Without that declaration, Windows
-applies its own bitmap compatibility scaling to the whole
-(DPI-unaware) process while Tk's font-driven widget heights still
-scale to the display's real DPI internally — the two `Gui.py` Column
-`size=` constants (`(1320, 990)` for the window, `(335, 820)` for the
-scrollable sidebar canvas) are raw pixel values that only match
-intended proportions at the DPI they were tuned against. This mismatch
-is the most concrete, evidence-backed explanation consistent with
-every observed symptom (disproportionate button height, right-edge
-clipping, a scrollbar appearing for content that should fit) and with
-the fact that it was never caught by any headless/offline test (no
-real display DPI exists in that context) or by any prior human run
-(this was the first one).
+### SOURCE/LAYOUT ANALYSIS: the actual, measured root cause
 
-**Fix applied**: `apps/dev_app.py` now declares Per-Monitor-v2 DPI
-awareness (`_declare_windows_dpi_awareness()`, Windows-only,
-best-effort, called as the first statement in `main()`, before
-`gui.init()` creates the real window). This is the standard, minimal,
-well-documented remediation for this class of symptom and does not
-alter any layout code. **This is a hypothesis-driven, evidence-backed
-fix, not an empirically-confirmed one — the agent cannot launch the
-live GUI to verify pixel-perfect rendering. Final visual acceptance
-remains USER-RUN** (see the retest procedure below).
+Constructing the real Tk window directly (`Gui().init()` — no bot, no
+FlyFF attach, no native reader, pure local geometry) and reading its
+actual `winfo_reqwidth()`/`winfo_width()` values found the mechanism
+immediately: Phase 10 added a four-column, 313+-row artifact `sg.Table`
+(`col_widths=[10, 30, 18, 24]`, `expand_x=True`,
+`key="-DEVTOOLS-ARTIFACTS-TABLE-"`) as a direct child of `-MAIN_COLUMN-`
+— the sidebar's fixed-width (335px), vertically-scroll-only,
+`scrollable=True` Column. Measured: the Table's real requested width
+was ~740px; the whole Column's inner frame (`TKFrame.winfo_reqwidth()`)
+was 779px against a 335px canvas (`canvas.winfo_reqwidth()`); the
+`-VALIDATE_DATA-` button rendered at 755px actual width. Because
+`vertical_scroll_only=True` disables horizontal scrolling, that ~450px
+of excess width is simply clipped by the canvas, not reachable by
+scrolling. Every sibling `expand_x=True` control (all of Actions,
+Redetect UI Panels, Show Log, Launch, Cancel) filled to that oversized
+779px inner width and had its centered label pushed partially or fully
+outside the visible 335px — exactly matching every observed symptom
+(apparently blank buttons, text visible only at the far right, one
+button of a paired row missing entirely). `git log --follow` confirms
+`Gui.py`'s pre-Phase-10 layout code was otherwise unchanged; Phase 10's
+own commit (`0f9b7b2`) is the one that added this Table, and its own
+GUI tests deliberately never called `Gui.init()`, so they could not
+have caught a real-rendered-geometry regression like this one.
+
+**Fix applied**: the artifact table was removed from `-MAIN_COLUMN-`
+and moved to its own separate, resizable window
+(`Gui.__show_artifact_window`, opened on demand via a compact "View
+Artifact Inventory" button plus a cheap row-count summary in the
+sidebar, serviced non-blockingly alongside the pre-existing
+`_log_window` pattern). Measured post-fix: inner frame width dropped
+from 779px to 398px (canvas still 335px — a modest ~63px residual from
+pre-existing, unrelated `size=(N chars, ...)` Text elements), and the
+widest sidebar button dropped from 755px to 374px actual width.
+`tests/test_gui_sidebar_geometry.py` asserts on these real measured
+widths directly (confirmed failing against the pre-fix layout, passing
+post-fix) — a genuine improvement over the prior fix, which had no
+test against real geometry at all. **Final visual acceptance on
+the user's actual display remains USER-RUN** (see the retest procedure
+below).
 
 **Shutdown crash.** Confirmed directly from the traceback and
 `Gui.py`'s source: PySimpleGUI's `Window.read()` returns `values=None`
@@ -112,16 +133,19 @@ path in that case — a narrow reordering, not new shutdown logic. See
 `tests/test_gui_event_loop_lifecycle.py` (confirmed failing before this
 fix, per this document's own re-verification, and passing after).
 
-### Fix commit
+### Fix commits
 
-See `COMMAND_LOG.tsv`'s `G1-LIVE-FIX` row for the exact commit hash.
+Two forward commits: an initial (later-reverted) DPI-awareness fix,
+and the corrected structural fix (artifact table moved out of
+`-MAIN_COLUMN-`). See `COMMAND_LOG.tsv`'s `G1-LIVE-FIX` and
+`G1-LIVE-FIX-CORRECTION` rows for the exact commit hashes.
 
 ### Criterion-by-criterion result
 
 | # | Criterion | Result | Evidence |
 |---|---|---|---|
 | 1 | Cold start / attach / vision | PASS | User-observed, run 1 |
-| 2 | GUI layout usable at supported window sizes | **FAIL → fix applied, offline-unverifiable** | Screenshots, `human_findings.txt` |
+| 2 | GUI layout usable at supported window sizes | **FAIL → structurally fixed and measured offline; visual confirmation still USER-RUN** | Screenshots, `human_findings.txt`; `tests/test_gui_sidebar_geometry.py` |
 | 3 | Normal close produces no error | **FAIL → fixed, regression-tested offline** | `H2_H19_gui_crash.log`; `tests/test_gui_event_loop_lifecycle.py` |
 | 4-7 | Resize/re-attach/relaunch stability | NOT YET RUN | Campaign paused before reaching these steps |
 
@@ -130,19 +154,21 @@ See `COMMAND_LOG.tsv`'s `G1-LIVE-FIX` row for the exact commit hash.
 - Shutdown fix: HIGH — the exact crash mechanism was read directly
   from the traceback and source, the fix is a narrow reordering, and
   the regression test fails pre-fix / passes post-fix.
-- Layout fix: MEDIUM — a well-documented, common, and evidence-
-  consistent root cause (absence of DPI-awareness declaration) with a
-  standard, minimal, safe remediation, but not empirically confirmed
-  against the user's real display. Genuinely possible a second,
-  independent contributing factor remains and requires a follow-up
-  finding after retest.
+- Layout fix: HIGH on the mechanism, MEDIUM-HIGH overall — the root
+  cause is directly measured (real `winfo_reqwidth()`/`winfo_width()`
+  values from the actual rendered window, not inferred), the fix
+  removes the exact widget that caused the measured overflow, and a
+  geometry regression test confirms the pre/post-fix numbers.
+  Downgraded from HIGH only because the user's real display still has
+  not been checked after this specific fix — an initial (wrong)
+  hypothesis was already shipped once without that check, so this
+  document does not repeat that overclaim.
 
 ### Follow-up
 
-User retest required (see `docs/operations/DEVELOPMENT_WORKFLOWS.md`
-retest procedure, or the exact steps handed back at the end of this
-fix). If the layout is still wrong after this fix, the next
-investigation step is to gather the user's actual Windows display
-scaling percentage and a fresh screenshot, and reconsider whether the
-`controls` Column's fixed pixel `size=(335, 820)` needs to become
-content-derived rather than a magic constant.
+User retest required (see the retest procedure below). If the sidebar
+is still visibly wrong after this fix, the residual ~63px inner-frame
+overflow (from pre-existing `size=(N chars, ...)` Text elements,
+unrelated to this regression) is the next place to look — but the
+~450px overflow that caused the reported symptom is now removed and
+measured gone.

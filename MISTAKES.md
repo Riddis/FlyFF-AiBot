@@ -781,6 +781,68 @@ Entry template:
   misconfiguration -- headless tests cannot catch this class of defect
   at all; it only ever surfaces on a real, physically-scaled display.
 
+**CORRECTION [2026-08-20], same day: this entry's root-cause diagnosis
+was wrong; the fix was reverted.** The DPI-awareness declaration was
+shipped without ever measuring the actual rendered geometry, and the
+user's own retest showed it changed nothing. Direct local measurement
+(`Gui().init()`, real Tk window, no live client) then found the real
+cause: Phase 10's artifact `sg.Table` (`col_widths=[10, 30, 18, 24]`,
+740px real requested width) lived directly inside the fixed-335px,
+horizontal-scroll-disabled sidebar Column, widening its inner frame to
+779px and pushing every sibling `expand_x=True` button's centered
+label partially or fully outside the visible viewport -- a plain
+width-propagation bug, nothing to do with DPI, Windows scaling, or the
+`ttk` "vista" theme (that theme name is just Tk's internal identifier
+for the native-Windows ttk renderer, unrelated to the Windows Vista
+OS). `_declare_windows_dpi_awareness()` was removed. See the new entry
+below and `docs/architecture/SYSTEM_OVERVIEW.md` section 3b for the
+corrected, evidence-backed account. Original entry above preserved
+verbatim as the record of what was believed at the time, per this
+project's own no-silent-rewrite rule.
+
+### [2026-08-20] shipped a layout root-cause fix without measuring the actual rendered geometry first
+
+- What happened: diagnosed the sidebar layout regression (see the
+  entry above) as a Windows DPI-awareness gap and shipped a fix based
+  entirely on source-code reasoning (tracing PySimpleGUI's
+  construction-time `_add_expansion` logic, noting the codebase never
+  declared DPI awareness). The user retested and reported no visible
+  change, then pointed out the actual pre-migration bot (same
+  installed PySimpleGUI packages) had rendered this exact sidebar
+  correctly -- directly falsifying both the DPI hypothesis and a
+  follow-on package-version-drift theory chased right after it.
+- Root cause of the mistake: never actually constructed the real Tk
+  window and measured its rendered widget geometry before proposing a
+  root cause -- reasoned from source code and PySimpleGUI internals
+  alone. `Gui().init()` (no bot, no FlyFF, pure local Tk) takes well
+  under a second and would have immediately shown the real numbers:
+  inner frame 779px wide inside a 335px canvas, buttons rendered at
+  ~755px -- the actual mechanism was visible in five lines of
+  `winfo_reqwidth()`/`winfo_width()` output, no theory needed.
+- How caught: user pushback ("this is you messing up" / "why are you
+  diving down these rabbitholes") after two consecutive wrong
+  hypotheses (DPI, then PySimpleGUI version drift), followed by an
+  independent inspection of the same review snapshot that identified
+  the real mechanism directly from the screenshot plus source: every
+  broken control had `expand_x=True`, every intact one did not, and
+  the one new large `expand_x=True` widget Phase 10 had added
+  (the artifact Table) was the obvious width-propagation source.
+- Fix: reverted the DPI-awareness change; moved the artifact table out
+  of the fixed-width sidebar Column into its own separate window;
+  added `tests/test_gui_sidebar_geometry.py`, which actually
+  constructs the real window and asserts on real measured widths
+  (confirmed failing against the pre-fix layout, passing post-fix).
+- Lesson: for any live-observed rendering/layout defect, measure the
+  real rendered artifact (actual pixel geometry, actual widget tree)
+  BEFORE proposing a root cause from source reading alone -- especially
+  before touching process-wide/OS-level compatibility settings (DPI
+  awareness affects the whole process, not just one window) as a fix
+  for a symptom that was never actually reproduced or measured. A
+  five-line local diagnostic script beats an elaborate, unverified
+  theory every time it's available, and it almost always is for GUI
+  layout bugs -- constructing a GUI window locally (no live client
+  attach) is not a live-execution violation.
+
 ### [2026-08-20] main GUI loop refreshed against `values=None` before checking for window closure
 
 - What happened: closing `apps/dev_app.py` normally (not via the

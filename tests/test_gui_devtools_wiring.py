@@ -117,13 +117,29 @@ def test_devtools_status_refresh_does_not_redraw_when_nothing_changed(gui: Gui, 
     assert len(status_element.updates) == 1
 
 
-def test_devtools_artifacts_refresh_event_populates_the_table(gui: Gui) -> None:
-    gui._Gui__handle_devtools_event("-DEVTOOLS-ARTIFACTS-REFRESH-", {})
-    table_element = gui.window["-DEVTOOLS-ARTIFACTS-TABLE-"]
-    assert table_element.updates
-    rows = table_element.updates[-1]["kwargs"]["values"]
-    assert len(rows) > 313  # 313 checkpoint rows plus the recording rows appended after
-    assert all(len(row) == 4 for row in rows)
+def test_devtools_artifacts_open_event_opens_the_artifact_window(
+    gui: Gui, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The full artifact table lives in its own window (opened on
+    demand), not the fixed-width main sidebar Column -- see MISTAKES.md
+    for why that table caused the sidebar's first live acceptance
+    regression. Spied rather than constructing a real sg.Window here,
+    matching this file's own fake-window-only convention; the real
+    window's construction/geometry is covered by
+    tests/test_gui_sidebar_geometry.py."""
+    calls: list[None] = []
+    monkeypatch.setattr(gui, "_Gui__show_artifact_window", lambda: calls.append(None))
+    gui._Gui__handle_devtools_event("-DEVTOOLS-ARTIFACTS-OPEN-", {})
+    assert len(calls) == 1
+
+
+def test_refresh_artifact_summary_reports_a_real_count(gui: Gui) -> None:
+    gui._Gui__refresh_artifact_summary()
+    summary_element = gui.window["-DEVTOOLS-ARTIFACTS-SUMMARY-"]
+    assert summary_element.updates
+    text = summary_element.updates[-1]["args"][0]
+    count = int(text.split(": ")[1].split(" ")[0].replace(",", ""))
+    assert count > 313  # 313 checkpoint rows plus the recording rows appended after
 
 
 def test_shutdown_terminates_any_running_devtools_process(gui: Gui, sleeper_command: str) -> None:
