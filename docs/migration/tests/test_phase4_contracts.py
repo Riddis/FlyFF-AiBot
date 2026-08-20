@@ -142,7 +142,14 @@ for name in names:
     origins[name] = None if spec is None or spec.origin is None else str(pathlib.Path(spec.origin).resolve())
 print(json.dumps(origins, sort_keys=True))
 """
-    for context in (REPO, REPO / "foreground_vision_bot", REPO / "flyff_farming_simulator", REPO / "flyff_farming_recorder"):
+    # flyff_farming_simulator/ was removed entirely in the 2026-08-21
+    # repository cleanup (it never held any of its own frozen-contract-
+    # required package copies, unlike foreground_vision_bot/farming/
+    # and flyff_farming_recorder/position/ -- confirmed by a dedicated
+    # inventory pass) -- no cwd context can be a directory that no
+    # longer exists.
+    assert not (REPO / "flyff_farming_simulator").exists()
+    for context in (REPO, REPO / "foreground_vision_bot", REPO / "flyff_farming_recorder"):
         result = subprocess.run(
             [sys.executable, "-I", "-c", probe, str(REPO), json.dumps(list(expected))],
             cwd=context,

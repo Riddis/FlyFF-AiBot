@@ -602,7 +602,13 @@ def test_actual_supplement_covers_exactly_the_35_post_phase9_r7c_edges() -> None
 def test_actual_repository_integrity_gate_is_green_via_frozen_baseline_plus_supplement() -> None:
     payload, errors = integrity.check(REPO)
     assert errors == [], json.dumps(payload, indent=2, sort_keys=True)
-    assert payload["baseline_counts"] == {"R6": 0, "R7a": 0, "R7b": 0, "R7c": 204}
+    # 205 = 204 (frozen baseline) + 1 (POST_PHASE14_R7C_SUPPLEMENT.tsv's
+    # OBSERVATION_SCHEMA_ID entry, recording_sink.py) + 0 net (the
+    # 2026-08-21 repository cleanup's refactor_logs/ -> docs/migration/
+    # refactor_logs/ move translates 2 already-frozen findings to their
+    # new path via 2 new supplement rows -- the old-path findings
+    # disappear, the new-path ones appear, no net change).
+    assert payload["baseline_counts"] == {"R6": 0, "R7a": 0, "R7b": 0, "R7c": 205}
     assert payload["r9_violations"] == 0
     assert payload["r10_failures"] == []
     assert set(payload["supplement_entries_applied"]) == _all_supplement_keys()
