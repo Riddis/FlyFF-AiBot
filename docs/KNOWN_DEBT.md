@@ -53,16 +53,16 @@ Source of record: `future_runtime_profile/dependency_profiles.toml`'s
   now-fully-redundant file was removed (`git rm`). See
   `docs/migration/codex_handoff/PHASE14_REPORT.md`.
 - `foreground_vision_bot/foreground_vision_farm.json` and the root-level
-  `foreground_vision_farm.json` — **resolved in Phase 14**: both are
+  `foreground_vision_farm.json` — **fully resolved**: both are
   PySimpleGUI-auto-generated settings snapshots keyed to the pre-
   Phase-7 entrypoint's file name (`foreground_vision_farm.py`), proven
   orphaned by reading PySimpleGUI's own filename-derivation source (see
   `docs/architecture/SYSTEM_OVERVIEW.md` section 3a) — not merely
   "zero current references." The `foreground_vision_bot/` copy was
-  removed (`git rm`); the root-level copy was left untouched (outside
-  this specific cleanup's authorized scope) but its `unresolved_future_
-  choices` entry was removed since the disposition question is now
-  answered.
+  removed in Phase 14 (`git rm`); the root-level copy was left
+  untouched at the time (outside that cleanup's authorized scope) and
+  was removed in the 2026-08-21 repository cleanup, which explicitly
+  authorized it.
 
 ## Known runtime limitations
 

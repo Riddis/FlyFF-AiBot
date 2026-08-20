@@ -84,6 +84,10 @@ migration_backups/
 # router qualification has a git-addressable reproduction point.
 # NOTE: git will not descend into an excluded directory, so the models/ exclusion
 # must be reopened for this path and then re-applied to everything except the file.
-!flyff_farming_simulator/models/
-flyff_farming_simulator/models/*
-!flyff_farming_simulator/models/generalized_waypoint_both_seed2_0051200.zip
+# Corrected 2026-08-21: this used to carve out flyff_farming_simulator/
+# models/ (the pre-Phase-7 location); "Phase 7: mechanically collapse
+# project roots" moved the checkpoint to root models/ and that
+# directory no longer exists at all.
+!models/
+models/*
+!models/generalized_waypoint_both_seed2_0051200.zip
