@@ -21,6 +21,7 @@ from position import (
     run_native_diagnostic,
 )
 from preview_service import PreviewService
+from recording_session import RecordingRequest, RecordingSession
 from runtime_bus import FarmingSessionSnapshot, RuntimeBus
 from worker_manager import (
     CancellationToken,
@@ -109,6 +110,9 @@ class RuntimeController:
         self._shutdown_finalized = False
         self._shutdown_results = {kind: True for kind in WorkerKind}
         self._shutdown_timed_out: tuple[WorkerKind, ...] = ()
+        self.recording: RecordingSession | None = None
+        self._attached_hwnd: int | None = None
+        self._attached_title: str | None = None
 
     @property
     def capture_active(self) -> bool:
@@ -148,7 +152,7 @@ class RuntimeController:
     def shutdown_timed_out(self) -> tuple[WorkerKind, ...]:
         return self._shutdown_timed_out
 
-    def attach(self, window_handle: int) -> int:
+    def attach(self, window_handle: int, title: str | None = None) -> int:
         if self.control_active:
             raise RuntimeError(
                 "Cannot reattach while a control task is active. Stop it first."
@@ -161,6 +165,8 @@ class RuntimeController:
             raise RuntimeError("Previous preview worker did not stop.")
         self.bot.release_input()
         generation = self.capture.attach(window_handle)
+        self._attached_hwnd = window_handle
+        self._attached_title = title
         try:
             self.bot.prepare_window(window_handle, self.bus, self.capture)
             self.preview.start()
@@ -170,7 +176,14 @@ class RuntimeController:
             raise
         return generation
 
-    def start_rl(self, mode: str) -> None:
+    def start_rl(
+        self,
+        mode: str,
+        *,
+        auto_record_player_full_hp: int | None = None,
+        keyboard_layout: str = "qwerty",
+        eva_hotkey: str = "F1",
+    ) -> None:
         def run(token: CancellationToken):
             from farming.trainer import (
                 dry_run_native_farming,
@@ -180,6 +193,39 @@ class RuntimeController:
             )
 
             report = self._reporter("rl_status", "rl")
+            # Operational-feedback recording (docs/PROJECT_GOALS.md
+            # section 6): automatic for train/agent -- the user does not
+            # separately remember to click Record. Requires a cached
+            # player_full_hp (the recorder's own attach discovery needs
+            # it); if none is cached yet, log and continue unrecorded
+            # rather than blocking farming on it.
+            started_operational_recording = False
+            if mode in ("train", "agent"):
+                if auto_record_player_full_hp is None:
+                    report(
+                        "Operational-feedback recording skipped: no player "
+                        "max-HP is cached yet (set it once via Start "
+                        "Controlled Recording)."
+                    )
+                elif self.recording is not None and self.recording.is_running:
+                    report(
+                        "Operational-feedback recording skipped: a "
+                        "recording is already active."
+                    )
+                elif self._attached_hwnd is None:
+                    report("Operational-feedback recording skipped: not attached.")
+                else:
+                    try:
+                        self.start_recording(
+                            purpose="OPERATIONAL_FEEDBACK",
+                            controller_type="BOT_POLICY_CONTROLLED",
+                            player_full_hp=auto_record_player_full_hp,
+                            keyboard_layout=keyboard_layout,
+                            eva_hotkey=eva_hotkey,
+                        )
+                        started_operational_recording = True
+                    except Exception as error:  # noqa: BLE001 - never block farming on this.
+                        report(f"Operational-feedback recording failed to start: {error}")
             try:
                 if not self._prepare_native_pointer_startup(
                     token,
@@ -222,8 +268,52 @@ class RuntimeController:
                 raise ValueError(f"Unknown RL mode: {mode}")
             finally:
                 self.bot.stop()
+                if started_operational_recording:
+                    self.stop_recording()
 
         self._start_control(f"rl-{mode}", run)
+
+    def start_recording(
+        self,
+        *,
+        purpose: str,
+        player_full_hp: int,
+        controller_type: str = "HUMAN_CONTROLLED",
+        keyboard_layout: str = "qwerty",
+        eva_hotkey: str = "F1",
+        protocol_id: str | None = None,
+        hypothesis: str | None = None,
+        data_use_role: str = "FITTING_ELIGIBLE",
+    ) -> None:
+        """Launches recording as a separate OS subprocess
+        (recording_session.py) -- see that module's docstring for why
+        this never imports `recorder` directly."""
+        if self._attached_hwnd is None:
+            raise RuntimeError("Attach to the FlyFF window first.")
+        if self.recording is not None and self.recording.is_running:
+            raise RuntimeError("A recording is already active.")
+        request = RecordingRequest(
+            hwnd=self._attached_hwnd,
+            window_title=self._attached_title or "",
+            player_full_hp=player_full_hp,
+            purpose=purpose,
+            keyboard_layout=keyboard_layout,
+            eva_hotkey=eva_hotkey,
+            controller_type=controller_type,
+            protocol_id=protocol_id,
+            hypothesis=hypothesis,
+            data_use_role=data_use_role,
+        )
+        self.recording = RecordingSession(request)
+
+    def stop_recording(self) -> None:
+        if self.recording is not None:
+            self.recording.stop()
+
+    def poll_recording(self) -> list[dict]:
+        if self.recording is None:
+            return []
+        return self.recording.poll()
 
     def _prepare_native_pointer_startup(
         self,
@@ -241,9 +331,27 @@ class RuntimeController:
         recovery_log.write(
             f"mode={'verbose' if verbose else 'training'}"
         )
+        # Fast-restore diagnostics (docs/PROJECT_GOALS.md-adjacent live
+        # acceptance finding: a user-run relaunch against the same,
+        # still-open FlyFF client fell back to full discovery instead of
+        # the expected RecoveredNativeProfile fast restore). These are
+        # transition/event logs, not per-frame -- state-change points
+        # only, so the evidence stays readable.
+        attach_policy = getattr(service, "attach_policy", None)
+        profile_path = getattr(service, "recovery_profile_path", None)
+        profile_exists = profile_path is not None and Path(profile_path).is_file()
+        recovery_log.write(
+            f"attach_policy={getattr(attach_policy, 'name', 'unknown')} "
+            f"recovered_profile_path={profile_path} "
+            f"profile_exists={profile_exists}"
+        )
         try:
             service.read_pointer_snapshot()
-            recovery_log.write("Existing in-process native reader validated.")
+            recovery_log.write(
+                "Existing in-process native reader validated "
+                "(presence_validation_source="
+                f"{getattr(service, 'presence_validation_source', 'unproven')})."
+            )
             return True
         except NativePointerSnapshotError:
             recovery_log.write(
@@ -270,14 +378,31 @@ class RuntimeController:
 
         restore_profile = getattr(service, "try_restore_persisted_profile", None)
         if callable(restore_profile):
+            recovery_log.write(
+                "profile_load_attempted=True" if profile_exists
+                else "profile_load_attempted=True (no file on disk)"
+            )
             try:
-                if restore_profile(
+                restore_ok = restore_profile(
                     hints=profile_hints,
                     cancellation=token,
                     deadline=profile_deadline,
                     status_callback=profile_status,
-                ):
+                )
+                recovery_log.write(
+                    f"restore_validation_result={restore_ok} "
+                    f"restore_mode={getattr(service, 'last_profile_restore_mode', 'unknown')} "
+                    f"rejection_reason={getattr(service, 'last_profile_restore_error', None)}"
+                )
+                if restore_ok:
                     snapshot = service.read_pointer_snapshot()
+                    presence_source = getattr(
+                        service, "presence_validation_source", "unproven"
+                    )
+                    recovery_log.write(
+                        f"presence_validation_source={presence_source} "
+                        f"presence_validated={presence_source != 'unproven'}"
+                    )
                     report(
                         "Native startup preflight restored the last known "
                         "validated profile: "
@@ -285,11 +410,20 @@ class RuntimeController:
                     )
                     return True
             except Exception as error:  # noqa: BLE001 - optional fast path.
+                recovery_log.write(
+                    f"restore_validation_result=False "
+                    f"rejection_reason={type(error).__name__}: {error}"
+                )
                 report(
                     "Last known native profile could not be used; full recovery "
                     f"will run. {type(error).__name__}: {error}"
                 )
+        else:
+            recovery_log.write("profile_load_attempted=False (service has no restore method)")
 
+        recovery_log.write(
+            f"fallback_reason=restore_did_not_apply full_discovery_started=True"
+        )
         report("Native pointers unavailable; running full startup recovery.")
         recovery_log.write("Native pointers unavailable; running full startup recovery.")
         if recovery_log.path is not None:
@@ -868,6 +1002,9 @@ class RuntimeController:
             self._shutdown_requested = True
             if self._shutdown_finalized:
                 return dict(self._shutdown_results)
+
+            if self.recording is not None:
+                self.recording.terminate(timeout=min(5.0, timeout))
 
             remaining = max(0.0, deadline - monotonic())
             results = self.workers.shutdown(remaining)

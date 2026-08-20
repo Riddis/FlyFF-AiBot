@@ -26,6 +26,7 @@ from position.Win32ProcessMemory import Win32ProcessMemory
 from .active_field_profiler import ActiveFieldProfiler
 from position.profiling.presence_promotion import promote_validated_presence_offset
 from .config import RecorderConfig
+from .provenance import ExperimentProvenance, OPERATIONAL_FEEDBACK_DEFAULT
 from .format import (
     PackedStreamWriter,
     atomic_json,
@@ -73,9 +74,15 @@ class SessionStats:
 class RecorderController:
     """Thread-safe GUI facade for the native recorder."""
 
-    def __init__(self, config: RecorderConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: RecorderConfig | None = None,
+        *,
+        experiment_provenance: ExperimentProvenance = OPERATIONAL_FEEDBACK_DEFAULT,
+    ) -> None:
         self.config = config or RecorderConfig.load()
         self.config.validate()
+        self.experiment_provenance = experiment_provenance
         self.events: queue.Queue[dict[str, Any]] = queue.Queue()
         self._lock = threading.RLock()
         self._cancel_attach = threading.Event()
@@ -949,6 +956,7 @@ class RecorderController:
                     "eva_hotkey": self._eva_hotkey,
                 },
                 "recording_provenance": recording_provenance,
+                "experiment_provenance": self.experiment_provenance.to_dict(),
                 "data_quality": {
                     "world_model_eligible": world_model_eligible,
                     "direct_demonstration_eligible": direct_demonstration_eligible,

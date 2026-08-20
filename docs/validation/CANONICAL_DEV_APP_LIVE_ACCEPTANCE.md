@@ -1,7 +1,11 @@
 # Canonical Dev App — First Live Acceptance Campaign
 
-**STATUS: PAUSED — two real product regressions found in run 1; fixes
-applied offline; human live campaign resumes at the user's discretion.**
+**STATUS: PAUSED — run 2 found the sidebar still clipped after run 1's
+attempted fix and a RecoveredNativeProfile fast-restore failure;
+Development Tools panel removed entirely, sidebar rebuilt structurally,
+fast-restore instrumented (not yet root-caused); human live campaign
+resumes at the user's discretion. See run 2 below for exact scope —
+several checks are still genuinely untested, not merely unreported.**
 
 This is a distinct campaign from G5 (`G5_REAL_CLIENT_VALIDATION.md`,
 position/pointer-recovery specific). This one validates `apps/dev_app.py`
@@ -172,3 +176,119 @@ overflow (from pre-existing `size=(N chars, ...)` Text elements,
 unrelated to this regression) is the next place to look — but the
 ~450px overflow that caused the reported symptom is now removed and
 measured gone.
+
+## Run 2 — 2026-08-20 (same day, second retest)
+
+- Tested revision: run 1's fix commit (artifact-table-out-of-sidebar +
+  shutdown fix), before the corrections in this entry.
+- Evidence: USER-RUN report only; no new screenshot/log file path was
+  supplied for this specific run beyond what is transcribed here
+  verbatim.
+
+### USER-RUN LIVE OBSERVATION (evidence distinction preserved verbatim)
+
+1. Canonical dev app launched and attached successfully.
+2. Bot Vision/OCR worked.
+3. Model loaded correctly.
+4. Movement check exercised **FORWARD only** — not a navigation
+   validation; do not treat as one.
+5. Other actually-executed applicable tests were reported passing
+   (kept unspecified beyond that at the user's own level of detail),
+   except the items below.
+6. **Obstacle-navigation test: NOT performed** — no properly-defined
+   safe procedure existed yet. Not PASS, not FAIL — genuinely untested.
+7. **EVA/focus standalone manual reproduction: NOT performed** — the
+   condition exists only inside a farming/training/runtime sequence,
+   not as an isolated reproducible action (see `MISTAKES.md`'s
+   "[2026-08-20] prepared a live test plan that asked the user to
+   manually reproduce an internal runtime condition" entry). Not PASS,
+   not FAIL. The separately-documented automated EVA/focus defect
+   (`farming/environment.py`'s EVA/cast branch never re-checking focus
+   after `confirm_cast()`, see `SYSTEM_OVERVIEW.md` and this document's
+   run-1 shutdown-fix history) remains as previously documented.
+8. **RecoveredNativeProfile fast restore: FAILED.** Closing/restarting
+   the dev bot while the same FlyFF client remained running produced
+   full discovery instead of the expected fast restore — a real fail of
+   the G5 fast-restore criterion (`docs/architecture/
+   POSITION_AND_POINTER_RECOVERY.md` section 3, criterion 3).
+9. User explicitly requested `presence_validation_source` be logged
+   automatically rather than manually hunted for.
+10. Development Tools launches failed (pre-dating this run's fix); the
+    entire Development Tools UI was reported as intentionally being
+    removed as a result — not repaired.
+11. The GUI remained horizontally clipped ("Run Trained Agent" clipped
+    on the right) after run 1's attempted layout repair.
+12. Two processes were observed at close: a venv `python.exe` and a
+    base `C:\Python314\python.exe`, both running `-m apps.dev_app`.
+    **This parent/child shape alone is not proof of a leak** — what
+    matters is whether the app-owned chain disappears after normal
+    closure, which was not separately confirmed either way this run.
+
+### Root-cause analysis and fixes this phase (offline only — no live execution by an agent)
+
+**GUI layout, corrected diagnosis.** Direct local measurement
+(`Gui().init()`, no FlyFF) found run 1's DPI-awareness fix never
+addressed the actual mechanism — see `SYSTEM_OVERVIEW.md` section 3b
+and `MISTAKES.md` for the full falsified-hypothesis account. The real,
+measured cause was Phase 10's artifact `sg.Table` widening the fixed-
+width sidebar Column (779px inner content in a 335px canvas). That
+table — and the entire Development Tools panel it lived in — has now
+been **removed entirely** (`docs/decisions/0007-dev-bot-first-is-not-
+an-ide.md`), not replaced by a smaller launcher or dialog, per explicit
+user direction. Measured post-removal: inner frame width 332px against
+a 335px canvas (previously 779px), every action button ≤308px
+(previously up to 755px), and `-START_BOT-`/`-RUN_AGENT-` now render as
+separate full-width rows rather than a paired row.
+`tests/test_gui_sidebar_geometry.py` protects both the geometry
+invariant and the panel's continued absence.
+
+**RecoveredNativeProfile fast restore.** Investigated offline; see
+`docs/architecture/POSITION_AND_POINTER_RECOVERY.md`'s new "Fast-restore
+live-reported failure" subsection for the full account. Summary: a real
+service-level coverage gap was found and closed
+(`tests/test_native_process_service.py::test_same_process_cache_restore_reaches_the_fast_path_at_the_service_level`,
+which passes — the mechanism is sound when a matching profile is
+genuinely on disk); one plausible lead (`persist=False` at startup
+blocking the profile save) was checked and ruled out (the profile save
+is unconditional on successful recovery, independent of that flag); no
+other definite code-level defect was found by source inspection alone.
+**Not yet root-caused** — comprehensive state-transition logging was
+added instead (`runtime_controller.py::_prepare_native_pointer_startup`,
+all additive, no validation logic changed), including
+`presence_validation_source` (new `NativeProcessService` read-only
+property) so it is automatically logged rather than manually hunted
+for, per the user's explicit request. The actual cause should become
+visible in the next user-run session's recovery log
+(`training_logs/native_recovery/startup-recovery-*.log`).
+
+**EVA/focus and obstacle-navigation testing.** Neither is claimed PASS
+or FAIL here — see the flawed-test-design `MISTAKES.md` entry above.
+Both remain genuinely open items for a future, properly-designed
+controlled run (obstacle-navigation) or instrumented session
+(EVA/focus), not merely unreported results.
+
+**Process shutdown.** Not re-investigated this phase beyond what run
+1's `values=None`/`WIN_CLOSED` fix already addressed (unchanged,
+retained). The two-process observation is recorded as inconclusive
+evidence, not a diagnosed leak — see the note above.
+
+### Updated criterion-by-criterion result
+
+| # | Criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | Cold start / attach / vision / model load | PASS | User-observed, run 2 |
+| 2 | GUI layout usable, no horizontal clipping | **FAIL in run 2 → structurally rebuilt, measured offline; visual confirmation still USER-RUN** | Run 2 report; `tests/test_gui_sidebar_geometry.py` |
+| 3 | Normal close produces no error | PASS (run 1's fix; not contradicted in run 2) | `tests/test_gui_event_loop_lifecycle.py` |
+| 4 | Movement (forward) | PASS (forward only — not full navigation) | Run 2 report |
+| 5 | Obstacle navigation | **NOT TESTED — no safe procedure existed** | Run 2 report |
+| 6 | EVA/focus-loss discard | **NOT TESTED — flawed procedure design, see MISTAKES.md** | Run 2 report |
+| 7 | RecoveredNativeProfile fast restore | **FAIL — investigated, not yet root-caused, now instrumented** | Run 2 report; `POSITION_AND_POINTER_RECOVERY.md` |
+| 8 | Development Tools | **Removed entirely, not repaired** | `docs/decisions/0007-dev-bot-first-is-not-an-ide.md` |
+| 9 | Controlled recording (new this phase) | **NOT YET LIVE-TESTED — offline-only so far** | `tests/test_recording_session.py` |
+
+### Follow-up
+
+User retest required (procedure at the end of this phase's report).
+Do not claim PASS on obstacle navigation, EVA/focus, or fast restore
+until real evidence exists for each — none currently does beyond what
+is recorded above.

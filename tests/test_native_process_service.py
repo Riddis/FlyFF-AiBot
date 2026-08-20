@@ -484,3 +484,113 @@ def test_persisted_independent_profile_is_validated_before_full_recovery(tmp_pat
     assert service.independent_reader is not None
     assert dict(service.independent_reader.authoritative_species_counts) == {944: 1, 948: 1}
     assert memory.readable_calls == 0
+
+
+def test_same_process_cache_restore_reaches_the_fast_path_at_the_service_level(
+    tmp_path,
+) -> None:
+    """Closes a real coverage gap found investigating a live-reported
+    fast-restore failure (docs/architecture/POSITION_AND_POINTER_
+    RECOVERY.md section "Persistence and startup order"): the pure
+    RecoveredNativeProfile.restore_profile() mechanics for the same-
+    process-cache path were already covered
+    (tests/test_recovered_native_profile.py), but no test proved
+    NativeProcessService.try_restore_persisted_profile() actually
+    *reaches* that fast path end-to-end when the persisted profile's
+    runtime_pid/runtime_module_base/runtime_player_base/
+    runtime_relation_value all genuinely match the current process --
+    i.e. the exact "relaunch the dev bot while the same FlyFF client
+    stays open" scenario. This is a positive-evidence test: it does not
+    itself explain a live failure, but it does prove the restore
+    mechanism is sound at this layer, narrowing where a real failure
+    must actually come from (persistence timing / a genuinely different
+    PID / a rejected structural check) rather than a broken same-
+    process-cache code path."""
+    memory = _ServiceMemory()
+    config = _config()
+    player = memory.actor_base
+    relation_value = memory.actor_base + 0xF000
+    memory.module_u32(config.player_pointer_offset, player)
+    memory.actor_u32(0x3C8, player)
+    memory.actor_u32(0x16C, relation_value)
+    memory.actor_i32(0x81C, 26930)
+    memory.actor_f32(0x160, 253.0)
+    memory.actor_f32(0x164, 100.0)
+    memory.actor_f32(0x168, 86.0)
+    memory.actor_u32(0xF000, 0x12345678)
+
+    actor_bases = []
+    for relative, species, hp, x in (
+        (0x3000, 944, 400236, 250.0),
+        (0x6000, 948, 250000, 260.0),
+    ):
+        base = memory.actor_base + relative
+        actor_bases.append(base)
+        memory.actor_u32(relative + 0x3C8, base)
+        memory.actor_u32(relative + 0x16C, relation_value)
+        memory.actor_i32(relative + 0x174, species)
+        memory.actor_i32(relative + 0x81C, hp)
+        memory.actor_f32(relative + 0x160, x)
+        memory.actor_f32(relative + 0x164, 100.0)
+        memory.actor_f32(relative + 0x168, 86.0)
+
+    profile_path = tmp_path / "native_profile.json"
+    save_profile(
+        RecoveredNativeProfile(
+            version=PROFILE_VERSION,
+            module_name="Neuz.exe",
+            module_size=len(memory.module),
+            module_filename="Neuz.exe",
+            module_sha256="",
+            player_slot_offsets=(config.player_pointer_offset,),
+            player_self_offsets=(0x3C8,),
+            monster_self_offsets=(0x3C8,),
+            player_hp_offset=0x81C,
+            species_offset=0x174,
+            active_species_offset=0x1DBC,
+            monster_hp_offset=0x81C,
+            x_offset=0x160,
+            y_offset=0x164,
+            z_offset=0x168,
+            actor_stride=0x3000,
+            authoritative_relation_offset=0x16C,
+            anchor_species=944,
+            anchor_hp=400236,
+            expected_full_hp_by_species=((944, 400236),),
+            saved_at_utc="2026-08-02T00:00:00+00:00",
+            # The exact fields that gate the same-process-cache fast
+            # path (RecoveredNativeProfile._runtime_cache_identity_matches):
+            # this simulates a profile saved by a PRIOR dev-bot process
+            # against a FlyFF client that never restarted -- pid and
+            # module base still match on "relaunch".
+            runtime_pid=memory.pid,
+            runtime_module_base=memory.module_base_value,
+            runtime_player_base=player,
+            runtime_relation_value=relation_value,
+            runtime_actor_bases=tuple(actor_bases),
+            runtime_species_counts=((944, 1), (948, 1)),
+        ),
+        profile_path,
+    )
+    service = NativeProcessService(
+        memory,
+        config,
+        allow_independent_recovery=True,
+        recovery_profile_path=profile_path,
+        attach_policy=LIVE_ATTACH_POLICY,
+    )
+
+    restored = service.try_restore_persisted_profile(
+        hints=PointerRecoveryHints(known_species_ids=(944, 948)),
+    )
+
+    assert restored is True
+    assert service.last_profile_restore_mode == "same_process_cache"
+    snapshot = service.read_pointer_snapshot()
+    assert snapshot.mode == "independent"
+    assert snapshot.player_base == player
+    assert service.independent_reader is not None
+    assert dict(service.independent_reader.authoritative_species_counts) == {944: 1, 948: 1}
+    # The whole point of the same-process cache: zero memory-search
+    # calls, only direct pointer reads to validate the cached bases.
+    assert memory.readable_calls == 0

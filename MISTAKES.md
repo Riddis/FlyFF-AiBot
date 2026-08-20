@@ -872,3 +872,40 @@ project's own no-silent-rewrite rule.
   names the rest of the loop happens to branch on -- a handler-level
   unit test does not exercise dispatch-order bugs like this one; only a
   full-loop test with a scripted read sequence does.
+
+### [2026-08-20] prepared a live test plan that asked the user to manually reproduce an internal runtime condition
+
+- What happened: an earlier live-acceptance test plan asked the user to
+  perform a standalone manual action to exercise the EVA/focus-loss
+  discard path -- but that condition only exists *inside* a farming/
+  training/runtime sequence (focus lost mid-EVA-cast during active
+  control), not as something reachable by a discrete, isolated user
+  action outside that sequence. The user correctly could not perform it
+  as written and reported it as not-yet-executable; obstacle-navigation
+  testing was similarly deferred for lack of a properly-defined safe
+  procedure.
+- Root cause: `preparing-controlled-validation` step 5 (verify a
+  procedure is actually operationally executable via current source/UI
+  before handing it to the user) was not applied rigorously enough --
+  the condition's existence in code was confirmed, but not whether a
+  user could actually *trigger* it as an isolated action versus only as
+  a byproduct of a longer live sequence.
+- How caught: user-reported inability to execute the procedure as
+  written, during live acceptance evidence collection.
+- Fix: `.claude/skills/preparing-controlled-validation/SKILL.md` step 5
+  now states this rule explicitly: if a condition can only occur inside
+  a farming/training/runtime sequence, design an instrumented
+  controlled run that reaches it naturally (with the controller type
+  and required logging declared up front) instead of asking the user to
+  reproduce the internal state as a standalone manual action. The
+  EVA/focus-loss defect itself remains separately documented (see the
+  earlier `main GUI loop refreshed against values=None` entry's
+  sibling finding in `farming/environment.py`'s EVA/cast branch) and
+  was not re-tested standalone as a result -- correctly left PENDING,
+  not marked PASS or FAIL from live evidence that was never actually
+  gathered.
+- Lesson: before handing a live procedure to the user, ask "can this
+  specific action actually be triggered by the available product
+  controls in isolation, or does it only occur as a byproduct of a
+  longer sequence?" -- verifying a condition *exists* in source is not
+  the same as verifying a user can *reach* it as a standalone step.

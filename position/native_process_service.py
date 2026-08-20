@@ -309,6 +309,18 @@ class NativeProcessService:
             return self._last_profile_restore_error
 
     @property
+    def presence_validation_source(self) -> str:
+        """How presence was last validated, e.g. "authoritative_refresh",
+        "runtime_lifecycle_validation", "external_validation", or
+        "unproven" before any validation (position/IndependentNativeReader.py).
+        Read-only diagnostic surface -- added so startup logging can
+        report it directly instead of it only ever reaching a recorder
+        manifest (docs/architecture/POSITION_AND_POINTER_RECOVERY.md)."""
+        with self._lock:
+            reader = self._independent_reader
+        return "unproven" if reader is None else reader.presence_validation_source
+
+    @property
     def memory(self) -> NativeProcessMemory:
         return self._memory
 

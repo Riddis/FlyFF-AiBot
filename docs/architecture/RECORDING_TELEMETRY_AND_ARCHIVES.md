@@ -6,9 +6,11 @@
 
 - **Writer:** `recorder/` (`RECORDER_ONLY` — confirmed clean of
   `simulator.*`/`torch`/`gymnasium`/`stable_baselines3`/`devtools.*`).
-  Launched via `apps/recorder_app.py` (`recorder.gui.run_gui()`), also
-  packaged standalone via `FlyffFarmingRecorder.spec` (PyInstaller).
-  Attaches using `RECORDING_ATTACH_POLICY` (see
+  Launched via `apps/recorder_app.py` (`recorder.gui.run_gui()`,
+  interactive, developer-run) or `apps/recorder_headless_cli.py`
+  (non-interactive, the only one the dev app itself launches — see
+  section 1a), also packaged standalone via `FlyffFarmingRecorder.spec`
+  (PyInstaller). Attaches using `RECORDING_ATTACH_POLICY` (see
   `POSITION_AND_POINTER_RECOVERY.md`).
 - **Reader (canonical archive reader):** `simulator/schema.py`
   (`RecordingArchive`, `RecordedFrame`, `RecordedActor`,
@@ -16,6 +18,57 @@
   `archives/` — that package does not exist; this was a Phase-8
   correction to an earlier, wrong classification. Both files are
   `SHARED_RUNTIME_CORE`, not devtools.
+
+## 1a. Recording is classified by purpose, not by controller
+
+**Confidence: VERIFIED_CONTRACT.** Every recording carries an
+`experiment_provenance` block in `manifest.json`
+(`recorder/provenance.py`'s `ExperimentProvenance`, a new, additive,
+backward-compatible manifest field — `simulator/schema.py`'s reader
+does not reject unknown keys) recording, per
+`docs/PROJECT_GOALS.md` section 6:
+
+- `purpose`: `"OPERATIONAL_FEEDBACK"` (default) or
+  `"CONTROLLED_EXPERIMENT"`.
+- `controller_type`: `"HUMAN_CONTROLLED"`, `"BOT_POLICY_CONTROLLED"`
+  (default), or `"SCRIPTED_CONTROLLED"`.
+- `protocol_id` / `hypothesis`: required for `CONTROLLED_EXPERIMENT`
+  (`ExperimentProvenance.__post_init__` enforces this), optional
+  otherwise.
+- `data_use_role`: `"FITTING_ELIGIBLE"` (default),
+  `"VALIDATION_HOLDOUT"`, or `"DIAGNOSTIC_ONLY"`.
+
+**Lifecycle, both sharing one backend (`recorder.session.RecorderController`,
+never duplicated in `Gui.py`):**
+
+- **Automatic, `OPERATIONAL_FEEDBACK`:** `RuntimeController.start_rl()`
+  starts a recording automatically for `train`/`agent` modes (the user
+  never has to remember to click Record), and stops it in `start_rl`'s
+  `finally` block alongside `self.bot.stop()`. Requires a cached player
+  max-HP (`sg.user_settings` key `-RECORDING-PLAYER-FULL-HP-`, entered
+  once via the controlled-recording popup, per
+  `Gui.__cached_player_full_hp`) — the recorder's own attach discovery
+  needs it; if none is cached yet, farming/training proceeds unrecorded
+  with a logged reason rather than blocking on it.
+- **Explicit, `CONTROLLED_EXPERIMENT`:** the sidebar's compact
+  "Recording:" section (`-RECORDING-START-`/`-RECORDING-STOP-`) opens a
+  small popup for protocol ID, hypothesis, controller type, and
+  data-use role, then calls `RuntimeController.start_recording(...)`.
+
+**Process boundary (R1b-adjacent, but a separate rule from section 4's
+`farming.trainer` exception):** `recorder` is excluded from the dev
+app's own import closure the same way `simulator`-training code is
+(`tests/test_dev_app_import_closure.py`). Neither `RuntimeController`
+nor `Gui.py` ever imports `recorder.*` directly — `recording_session.py`
+(stdlib-only: `subprocess`, `queue`, `threading`, no `recorder` import)
+launches `apps/recorder_headless_cli.py` as a separate OS process,
+exactly the same explicit-argv, no-PYTHONPATH-injection subprocess
+pattern already used for every other specialist entrypoint, and reads
+its newline-delimited JSON status stream. This is not a general-purpose
+process launcher (`docs/decisions/0007-dev-bot-first-is-not-an-ide.md`)
+— it launches exactly one command for exactly one purpose. See
+`docs/architecture/SYSTEM_OVERVIEW.md` section 3 for the full process
+diagram.
 
 ## 2. Why `RecordedFrame`/`RecordedActor`/`RecordedEvent` module identity matters
 

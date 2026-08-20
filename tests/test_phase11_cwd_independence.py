@@ -1,13 +1,15 @@
 """Phase-11: working-directory independence (Section 12 of the authorization).
 
-Extends the Phase-10 precedent
-(tests/test_devtools_process_orchestrator.py::
-test_session_context_resolution_is_independent_of_caller_cwd) to the
-Phase-11 surfaces: `project_paths` (pre-existing, `farming`/`recorder`
-resource-root resolution) and `future_runtime_profile.derive_runtime_
-manifest` (new this phase). Each is proven by resolving from a subprocess
-whose CWD is an unrelated temp directory -- never assuming
-`os.getcwd() == repo root`.
+Originally extended a Phase-10 precedent covering
+`devtools.session_context.resolve_session_context` to the Phase-11
+surfaces below; that precedent's own module was removed along with the
+Development Tools GUI panel it only ever served (see
+docs/decisions/0007-dev-bot-first-is-not-an-ide.md), so only the
+Phase-11 surfaces remain here: `project_paths` (pre-existing,
+`farming`/`recorder` resource-root resolution) and
+`future_runtime_profile.derive_runtime_manifest` (new this phase). Each
+is proven by resolving from a subprocess whose CWD is an unrelated temp
+directory -- never assuming `os.getcwd() == repo root`.
 """
 
 from __future__ import annotations
@@ -65,15 +67,3 @@ def test_derive_runtime_manifest_derive_call_is_independent_of_caller_cwd(tmp_pa
     result = _run_from_elsewhere(_LOAD_RESOLVER + "report = mod.derive(); print(report.ok)", cwd=tmp_path)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "True"
-
-
-def test_session_context_resolution_still_independent_of_caller_cwd(tmp_path: Path) -> None:
-    """Re-confirmation of the Phase-10 precedent within Phase 11's own
-    test plan (Section 19 item), not a replacement for it."""
-    result = _run_from_elsewhere(
-        "from devtools.session_context import resolve_session_context; "
-        "ctx = resolve_session_context(); print(ctx.repo_root)",
-        cwd=tmp_path,
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == str(REPO.resolve())

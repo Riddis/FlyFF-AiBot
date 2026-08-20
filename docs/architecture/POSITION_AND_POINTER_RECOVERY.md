@@ -207,6 +207,61 @@ decision order: existing live in-process reader → same-process cache →
 stable cross-process profile plus one relation scan → full recovery.
 Each stage validates before use and falls back safely.
 
+### Fast-restore live-reported failure — investigated, not yet root-caused
+
+**Confidence: VERIFIED_CONTRACT for the mechanism, UNRESOLVED for the
+live failure.** A user-run session reported: close the dev bot, leave
+the same FlyFF client open, relaunch — expected same-process-cache fast
+restore, observed full discovery instead. Investigated offline only
+(no live execution by an agent):
+
+- The `same_process_cache` restore path was previously covered only at
+  the pure-mechanics level
+  (`tests/test_recovered_native_profile.py`); no test proved
+  `NativeProcessService.try_restore_persisted_profile()` actually
+  *reaches* that fast path end-to-end when a persisted profile's
+  `runtime_pid`/`runtime_module_base`/`runtime_player_base`/
+  `runtime_relation_value` genuinely match the current process — the
+  exact reported scenario. `tests/test_native_process_service.py::
+  test_same_process_cache_restore_reaches_the_fast_path_at_the_service_level`
+  closes this gap and **passes**: the mechanism is sound at the service
+  layer (`restore_mode == "same_process_cache"`, zero memory-search
+  calls) when a matching profile is genuinely on disk.
+- One plausible-looking lead was checked and **ruled out**:
+  `_prepare_native_pointer_startup` passes `persist=False` to
+  `recover_pointers()` during startup, but that flag only gates the
+  separate `position_config.json`/`monster_config.json` hint files —
+  `NativeProcessService._persist_independent_profile` (the
+  `RecoveredNativeProfile` writer) runs unconditionally whenever a
+  recovery `applied`, regardless of `persist`. So a successful full
+  recovery at startup does still save a restorable profile.
+- No other definite code-level defect was found in the restore/
+  validation chain by source inspection alone. The real cause remains
+  unresolved pending live evidence — most likely candidates *not yet
+  distinguished*: the first session's profile-save genuinely never
+  completed (session too brief to trigger a promotion-triggered save,
+  and no full recovery ran to trigger the unconditional post-recovery
+  save either), the FlyFF client's actual PID differed from what the
+  user believed (a real restart), or a structural validation check
+  (self-reference, relation, species/HP/coordinate bounds) rejected the
+  cached actors for a reason not yet visible without live logs.
+
+**Instrumentation added for the next user run**
+(`runtime_controller.py::_prepare_native_pointer_startup`, all
+additive — no validation logic changed): the per-session recovery log
+(`training_logs/native_recovery/startup-recovery-*.log`) now records,
+as state-change events (not per-frame): attach policy name; the
+resolved `recovery_profile_path` and whether it exists on disk;
+whether a profile load was attempted; the restore validation result,
+`restore_mode`, and precise rejection reason; `presence_validation_source`
+and whether presence was validated, both when the existing in-process
+reader is reused and after a successful profile restore; and an
+explicit `fallback_reason`/`full_discovery_started` marker before full
+recovery runs. `NativeProcessService.presence_validation_source` (new
+read-only property, mirrors the existing `last_profile_restore_*`
+properties) makes this readable without reaching into the private
+`_independent_reader`.
+
 ### Known false leads (do not resurrect)
 
 - `+0x217C` looked like an "active" field candidate but was
