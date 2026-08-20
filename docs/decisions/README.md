@@ -15,3 +15,4 @@ they don't need a separate ADR.
 | [0004](0004-live-validation-by-user-only.md) | Live validation is executed by the user, never by an agent |
 | [0005](0005-phase-is-not-evidence-of-retirement.md) | A migration phase milestone is not evidence a compatibility surface is obsolete |
 | [0006](0006-repo-docs-are-durable-memory.md) | Repository documentation is durable project memory; conversation is temporary |
+| [0007](0007-dev-bot-first-is-not-an-ide.md) | "Development-bot-first" is a sequencing decision, not a GUI mandate |

@@ -6,13 +6,38 @@ rules, not architecture.
 
 ## 1. Product direction
 
+Full detail: [`docs/PROJECT_GOALS.md`](../PROJECT_GOALS.md) — read it
+before non-trivial work on model training, farming behavior, GUI
+scope, or recording. Non-negotiable summary:
+
 - The canonical product is the **full development application**
   (`apps/dev_app.py` and everything it drives). See
-  [ADR 0003](../decisions/0003-dev-bot-first.md).
+  [ADR 0003](../decisions/0003-dev-bot-first.md). This governs *build
+  sequence*, not GUI surface area — the dev GUI exposes live
+  farming/attach/diagnostic controls, not a launcher for every offline
+  repository utility. See [ADR 0007](../decisions/0007-dev-bot-first-is-not-an-ide.md).
 - A future deployment/live derivative is derived from this **same**
   canonical source tree — never a copied fork, never built speculatively
-  ahead of dev-bot readiness. See
+  ahead of dev-bot readiness. It is **inference/farming only**: it must
+  never train, fine-tune, or expose research/calibration tooling. See
   [ADR 0001](../decisions/0001-canonical-source-single-tree.md).
+- **Zero collisions is a hard acceptance gate** for any farming model —
+  never a soft penalty or a quantity traded against kills/hour. Among
+  candidates that clear it, **kills/hour is the primary optimization
+  metric**. No specific kills/hour threshold is frozen by this
+  document — one must be declared before the experiment it governs.
+- The **generic farming baseline** (a model passing the full generic
+  farming curriculum) is a **future deliverable, not yet built**. The
+  frozen `models/generalized_waypoint_both_seed2_0051200.zip` is a
+  navigation/waypoint checkpoint only — never describe it as the
+  generic farming baseline. Once a real generic baseline is accepted,
+  it is frozen, and each map gets its own **independent**
+  specialization branched from that same frozen baseline (never a
+  cumulative `generic -> mapA -> mapB` chain). **Tower AoE is the
+  current, first, and only map specialization in scope.**
+- Recordings are classified by **purpose** (`OPERATIONAL_FEEDBACK` vs.
+  `CONTROLLED_EXPERIMENT`), not merely by who controlled the session —
+  see `docs/PROJECT_GOALS.md` section 6.
 
 ## 2. Absolute live-execution prohibition
 

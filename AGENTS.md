@@ -4,15 +4,20 @@ This is Codex's repository instruction entrypoint, kept in sync with
 `CLAUDE.md` (Claude Code's equivalent entrypoint) rather than
 maintained as a divergent copy. Read in this order:
 
-1. **`docs/agent/PROJECT_RULES.md`** — the permanent shared Claude/Codex
+1. **`docs/PROJECT_GOALS.md`** — the durable strategic context: why
+   this project exists, the generic-baseline/per-map-specialization
+   strategy, the zero-collision hard gate, dev-bot-vs-live-bot scope,
+   and the recording-purpose model. Read this before any work touching
+   model training, farming behavior, GUI scope, or recording.
+2. **`docs/agent/PROJECT_RULES.md`** — the permanent shared Claude/Codex
    rules: product direction, the absolute live-execution prohibition,
    canonical ownership, test/gate discipline, scientific integrity,
    immutable artifacts, git discipline, context hygiene, STOP
    conditions, the `MISTAKES.md` rule, and the six project skills.
-2. **`docs/README.md`** — the current-project-knowledge index. Find the
+3. **`docs/README.md`** — the current-project-knowledge index. Find the
    architecture doc relevant to your task rather than reading
    everything.
-3. **`MISTAKES.md`** (repository root) — skim relevant entries before
+4. **`MISTAKES.md`** (repository root) — skim relevant entries before
    non-trivial work, per `PROJECT_RULES.md` section 8.
 
 ## Non-negotiable

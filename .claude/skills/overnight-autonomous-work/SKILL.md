@@ -99,9 +99,15 @@ and the current handoff/state journals to select useful next work. Do
 not polish low-value cosmetics while a known functional blocker exists;
 do not begin speculative unrelated features.
 
-## Project-complete stop condition
+## Offline-stage handoff condition
 
-The long-term offline project-complete condition:
+**This is not a project-complete condition.** See
+`docs/PROJECT_GOALS.md` for the actual long-term goal (a frozen generic
+farming baseline, independently specialized per map, starting with
+Tower AoE) — reaching the condition below means offline work has
+reached a point where the *next required evidence* is USER-RUN live
+work, nothing more. It does **not** mean the FlyFF RL project is
+complete, and must never be reported or logged as such.
 
 ```
 the canonical DEVELOPMENT bot is fully feature-ready
@@ -115,17 +121,26 @@ AND
 the remaining next step is user-run live validation/training
 ```
 
+Where curriculum/model quality is part of "successfully completed":
+**zero collisions is a hard acceptance gate** (never a soft penalty,
+never traded against throughput — a candidate that collides does not
+pass, regardless of kills/hour), and among collision-free candidates,
+**sustained kills/hour is the primary optimization metric**
+(`docs/PROJECT_GOALS.md` section 2). Never invent a specific kills/hour
+threshold here — one must be frozen before the experiment it governs.
+
 Do not declare this from intuition — it must be supported by the
 project's documented completion/readiness criteria and evidence. When
 reached, **stop** and record:
 
 ```
-OFFLINE PROJECT GOAL REACHED
+OFFLINE-STAGE HANDOFF CONDITION REACHED
 READY FOR USER-RUN LIVE TRAINING/VALIDATION
+NOT A PROJECT-COMPLETE CONDITION
 ```
 
 then wait for the user. Reaching this state does **not** authorize live
-training.
+training and does **not** mean the project is complete.
 
 ## Mandatory overnight log
 
@@ -221,15 +236,16 @@ Every overnight run ends in exactly one of:
 ```
 CONTINUING_UNTIL_SESSION_LIMIT
 BLOCKED_REQUIRES_USER
-OFFLINE_PROJECT_GOAL_REACHED
+OFFLINE_STAGE_HANDOFF_REACHED
 ENVIRONMENT_FAILURE
 SAFE_STOP_AFTER_MAXIMUM_USEFUL_PROGRESS
 ```
 
-Prefer reaching `BLOCKED_REQUIRES_USER` or `OFFLINE_PROJECT_GOAL_
-REACHED` where possible. Do not choose
-`SAFE_STOP_AFTER_MAXIMUM_USEFUL_PROGRESS` merely because the task became
-difficult or several hours passed.
+Prefer reaching `BLOCKED_REQUIRES_USER` or
+`OFFLINE_STAGE_HANDOFF_REACHED` where possible. Neither means the
+project is complete — see the offline-stage handoff condition above.
+Do not choose `SAFE_STOP_AFTER_MAXIMUM_USEFUL_PROGRESS` merely because
+the task became difficult or several hours passed.
 
 ## If the user returns mid-run
 

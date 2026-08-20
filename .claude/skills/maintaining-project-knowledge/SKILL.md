@@ -25,8 +25,8 @@ a prior phase gate encoded an incorrect retirement assumption.
    `docs/README.md`'s knowledge model for the full picture):
    - Current architectural/contract fact → the relevant
      `docs/architecture/*.md`.
-   - A mistake, wrong assumption, or reasoning error → `flyff_farming_
-     simulator/MISTAKES.md`, using its entry template. **Do this
+   - A mistake, wrong assumption, or reasoning error → `MISTAKES.md`
+     (repository root), using its entry template. **Do this
      immediately if applicable, in the same pass** — do not defer it.
    - Something a specific experiment/validation observed →
      `docs/validation/` (use `docs/validation/VALIDATION_TEMPLATE.md`).
