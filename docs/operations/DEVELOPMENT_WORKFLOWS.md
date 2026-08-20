@@ -43,16 +43,25 @@ means, `anchored_independent` vs. `recovery_movement_required`, the
 same-process cache vs. stable cross-process profile decision order),
 see `docs/architecture/POSITION_AND_POINTER_RECOVERY.md`.
 
-## 3. Specialist subprocess launcher (Phase-10 dev-tools panel)
+## 3. Offline specialist tools and recording (Phase-10 panel removed)
 
-The dev app's "Development Tools" panel (`devtools/gui_tools.py`) can
-launch any of the 16 registered specialist commands (recorder,
-telemetry, simulator, native diagnostics, archive tools, calibration
-tools) as an independent, non-blocking subprocess — see
-`docs/architecture/SYSTEM_OVERVIEW.md` section 3. Output streams to the
-shared `RuntimeBus` log; a read-only artifact table shows checkpoint/
-recording inventory. Launching a second instance of an already-running
-command is rejected, not queued.
+The Phase-10 "Development Tools" GUI panel (a generic subprocess
+launcher exposing 16 specialist commands plus an artifact-inventory
+table) was removed entirely — see
+[ADR 0007](../decisions/0007-dev-bot-first-is-not-an-ide.md) and
+`docs/architecture/SYSTEM_OVERVIEW.md` section 3. It is not replaced by
+a smaller launcher; offline tools (recorder, telemetry, simulator,
+native diagnostics, archive tools, calibration tools) are invoked
+directly by a developer from the command line — see
+`docs/architecture/SYSTEM_OVERVIEW.md` section 2 for each entrypoint.
+
+The one thing the dev app's sidebar still launches is recording itself
+(`docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md` section 1a) —
+automatically as `OPERATIONAL_FEEDBACK` around farming/training
+sessions, or explicitly via the compact "Recording:" section's Start
+Controlled Recording / Stop Recording for a `CONTROLLED_EXPERIMENT`.
+Both launch `apps/recorder_headless_cli.py` as a separate process
+through `recording_session.py`, never a second recorder GUI.
 
 ## 4. Dry run, training, and agent — current contract
 
@@ -118,7 +127,7 @@ correct mistakes rather than rewrite history.
 
 ## Evidence / Sources
 
-- `apps/dev_app.py`, `devtools/gui_tools.py`
+- `apps/dev_app.py`, `recording_session.py`, `apps/recorder_headless_cli.py`
 - `docs/RUNBOOK.md` (superseded prior-generation detail, ported forward
   as HISTORICAL_EVIDENCE/BEST_CURRENT_ESTIMATE where cross-referenced)
 - `docs/architecture/SYSTEM_OVERVIEW.md`,

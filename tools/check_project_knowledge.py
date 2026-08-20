@@ -79,6 +79,10 @@ INTENTIONALLY_NONEXISTENT_PATHS = frozenset({
     "flyff_farming_recorder/requirements.txt",
     "foreground_vision_bot/foreground_vision_farm.json",
     "flyff_farming_simulator/MISTAKES.md",
+    "devtools/gui_tools.py",
+    "devtools/processes.py",
+    "devtools/artifact_inventory.py",
+    "devtools/session_context.py",
 })
 STALE_QUALIFIERS = (
     "facade", "shim", "compat", "superseded", "stale", "prior-generation",

@@ -278,11 +278,14 @@ def test_dev_app_closure_is_nonempty_and_includes_expected_in_process_modules() 
 def test_specialist_apps_do_not_import_each_other() -> None:
     """apps/recorder_app.py, apps/telemetry_cli.py, apps/simulator_cli.py
     are independent specialist launchers -- none should import another
-    app's implementation directly (they are launched as separate
-    subprocesses by devtools/processes.py, never imported)."""
+    app's implementation directly (each is invoked directly by a
+    developer, or launched as a separate subprocess by
+    recording_session.py for the recording lifecycle, never
+    imported)."""
     app_entries = {
         "apps.dev_app": REPO / "apps" / "dev_app.py",
         "apps.recorder_app": REPO / "apps" / "recorder_app.py",
+        "apps.recorder_headless_cli": REPO / "apps" / "recorder_headless_cli.py",
         "apps.telemetry_cli": REPO / "apps" / "telemetry_cli.py",
         "apps.simulator_cli": REPO / "apps" / "simulator_cli.py",
     }

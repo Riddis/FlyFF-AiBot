@@ -65,6 +65,7 @@ def test_late_worker_event_cannot_reenable_controls_during_shutdown() -> None:
     gui.controller = SimpleNamespace(
         shutdown_requested=True,
         shutdown_finalized=False,
+        recording=None,
     )
     button_keys = (
         "-VALIDATE_DATA-",
@@ -83,6 +84,8 @@ def test_late_worker_event_cannot_reenable_controls_during_shutdown() -> None:
         "-DELETE_MAP-",
         "-NATIVE_HEALTH-",
         "-RECOVER_POINTERS-",
+        "-RECORDING-START-",
+        "-RECORDING-STOP-",
     )
     gui.window = {key: _Button() for key in button_keys}
 

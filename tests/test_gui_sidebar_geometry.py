@@ -7,10 +7,13 @@ scroll-only ``-MAIN_COLUMN-`` Column. The Table's real requested width
 inner frame far past its 335px canvas viewport; every sibling
 expand_x=True sidebar control then filled to that oversized inner
 width and was clipped/pushed off-screen by the canvas, which cannot
-scroll horizontally (vertical_scroll_only=True). The artifact table now
-lives in its own separate, resizable window
-(Gui.__show_artifact_window), opened on demand -- it is never a direct
-child of the fixed-width sidebar Column.
+scroll horizontally (vertical_scroll_only=True).
+
+The Development Tools panel that contained this table (and everything
+else it added to the sidebar) has since been removed entirely --
+docs/decisions/0007-dev-bot-first-is-not-an-ide.md -- not replaced by a
+smaller launcher or an artifact-inventory dialog. This test protects
+both the geometry invariant and the panel's continued absence.
 
 This is verified by actually constructing the real Tk window
 (Gui().init()) and reading its real, rendered widget geometry --
@@ -49,10 +52,22 @@ ACTION_BUTTON_KEYS = (
     "-START_BOT-",
     "-RUN_AGENT-",
     "-NATIVE_HEALTH-",
+    "-RECOVER_POINTERS-",
     "-STOP_BOT-",
+    "-RECORDING-START-",
+    "-RECORDING-STOP-",
+)
+
+REMOVED_DEVTOOLS_KEYS = (
+    "-DEVTOOLS-COMMAND-",
+    "-DEVTOOLS-ARGS-",
     "-DEVTOOLS-LAUNCH-",
     "-DEVTOOLS-CANCEL-",
+    "-DEVTOOLS-STATUS-",
+    "-DEVTOOLS-ARTIFACTS-SUMMARY-",
     "-DEVTOOLS-ARTIFACTS-OPEN-",
+    "-DEVTOOLS-ARTIFACTS-TABLE-",
+    "-DEVTOOLS-ARTIFACTS-REFRESH-",
 )
 
 
@@ -102,9 +117,32 @@ def test_action_buttons_stay_within_the_visible_sidebar(rendered_gui: Gui) -> No
     )
 
 
-def test_artifact_table_is_not_a_direct_sidebar_child(rendered_gui: Gui) -> None:
-    """The regression's root cause, pinned directly: no wide multi-
-    column Table may live inside -MAIN_COLUMN- again. The full
-    inventory belongs in the separate artifact window instead."""
-    assert "-DEVTOOLS-ARTIFACTS-TABLE-" not in rendered_gui.window.AllKeysDict
-    assert "-DEVTOOLS-ARTIFACTS-SUMMARY-" in rendered_gui.window.AllKeysDict
+def test_start_training_and_run_trained_agent_are_separate_full_width_rows(
+    rendered_gui: Gui,
+) -> None:
+    """Explicit requirement: these two do not need to share one row --
+    separate full-width rows guarantee both stay readable regardless of
+    sidebar width (docs/architecture/SYSTEM_OVERVIEW.md section 3b)."""
+    start_training = rendered_gui.window["-START_BOT-"].Widget
+    run_agent = rendered_gui.window["-RUN_AGENT-"].Widget
+    # winfo_y() is relative to each button's own immediate row frame (a
+    # different widget per button here), so it reports a similar small
+    # offset for both regardless of row -- winfo_rooty() (absolute
+    # screen position) is what actually distinguishes separate rows.
+    assert start_training.winfo_rooty() != run_agent.winfo_rooty()
+
+
+def test_development_tools_panel_is_fully_removed(rendered_gui: Gui) -> None:
+    """The panel that caused the regression is gone entirely -- not
+    replaced by a smaller launcher, popup, or artifact-inventory dialog
+    (docs/decisions/0007-dev-bot-first-is-not-an-ide.md)."""
+    present = [key for key in REMOVED_DEVTOOLS_KEYS if key in rendered_gui.window.AllKeysDict]
+    assert not present, f"Development Tools keys still present: {present}"
+
+
+def test_recording_controls_are_present(rendered_gui: Gui) -> None:
+    """The compact controlled-recording section replaces the removed
+    Development Tools panel's spot in the sidebar (docs/PROJECT_GOALS.md
+    section 6) -- Start/Stop plus a status line, nothing larger."""
+    for key in ("-RECORDING-START-", "-RECORDING-STOP-", "-RECORDING-STATUS-"):
+        assert key in rendered_gui.window.AllKeysDict

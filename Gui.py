@@ -10,13 +10,6 @@ from time import monotonic
 
 import cv2 as cv
 import PySimpleGUI as sg
-from devtools.gui_tools import (
-    ARTIFACT_TABLE_HEADINGS,
-    artifact_table_rows,
-    command_name_from_choice,
-    display_choices,
-    DevToolsGuiController,
-)
 from mapper.ManualMapEditor import ManualMapEditorSession
 from mapper.MapCatalog import MapCatalog
 from mapper.OccupancyGrid import OccupancyGrid
@@ -60,19 +53,10 @@ class Gui:
         }
         self.controller = None
         self._log_window = None
-        self._artifact_window = None
         self._heading_overlay_detector = None
         self._status_mode = "Idle"
         self._last_status_message = "Ready"
         self.runtime_bus = RuntimeBus(max_logs=1500)
-        # Specialist tools (recorder/telemetry/simulator/native diagnostics/
-        # archive/calibration) are launched as independent OS processes via
-        # devtools.processes.SpecialistProcessManager, never imported into
-        # this process -- see tests/test_dev_app_import_closure.py's R1b
-        # boundary. Sharing self.runtime_bus means specialist stdout/stderr
-        # flows through the exact same bounded-log surface __refresh_runtime
-        # already drains below; no second logging mechanism.
-        self.dev_tools = DevToolsGuiController(bus=self.runtime_bus)
         self.map_catalog = MapCatalog()
         self.map_names = list(self.map_catalog.names())
         self._selected_map_name = self.map_catalog.default_name
@@ -91,8 +75,6 @@ class Gui:
         self._last_preview_render_at = 0.0
         self._last_map_render_at = 0.0
         self._last_log_render_at = 0.0
-        self._devtools_last_status_text: str | None = None
-        self._devtools_last_selected_command: str | None = None
         self._preview_render_interval = 1.0 / 10.0
         self._map_render_interval = 1.0 / 4.0
         sg.theme(theme)
@@ -109,7 +91,6 @@ class Gui:
         )
         sg.cprint_set_output_destination(self.window, "-ML-")
         sg.user_settings_filename(path=".")
-        self.__refresh_artifact_summary()
         self.__set_hotkeys()
         return self.window
 
@@ -129,7 +110,7 @@ class Gui:
                 continue
 
             self.__service_log_window()
-            self.__service_artifact_window()
+            self.__service_recording()
             self.__refresh_runtime(values)
 
             # ACTIONS - Button events
@@ -141,7 +122,7 @@ class Gui:
                 game_window_name, game_window_handler = self.__attach_window_popup()
                 if game_window_name and game_window_handler:
                     try:
-                        self.controller.attach(game_window_handler)
+                        self.controller.attach(game_window_handler, game_window_name)
                     except Exception as error:  # noqa: BLE001 - GUI command boundary.
                         message = f"Could not attach to the Flyff window: {error}"
                         self.__set_status("Attach failed", message)
@@ -158,11 +139,12 @@ class Gui:
                         )
                         self.__set_rl_buttons(attached=True, running=False)
 
-            self.__handle_devtools_event(event, values)
-
             if event == "-START_BOT-":
                 self.__start_control(
-                    lambda: self.controller.start_rl("train"),
+                    lambda: self.controller.start_rl(
+                        "train",
+                        auto_record_player_full_hp=self.__cached_player_full_hp(),
+                    ),
                     "Training",
                     "Starting training...",
                 )
@@ -176,7 +158,10 @@ class Gui:
 
             if event == "-RUN_AGENT-":
                 self.__start_control(
-                    lambda: self.controller.start_rl("agent"),
+                    lambda: self.controller.start_rl(
+                        "agent",
+                        auto_record_player_full_hp=self.__cached_player_full_hp(),
+                    ),
                     "Agent",
                     "Starting trained agent...",
                 )
@@ -198,6 +183,13 @@ class Gui:
 
             if event == "-SHOW_LOG-":
                 self.__show_log_window()
+
+            if event == "-RECORDING-START-":
+                self.__start_controlled_recording_popup()
+
+            if event == "-RECORDING-STOP-":
+                self.controller.stop_recording()
+                self.window["-RECORDING-STATUS-"].update("Stopping...")
 
             if event == "-STOP_BOT-":
                 self.__set_status("Idle", "Stopped")
@@ -329,58 +321,8 @@ class Gui:
         self.__set_rl_buttons(attached=True, running=True)
         self.runtime_bus.log(message, "msg_blue")
 
-    def __handle_devtools_event(self, event, values):
-        """Thin glue only -- all real launch/cancel/status logic lives in
-        devtools.gui_tools.DevToolsGuiController (tested directly, no
-        window needed). launch()/cancel() never block: the process
-        manager starts a subprocess and returns immediately; output
-        reading and exit-waiting happen on daemon threads, and specialist
-        stdout/stderr flows into self.runtime_bus -- the exact same
-        bounded-log surface __refresh_runtime already drains, not a
-        second logging mechanism."""
-        if event == "-DEVTOOLS-LAUNCH-":
-            choice = values.get("-DEVTOOLS-COMMAND-")
-            if not choice:
-                return
-            name = command_name_from_choice(choice)
-            result = self.dev_tools.launch(name, values.get("-DEVTOOLS-ARGS-", ""))
-            self.runtime_bus.log(result.message, "msg_blue" if result.ok else "msg_red")
-            return
-        if event == "-DEVTOOLS-CANCEL-":
-            choice = values.get("-DEVTOOLS-COMMAND-")
-            if not choice:
-                return
-            name = command_name_from_choice(choice)
-            result = self.dev_tools.cancel(name)
-            self.runtime_bus.log(result.message, "msg_blue" if result.ok else "msg_yellow")
-            return
-        if event == "-DEVTOOLS-ARTIFACTS-OPEN-":
-            self.__show_artifact_window()
-            return
-
-    def __refresh_devtools_status(self, values):
-        """Polled every __refresh_runtime tick (<=20/s, same cadence as
-        the rest of the status surface) -- only updates the widget when
-        the selected command or its status text actually changed, mirroring
-        the version-gated pattern the rest of this method already uses for
-        RuntimeBus keys."""
-        choice = values.get("-DEVTOOLS-COMMAND-") if values else None
-        name = command_name_from_choice(choice) if choice else None
-        if name is None:
-            return
-        status_text = self.dev_tools.status_text(name)
-        if (
-            name == self._devtools_last_selected_command
-            and status_text == self._devtools_last_status_text
-        ):
-            return
-        self._devtools_last_selected_command = name
-        self._devtools_last_status_text = status_text
-        self.window["-DEVTOOLS-STATUS-"].update(f"{name}: {status_text}")
-
     def __refresh_runtime(self, values):
         now = monotonic()
-        self.__refresh_devtools_status(values)
 
         # High-rate preview: latest frame only, rendered at <=10 FPS.
         version, frame = self.runtime_bus.read_latest(
@@ -651,15 +593,6 @@ class Gui:
     def __shutdown(self, bot) -> bool:
         del bot
         self.__set_status("Stopping", "Stopping workers safely…")
-        if self._artifact_window is not None:
-            self._artifact_window.close()
-            self._artifact_window = None
-        # Ownership policy: any specialist subprocess this GUI session
-        # launched (recorder/telemetry/simulator/native/archive/calibration
-        # tools) is terminated on close, mirroring WorkerManager.shutdown()'s
-        # existing behavior for CAPTURE/PREVIEW/CONTROL/DIAGNOSTIC workers
-        # below -- nothing is left orphaned.
-        self.dev_tools.shutdown(timeout=5.0)
         results = self.controller.shutdown(timeout=8.0)
         timed_out = [kind.value for kind, stopped in results.items() if not stopped]
         if not timed_out:
@@ -723,6 +656,14 @@ class Gui:
         self.window["-RECOVER_POINTERS-"].update(
             disabled=(not attached or running)
         )
+        recording_active = (
+            self.controller.recording is not None
+            and self.controller.recording.is_running
+        )
+        self.window["-RECORDING-START-"].update(
+            disabled=(not attached or recording_active)
+        )
+        self.window["-RECORDING-STOP-"].update(disabled=not recording_active)
 
     def __set_bot_vision_visibility(self, enabled: bool) -> None:
         """Collapse the vision row so the live map moves up immediately."""
@@ -1453,6 +1394,8 @@ class Gui:
                         key="-START_BOT-",
                         expand_x=True,
                     ),
+                ],
+                [
                     sg.Button(
                         "Run Trained Agent",
                         disabled=True,
@@ -1610,6 +1553,42 @@ class Gui:
             expand_x=True,
         )
 
+        recording = sg.Frame(
+            "Recording:",
+            [
+                [
+                    sg.Button(
+                        "Start Controlled Recording",
+                        key="-RECORDING-START-",
+                        disabled=True,
+                        expand_x=True,
+                        tooltip=(
+                            "A deliberately designed session answering one "
+                            "predeclared question -- see docs/PROJECT_GOALS.md "
+                            "section 6. Farming/training already records "
+                            "operational feedback automatically."
+                        ),
+                    ),
+                ],
+                [
+                    sg.Button(
+                        "Stop Recording",
+                        key="-RECORDING-STOP-",
+                        disabled=True,
+                        expand_x=True,
+                    ),
+                ],
+                [
+                    sg.Text(
+                        "Idle",
+                        key="-RECORDING-STATUS-",
+                        size=(38, 1),
+                    )
+                ],
+            ],
+            expand_x=True,
+        )
+
         status = sg.Frame(
             "Status:",
             [
@@ -1647,73 +1626,14 @@ class Gui:
             expand_x=True,
         )
 
-        dev_tools_choices = display_choices()
-        dev_tools = sg.Frame(
-            "Development Tools:",
-            [
-                [
-                    sg.Combo(
-                        dev_tools_choices,
-                        default_value=dev_tools_choices[0] if dev_tools_choices else "",
-                        readonly=True,
-                        enable_events=True,
-                        key="-DEVTOOLS-COMMAND-",
-                        expand_x=True,
-                    ),
-                ],
-                [
-                    sg.Text("Args:"),
-                    sg.Input(
-                        "",
-                        key="-DEVTOOLS-ARGS-",
-                        expand_x=True,
-                        tooltip=(
-                            "Optional extra command-line arguments, e.g. "
-                            "--window-title Flyff --duration-seconds 60. "
-                            "Leave blank for tools that support running with "
-                            "no arguments -- nothing here is filled in "
-                            "automatically."
-                        ),
-                    ),
-                ],
-                [
-                    sg.Button("Launch", key="-DEVTOOLS-LAUNCH-", expand_x=True),
-                    sg.Button("Cancel", key="-DEVTOOLS-CANCEL-", expand_x=True),
-                ],
-                [
-                    sg.Text(
-                        "not started",
-                        key="-DEVTOOLS-STATUS-",
-                        size=(38, 2),
-                    )
-                ],
-                [sg.HorizontalSeparator()],
-                [
-                    sg.Text(
-                        "Artifact inventory: --",
-                        key="-DEVTOOLS-ARTIFACTS-SUMMARY-",
-                        size=(38, 1),
-                    )
-                ],
-                [
-                    sg.Button(
-                        "View Artifact Inventory",
-                        key="-DEVTOOLS-ARTIFACTS-OPEN-",
-                        expand_x=True,
-                    )
-                ],
-            ],
-            expand_x=True,
-        )
-
         controls = sg.Column(
             [
                 [actions],
                 [map_config],
                 [mobs_config],
                 [options],
+                [recording],
                 [status],
-                [dev_tools],
             ],
             size=(335, 820),
             pad=((0, 8), (0, 0)),
@@ -1971,61 +1891,125 @@ class Gui:
             self._log_window.close()
             self._log_window = None
 
-    def __refresh_artifact_summary(self):
-        """Cheap sidebar-only count; the full table lives in the separate
-        artifact window (__show_artifact_window) so the fixed-width main
-        controls Column is never widened by a wide multi-column table --
-        that widening is what clipped/pushed every sibling expand_x
-        control off the visible sidebar on the first live acceptance run
-        (see MISTAKES.md)."""
-        count = len(artifact_table_rows())
-        self.window["-DEVTOOLS-ARTIFACTS-SUMMARY-"].update(
-            f"Artifact inventory: {count:,} entries"
-        )
+    def __cached_player_full_hp(self) -> int | None:
+        """Entered once via the controlled-recording popup, persisted the
+        same way -EVA-HOTKEY- etc. already are -- reused automatically
+        for operational-feedback recording (docs/PROJECT_GOALS.md
+        section 6) so the user is never asked twice."""
+        value = sg.user_settings_get_entry("-RECORDING-PLAYER-FULL-HP-", None)
+        try:
+            return int(value) if value else None
+        except (TypeError, ValueError):
+            return None
 
-    def __show_artifact_window(self):
-        if self._artifact_window is not None:
-            self._artifact_window.bring_to_front()
-            return
-
-        self._artifact_window = sg.Window(
-            "FlyFF AiBot Artifact Inventory",
+    def __start_controlled_recording_popup(self) -> None:
+        """A small purpose/protocol dialog, not an experiment-management
+        dashboard (docs/PROJECT_GOALS.md section 6) -- the controller is
+        HUMAN_CONTROLLED here because a person is driving this popup;
+        the automatic operational-feedback path in RuntimeController.
+        start_rl sets BOT_POLICY_CONTROLLED itself."""
+        cached_hp = self.__cached_player_full_hp()
+        popup = sg.Window(
+            "Start Controlled Recording",
             [
+                [sg.Text("Protocol/test ID (required):")],
+                [sg.Input(key="-POPUP-PROTOCOL-", expand_x=True)],
+                [sg.Text("Hypothesis/question (optional):")],
+                [sg.Input(key="-POPUP-HYPOTHESIS-", expand_x=True)],
                 [
-                    sg.Table(
-                        values=artifact_table_rows(),
-                        headings=ARTIFACT_TABLE_HEADINGS,
-                        key="-ARTIFACT-WINDOW-TABLE-",
-                        auto_size_columns=False,
-                        col_widths=[10, 30, 18, 24],
-                        num_rows=20,
-                        justification="left",
-                        expand_x=True,
-                        expand_y=True,
+                    sg.Text("Controller:"),
+                    sg.Combo(
+                        ["HUMAN_CONTROLLED", "BOT_POLICY_CONTROLLED", "SCRIPTED_CONTROLLED"],
+                        default_value="HUMAN_CONTROLLED",
+                        readonly=True,
+                        key="-POPUP-CONTROLLER-",
+                    ),
+                ],
+                [
+                    sg.Text("Data-use role:"),
+                    sg.Combo(
+                        ["FITTING_ELIGIBLE", "VALIDATION_HOLDOUT", "DIAGNOSTIC_ONLY"],
+                        default_value="DIAGNOSTIC_ONLY",
+                        readonly=True,
+                        key="-POPUP-DATA-USE-",
+                    ),
+                ],
+                [sg.Text("Player max HP (required; cached for next time):")],
+                [
+                    sg.Input(
+                        str(cached_hp) if cached_hp else "",
+                        key="-POPUP-PLAYER-HP-",
                     )
                 ],
-                [
-                    sg.Button("Refresh", key="-ARTIFACT-WINDOW-REFRESH-"),
-                    sg.Button("Close"),
-                ],
+                [sg.Button("Start"), sg.Button("Cancel")],
             ],
-            size=(1000, 500),
-            resizable=True,
+            modal=True,
             finalize=True,
+            keep_on_top=True,
+        )
+        try:
+            event, values = popup.read()
+        finally:
+            popup.close()
+        if event != "Start":
+            return
+
+        protocol_id = str(values.get("-POPUP-PROTOCOL-", "")).strip()
+        if not protocol_id:
+            self.show_error("A protocol/test ID is required for a controlled recording.")
+            return
+        try:
+            player_full_hp = int(str(values.get("-POPUP-PLAYER-HP-", "")).strip())
+            if player_full_hp <= 0:
+                raise ValueError
+        except ValueError:
+            self.show_error("Player max HP must be a positive whole number.")
+            return
+
+        sg.user_settings_set_entry("-RECORDING-PLAYER-FULL-HP-", player_full_hp)
+        hypothesis = str(values.get("-POPUP-HYPOTHESIS-", "")).strip() or None
+        try:
+            self.controller.start_recording(
+                purpose="CONTROLLED_EXPERIMENT",
+                player_full_hp=player_full_hp,
+                controller_type=values.get("-POPUP-CONTROLLER-", "HUMAN_CONTROLLED"),
+                protocol_id=protocol_id,
+                hypothesis=hypothesis,
+                data_use_role=values.get("-POPUP-DATA-USE-", "DIAGNOSTIC_ONLY"),
+            )
+        except Exception as error:  # noqa: BLE001 - GUI command boundary.
+            message = f"Could not start recording: {error}"
+            self.runtime_bus.log(message, "msg_red")
+            self.show_error(message)
+            return
+        self.window["-RECORDING-STATUS-"].update(f"Starting ({protocol_id})...")
+        self.__set_rl_buttons(
+            attached=self.controller.capture_active,
+            running=self.controller.control_active,
         )
 
-    def __service_artifact_window(self):
-        if self._artifact_window is None:
-            return
-        event, _ = self._artifact_window.read(timeout=0)
-        if event in (sg.WIN_CLOSED, "Close"):
-            self._artifact_window.close()
-            self._artifact_window = None
-            return
-        if event == "-ARTIFACT-WINDOW-REFRESH-":
-            rows = artifact_table_rows()
-            self._artifact_window["-ARTIFACT-WINDOW-TABLE-"].update(values=rows)
-            self.__refresh_artifact_summary()
+    def __service_recording(self) -> None:
+        events = self.controller.poll_recording()
+        for event in events:
+            event_type = event.get("type")
+            if event_type == "error":
+                self.runtime_bus.log(
+                    f"Recording error: {event.get('message', 'unknown error')}",
+                    "msg_red",
+                )
+            elif event_type == "finished":
+                self.runtime_bus.log(
+                    f"Recording saved: {event.get('output_zip', 'unknown path')}",
+                    "msg_green",
+                )
+        if events and hasattr(self, "window"):
+            recording = self.controller.recording
+            status_text = recording.status if recording is not None else "Idle"
+            self.window["-RECORDING-STATUS-"].update(status_text)
+            self.__set_rl_buttons(
+                attached=self.controller.capture_active,
+                running=self.controller.control_active,
+            )
 
     def __make_live_map_placeholder(self, message):
         import numpy as np
