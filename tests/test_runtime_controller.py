@@ -15,6 +15,7 @@ from position.NativePointerRecovery import (
     PlayerPointerRecovery,
     PointerRecoveryMetrics,
 )
+import runtime_controller as runtime_controller_module
 from runtime_bus import RuntimeBus
 from runtime_controller import RuntimeController
 from worker_manager import CancellationToken, WorkerKind
@@ -326,6 +327,25 @@ def test_rl_startup_pointer_failure_is_clean_and_never_enters_trainer(
 def test_rl_startup_prefers_validated_persisted_profile_before_full_recovery(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    class FakeRecordingSink:
+        """Training now mandatorily starts a recording sink first (rule C,
+        docs/PROJECT_GOALS.md section 6); this test is about native-pointer
+        startup preferring a validated persisted profile over full
+        recovery, so the sink itself is faked out here rather than pulled
+        into scope."""
+
+        def __init__(self, **kwargs) -> None:
+            self.ownership = kwargs["ownership"]
+
+        @property
+        def is_running(self) -> bool:
+            return True
+
+        def stop(self):
+            return "/fake/output.zip"
+
+    monkeypatch.setattr(runtime_controller_module, "RecordingSink", FakeRecordingSink)
+
     class ProfileService:
         def __init__(self) -> None:
             self.ready = False
@@ -358,6 +378,8 @@ def test_rl_startup_prefers_validated_persisted_profile_before_full_recovery(
     bot = FakeBot()
     service = ProfileService()
     bot.native_process_service = service
+    bot.position_provider = object()
+    bot.monster_provider = object()
     controller = RuntimeController(bot, RuntimeBus())
     module = ModuleType("farming.trainer")
     invoked: list[str] = []

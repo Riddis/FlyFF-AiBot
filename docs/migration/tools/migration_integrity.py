@@ -45,6 +45,7 @@ DEFAULT_SUPPLEMENTS = (
     DEFAULT_SUPPLEMENT,
     "docs/migration/POST_PHASE9_R7C_SUPPLEMENT.tsv",
     "docs/migration/POST_PHASE10_R7C_SUPPLEMENT.tsv",
+    "docs/migration/POST_PHASE14_R7C_SUPPLEMENT.tsv",
 )
 PHASE7_MOVE_MANIFEST = "docs/migration/PHASE7_MOVE_MANIFEST.tsv"
 BRIDGE_BEGIN = "<!-- bridge-registry:begin -->"

@@ -27,8 +27,7 @@ without ever actually being performed yet.
 | Entrypoint | Role | Invocation |
 |---|---|---|
 | `apps/dev_app.py` | The canonical development GUI: constructs `Gui`+`Bot` at true module level, drives live attach/farming/training and the recording lifecycle | `python -m apps.dev_app` (or direct script; both resolve identically — see `tests/test_canonical_module_invocation.py`) |
-| `apps/recorder_app.py` | Interactive recorder GUI (`recorder.gui.run_gui()`) — a developer-run tool, never launched by the dev app | `python -m apps.recorder_app` |
-| `apps/recorder_headless_cli.py` | Non-interactive recorder driver (reuses `recorder.session.RecorderController`), the only thing the dev app actually launches for recording — see `recording_session.py` | `python -m apps.recorder_headless_cli --help` |
+| `apps/recorder_app.py` | Interactive standalone recorder GUI (`recorder.gui.run_gui()`) with its own independent acquisition path — a developer-run tool, retained for historical/compatibility use, never launched by the dev app | `python -m apps.recorder_app` |
 | `apps/simulator_cli.py` | Simulator/training CLI (`simulator.cli.main()`) | `python -m apps.simulator_cli --help` |
 | `apps/telemetry_cli.py` | Observation-only native telemetry CLI, deliberately independent of `Bot`/`Gui`/`RuntimeController` — cannot press a key | `python -m apps.telemetry_cli --help` |
 
@@ -56,16 +55,23 @@ apps/dev_app.py
            -> farming.trainer  [the ONE registered R1b exception edge]
               -> FarmingMapContext, position.*, DirectFarmingControl,
                  UnifiedFarmingEnv / PPO
-        -> recording_session.RecordingSession (docs/PROJECT_GOALS.md
-           section 6 -- OPERATIONAL_FEEDBACK, automatic around
-           train/agent sessions, and CONTROLLED_EXPERIMENT, explicit via
-           the sidebar's compact Recording section)
-           -> subprocess.Popen(explicit argv/cwd/env, no PYTHONPATH
-              injection) launching apps/recorder_headless_cli.py, which
-              alone imports `recorder.*` -- RuntimeController/Gui.py
-              never do (see section 4's R1b boundary: `recorder` is
-              excluded from the dev app's import closure)
+        -> recording_sink.RecordingSink (docs/PROJECT_GOALS.md section 6;
+           docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md section
+           1a -- a passive, in-process consumer of the SAME already-
+           attached native_process_service/position_provider/
+           monster_provider triad Bot.py sets up once at
+           prepare_window() time, never a second scanner/process. One
+           session at a time: USER-started (Start/Stop Recording,
+           no metadata) or RUNTIME_AUTO-started around train/agent
+           sessions, mandatory -- if it cannot start, farming/training
+           does not start either)
 ```
+
+`recorder.*` (the standalone recorder package) is never imported by
+`apps/dev_app.py`'s closure (section 4's R1b boundary,
+`tests/test_dev_app_import_closure.py`) -- `recording_sink.py` and
+`recording_format.py` are stdlib+msgpack-only root-level modules built
+specifically so the dev app never needs to reach into `recorder/`.
 
 **`RuntimeBus`** (`runtime_bus.py`, stdlib-only): one shared instance
 constructed by `Gui.py`, passed into `RuntimeController`. Bounded-log
@@ -226,8 +232,9 @@ as `unresolved_future_choices`, not silently resolved.
 | `position/` | Native process attachment, pointer recovery, actor/monster discrimination, `AttachPolicy`/`RecoveredNativeProfile` | `Bot.py`, `devtools.telemetry`, `devtools.native.*`, `recorder` (via its own compatibility facades — see [COMPONENT_OWNERSHIP.md](COMPONENT_OWNERSHIP.md)) |
 | `navigation/` | The one authoritative kinodynamic route planner + movement kernel (Phase-9 canonical) | `simulator/*` env/training code, the two `simulator/*` ABI re-export shims |
 | `mapper/` | Map catalog, coordinate mapping, editor GUI, offline RL-map tooling (`mapper/rl/{FeatureExtractor,GymEnv,OfflineTraining}.py` are the training-only exception) | `farming/map_context.py`, `Gui.py` |
-| `recorder/` | Canonical demonstration/session recording writer, including `provenance.py`'s `ExperimentProvenance` (docs/PROJECT_GOALS.md section 6) | `apps/recorder_app.py`, `apps/recorder_headless_cli.py`, standalone PyInstaller build. **Never** the dev app's own import closure (R1b/section 4) — only reached via `recording_session.py`'s subprocess launch |
-| `recording_session.py` | The dev app's own narrow subprocess wrapper around `apps/recorder_headless_cli.py` — launches/polls/stops recording, never imports `recorder` itself | `RuntimeController`, `Gui.py` |
+| `recorder/` | Standalone historical recorder's own writer/format/`provenance.py` (`ExperimentProvenance`, docs/PROJECT_GOALS.md section 6), plus `evidence_catalog.py`'s post-hoc sidecar labeling used by both the standalone recorder and the dev bot | `apps/recorder_app.py`, standalone PyInstaller build. **Never** the dev app's own import closure (R1b/section 4) |
+| `recording_format.py` | Root-level, stdlib+msgpack-only packed-stream write primitives (`PackedStreamWriter`, `package_session`, etc.), extracted out of `recorder/format.py` (which now re-exports them) specifically so the dev app never has to import `recorder` to write an archive | `recording_sink.py`, `recorder/format.py` |
+| `recording_sink.py` | The dev bot's own in-process recording sink (`RecordingSink`) — a passive consumer of the dev bot's already-attached native reader triad, never a second scanner or subprocess (docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md section 1a) | `RuntimeController` |
 | `simulator/schema.py` + `legacy/manifest_compat.py` | Canonical archive/recording **reader** (`RecordingArchive`/`RecordedFrame`/`RecordedActor`/`RecordedEvent`) — corrected classification, not `archives/` (which does not exist) | `tools.inventory_recordings`, `devtools.archives.*`, tests |
 | `devtools/` | Dev-only offline utilities kept after Phase-10's GUI-orchestration layer was removed ([ADR 0007](../decisions/0007-dev-bot-first-is-not-an-ide.md)): `devtools.native.*`, `devtools.calibration.*`, `devtools.archives.*`, `devtools.telemetry` — CLI/library use, invoked directly by a developer, never launched by `apps/dev_app.py` | `apps/telemetry_cli.py`, developers directly |
 | `simulator/` (rest) | Training/environment implementation (router/static/single-obstacle waypoint envs, curriculum, CLI) | Training scripts, `docs/migration/tests/`, never the dev app |

@@ -105,6 +105,7 @@ class NativeHealthSnapshot:
 
 class NativeDiagnosticOutcome(str, Enum):
     HEALTH_ONLY = "health_only"
+    RECOVERY_NOT_NEEDED = "recovery_not_needed"
     RECOVERY_UNAVAILABLE = "recovery_unavailable"
     RECOVERY_SUCCEEDED = "recovery_succeeded"
     RECOVERY_NOT_APPLIED = "recovery_not_applied"
@@ -393,6 +394,29 @@ def run_native_diagnostic(
             outcome=NativeDiagnosticOutcome.HEALTH_ONLY,
             recovery_requested=False,
             persistence_requested=False,
+            before=before,
+            after=before,
+            recovery=None,
+            progress_updates=updates,
+            last_progress=last_progress,
+        )
+
+    if before.status is NativeHealthStatus.HEALTHY:
+        # A genuinely healthy attachment must not trigger a full
+        # rediscovery scan just because the user pressed Recover
+        # Pointers -- validate first, short-circuit if nothing is
+        # actually wrong (MISTAKES.md: recovery scan storms from a
+        # healthy service).
+        emit(
+            NativeDiagnosticProgress(
+                phase="not_needed",
+                message="Native pointers are already healthy; no recovery needed.",
+            )
+        )
+        return NativeDiagnosticReport(
+            outcome=NativeDiagnosticOutcome.RECOVERY_NOT_NEEDED,
+            recovery_requested=True,
+            persistence_requested=bool(persist),
             before=before,
             after=before,
             recovery=None,

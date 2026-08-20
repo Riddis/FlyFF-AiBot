@@ -23,6 +23,7 @@ from farming.trainer import (
     _TrainingCallback,
     train_native_farming,
 )
+import runtime_controller as runtime_controller_module
 from runtime_bus import RuntimeBus
 from runtime_controller import RuntimeController
 from worker_manager import CancellationToken
@@ -328,10 +329,39 @@ def test_fatal_training_failure_preserves_last_known_good_model(
     assert not (tmp_path / "session.manifest.json").exists()
 
 
+class _FakeNativeProcessService:
+    """Minimal stand-in so _prepare_native_pointer_startup's "existing
+    reader already valid" fast path returns immediately, without
+    exercising real recovery -- this test is about the trainer's own
+    preflight/model_preflight/learn/save sequencing, not native pointer
+    recovery."""
+
+    def read_pointer_snapshot(self) -> object:
+        return SimpleNamespace(player_base=0)
+
+
+class _FakeRecordingSink:
+    """Training now mandatorily starts a recording sink first (rule C,
+    docs/PROJECT_GOALS.md section 6); this test is about the trainer's
+    own preflight/model_preflight/learn/save sequencing, so the sink
+    itself is faked out here rather than pulled into scope."""
+
+    def __init__(self, **kwargs: object) -> None:
+        self.ownership = kwargs["ownership"]
+
+    @property
+    def is_running(self) -> bool:
+        return True
+
+    def stop(self) -> object:
+        return "/fake/output.zip"
+
+
 def test_fake_launch_attach_preview_dry_run_and_external_training_session(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(runtime_controller_module, "RecordingSink", _FakeRecordingSink)
     events: list[str] = []
     real_train = train_native_farming
     training_runtime = FakeRuntime(events)
@@ -404,6 +434,9 @@ def test_fake_launch_attach_preview_dry_run_and_external_training_session(
     dry_controller.start_rl("dry-run")
 
     training_bot = FakeBot(events)
+    training_bot.native_process_service = _FakeNativeProcessService()
+    training_bot.position_provider = object()
+    training_bot.monster_provider = object()
     training_controller = RuntimeController(
         training_bot,  # pyright: ignore[reportArgumentType]
         RuntimeBus(),

@@ -4,14 +4,20 @@
 
 **Confidence: VERIFIED_CONTRACT.**
 
-- **Writer:** `recorder/` (`RECORDER_ONLY` — confirmed clean of
-  `simulator.*`/`torch`/`gymnasium`/`stable_baselines3`/`devtools.*`).
-  Launched via `apps/recorder_app.py` (`recorder.gui.run_gui()`,
-  interactive, developer-run) or `apps/recorder_headless_cli.py`
-  (non-interactive, the only one the dev app itself launches — see
-  section 1a), also packaged standalone via `FlyffFarmingRecorder.spec`
-  (PyInstaller). Attaches using `RECORDING_ATTACH_POLICY` (see
-  `POSITION_AND_POINTER_RECOVERY.md`).
+There are two, deliberately separate, writers sharing one archive
+format — see section 1a for why the dev bot uses neither the standalone
+recorder's process nor its acquisition path:
+
+- **Standalone historical recorder:** `recorder/` (`RECORDER_ONLY` —
+  confirmed clean of `simulator.*`/`torch`/`gymnasium`/
+  `stable_baselines3`/`devtools.*`). Launched via `apps/recorder_app.py`
+  (`recorder.gui.run_gui()`, interactive, developer-run), also packaged
+  standalone via `FlyffFarmingRecorder.spec` (PyInstaller). Attaches
+  using `RECORDING_ATTACH_POLICY` (see `POSITION_AND_POINTER_RECOVERY.md`)
+  — its own, independent acquisition path, retained for historical/
+  compatibility use only. The dev bot never invokes it (section 1a).
+- **Dev-bot recording sink:** root-level `recording_sink.py`'s
+  `RecordingSink`, in-process, never a subprocess (section 1a).
 - **Reader (canonical archive reader):** `simulator/schema.py`
   (`RecordingArchive`, `RecordedFrame`, `RecordedActor`,
   `RecordedEvent`), backed by `legacy/manifest_compat.py`. **Not**
@@ -19,56 +25,81 @@
   correction to an earlier, wrong classification. Both files are
   `SHARED_RUNTIME_CORE`, not devtools.
 
-## 1a. Recording is classified by purpose, not by controller
+## 1a. The dev bot's recording sink is a passive consumer, never a second scanner
 
-**Confidence: VERIFIED_CONTRACT.** Every recording carries an
-`experiment_provenance` block in `manifest.json`
-(`recorder/provenance.py`'s `ExperimentProvenance`, a new, additive,
-backward-compatible manifest field — `simulator/schema.py`'s reader
-does not reject unknown keys) recording, per
-`docs/PROJECT_GOALS.md` section 6:
+**Confidence: VERIFIED_CONTRACT.** Forward-corrected from an earlier,
+rejected design (MISTAKES.md, "turned recording into a second
+acquisition/scanner process instead of a consumer of the canonical
+stream") where the dev app launched `apps/recorder_headless_cli.py` as
+a subprocess with its own independent native scanner/reader/discovery
+stack, attached to the same FlyFF client the dev bot was already
+reading — violating the single-reader/single-flight rule
+(`docs/architecture/POSITION_AND_POINTER_RECOVERY.md` rule 7). That
+file, and the dev app's subprocess wrapper around it
+(`recording_session.py`), have been removed; neither exists in the
+current tree.
 
-- `purpose`: `"OPERATIONAL_FEEDBACK"` (default) or
-  `"CONTROLLED_EXPERIMENT"`.
-- `controller_type`: `"HUMAN_CONTROLLED"`, `"BOT_POLICY_CONTROLLED"`
-  (default), or `"SCRIPTED_CONTROLLED"`.
-- `protocol_id` / `hypothesis`: required for `CONTROLLED_EXPERIMENT`
-  (`ExperimentProvenance.__post_init__` enforces this), optional
-  otherwise.
-- `data_use_role`: `"FITTING_ELIGIBLE"` (default),
-  `"VALIDATION_HOLDOUT"`, or `"DIAGNOSTIC_ONLY"`.
+**Current shape:** `FlyFF -> canonical dev-bot capture/native scanner
+(Bot.py's native_process_service/position_provider/monster_provider,
+set once at prepare_window()) -> farming.native_world.NativeWorldReader
+-> recording_sink.RecordingSink`. `RecordingSink` is constructed with
+the dev bot's *already-attached* triad and never opens its own
+attachment, discovery, or scan — it wraps them in the same
+`NativeWorldReader` class farming/training already uses, and polls it
+on its own background thread at a fixed interval (default 0.2s),
+calling only `refresh_actor_cache()`/`read_frame()` — the same calls
+farming/training already makes every tick, not a new class of native
+operation. Write primitives (`PackedStreamWriter`, `package_session`,
+etc.) live in root-level `recording_format.py`, extracted out of
+`recorder/format.py` (which now re-exports them) specifically so
+`recording_sink.py` can reuse them **without the dev app importing
+`recorder`** — the R1b import-closure boundary
+(`tests/test_dev_app_import_closure.py`) still holds: `recorder` is
+never reached from the dev app's import closure.
 
-**Lifecycle, both sharing one backend (`recorder.session.RecorderController`,
-never duplicated in `Gui.py`):**
+**User-visible UI is trivial, no metadata questionnaire** (MISTAKES.md,
+"invented mandatory experiment-metadata UI fields the user never asked
+for"): the sidebar's "Recording:" section is `[Start Recording]`
+`[Stop Recording]` plus a compact status line (Idle / Recording
+HH:MM:SS / Saved: `<path>`). No protocol ID, hypothesis, controller
+dropdown, data-use-role field, or player-HP prompt — see
+`docs/PROJECT_GOALS.md` section 6 for how purpose/controller/data-use
+classification is instead attached **after** capture, via
+`recorder/evidence_catalog.py`'s sidecar labels, never mutating the raw
+archive.
 
-- **Automatic, `OPERATIONAL_FEEDBACK`:** `RuntimeController.start_rl()`
-  starts a recording automatically for `train`/`agent` modes (the user
-  never has to remember to click Record), and stops it in `start_rl`'s
-  `finally` block alongside `self.bot.stop()`. Requires a cached player
-  max-HP (`sg.user_settings` key `-RECORDING-PLAYER-FULL-HP-`, entered
-  once via the controlled-recording popup, per
-  `Gui.__cached_player_full_hp`) — the recorder's own attach discovery
-  needs it; if none is cached yet, farming/training proceeds unrecorded
-  with a logged reason rather than blocking on it.
-- **Explicit, `CONTROLLED_EXPERIMENT`:** the sidebar's compact
-  "Recording:" section (`-RECORDING-START-`/`-RECORDING-STOP-`) opens a
-  small popup for protocol ID, hypothesis, controller type, and
-  data-use role, then calls `RuntimeController.start_recording(...)`.
+**Lifecycle (`RuntimeController.recording`, rules A–E):**
 
-**Process boundary (R1b-adjacent, but a separate rule from section 4's
-`farming.trainer` exception):** `recorder` is excluded from the dev
-app's own import closure the same way `simulator`-training code is
-(`tests/test_dev_app_import_closure.py`). Neither `RuntimeController`
-nor `Gui.py` ever imports `recorder.*` directly — `recording_session.py`
-(stdlib-only: `subprocess`, `queue`, `threading`, no `recorder` import)
-launches `apps/recorder_headless_cli.py` as a separate OS process,
-exactly the same explicit-argv, no-PYTHONPATH-injection subprocess
-pattern already used for every other specialist entrypoint, and reads
-its newline-delimited JSON status stream. This is not a general-purpose
-process launcher (`docs/decisions/0007-dev-bot-first-is-not-an-ide.md`)
-— it launches exactly one command for exactly one purpose. See
-`docs/architecture/SYSTEM_OVERVIEW.md` section 3 for the full process
-diagram.
+- **A/B — explicit user control:** `-RECORDING-START-` calls
+  `start_recording(started_by="USER")`; `-RECORDING-STOP-` calls
+  `stop_recording()`, finalizing that session.
+- **C — mandatory automatic recording:** `start_rl()` requires an
+  active recording before `train`/`agent` modes begin. If none is
+  active, it starts one (`started_by="RUNTIME_AUTO"`) before control
+  starts. **If the shared sink cannot start, farming/training does not
+  start either** — fail closed, not silently unrecorded (forward-
+  corrected from the earlier "no cached max HP → skip recording,
+  continue anyway" behavior, also in MISTAKES.md).
+- **D — reuse, never duplicate:** if the user already started a
+  recording, `start_rl()` reuses it — no second sink, no second writer.
+- **E — ownership decides who finalizes:** `RuntimeController` tracks
+  which session started the recording (`RecordingOwnership.started_by`).
+  If farming/training auto-created it, the `finally` block in
+  `start_rl()` stops it alongside `self.bot.stop()`. If the user started
+  it, it is left running after farming/training ends until the user
+  presses Stop Recording — one recording session can span both manual
+  and bot-controlled intervals.
+
+**Bot runtime events share the same session:** while the bot is active,
+`RecordingSink.add_runtime_event(event_type, **fields)` writes into the
+same session's `events.msgpack.gz` stream alongside the native frame
+polling thread's output — one session identity links both streams.
+Currently wired for the live-agent path (`farming.trainer.
+run_native_farming_agent`'s `on_runtime_event` parameter, called with
+`policy_loaded`, `action`, and `episode_end` events); SB3's `train`-mode
+loop is not yet instrumented per-step (native frames are still recorded
+continuously for both modes regardless, via the sink's own polling
+thread).
 
 ## 2. Why `RecordedFrame`/`RecordedActor`/`RecordedEvent` module identity matters
 

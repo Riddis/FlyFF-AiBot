@@ -909,3 +909,139 @@ project's own no-silent-rewrite rule.
   controls in isolation, or does it only occur as a byproduct of a
   longer sequence?" -- verifying a condition *exists* in source is not
   the same as verifying a user can *reach* it as a standalone step.
+
+### [2026-08-20] turned recording into a second acquisition/scanner process instead of a consumer of the canonical stream
+
+- What happened: an earlier implementation of controlled recording
+  (`apps/recorder_headless_cli.py` + a standalone `RecorderController`)
+  ran in its own OS process with its own native scanner/reader/discovery
+  stack attached to the same FlyFF client the dev bot was already
+  attached to. This meant the dev bot's canonical
+  `native_process_service`/`position_provider`/`monster_provider` triad
+  (`Bot.py`'s `prepare_window()`) and the recorder's own independent
+  attach/discovery could both be reading (and, worse, both recovering)
+  the same process memory at once -- exactly the "one expensive
+  process-memory scan at a time" invariant
+  (`docs/architecture/POSITION_AND_POINTER_RECOVERY.md`) exists to
+  prevent, violated by construction, not by a bug in either side.
+- Root cause: recording was designed as an independent capability
+  ("record what's happening") rather than as a passive sink over
+  data the canonical runtime already produces every tick. Nothing in
+  the design asked "does this need its own scanner, or can it just
+  read what `farming.native_world.NativeWorldReader` already reads for
+  farming/training?" -- the answer was the latter, but the subprocess
+  shape made that impossible to notice until the architecture was
+  reviewed end-to-end.
+- How caught: user-directed architecture review (not a live failure) --
+  the user traced the actual data path and rejected the subprocess
+  design outright before it caused a live scan-storm incident.
+- Fix: `apps/recorder_headless_cli.py`, `recording_session.py`, and
+  their tests were removed. Recording is now `recording_sink.py`'s
+  `RecordingSink` -- constructed with the dev bot's *already-attached*
+  `native_process_service`/`position_provider`/`monster_provider`
+  (never constructing its own), wrapping them in the same
+  `NativeWorldReader` class farming/training already uses. Write
+  primitives that need to be shared between the standalone recorder and
+  the dev bot without the dev bot importing `recorder` (R1b import-
+  closure boundary) were extracted to root-level `recording_format.py`.
+- Lesson: before adding a capability that needs "what's happening right
+  now" data (recording, diagnostics, a new UI panel), check whether the
+  canonical per-tick reader already produces it and consume that --
+  never scaffold a second acquisition path just because the new
+  capability is architecturally/organizationally separate from the code
+  that already reads the data.
+
+### [2026-08-20] invented mandatory experiment-metadata UI fields the user never asked for
+
+- What happened: an earlier version of the recording UI required a
+  popup with protocol/test ID, hypothesis/question, controller type,
+  data-use role, and player max HP before a recording could start --
+  none of which the user requested. This turned a simple "start
+  recording" action into a scientific-experiment questionnaire and
+  additionally produced a real behavioral bug: when player max HP
+  couldn't be read, the code silently skipped recording entirely rather
+  than failing or asking, so live farming/training could run completely
+  unrecorded.
+- Root cause: conflating two genuinely different concepts -- "useful
+  scientific classification of a recording" (real, still valuable) and
+  "a capture-time UI burden the user must clear before pressing
+  record" (never requested, actively rejected). The classification
+  concepts were implemented as required constructor fields
+  (`recorder/provenance.py`'s `ExperimentProvenance`, with
+  `CONTROLLED_EXPERIMENT` recordings hard-requiring a `protocol_id`)
+  instead of optional after-the-fact labels.
+- How caught: explicit user correction (forward-product-correction
+  request) rejecting the popup, its five required fields, and the
+  cached-HP-skips-recording behavior by name.
+- Fix: the popup and `__cached_player_full_hp`/
+  `__start_controlled_recording_popup` were removed from `Gui.py`
+  entirely -- Start/Stop plus a compact status line, nothing else.
+  `ExperimentProvenance` still exists (it is a legitimate concept) but
+  is now applied two ways only: (a) the standalone historical
+  recorder's own construction-time use, (b) post-hoc, via
+  `recorder/evidence_catalog.py`'s `attach_evidence_label()`, which
+  writes a sidecar JSON next to an already-written archive and never
+  mutates the raw recording. `test_start_rl_skips_automatic_recording_
+  without_a_cached_hp` (which blessed the skip-recording behavior) was
+  deleted; recording is now unconditionally mandatory for live
+  farming/training (`docs/PROJECT_GOALS.md` section 6) -- if the shared
+  sink cannot start, farming/training fails closed instead of running
+  unrecorded.
+- Lesson: a scientific/analysis concept does not automatically become a
+  required capture-time UI field just because it's useful to have
+  later -- ask whether it can be attached after the fact from
+  information already available (git commit, timestamps, map,
+  checkpoint) before adding a field the user has to fill in before
+  they can do the simple thing they actually asked for.
+
+### [2026-08-20] recovery instrumentation let concurrent callers each run a real, duplicate recovery scan
+
+- What happened: live-observed evidence showed one manual "Recover
+  Pointers" click producing SIX manual-recovery log files within
+  ~270ms, and one dev-bot startup producing THREE startup-recovery log
+  files within ~11ms -- each file showing real recovery activity
+  ("Recovery scan started", "not_found", "cancelled"), not just
+  duplicate log lines from one operation. This is exactly the scan-
+  storm behavior the project's own single-reader/single-flight design
+  rule exists to prevent.
+- Root cause: two independent gaps, not one. (1) GUI button-timing:
+  `Gui.py`'s click handlers called into the controller *first* and only
+  disabled the relevant button *afterward*, in the success branch --
+  fast-failing attempts (e.g. `not_found`/`cancelled` outcomes complete
+  in milliseconds) freed the worker slot again before the disable had
+  any effect, so a burst of already-queued clicks could each
+  legitimately start their own real attempt. (2) No shared guard across
+  recovery *mechanisms*: `NativeProcessService.recover_pointers()` (full
+  structural scan) and `try_restore_persisted_profile()` (persisted-
+  profile fast path) each had their own internal protection against
+  concurrent calls to *themselves*, but nothing serialized one against
+  the other -- a caller of each could run real work at the same time.
+  `_active_recoveries`/`_active_profile_restores` looked like they
+  might be guards but are pure bookkeeping counters for status display;
+  the actual scans always ran outside any shared lock.
+- How caught: user-supplied live log evidence with exact timestamps
+  (this correction request), not a test failure -- no existing test
+  exercised concurrent real callers of both recovery mechanisms at
+  once.
+- Fix: `Gui.py`'s `__start_control` and the `-RECOVER_POINTERS-` handler
+  now disable the relevant button(s) immediately, before calling into
+  the controller, and restore them on failure -- closing the click-
+  timing race. `NativeProcessService` gained a plain `Lock`
+  (`_recovery_coordination_lock`) shared by `recover_pointers()` and
+  `try_restore_persisted_profile()`, so a caller of either now blocks
+  behind any recovery already in flight in the other (proven by
+  `tests/test_native_process_service.py::
+  test_recover_pointers_and_profile_restore_share_one_coordination_lock`).
+  Separately, `run_native_diagnostic()` now validates health first and
+  short-circuits with `RECOVERY_NOT_NEEDED` when the attachment is
+  already genuinely healthy, instead of always launching a full scan on
+  every "Recover Pointers" click regardless of whether one was needed.
+- Lesson: when multiple methods can each perform the same class of
+  expensive, exclusive operation (here: process-memory recovery scans),
+  a single-flight guard on *each method individually* is not
+  sufficient -- audit every entry point that can trigger that class of
+  operation and share one coordination point across all of them. And
+  in a GUI event loop, "disable the button" must happen synchronously
+  before the action that button guards, not after it returns -- a fast
+  operation can complete and free its guard before a post-hoc disable
+  ever takes effect.

@@ -12,6 +12,7 @@ from position import (
     NativeDiagnosticReport,
     NativeHealthStatus,
     NativePointerSnapshot,
+    NativePointerSnapshotError,
     NativeRecoveryOutcome,
     NativeRecoveryResult,
     collect_native_health,
@@ -42,6 +43,7 @@ class _DiagnosticService:
         wait_for_cancel: bool = False,
         ignore_cancel: bool = False,
         forced_outcome: NativeRecoveryOutcome | None = None,
+        start_unhealthy: bool = False,
     ) -> None:
         self.memory = SimpleNamespace(pid=7123)
         self.module_base = 0x10000000
@@ -63,12 +65,20 @@ class _DiagnosticService:
         self.wait_for_cancel = wait_for_cancel
         self.ignore_cancel = ignore_cancel
         self.forced_outcome = forced_outcome
+        # Recovery mechanics (cancellation, hints, persistence, progress)
+        # are only exercised if the mock actually needs recovering --
+        # otherwise Section 11's "genuinely healthy => no scan" short
+        # circuit in run_native_diagnostic would skip recover_pointers
+        # entirely and these tests would assert on a scan that never ran.
+        self._recovered = not start_unhealthy
         self.entered = Event()
         self.release = Event()
         self.recovery_kwargs: dict[str, object] = {}
 
     def read_pointer_snapshot(self) -> NativePointerSnapshot:
         self.snapshot_calls += 1
+        if not self._recovered:
+            raise NativePointerSnapshotError("Local-player pointer is null")
         return NativePointerSnapshot(
             player_pointer_address=self.player_pointer_address,
             world_pointer_address=self.world_pointer_address,
@@ -216,9 +226,31 @@ def test_detached_health_is_a_typed_report() -> None:
     json.dumps(snapshot.to_dict())
 
 
+def test_healthy_pointers_do_not_trigger_a_full_recovery_scan() -> None:
+    """Section 11 forward correction (MISTAKES.md): Recover Pointers must
+    validate first and short-circuit when genuinely healthy, rather than
+    always launching a full rediscovery scan."""
+    service = _DiagnosticService()
+    bot = _DiagnosticBot(service)
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert report.outcome is NativeDiagnosticOutcome.RECOVERY_NOT_NEEDED
+    assert report.before.status is NativeHealthStatus.HEALTHY
+    assert service.recovery_calls == 0
+
+
 def test_movement_required_is_a_typed_non_error_diagnostic() -> None:
     service = _DiagnosticService(
-        forced_outcome=NativeRecoveryOutcome.MOVEMENT_REQUIRED
+        forced_outcome=NativeRecoveryOutcome.MOVEMENT_REQUIRED,
+        start_unhealthy=True,
     )
     bot = _DiagnosticBot(service)
 
@@ -259,7 +291,7 @@ def test_managed_health_logs_supported_runtime_summary() -> None:
 
 
 def test_managed_recovery_uses_worker_token_deadline_and_progress() -> None:
-    service = _DiagnosticService(wait_for_cancel=True)
+    service = _DiagnosticService(wait_for_cancel=True, start_unhealthy=True)
     bot = _DiagnosticBot(service)
     bus = RuntimeBus()
     controller = RuntimeController(bot, bus)
@@ -314,7 +346,7 @@ def test_managed_recovery_uses_worker_token_deadline_and_progress() -> None:
 
 
 def test_managed_recovery_reads_player_hp_ocr_inside_worker() -> None:
-    service = _DiagnosticService()
+    service = _DiagnosticService(start_unhealthy=True)
     bot = _DiagnosticBot(service)
     ocr_threads: list[str] = []
 
@@ -338,7 +370,7 @@ def test_managed_recovery_reads_player_hp_ocr_inside_worker() -> None:
 
 
 def test_managed_recovery_retries_hp_ocr_across_fresh_frames() -> None:
-    service = _DiagnosticService()
+    service = _DiagnosticService(start_unhealthy=True)
     bot = _DiagnosticBot(service)
     readings = iter((None, None, (30982, 30982)))
     calls: list[str] = []
@@ -360,7 +392,7 @@ def test_managed_recovery_retries_hp_ocr_across_fresh_frames() -> None:
 
 
 def test_diagnostic_false_join_preserves_dependencies_until_retry() -> None:
-    service = _DiagnosticService(ignore_cancel=True)
+    service = _DiagnosticService(ignore_cancel=True, start_unhealthy=True)
     bot = _DiagnosticBot(service)
     bus = RuntimeBus()
     controller = RuntimeController(bot, bus)
@@ -389,7 +421,7 @@ def test_diagnostic_false_join_preserves_dependencies_until_retry() -> None:
 
 
 def test_reattach_is_rejected_while_diagnostic_is_active() -> None:
-    service = _DiagnosticService(wait_for_cancel=True)
+    service = _DiagnosticService(wait_for_cancel=True, start_unhealthy=True)
     bot = _DiagnosticBot(service)
     controller = RuntimeController(bot, RuntimeBus())
     controller.start_native_diagnostic(recover=True, timeout=2.0)
@@ -404,7 +436,7 @@ def test_reattach_is_rejected_while_diagnostic_is_active() -> None:
 
 
 def test_control_start_is_rejected_while_recovery_diagnostic_is_active() -> None:
-    service = _DiagnosticService(wait_for_cancel=True)
+    service = _DiagnosticService(wait_for_cancel=True, start_unhealthy=True)
     bot = _DiagnosticBot(service)
     controller = RuntimeController(bot, RuntimeBus())
     controller.start_native_diagnostic(recover=True, timeout=2.0)

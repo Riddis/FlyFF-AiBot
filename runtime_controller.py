@@ -21,7 +21,7 @@ from position import (
     run_native_diagnostic,
 )
 from preview_service import PreviewService
-from recording_session import RecordingRequest, RecordingSession
+from recording_sink import RecordingOwnership, RecordingSink, _RuntimeMetadata
 from runtime_bus import FarmingSessionSnapshot, RuntimeBus
 from worker_manager import (
     CancellationToken,
@@ -110,7 +110,7 @@ class RuntimeController:
         self._shutdown_finalized = False
         self._shutdown_results = {kind: True for kind in WorkerKind}
         self._shutdown_timed_out: tuple[WorkerKind, ...] = ()
-        self.recording: RecordingSession | None = None
+        self.recording: RecordingSink | None = None
         self._attached_hwnd: int | None = None
         self._attached_title: str | None = None
 
@@ -176,14 +176,7 @@ class RuntimeController:
             raise
         return generation
 
-    def start_rl(
-        self,
-        mode: str,
-        *,
-        auto_record_player_full_hp: int | None = None,
-        keyboard_layout: str = "qwerty",
-        eva_hotkey: str = "F1",
-    ) -> None:
+    def start_rl(self, mode: str) -> None:
         def run(token: CancellationToken):
             from farming.trainer import (
                 dry_run_native_farming,
@@ -193,39 +186,28 @@ class RuntimeController:
             )
 
             report = self._reporter("rl_status", "rl")
-            # Operational-feedback recording (docs/PROJECT_GOALS.md
-            # section 6): automatic for train/agent -- the user does not
-            # separately remember to click Record. Requires a cached
-            # player_full_hp (the recorder's own attach discovery needs
-            # it); if none is cached yet, log and continue unrecorded
-            # rather than blocking farming on it.
-            started_operational_recording = False
+            # Operational-feedback recording is mandatory, not optional
+            # (docs/PROJECT_GOALS.md section 6): bot live farming/
+            # training => recording active, always. If a USER already
+            # started one (rule D), reuse it -- never a second writer.
+            # If none is active, auto-start one; if the shared sink
+            # cannot start, farming/training must not start either
+            # (fail closed, not silently unrecorded).
+            recording_started_here = False
             if mode in ("train", "agent"):
-                if auto_record_player_full_hp is None:
-                    report(
-                        "Operational-feedback recording skipped: no player "
-                        "max-HP is cached yet (set it once via Start "
-                        "Controlled Recording)."
-                    )
-                elif self.recording is not None and self.recording.is_running:
-                    report(
-                        "Operational-feedback recording skipped: a "
-                        "recording is already active."
-                    )
-                elif self._attached_hwnd is None:
-                    report("Operational-feedback recording skipped: not attached.")
+                if self.recording is not None and self.recording.is_running:
+                    report("Reusing the already-active recording session.")
                 else:
                     try:
-                        self.start_recording(
-                            purpose="OPERATIONAL_FEEDBACK",
-                            controller_type="BOT_POLICY_CONTROLLED",
-                            player_full_hp=auto_record_player_full_hp,
-                            keyboard_layout=keyboard_layout,
-                            eva_hotkey=eva_hotkey,
+                        self.start_recording(started_by="RUNTIME_AUTO")
+                        recording_started_here = True
+                        report("Operational-feedback recording started.")
+                    except Exception as error:  # noqa: BLE001 - reported, not swallowed.
+                        report(
+                            f"Recording could not start; {mode} will not begin. "
+                            f"{type(error).__name__}: {error}"
                         )
-                        started_operational_recording = True
-                    except Exception as error:  # noqa: BLE001 - never block farming on this.
-                        report(f"Operational-feedback recording failed to start: {error}")
+                        return {"started": False, "reason": "recording_unavailable"}
             try:
                 if not self._prepare_native_pointer_startup(
                     token,
@@ -250,6 +232,11 @@ class RuntimeController:
                         session_stats_callback=self._farming_stats_reporter(
                             "Agent"
                         ),
+                        on_runtime_event=(
+                            self.recording.add_runtime_event
+                            if self.recording is not None
+                            else None
+                        ),
                     )
                     return None
                 if mode == "dry-run":
@@ -268,52 +255,49 @@ class RuntimeController:
                 raise ValueError(f"Unknown RL mode: {mode}")
             finally:
                 self.bot.stop()
-                if started_operational_recording:
+                # Rule E: only finalize a recording THIS call started.
+                # A user-started recording keeps running until the user
+                # presses Stop Recording, even if farming/training ends.
+                if recording_started_here:
                     self.stop_recording()
 
         self._start_control(f"rl-{mode}", run)
 
-    def start_recording(
-        self,
-        *,
-        purpose: str,
-        player_full_hp: int,
-        controller_type: str = "HUMAN_CONTROLLED",
-        keyboard_layout: str = "qwerty",
-        eva_hotkey: str = "F1",
-        protocol_id: str | None = None,
-        hypothesis: str | None = None,
-        data_use_role: str = "FITTING_ELIGIBLE",
-    ) -> None:
-        """Launches recording as a separate OS subprocess
-        (recording_session.py) -- see that module's docstring for why
-        this never imports `recorder` directly."""
-        if self._attached_hwnd is None:
-            raise RuntimeError("Attach to the FlyFF window first.")
+    def start_recording(self, *, started_by: str = "USER") -> RecordingSink:
+        """One recording session, as a passive sink over the bot's own
+        already-attached native reader -- never a second scanner
+        (docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md section
+        1a). Raises if one is already active, or if not attached yet."""
         if self.recording is not None and self.recording.is_running:
             raise RuntimeError("A recording is already active.")
-        request = RecordingRequest(
-            hwnd=self._attached_hwnd,
-            window_title=self._attached_title or "",
-            player_full_hp=player_full_hp,
-            purpose=purpose,
-            keyboard_layout=keyboard_layout,
-            eva_hotkey=eva_hotkey,
-            controller_type=controller_type,
-            protocol_id=protocol_id,
-            hypothesis=hypothesis,
-            data_use_role=data_use_role,
+        service = getattr(self.bot, "native_process_service", None)
+        position_provider = getattr(self.bot, "position_provider", None)
+        monster_provider = getattr(self.bot, "monster_provider", None)
+        if service is None or position_provider is None or monster_provider is None:
+            raise RuntimeError("Attach to the FlyFF window first.")
+        attach_policy = getattr(service, "attach_policy", None)
+        metadata = _RuntimeMetadata(
+            attach_policy_name=getattr(attach_policy, "name", None),
+            presence_validation_source=getattr(
+                service, "presence_validation_source", None
+            ),
         )
-        self.recording = RecordingSession(request)
+        self.recording = RecordingSink(
+            native_process_service=service,
+            position_provider=position_provider,
+            monster_provider=monster_provider,
+            ownership=RecordingOwnership(started_by=started_by),
+            character_name=self._attached_title or "player",
+            metadata=metadata,
+        )
+        return self.recording
 
-    def stop_recording(self) -> None:
-        if self.recording is not None:
-            self.recording.stop()
-
-    def poll_recording(self) -> list[dict]:
+    def stop_recording(self) -> Path | None:
         if self.recording is None:
-            return []
-        return self.recording.poll()
+            return None
+        output_zip = self.recording.stop()
+        self.recording = None
+        return output_zip
 
     def _prepare_native_pointer_startup(
         self,
@@ -1004,7 +988,10 @@ class RuntimeController:
                 return dict(self._shutdown_results)
 
             if self.recording is not None:
-                self.recording.terminate(timeout=min(5.0, timeout))
+                try:
+                    self.stop_recording()
+                except Exception:  # noqa: BLE001 - shutdown must not hang on this.
+                    pass
 
             remaining = max(0.0, deadline - monotonic())
             results = self.workers.shutdown(remaining)

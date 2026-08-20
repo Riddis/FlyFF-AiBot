@@ -34,7 +34,6 @@ APP_AND_DEVTOOLS_BOOTSTRAPS = frozenset(
     {
         "apps/dev_app.py",
         "apps/recorder_app.py",
-        "apps/recorder_headless_cli.py",
         "apps/simulator_cli.py",
         "apps/telemetry_cli.py",
         "devtools/archives/list_world_model_eligible.py",

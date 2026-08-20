@@ -179,17 +179,29 @@ top-level distinction is **experimental purpose**:
   during it. A bot-controlled test is not automatically operational
   feedback merely because the bot is the one acting.
 
-Every recording must preserve enough provenance to determine: purpose,
-controller type, protocol/test ID (where applicable),
-hypothesis/question (where applicable), map, acquisition policy
-(`docs/architecture/POSITION_AND_POINTER_RECOVERY.md`'s
-`AttachPolicy`), policy/checkpoint identity (where applicable),
-configuration, timestamps/session identity, and a data-use role —
-e.g. `FITTING_ELIGIBLE`, `VALIDATION_HOLDOUT`, `DIAGNOSTIC_ONLY`.
+**This classification is never a capture-time UI burden** (MISTAKES.md,
+"invented mandatory experiment-metadata UI fields the user never asked
+for"). The dev bot's Start/Stop Recording controls take no metadata
+input at all — no protocol ID, hypothesis, controller-type dropdown,
+data-use-role field, or player-HP prompt. Every recording automatically
+captures the technical provenance it *can* determine without asking
+anyone: session ID, start/end timestamps, git commit, selected map,
+runtime configuration, active checkpoint (where applicable), and
+relevant schema versions. If a recording belongs to a deliberately
+designed `CONTROLLED_EXPERIMENT` — purpose, protocol/test ID,
+hypothesis, controller type, data-use role — that interpretation is
+attached **after** the recording exists, as a sidecar evidence label
+(`recorder/evidence_catalog.py`'s `attach_evidence_label`) next to the
+already-written archive. **The raw archive itself is never mutated to
+add a label** — Claude/Codex and the user already know why a given
+recording was made; the label documents that decision, it does not
+gate capturing the evidence in the first place.
+
 **Deliberately controlled experiments must never be silently pooled
 into representative operational fitting data** — a session's data-use
-role is decided at recording time from its purpose, not inferred later
-from its content. See
+role is a property of its post-hoc evidence label, checked before that
+recording is used for fitting, not something recording itself must
+collect up front. See
 `docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md` for the
 canonical recording backend both purposes share.
 

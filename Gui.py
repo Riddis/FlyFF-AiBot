@@ -141,10 +141,7 @@ class Gui:
 
             if event == "-START_BOT-":
                 self.__start_control(
-                    lambda: self.controller.start_rl(
-                        "train",
-                        auto_record_player_full_hp=self.__cached_player_full_hp(),
-                    ),
+                    lambda: self.controller.start_rl("train"),
                     "Training",
                     "Starting training...",
                 )
@@ -158,10 +155,7 @@ class Gui:
 
             if event == "-RUN_AGENT-":
                 self.__start_control(
-                    lambda: self.controller.start_rl(
-                        "agent",
-                        auto_record_player_full_hp=self.__cached_player_full_hp(),
-                    ),
+                    lambda: self.controller.start_rl("agent"),
                     "Agent",
                     "Starting trained agent...",
                 )
@@ -185,11 +179,34 @@ class Gui:
                 self.__show_log_window()
 
             if event == "-RECORDING-START-":
-                self.__start_controlled_recording_popup()
+                try:
+                    self.controller.start_recording(started_by="USER")
+                except Exception as error:  # noqa: BLE001 - GUI command boundary.
+                    message = f"Could not start recording: {error}"
+                    self.runtime_bus.log(message, "msg_red")
+                    self.show_error(message)
+                else:
+                    self.window["-RECORDING-STATUS-"].update("Recording 00:00:00")
+                    self.__set_rl_buttons(
+                        attached=self.controller.capture_active,
+                        running=self.controller.control_active,
+                    )
 
             if event == "-RECORDING-STOP-":
-                self.controller.stop_recording()
-                self.window["-RECORDING-STATUS-"].update("Stopping...")
+                try:
+                    output_zip = self.controller.stop_recording()
+                except Exception as error:  # noqa: BLE001 - GUI command boundary.
+                    message = f"Could not stop recording cleanly: {error}"
+                    self.runtime_bus.log(message, "msg_red")
+                    self.show_error(message)
+                    output_zip = None
+                self.window["-RECORDING-STATUS-"].update(
+                    f"Saved: {output_zip}" if output_zip else "Idle"
+                )
+                self.__set_rl_buttons(
+                    attached=self.controller.capture_active,
+                    running=self.controller.control_active,
+                )
 
             if event == "-STOP_BOT-":
                 self.__set_status("Idle", "Stopped")
@@ -202,6 +219,11 @@ class Gui:
 
             if event in {"-NATIVE_HEALTH-", "-RECOVER_POINTERS-"}:
                 recover = event == "-RECOVER_POINTERS-"
+                if recover:
+                    # Disable immediately, before the controller call --
+                    # see __start_control's comment for why (same bug,
+                    # same fix, for the manual-recovery button).
+                    self.window["-RECOVER_POINTERS-"].update(disabled=True)
                 try:
                     self.controller.start_native_diagnostic(
                         recover=recover,
@@ -213,6 +235,8 @@ class Gui:
                     )
                 except (RuntimeError, ValueError) as error:
                     self.runtime_bus.log(str(error), "msg_red")
+                    if recover:
+                        self.__set_rl_buttons(attached=True, running=False)
                 else:
                     mode = "Native Recovery" if recover else "Native Health"
                     self.__set_status(mode, f"Starting {mode.lower()}...")
@@ -312,13 +336,20 @@ class Gui:
 
     def __start_control(self, command, mode, message):
         self.__reset_session_statistics(mode)
+        # Disable before calling into the controller, not after it
+        # returns: a queued rapid-fire second click was landing before
+        # the post-call disable ever ran, letting each click start its
+        # own real attempt (MISTAKES.md: duplicate recovery/training
+        # start bursts from click-timing, not a missing single-flight
+        # guard).
+        self.__set_rl_buttons(attached=True, running=True)
         try:
             command()
         except RuntimeError as error:
             self.runtime_bus.log(str(error), "msg_red")
+            self.__set_rl_buttons(attached=True, running=False)
             return
         self.__set_status(mode, message)
-        self.__set_rl_buttons(attached=True, running=True)
         self.runtime_bus.log(message, "msg_blue")
 
     def __refresh_runtime(self, values):
@@ -1558,15 +1589,13 @@ class Gui:
             [
                 [
                     sg.Button(
-                        "Start Controlled Recording",
+                        "Start Recording",
                         key="-RECORDING-START-",
                         disabled=True,
                         expand_x=True,
                         tooltip=(
-                            "A deliberately designed session answering one "
-                            "predeclared question -- see docs/PROJECT_GOALS.md "
-                            "section 6. Farming/training already records "
-                            "operational feedback automatically."
+                            "Farming/training already records automatically; "
+                            "use this for a manual/controlled session."
                         ),
                     ),
                 ],
@@ -1891,125 +1920,26 @@ class Gui:
             self._log_window.close()
             self._log_window = None
 
-    def __cached_player_full_hp(self) -> int | None:
-        """Entered once via the controlled-recording popup, persisted the
-        same way -EVA-HOTKEY- etc. already are -- reused automatically
-        for operational-feedback recording (docs/PROJECT_GOALS.md
-        section 6) so the user is never asked twice."""
-        value = sg.user_settings_get_entry("-RECORDING-PLAYER-FULL-HP-", None)
-        try:
-            return int(value) if value else None
-        except (TypeError, ValueError):
-            return None
-
-    def __start_controlled_recording_popup(self) -> None:
-        """A small purpose/protocol dialog, not an experiment-management
-        dashboard (docs/PROJECT_GOALS.md section 6) -- the controller is
-        HUMAN_CONTROLLED here because a person is driving this popup;
-        the automatic operational-feedback path in RuntimeController.
-        start_rl sets BOT_POLICY_CONTROLLED itself."""
-        cached_hp = self.__cached_player_full_hp()
-        popup = sg.Window(
-            "Start Controlled Recording",
-            [
-                [sg.Text("Protocol/test ID (required):")],
-                [sg.Input(key="-POPUP-PROTOCOL-", expand_x=True)],
-                [sg.Text("Hypothesis/question (optional):")],
-                [sg.Input(key="-POPUP-HYPOTHESIS-", expand_x=True)],
-                [
-                    sg.Text("Controller:"),
-                    sg.Combo(
-                        ["HUMAN_CONTROLLED", "BOT_POLICY_CONTROLLED", "SCRIPTED_CONTROLLED"],
-                        default_value="HUMAN_CONTROLLED",
-                        readonly=True,
-                        key="-POPUP-CONTROLLER-",
-                    ),
-                ],
-                [
-                    sg.Text("Data-use role:"),
-                    sg.Combo(
-                        ["FITTING_ELIGIBLE", "VALIDATION_HOLDOUT", "DIAGNOSTIC_ONLY"],
-                        default_value="DIAGNOSTIC_ONLY",
-                        readonly=True,
-                        key="-POPUP-DATA-USE-",
-                    ),
-                ],
-                [sg.Text("Player max HP (required; cached for next time):")],
-                [
-                    sg.Input(
-                        str(cached_hp) if cached_hp else "",
-                        key="-POPUP-PLAYER-HP-",
-                    )
-                ],
-                [sg.Button("Start"), sg.Button("Cancel")],
-            ],
-            modal=True,
-            finalize=True,
-            keep_on_top=True,
-        )
-        try:
-            event, values = popup.read()
-        finally:
-            popup.close()
-        if event != "Start":
-            return
-
-        protocol_id = str(values.get("-POPUP-PROTOCOL-", "")).strip()
-        if not protocol_id:
-            self.show_error("A protocol/test ID is required for a controlled recording.")
-            return
-        try:
-            player_full_hp = int(str(values.get("-POPUP-PLAYER-HP-", "")).strip())
-            if player_full_hp <= 0:
-                raise ValueError
-        except ValueError:
-            self.show_error("Player max HP must be a positive whole number.")
-            return
-
-        sg.user_settings_set_entry("-RECORDING-PLAYER-FULL-HP-", player_full_hp)
-        hypothesis = str(values.get("-POPUP-HYPOTHESIS-", "")).strip() or None
-        try:
-            self.controller.start_recording(
-                purpose="CONTROLLED_EXPERIMENT",
-                player_full_hp=player_full_hp,
-                controller_type=values.get("-POPUP-CONTROLLER-", "HUMAN_CONTROLLED"),
-                protocol_id=protocol_id,
-                hypothesis=hypothesis,
-                data_use_role=values.get("-POPUP-DATA-USE-", "DIAGNOSTIC_ONLY"),
-            )
-        except Exception as error:  # noqa: BLE001 - GUI command boundary.
-            message = f"Could not start recording: {error}"
-            self.runtime_bus.log(message, "msg_red")
-            self.show_error(message)
-            return
-        self.window["-RECORDING-STATUS-"].update(f"Starting ({protocol_id})...")
-        self.__set_rl_buttons(
-            attached=self.controller.capture_active,
-            running=self.controller.control_active,
-        )
-
     def __service_recording(self) -> None:
-        events = self.controller.poll_recording()
-        for event in events:
-            event_type = event.get("type")
-            if event_type == "error":
-                self.runtime_bus.log(
-                    f"Recording error: {event.get('message', 'unknown error')}",
-                    "msg_red",
-                )
-            elif event_type == "finished":
-                self.runtime_bus.log(
-                    f"Recording saved: {event.get('output_zip', 'unknown path')}",
-                    "msg_green",
-                )
-        if events and hasattr(self, "window"):
-            recording = self.controller.recording
-            status_text = recording.status if recording is not None else "Idle"
-            self.window["-RECORDING-STATUS-"].update(status_text)
-            self.__set_rl_buttons(
-                attached=self.controller.capture_active,
-                running=self.controller.control_active,
-            )
+        """No metadata questionnaire, no second window
+        (docs/PROJECT_GOALS.md section 6) -- just a live elapsed-time
+        status tick while a session is active, and a plain error report
+        if the passive sink's background poll hit one."""
+        recording = self.controller.recording
+        if recording is None or not hasattr(self, "window"):
+            return
+        if not recording.is_running:
+            self.window["-RECORDING-STATUS-"].update("Idle (stopped unexpectedly)")
+            return
+        error = recording.error
+        if error is not None:
+            self.runtime_bus.log(f"Recording error: {error}", "msg_red")
+        elapsed = int(recording.elapsed_seconds)
+        hours, remainder = divmod(elapsed, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        self.window["-RECORDING-STATUS-"].update(
+            f"Recording {hours:02d}:{minutes:02d}:{seconds:02d}"
+        )
 
     def __make_live_map_placeholder(self, message):
         import numpy as np

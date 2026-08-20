@@ -55,13 +55,14 @@ native diagnostics, archive tools, calibration tools) are invoked
 directly by a developer from the command line — see
 `docs/architecture/SYSTEM_OVERVIEW.md` section 2 for each entrypoint.
 
-The one thing the dev app's sidebar still launches is recording itself
+The one thing the dev app's sidebar still runs for recording is its own
+in-process `RecordingSink`
 (`docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md` section 1a) —
-automatically as `OPERATIONAL_FEEDBACK` around farming/training
-sessions, or explicitly via the compact "Recording:" section's Start
-Controlled Recording / Stop Recording for a `CONTROLLED_EXPERIMENT`.
-Both launch `apps/recorder_headless_cli.py` as a separate process
-through `recording_session.py`, never a second recorder GUI.
+never a subprocess, never a second recorder GUI. The compact
+"Recording:" section is just `[Start Recording]`/`[Stop Recording]`
+plus a status line (Idle / Recording HH:MM:SS / Saved: `<path>`); it
+starts automatically around farming/training if the user has not
+already started one, and is otherwise fully manual.
 
 ## 4. Dry run, training, and agent — current contract
 
@@ -127,7 +128,7 @@ correct mistakes rather than rewrite history.
 
 ## Evidence / Sources
 
-- `apps/dev_app.py`, `recording_session.py`, `apps/recorder_headless_cli.py`
+- `apps/dev_app.py`, `recording_sink.py`, `recording_format.py`
 - `docs/RUNBOOK.md` (superseded prior-generation detail, ported forward
   as HISTORICAL_EVIDENCE/BEST_CURRENT_ESTIMATE where cross-referenced)
 - `docs/architecture/SYSTEM_OVERVIEW.md`,

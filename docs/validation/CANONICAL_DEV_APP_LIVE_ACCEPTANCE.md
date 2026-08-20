@@ -284,11 +284,20 @@ evidence, not a diagnosed leak — see the note above.
 | 6 | EVA/focus-loss discard | **NOT TESTED — flawed procedure design, see MISTAKES.md** | Run 2 report |
 | 7 | RecoveredNativeProfile fast restore | **FAIL — investigated, not yet root-caused, now instrumented** | Run 2 report; `POSITION_AND_POINTER_RECOVERY.md` |
 | 8 | Development Tools | **Removed entirely, not repaired** | `docs/decisions/0007-dev-bot-first-is-not-an-ide.md` |
-| 9 | Controlled recording (new this phase) | **NOT YET LIVE-TESTED — offline-only so far** | `tests/test_recording_session.py` |
+| 9 | Recording (rebuilt as a passive dev-bot sink this phase — see `docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md` section 1a) | **NOT YET LIVE-TESTED — offline-only so far** | `tests/test_recording_sink.py`, `tests/test_runtime_controller_recording.py` |
+| 10 | Recovery single-flight / duplicate-log fix (this phase) | **NOT YET LIVE-TESTED — offline-only so far** | `tests/test_native_process_service.py::test_recover_pointers_and_profile_restore_share_one_coordination_lock`, `tests/test_native_diagnostics.py::test_healthy_pointers_do_not_trigger_a_full_recovery_scan`; see `POSITION_AND_POINTER_RECOVERY.md`'s "Duplicate recovery logs / scan storms" subsection |
 
 ### Follow-up
 
-User retest required (procedure at the end of this phase's report).
-Do not claim PASS on obstacle navigation, EVA/focus, or fast restore
+User retest required. Do not claim PASS on obstacle navigation,
+EVA/focus, fast restore, recording, or the recovery single-flight fix
 until real evidence exists for each — none currently does beyond what
 is recorded above.
+
+**Minimal next retest** (recording is now Start/Stop only — no
+metadata form, no second recorder GUI; do not attempt live training
+yet): visual check of the rebuilt sidebar; Attach; Start Recording;
+wait ~10 seconds; Stop Recording; inspect the one resulting archive;
+Recover Pointers once and inspect the one resulting log; restart the
+dev bot against the same still-open FlyFF process and inspect the one
+resulting startup-recovery log; close normally.

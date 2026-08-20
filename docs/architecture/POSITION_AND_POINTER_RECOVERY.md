@@ -262,6 +262,99 @@ read-only property, mirrors the existing `last_profile_restore_*`
 properties) makes this readable without reaching into the private
 `_independent_reader`.
 
+### Duplicate recovery logs / scan storms — root-caused and fixed
+
+**Confidence: VERIFIED_CONTRACT.** A later user-run session reported,
+with exact timestamps: one manual "Recover Pointers" click producing
+SIX `manual-recovery-*.log` files within ~270ms, and one dev-bot
+startup producing THREE `startup-recovery-*.log` files within ~11ms —
+each file showing genuine recovery activity ("Recovery scan started",
+"not_found", "cancelled"), not merely duplicate log lines from one
+operation. Root cause, two independent gaps (MISTAKES.md, "recovery
+instrumentation let concurrent callers each run a real, duplicate
+recovery scan"):
+
+1. **GUI button-timing.** `Gui.py`'s click handlers called into the
+   controller *before* disabling the button that guards them, only
+   disabling it in the success branch afterward. A fast-failing attempt
+   (`not_found`/`cancelled` complete in milliseconds) freed the
+   `WorkerManager` slot again before the disable took effect, so a
+   burst of already-queued clicks could each start their own real
+   attempt. Fixed: `__start_control` and the `-RECOVER_POINTERS-`
+   handler now disable immediately, before calling the controller, and
+   restore on failure.
+2. **No shared guard across recovery mechanisms.** `recover_pointers()`
+   (full structural scan) and `try_restore_persisted_profile()`
+   (persisted-profile fast path) each protected against concurrent
+   calls to *themselves* but not against each other —
+   `_active_recoveries`/`_active_profile_restores` are bookkeeping
+   counters for status display, never a mutex; the real scans always
+   ran outside any shared lock. Fixed: `NativeProcessService` gained a
+   plain `Lock` (`_recovery_coordination_lock`), acquired by both
+   methods, so a caller of either now blocks behind whichever recovery
+   is already in flight in the other
+   (`tests/test_native_process_service.py::
+   test_recover_pointers_and_profile_restore_share_one_coordination_lock`).
+   A caller reaching `_try_restore_persisted_profile_impl`'s existing-
+   reader check after waiting on this lock gets a real join (no
+   rescan, `restore_mode == "existing_reader_reused"`); a caller of
+   `recover_pointers()` itself still performs its own scan once it
+   acquires the lock (see `recover_local_player_pointer`'s own
+   per-`(pid, module_base)` `PointerRecoveryState.inflight` handling for
+   that narrower layer's single-flight semantics against concurrent
+   calls to itself).
+
+**Separately, a genuinely healthy attachment no longer triggers a full
+scan at all.** `run_native_diagnostic()` now calls `collect_native_health`
+first and short-circuits with `NativeDiagnosticOutcome.RECOVERY_NOT_NEEDED`
+when the result is already `HEALTHY`, instead of always launching
+`recover_pointers()` on every "Recover Pointers" click regardless of
+whether one was needed
+(`tests/test_native_diagnostics.py::test_healthy_pointers_do_not_trigger_a_full_recovery_scan`).
+One manual click on an already-healthy attachment now produces at most
+one log recording "already healthy; no recovery needed," never a scan.
+
+**Recovery log volume, verified not changed further:**
+`runtime_controller.py`'s `_RecoveryLog("manual-recovery")` was already
+conditioned on `recover=True` before this correction — plain "Native
+Health" checks (no `recover`) do not create a dedicated recovery log
+file, satisfying "routine health checks should not create dedicated
+recovery files" without further change.
+
+### `attach_policy=unknown` / `profile_exists=False` — not reproducible from current source
+
+**Confidence: UNRESOLVED.** Uploaded startup logs reported
+`attach_policy=unknown`, `recovered_profile_path=None`,
+`profile_exists=False`, and separately a training log reporting
+`profile_load_attempted=True (no file on disk)` paired with
+`restore_validation_result=True`/`restore_mode=unknown` — an internally
+inconsistent combination (a restore cannot be validated `True` with no
+file and no attempted restore). A background investigation traced every
+construction path in current source and found:
+
+- `attach_policy` is a required constructor kwarg on
+  `NativeProcessService` — no path can leave it `None`, so a genuine
+  `"unknown"` string would have to come from a caller passing that
+  literal value, not from an omitted/defaulted field.
+- `recovery_profile_path` always resolves via `default_profile_path()`
+  (falls back to `~/.flyffcv` if `LOCALAPPDATA` is unset) — never
+  `None` in any production path found.
+- No code path in current source (only test doubles built for
+  exercising a narrower contract) could produce the exact reported
+  combination.
+
+This is reported honestly as **not reproducible from current source**
+rather than papered over with a speculative fix — the field names imply
+a real prior bug, but nothing in the present tree can produce the
+values shown. If this recurs, capture a fresh startup log immediately
+(the log now separates `existing_pointer_validation`,
+`profile_file_found`, `profile_restore_attempted`,
+`profile_restore_applied`, `profile_restore_validation`, `restore_mode`,
+and `rejection_reason` as distinct fields per this section's earlier
+instrumentation) so the exact code path that produced it can be
+identified, rather than re-diagnosing from the same two historical log
+excerpts again.
+
 ### Known false leads (do not resurrect)
 
 - `+0x217C` looked like an "active" field candidate but was

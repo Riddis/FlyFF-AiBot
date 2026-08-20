@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from threading import RLock
+from threading import Lock, RLock
 from time import monotonic
 from typing import Protocol
 
@@ -156,6 +156,18 @@ class NativeProcessService:
             else Path(recovery_profile_path)
         )
         self._lock = RLock()
+        # Single-flight coordinator for the two recovery entrypoints
+        # (recover_pointers / try_restore_persisted_profile) --
+        # docs/architecture/POSITION_AND_POINTER_RECOVERY.md's
+        # non-negotiable rule 7 ("one expensive process-memory scan at
+        # a time"). _active_recoveries/_active_profile_restores below
+        # are bookkeeping counters for status display only; they never
+        # blocked concurrent execution -- this lock does. A caller that
+        # arrives while another recovery is in flight blocks here, then
+        # (per both methods' own existing "reuse the current reader if
+        # it is already valid" short-circuit, now reached first) joins
+        # the just-completed result instead of independently scanning.
+        self._recovery_coordination_lock = Lock()
         self._closed = False
         self._resources_closed = False
         self._active_recoveries = 0
@@ -649,18 +661,23 @@ class NativeProcessService:
         deadline: float | None = None,
         status_callback: Callable[[str], None] | None = None,
     ) -> bool:
-        """Validate a persisted profile while exposing recovery activity."""
+        """Validate a persisted profile while exposing recovery
+        activity. Single-flight: shares one coordination lock with
+        recover_pointers -- see that method's docstring for why a
+        caller that arrives while another recovery is in flight joins
+        the result instead of independently re-scanning."""
 
         with self._lock:
             self._require_open()
             self._active_profile_restores += 1
         try:
-            return self._try_restore_persisted_profile_impl(
-                hints=hints,
-                cancellation=cancellation,
-                deadline=deadline,
-                status_callback=status_callback,
-            )
+            with self._recovery_coordination_lock:
+                return self._try_restore_persisted_profile_impl(
+                    hints=hints,
+                    cancellation=cancellation,
+                    deadline=deadline,
+                    status_callback=status_callback,
+                )
         finally:
             self._finish_profile_restore()
 
@@ -685,6 +702,24 @@ class NativeProcessService:
             if self._independent_reader is not None:
                 try:
                     self._independent_reader.read_player()
+                    # Fixed inconsistency (found investigating a
+                    # live-reported "restore_validation_result=True
+                    # with restore_mode=unknown" log): this fast path
+                    # used to return True without ever touching
+                    # _last_profile_restore_mode, leaving it at
+                    # whatever a PRIOR, unrelated event set it to (or
+                    # its "none" default) -- misleading regardless of
+                    # what that stale value happened to be. It now
+                    # always describes the restore that actually
+                    # happened, including the concurrent-caller case
+                    # this single-flight lock's "join" behavior
+                    # produces (a second caller reaching this exact
+                    # branch because the first caller's recovery just
+                    # populated _independent_reader while this one
+                    # waited on _recovery_coordination_lock).
+                    self._last_profile_restore_mode = "existing_reader_reused"
+                    self._last_profile_restore_elapsed_seconds = 0.0
+                    self._last_profile_restore_error = None
                     return True
                 except Exception:
                     self._independent_reader = None
@@ -874,8 +909,38 @@ class NativeProcessService:
         status_callback: PointerRecoveryStatusCallback | None = None,
         hints: PointerRecoveryHints | None = None,
     ) -> NativeRecoveryResult:
-        """Synchronously run explicit recovery under this attachment owner."""
+        """Synchronously run explicit recovery under this attachment
+        owner. Single-flight across mechanisms: blocks behind any other
+        recovery already in progress, whether that is another
+        recover_pointers() full scan or a try_restore_persisted_profile()
+        fast-path attempt -- the two previously had no shared guard, so
+        a caller of one could run its real work concurrently with a
+        caller of the other. A caller of recover_pointers() itself still
+        performs its own full scan once it acquires the lock (see
+        recover_local_player_pointer's own per-(pid, module_base)
+        inflight/cache handling for that layer's join semantics); it is
+        try_restore_persisted_profile()'s early "existing reader" check
+        that turns a post-wait join into a true no-rescan reuse."""
+        with self._recovery_coordination_lock:
+            return self._recover_pointers_locked(
+                persist=persist,
+                cancellation=cancellation,
+                deadline=deadline,
+                timeout_seconds=timeout_seconds,
+                status_callback=status_callback,
+                hints=hints,
+            )
 
+    def _recover_pointers_locked(
+        self,
+        *,
+        persist: bool = False,
+        cancellation: object | None = None,
+        deadline: float | None = None,
+        timeout_seconds: float = DEFAULT_RECOVERY_TIMEOUT_SECONDS,
+        status_callback: PointerRecoveryStatusCallback | None = None,
+        hints: PointerRecoveryHints | None = None,
+    ) -> NativeRecoveryResult:
         with self._lock:
             self._require_open()
             observed_generation = self._generation

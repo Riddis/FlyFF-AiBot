@@ -141,8 +141,28 @@ def test_development_tools_panel_is_fully_removed(rendered_gui: Gui) -> None:
 
 
 def test_recording_controls_are_present(rendered_gui: Gui) -> None:
-    """The compact controlled-recording section replaces the removed
-    Development Tools panel's spot in the sidebar (docs/PROJECT_GOALS.md
-    section 6) -- Start/Stop plus a status line, nothing larger."""
+    """The compact recording section replaces the removed Development
+    Tools panel's spot in the sidebar (docs/PROJECT_GOALS.md section 6)
+    -- Start/Stop plus a status line, nothing larger."""
     for key in ("-RECORDING-START-", "-RECORDING-STOP-", "-RECORDING-STATUS-"):
         assert key in rendered_gui.window.AllKeysDict
+
+
+def test_no_recording_metadata_popup_contract_remains(rendered_gui: Gui) -> None:
+    """Forward correction (MISTAKES.md): an earlier version required a
+    protocol-ID/hypothesis/controller/data-use-role/player-HP popup
+    before recording could start. The user explicitly rejected this --
+    none of its keys may exist anywhere in the main window, and the
+    button label/tooltip must not imply a questionnaire follows."""
+    popup_keys = (
+        "-POPUP-PROTOCOL-",
+        "-POPUP-HYPOTHESIS-",
+        "-POPUP-CONTROLLER-",
+        "-POPUP-DATA-USE-",
+        "-POPUP-PLAYER-HP-",
+        "-RECORDING-PLAYER-FULL-HP-",
+    )
+    present = [key for key in popup_keys if key in rendered_gui.window.AllKeysDict]
+    assert not present, f"Recording metadata popup keys still present: {present}"
+    assert not hasattr(rendered_gui, "_Gui__start_controlled_recording_popup")
+    assert not hasattr(rendered_gui, "_Gui__cached_player_full_hp")

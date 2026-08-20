@@ -375,6 +375,57 @@ def test_snapshot_is_not_blocked_by_inflight_recovery_enumeration() -> None:
     assert service.recovery_active is False
 
 
+def test_recover_pointers_and_profile_restore_share_one_coordination_lock() -> None:
+    """Section 10 forward correction (MISTAKES.md): recover_pointers() and
+    try_restore_persisted_profile() are two separate recovery mechanisms
+    (full structural scan vs. persisted-profile fast path) that used to
+    have no shared guard between them -- each had its own internal
+    protection against concurrent calls to *itself*, but nothing stopped
+    one of each running its real work at the same time. This proves a
+    try_restore_persisted_profile() call made while a recover_pointers()
+    scan is genuinely in flight blocks behind it instead of racing it,
+    via the shared _recovery_coordination_lock."""
+    memory = _ServiceMemory()
+    config = _config()
+    service = NativeProcessService(memory, config, attach_policy=LIVE_ATTACH_POLICY)
+    memory.block_enumeration = True
+    restore_started = Event()
+    restore_done = Event()
+    restore_result: list[bool] = []
+
+    def full_recovery() -> None:
+        service.recover_pointers(timeout_seconds=2.0)
+
+    def profile_restore() -> None:
+        restore_started.set()
+        restore_result.append(service.try_restore_persisted_profile())
+        restore_done.set()
+
+    recovery_thread = Thread(target=full_recovery)
+    recovery_thread.start()
+    assert memory.enumeration_entered.wait(1.0)
+
+    restore_thread = Thread(target=profile_restore)
+    restore_thread.start()
+    assert restore_started.wait(1.0)
+
+    # The profile-restore call is blocked behind the coordination lock
+    # while the full scan is still in flight, even though its own work
+    # (no persisted profile on disk here) would otherwise be near-
+    # instant -- proving genuine mutual exclusion, not a coincidence of
+    # timing.
+    assert not restore_done.wait(0.25)
+    assert restore_thread.is_alive()
+
+    memory.enumeration_release.set()
+    recovery_thread.join(2.0)
+    restore_thread.join(2.0)
+
+    assert not recovery_thread.is_alive()
+    assert not restore_thread.is_alive()
+    assert restore_result == [False]
+
+
 def test_close_defers_handle_release_until_blocked_recovery_exits() -> None:
     memory = _ServiceMemory()
     service = NativeProcessService(

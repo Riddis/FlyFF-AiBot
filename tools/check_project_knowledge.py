@@ -83,6 +83,7 @@ INTENTIONALLY_NONEXISTENT_PATHS = frozenset({
     "devtools/processes.py",
     "devtools/artifact_inventory.py",
     "devtools/session_context.py",
+    "apps/recorder_headless_cli.py",
 })
 STALE_QUALIFIERS = (
     "facade", "shim", "compat", "superseded", "stale", "prior-generation",

@@ -49,6 +49,12 @@ from .startup import load_and_validate_model, resolve_model_artifact, validate_n
 
 StatusCallback = Callable[[str], None]
 SessionStatsCallback = Callable[[Mapping[str, object]], None]
+# Matches RecordingSink.add_runtime_event(event_type, **fields) exactly so
+# the sink's own bound method can be passed straight through as this
+# callback, with no adapter (docs/PROJECT_GOALS.md section 6/7): the bot
+# reuses whatever recording session is already active rather than owning
+# a second one.
+RuntimeEventSink = Callable[..., None]
 
 PENYA_PER_PERIN = 100_000_000
 MAXIMUM_PENYA_STEP_DELTA = 100_000_000_000
@@ -1178,6 +1184,7 @@ def run_native_farming_agent(
     cancellation: CancellationToken | None = None,
     *,
     session_stats_callback: SessionStatsCallback | None = None,
+    on_runtime_event: RuntimeEventSink | None = None,
 ) -> None:
     selected = config or _default_config()
     token = cancellation or CancellationToken()
@@ -1190,6 +1197,12 @@ def run_native_farming_agent(
         ),
     )
     model = cast(SessionAwarePPO, validated.model)
+    if on_runtime_event is not None:
+        on_runtime_event(
+            "policy_loaded",
+            model_path=str(model_path),
+            deterministic=bool(deterministic),
+        )
     runtime = build_live_farming_runtime(
         bot,
         selected,
@@ -1232,6 +1245,15 @@ def run_native_farming_agent(
             except FarmingSessionCancelled:
                 break
             stats.observe(info, reward)
+            if on_runtime_event is not None:
+                on_runtime_event(
+                    "action",
+                    action=factorized_action.tolist(),
+                    reward=float(reward),
+                    terminated=bool(terminated),
+                    steps=int(stats.steps),
+                    kills=int(stats.kills),
+                )
             penya_reader = getattr(bot, "read_penya_count", None)
             if callable(penya_reader):
                 try:
@@ -1270,6 +1292,14 @@ def run_native_farming_agent(
             f"steps={stats.steps} native_kills={stats.kills} "
             f"ocr_delta={stats.ocr_kill_delta}",
         )
+        if on_runtime_event is not None:
+            on_runtime_event(
+                "episode_end",
+                reason=str(stats.latest_info.get("session_end_reason", "stopped")),
+                steps=int(stats.steps),
+                kills=int(stats.kills),
+                reward=float(stats.reward),
+            )
         if session_stats_callback is not None:
             session_stats_callback(
                 _session_stats_payload(
