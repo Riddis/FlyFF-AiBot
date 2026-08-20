@@ -3,6 +3,7 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 from threading import Event, Lock, Thread
+from types import SimpleNamespace
 
 from position.AnchoredPointerDiscovery import PointerRecoveryHints
 from position.MonsterConfig import NativeMonsterConfig
@@ -459,6 +460,59 @@ def test_close_defers_handle_release_until_blocked_recovery_exits() -> None:
     assert len(results) == 1
     assert not results[0].applied
     assert memory.closed
+
+
+def test_profile_persistence_skip_reason_is_reported_not_silent(tmp_path) -> None:
+    """Section 10 root-cause (MISTAKES.md): a successful independent
+    recovery used to silently skip saving a RecoveredNativeProfile
+    whenever the reader lacked a validated authoritative relation or
+    monster targets -- no error, no log line, nothing. This is a
+    concrete, previously-invisible PROFILE_NOT_SAVED failure category.
+    _persist_independent_profile now returns a reason instead of
+    silently returning None either way."""
+    memory = _ServiceMemory()
+    config = _config()
+    service = NativeProcessService(
+        memory,
+        config,
+        recovery_profile_path=tmp_path / "native_recovery_profile.json",
+        attach_policy=LIVE_ATTACH_POLICY,
+    )
+
+    no_relation_reader = SimpleNamespace(
+        authoritative_relation_offset=None,
+        authoritative_relation_value=None,
+        authoritative_relation_validated=False,
+        monster_targets=(),
+    )
+    assert (
+        service._persist_independent_profile(no_relation_reader)
+        == "no authoritative actor relation was recovered"
+    )
+
+    unvalidated_reader = SimpleNamespace(
+        authoritative_relation_offset=0x16C,
+        authoritative_relation_value=0x12345678,
+        authoritative_relation_validated=False,
+        monster_targets=(),
+    )
+    assert (
+        service._persist_independent_profile(unvalidated_reader)
+        == "the authoritative actor relation was not validated"
+    )
+
+    no_monsters_reader = SimpleNamespace(
+        authoritative_relation_offset=0x16C,
+        authoritative_relation_value=0x12345678,
+        authoritative_relation_validated=True,
+        monster_targets=(),
+    )
+    assert (
+        service._persist_independent_profile(no_monsters_reader)
+        == "no monster targets were discovered to anchor the profile"
+    )
+
+    assert not (tmp_path / "native_recovery_profile.json").exists()
 
 
 def test_persisted_independent_profile_is_validated_before_full_recovery(tmp_path) -> None:

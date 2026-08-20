@@ -44,6 +44,8 @@ class _DiagnosticService:
         ignore_cancel: bool = False,
         forced_outcome: NativeRecoveryOutcome | None = None,
         start_unhealthy: bool = False,
+        profile_restore_result: bool | Exception | None = None,
+        recovery_profile_path: object = r"C:\fake\native_recovery_profile.json",
     ) -> None:
         self.memory = SimpleNamespace(pid=7123)
         self.module_base = 0x10000000
@@ -74,6 +76,27 @@ class _DiagnosticService:
         self.entered = Event()
         self.release = Event()
         self.recovery_kwargs: dict[str, object] = {}
+        self.recovery_profile_path = recovery_profile_path
+        self.presence_validation_source = "authoritative_refresh"
+        self.last_profile_restore_mode: str | None = None
+        self.last_profile_restore_error: str | None = None
+        self._profile_restore_result = profile_restore_result
+        self.profile_restore_calls = 0
+        self.profile_restore_kwargs: dict[str, object] = {}
+
+    def try_restore_persisted_profile(self, **kwargs) -> bool:
+        self.profile_restore_calls += 1
+        self.profile_restore_kwargs = dict(kwargs)
+        result = self._profile_restore_result
+        if isinstance(result, Exception):
+            self.last_profile_restore_error = str(result)
+            raise result
+        if result:
+            self._recovered = True
+            self.last_profile_restore_mode = "same_process_cache"
+            return True
+        self.last_profile_restore_mode = "missing"
+        return False
 
     def read_pointer_snapshot(self) -> NativePointerSnapshot:
         self.snapshot_calls += 1
@@ -245,6 +268,131 @@ def test_healthy_pointers_do_not_trigger_a_full_recovery_scan() -> None:
     assert report.outcome is NativeDiagnosticOutcome.RECOVERY_NOT_NEEDED
     assert report.before.status is NativeHealthStatus.HEALTHY
     assert service.recovery_calls == 0
+
+
+def test_persisted_profile_restore_succeeds_and_skips_full_discovery(tmp_path) -> None:
+    """Section 6/9/10 forward correction (MISTAKES.md): the canonical
+    ensure-native-ready ordering is current state -> persisted fast
+    restore -> full discovery. A live-observed cross-bot-restart
+    failure traced to the manual recovery path skipping the persisted-
+    profile step entirely; this proves the fix reaches and applies it,
+    and never falls through to a full scan when it succeeds."""
+    profile_path = tmp_path / "native_recovery_profile.json"
+    profile_path.write_text("{}", encoding="utf-8")
+    service = _DiagnosticService(
+        start_unhealthy=True,
+        profile_restore_result=True,
+        recovery_profile_path=str(profile_path),
+    )
+    bot = _DiagnosticBot(service)
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert report.outcome is NativeDiagnosticOutcome.RECOVERY_RESTORED_FROM_PROFILE
+    assert service.profile_restore_calls == 1
+    assert service.recovery_calls == 0
+    assert report.profile_restore_attempted is True
+    assert report.profile_restore_applied is True
+    assert report.profile_path == str(profile_path)
+    assert report.profile_exists is True
+    assert report.restore_mode == "same_process_cache"
+    assert report.full_discovery_started is False
+    assert report.rejection_reason is None
+
+
+def test_persisted_profile_restore_rejected_falls_back_to_one_full_discovery(tmp_path) -> None:
+    """Restore returning False (rejected/stale profile) must still
+    reach exactly one full-discovery fallback -- validation strength is
+    preserved, not weakened, when the fast path doesn't apply."""
+    profile_path = tmp_path / "native_recovery_profile.json"
+    profile_path.write_text("{}", encoding="utf-8")
+    service = _DiagnosticService(
+        start_unhealthy=True,
+        profile_restore_result=False,
+        forced_outcome=NativeRecoveryOutcome.NOT_FOUND,
+        recovery_profile_path=str(profile_path),
+    )
+    bot = _DiagnosticBot(service)
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert service.profile_restore_calls == 1
+    assert service.recovery_calls == 1
+    assert report.profile_restore_attempted is True
+    assert report.profile_restore_applied is False
+    assert report.full_discovery_started is True
+    assert report.fallback_reason == "restore_did_not_apply"
+
+
+def test_no_profile_file_on_disk_cannot_report_a_restore_as_applied(tmp_path) -> None:
+    """Section 11: 'no profile file' can never be paired with 'profile
+    restore validated=True' -- a missing file must produce
+    profile_exists=False and profile_restore_applied=False together."""
+    missing_path = tmp_path / "does_not_exist.json"
+    service = _DiagnosticService(
+        start_unhealthy=True,
+        profile_restore_result=False,
+        recovery_profile_path=str(missing_path),
+    )
+    bot = _DiagnosticBot(service)
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert report.profile_exists is False
+    assert report.profile_restore_applied is False
+    assert not (report.profile_exists is False and report.profile_restore_applied is True)
+
+
+def test_no_restore_method_on_service_falls_back_to_full_discovery_cleanly() -> None:
+    """A service without try_restore_persisted_profile (older/minimal
+    fake or compat shim) must still reach full discovery, with an
+    honest fallback_reason -- never crash on the missing method."""
+
+    class _Bare:
+        def __init__(self, inner: _DiagnosticService) -> None:
+            self._inner = inner
+
+        def __getattr__(self, name: str):
+            if name == "try_restore_persisted_profile":
+                raise AttributeError(name)
+            return getattr(self._inner, name)
+
+    bare_service = _Bare(_DiagnosticService(start_unhealthy=True))
+    bot = _DiagnosticBot(bare_service)  # type: ignore[arg-type]
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert report.profile_restore_attempted is False
+    assert report.full_discovery_started is True
+    assert report.fallback_reason == "no_restore_method_on_service"
 
 
 def test_movement_required_is_a_typed_non_error_diagnostic() -> None:

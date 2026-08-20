@@ -60,9 +60,13 @@ in-process `RecordingSink`
 (`docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md` section 1a) —
 never a subprocess, never a second recorder GUI. The compact
 "Recording:" section is just `[Start Recording]`/`[Stop Recording]`
-plus a status line (Idle / Recording HH:MM:SS / Saved: `<path>`); it
-starts automatically around farming/training if the user has not
-already started one, and is otherwise fully manual.
+plus a status line (Idle / Preparing to record... / Recording
+HH:MM:SS / Saved: `<path>`); it starts automatically around
+farming/training if the user has not already started one, and is
+otherwise fully manual. Start Recording ensures native readiness
+first (current state → persisted-profile fast restore → full
+discovery, `docs/architecture/POSITION_AND_POINTER_RECOVERY.md` rule
+8) — the user does not need to press Recover Pointers first.
 
 ## 4. Dry run, training, and agent — current contract
 

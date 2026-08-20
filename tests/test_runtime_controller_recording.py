@@ -4,26 +4,63 @@ MISTAKES.md's "recording as a second scanner" entry). RecordingSink
 itself is monkeypatched to a fake (no real polling thread, no
 subprocess) so these stay fast/deterministic and prove the OWNERSHIP
 logic, not RecordingSink's own mechanics (covered by
-tests/test_recording_sink.py). Mirrors tests/test_runtime_controller.py's
-own `_start_control` synchronous-run pattern."""
+tests/test_recording_sink.py).
+
+start_recording() now ensures native readiness first (Section 5
+forward correction) and dispatches to a background DIAGNOSTIC worker
+so a required full-discovery fallback never blocks the caller
+(mirrors start_native_diagnostic's own async pattern) -- the
+`controller` fixture below monkeypatches `controller.workers.start` to
+run its target synchronously, the same idea as
+tests/test_runtime_controller.py's own `_start_control` synchronous-run
+pattern, so these tests stay fast/deterministic without a real
+background thread."""
 
 from __future__ import annotations
 
 import sys
+from threading import Event
 from types import ModuleType
 
 import pytest
 
 import runtime_controller as runtime_controller_module
+from position import NativePointerSnapshot
 from runtime_bus import RuntimeBus
 from runtime_controller import RuntimeController
-from worker_manager import CancellationToken
+from worker_manager import CancellationToken, WorkerKind
+
+
+class _FakeNativeProcessService:
+    """Minimal, already-healthy fake -- read_pointer_snapshot() always
+    succeeds, so ensure_native_ready's health check short-circuits
+    immediately (RECOVERY_NOT_NEEDED) without ever needing
+    recover_pointers()/try_restore_persisted_profile(). If a bug ever
+    made the recording path attempt a real scan, this fake has no such
+    methods and would raise AttributeError, failing the test loudly."""
+
+    def __init__(self) -> None:
+        self.attach_policy = None
+        self.presence_validation_source = "authoritative_refresh"
+        self.recovery_profile_path = None
+        self.read_calls = 0
+
+    def read_pointer_snapshot(self) -> NativePointerSnapshot:
+        self.read_calls += 1
+        return NativePointerSnapshot(
+            player_pointer_address=0x500000,
+            world_pointer_address=0x600000,
+            player_base=0x20000000,
+            world_base=0x30000000,
+            generation=1,
+            captured_at=0.0,
+        )
 
 
 class FakeBot:
     def __init__(self, *, attached: bool = True) -> None:
         self.config = {"show_frames": False}
-        self.native_process_service = object() if attached else None
+        self.native_process_service = _FakeNativeProcessService() if attached else None
         self.position_provider = object() if attached else None
         self.monster_provider = object() if attached else None
 
@@ -80,10 +117,18 @@ def _reset_fakes():
     FakeRecordingSink.fail_on_construct = False
 
 
+def _run_worker_synchronously(**kwargs) -> CancellationToken:
+    token = CancellationToken()
+    kwargs["target"](token)
+    return token
+
+
 @pytest.fixture
 def controller(monkeypatch: pytest.MonkeyPatch) -> RuntimeController:
     monkeypatch.setattr(runtime_controller_module, "RecordingSink", FakeRecordingSink)
-    return RuntimeController(FakeBot(), RuntimeBus())
+    instance = RuntimeController(FakeBot(), RuntimeBus())
+    monkeypatch.setattr(instance.workers, "start", _run_worker_synchronously)
+    return instance
 
 
 def _run_start_rl_synchronously(controller: RuntimeController, monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
@@ -114,6 +159,7 @@ def test_start_recording_creates_exactly_one_sink(controller: RuntimeController)
     controller.start_recording(started_by="USER")
     assert len(FakeRecordingSink.instances) == 1
     assert FakeRecordingSink.instances[0].ownership.started_by == "USER"
+    assert controller.recording is FakeRecordingSink.instances[0]
 
 
 def test_start_recording_rejects_a_second_concurrent_session(controller: RuntimeController) -> None:
@@ -134,13 +180,24 @@ def test_stop_recording_finalizes_and_clears_the_active_session(controller: Runt
 def test_start_recording_never_launches_a_subprocess_or_second_scanner(
     controller: RuntimeController,
 ) -> None:
-    """RecordingSink is constructed directly (in-process); confirmed by
-    the fact this succeeds using a fake bot with plain `object()`
-    placeholders for native_process_service/position_provider/
-    monster_provider -- no real attach capability exists at all, so any
-    code path attempting real acquisition would fail here."""
+    """RecordingSink is constructed directly (in-process) over the
+    dev bot's own already-attached objects. _FakeNativeProcessService
+    has no attach/discovery/scan capability whatsoever (only a canned
+    read_pointer_snapshot()) -- any code path attempting real
+    acquisition would raise AttributeError here."""
     controller.start_recording(started_by="USER")
     assert len(FakeRecordingSink.instances) == 1
+
+
+def test_start_recording_ensures_native_readiness_first(
+    controller: RuntimeController,
+) -> None:
+    """Section 5 forward correction (MISTAKES.md): Start Recording must
+    ensure native state is ready before the sink is constructed, not
+    start a writer against a possibly-broken pointer source."""
+    controller.start_recording(started_by="USER")
+    service = controller.bot.native_process_service
+    assert service.read_calls >= 1
 
 
 # --- Rule C: farming/training auto-starts a recording if none is active -----
@@ -218,6 +275,50 @@ def test_farming_does_not_start_when_recording_sink_fails(
     assert FakeRecordingSink.instances == []
 
 
+def test_farming_does_not_start_when_native_pointers_are_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Section 5: recording must not silently start against a broken
+    native source -- if ensure_native_ready cannot make pointers ready,
+    RUNTIME_AUTO recording start fails, and farming/training never
+    begins (fail-closed, same invariant as a sink construction
+    failure)."""
+    monkeypatch.setattr(runtime_controller_module, "RecordingSink", FakeRecordingSink)
+
+    class _UnavailableService:
+        attach_policy = None
+        presence_validation_source = "unproven"
+        recovery_profile_path = None
+        is_closed = False
+
+        def read_pointer_snapshot(self):
+            from position import NativePointerSnapshotError
+
+            raise NativePointerSnapshotError("Local-player pointer is null")
+
+    bot = FakeBot()
+    bot.native_process_service = _UnavailableService()
+    controller = RuntimeController(bot, RuntimeBus())
+    monkeypatch.setattr(controller.workers, "start", _run_worker_synchronously)
+
+    trained = []
+    module = ModuleType("farming.trainer")
+    module.dry_run_native_farming = lambda *_a, **_k: None
+    module.run_native_farming_agent = lambda *_a, **_k: None
+    module.train_native_farming = lambda *_a, **_k: trained.append("train")
+    module.validate_native_farming_data = lambda *_a, **_k: None
+    monkeypatch.setitem(sys.modules, "farming.trainer", module)
+    monkeypatch.setattr(
+        controller, "_start_control", lambda _name, target: target(CancellationToken())
+    )
+
+    controller.start_rl("train")
+
+    assert trained == []
+    assert FakeRecordingSink.instances == []
+    assert controller.recording is None
+
+
 # --- dry-run/validate-data are unaffected (recording only applies to ---------
 # --- train/agent) -------------------------------------------------------
 
@@ -227,3 +328,53 @@ def test_dry_run_does_not_touch_recording(
 ) -> None:
     _run_start_rl_synchronously(controller, monkeypatch, "dry-run")
     assert FakeRecordingSink.instances == []
+
+
+# --- Section 17.O: Start Recording and manual Recover Pointers share ---------
+# --- one DIAGNOSTIC-kind flight, not two concurrent ones ---------------------
+
+
+def test_start_recording_and_recover_pointers_cannot_run_concurrently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both start_recording() and start_native_diagnostic() dispatch to
+    WorkerKind.DIAGNOSTIC -- WorkerManager's own per-kind single-flight
+    guard means a real background worker for one blocks the other from
+    even starting, not just from scanning concurrently."""
+    monkeypatch.setattr(runtime_controller_module, "RecordingSink", FakeRecordingSink)
+
+    class _BlockingService:
+        attach_policy = None
+        presence_validation_source = "authoritative_refresh"
+        recovery_profile_path = None
+
+        def __init__(self) -> None:
+            self.entered = Event()
+            self.release = Event()
+
+        def read_pointer_snapshot(self) -> NativePointerSnapshot:
+            self.entered.set()
+            assert self.release.wait(2.0)
+            return NativePointerSnapshot(
+                player_pointer_address=0x500000,
+                world_pointer_address=0x600000,
+                player_base=0x20000000,
+                world_base=0x30000000,
+                generation=1,
+                captured_at=0.0,
+            )
+
+    service = _BlockingService()
+    bot = FakeBot()
+    bot.native_process_service = service
+    controller = RuntimeController(bot, RuntimeBus())
+
+    controller.start_recording(started_by="USER")
+    assert service.entered.wait(1.0)
+
+    with pytest.raises(RuntimeError, match="already active"):
+        controller.start_native_diagnostic(recover=True, timeout=2.0)
+
+    service.release.set()
+    assert controller.workers.join(WorkerKind.DIAGNOSTIC, 2.0)
+    assert len(FakeRecordingSink.instances) == 1

@@ -179,18 +179,24 @@ class Gui:
                 self.__show_log_window()
 
             if event == "-RECORDING-START-":
+                # start_recording() ensures native readiness first and may
+                # need a bounded full-discovery scan, so it dispatches to a
+                # background worker and returns immediately -- completion/
+                # failure are observed above via drain_completions()/
+                # drain_failures() (worker name "recording-start").
+                self.window["-RECORDING-START-"].update(disabled=True)
                 try:
                     self.controller.start_recording(started_by="USER")
                 except Exception as error:  # noqa: BLE001 - GUI command boundary.
                     message = f"Could not start recording: {error}"
                     self.runtime_bus.log(message, "msg_red")
                     self.show_error(message)
-                else:
-                    self.window["-RECORDING-STATUS-"].update("Recording 00:00:00")
                     self.__set_rl_buttons(
                         attached=self.controller.capture_active,
                         running=self.controller.control_active,
                     )
+                else:
+                    self.window["-RECORDING-STATUS-"].update("Preparing to record...")
 
             if event == "-RECORDING-STOP-":
                 try:
@@ -496,6 +502,16 @@ class Gui:
                     "msg_green",
                 )
                 continue
+            if completion.worker_name == "recording-start":
+                if completion.session_id != self.controller.diagnostic_session_id:
+                    continue
+                self.window["-RECORDING-STATUS-"].update("Recording 00:00:00")
+                self.__set_rl_buttons(
+                    attached=self.controller.capture_active,
+                    running=self.controller.control_active,
+                )
+                self.runtime_bus.log("Recording started.", "msg_green")
+                continue
             if (
                 completion.session_id is not None
                 and completion.session_id != self.controller.control_session_id
@@ -513,6 +529,7 @@ class Gui:
             diagnostic_failed = failure.worker_name in {
                 "native-health",
                 "native-pointer-recovery",
+                "recording-start",
             }
             if capture_failed and not self.__is_current_capture_event(failure):
                 continue
@@ -543,6 +560,12 @@ class Gui:
                 )
             elif failure.worker_name == "native-pointer-recovery":
                 self.__set_rl_buttons(attached=True, running=False)
+            elif failure.worker_name == "recording-start":
+                self.window["-RECORDING-STATUS-"].update("Idle")
+                self.__set_rl_buttons(
+                    attached=self.controller.capture_active,
+                    running=self.controller.control_active,
+                )
             self.runtime_bus.log(
                 f"{failure.worker_name} failed in "
                 f"{failure.lifecycle_state} at "

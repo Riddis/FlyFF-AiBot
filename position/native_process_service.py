@@ -863,18 +863,26 @@ class NativeProcessService:
     def _persist_independent_profile(
         self,
         reader: IndependentNativeReader,
-    ) -> None:
+    ) -> str | None:
+        """Persist the independent reader's profile for cross-restart
+        fast restore. Returns ``None`` on success, or a short human-
+        readable reason if persistence was skipped -- this used to be
+        a silent no-op with no return value at all (MISTAKES.md: a
+        concrete, previously-invisible root cause of a successful
+        recovery that nonetheless left no profile on disk for the next
+        startup to restore from)."""
+
         module = self._module_info
         relation_offset = reader.authoritative_relation_offset
         relation_value = reader.authoritative_relation_value
-        if (
-            module is None
-            or relation_offset is None
-            or relation_value is None
-            or not reader.authoritative_relation_validated
-            or not reader.monster_targets
-        ):
-            return
+        if module is None:
+            return "no mapped module extent was available"
+        if relation_offset is None or relation_value is None:
+            return "no authoritative actor relation was recovered"
+        if not reader.authoritative_relation_validated:
+            return "the authoritative actor relation was not validated"
+        if not reader.monster_targets:
+            return "no monster targets were discovered to anchor the profile"
         profile = profile_from_reader(
             module=module,
             process_id=int(getattr(self._memory, "pid", 0)) or None,
@@ -898,6 +906,7 @@ class NativeProcessService:
             ),
         )
         save_profile(profile, self.recovery_profile_path)
+        return None
 
     def recover_pointers(
         self,
@@ -1148,24 +1157,25 @@ class NativeProcessService:
                 if not self._closed:
                     self.last_recovery_result = result
             if applied and independent_reader is not None:
+                skip_reason: str | None
                 try:
-                    self._persist_independent_profile(independent_reader)
+                    skip_reason = self._persist_independent_profile(independent_reader)
                 except Exception as error:
-                    if status_callback is not None:
-                        try:
-                            status_callback(
-                                PointerRecoveryProgress(
-                                    phase="profile_persistence",
-                                    message=(
-                                        "Native recovery succeeded, but the last "
-                                        "known profile could not be saved: "
-                                        f"{type(error).__name__}: {error}"
-                                    ),
-                                    metrics=metrics,
-                                )
+                    skip_reason = f"{type(error).__name__}: {error}"
+                if skip_reason is not None and status_callback is not None:
+                    try:
+                        status_callback(
+                            PointerRecoveryProgress(
+                                phase="profile_persistence",
+                                message=(
+                                    "Native recovery succeeded, but the last "
+                                    f"known profile was not saved: {skip_reason}"
+                                ),
+                                metrics=metrics,
                             )
-                        except Exception:
-                            pass
+                        )
+                    except Exception:
+                        pass
             return result
         finally:
             self._finish_recovery()

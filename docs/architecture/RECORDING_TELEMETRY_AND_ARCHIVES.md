@@ -72,7 +72,20 @@ archive.
 
 - **A/B — explicit user control:** `-RECORDING-START-` calls
   `start_recording(started_by="USER")`; `-RECORDING-STOP-` calls
-  `stop_recording()`, finalizing that session.
+  `stop_recording()`, finalizing that session. `start_recording()`
+  first ensures native readiness (current state → persisted-profile
+  fast restore → full discovery, via `RuntimeController.
+  ensure_native_ready()` — see `docs/architecture/
+  POSITION_AND_POINTER_RECOVERY.md` rule 8) before constructing the
+  sink — Start Recording is an *intent* ("make the bot ready and
+  record"), not a writer started against whatever the attachment
+  happens to be at click time (MISTAKES.md: "Start Recording began
+  against unavailable native pointers"). Because a required full-
+  discovery fallback can take real time, `start_recording()` dispatches
+  this to a background worker (mirroring `start_native_diagnostic`'s
+  own async pattern, worker name `"recording-start"`) and returns a
+  session id immediately rather than blocking the GUI thread; the
+  sidebar status shows "Preparing to record..." until it completes.
 - **C — mandatory automatic recording:** `start_rl()` requires an
   active recording before `train`/`agent` modes begin. If none is
   active, it starts one (`started_by="RUNTIME_AUTO"`) before control

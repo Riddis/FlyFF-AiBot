@@ -14,8 +14,10 @@ from capture_service import CaptureService, FrameSource
 from libs.WindowCapture import WindowCapture
 from mapper import Mapper
 from position import (
+    NativeDiagnosticOutcome,
     NativeDiagnosticProgress,
     NativeDiagnosticReport,
+    NativeHealthStatus,
     NativePointerSnapshotError,
     PointerRecoveryHints,
     run_native_diagnostic,
@@ -111,6 +113,14 @@ class RuntimeController:
         self._shutdown_results = {kind: True for kind in WorkerKind}
         self._shutdown_timed_out: tuple[WorkerKind, ...] = ()
         self.recording: RecordingSink | None = None
+        # _start_recording_now can now take real time (ensure_native_
+        # ready's full-discovery fallback), so it has two possible
+        # callers that can race: a USER click (via the async
+        # start_recording() worker) and start_rl()'s own RUNTIME_AUTO
+        # path (running concurrently in a CONTROL worker). This lock
+        # keeps "one recording session" true even while one is still
+        # being prepared, not just after it exists.
+        self._recording_start_lock = Lock()
         self._attached_hwnd: int | None = None
         self._attached_title: str | None = None
 
@@ -199,7 +209,9 @@ class RuntimeController:
                     report("Reusing the already-active recording session.")
                 else:
                     try:
-                        self.start_recording(started_by="RUNTIME_AUTO")
+                        self._start_recording_now(
+                            token, report, started_by="RUNTIME_AUTO"
+                        )
                         recording_started_here = True
                         report("Operational-feedback recording started.")
                     except Exception as error:  # noqa: BLE001 - reported, not swallowed.
@@ -263,11 +275,29 @@ class RuntimeController:
 
         self._start_control(f"rl-{mode}", run)
 
-    def start_recording(self, *, started_by: str = "USER") -> RecordingSink:
-        """One recording session, as a passive sink over the bot's own
-        already-attached native reader -- never a second scanner
-        (docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md section
-        1a). Raises if one is already active, or if not attached yet."""
+    def start_recording(self, *, started_by: str = "USER") -> int:
+        """Start one recording session as a background operation.
+
+        Section 5 forward correction (MISTAKES.md): Start Recording is
+        an INTENT -- "make the bot ready and record" -- not "start a
+        writer even if its data source is broken." A live-observed
+        failure showed the recorder starting immediately against
+        unavailable pointers, only working after the user separately,
+        manually ran pointer recovery. Native readiness is now ensured
+        first, via the same shared ensure_native_ready state machine
+        the manual Recover Pointers button and farming/training startup
+        use (docs/architecture/POSITION_AND_POINTER_RECOVERY.md).
+
+        This can require a bounded full-discovery fallback lasting up
+        to ``STARTUP_POINTER_RECOVERY_TIMEOUT_SECONDS`` and must never
+        block the calling (GUI) thread -- so, like
+        ``start_native_diagnostic``, this dispatches to a background
+        DIAGNOSTIC-kind worker and returns a session id immediately;
+        observe completion/failure via the ``RuntimeBus``
+        (worker name ``"recording-start"``). Only fast, already-known-
+        at-call-time failures (already recording, not attached) raise
+        synchronously here.
+        """
         if self.recording is not None and self.recording.is_running:
             raise RuntimeError("A recording is already active.")
         service = getattr(self.bot, "native_process_service", None)
@@ -275,22 +305,102 @@ class RuntimeController:
         monster_provider = getattr(self.bot, "monster_provider", None)
         if service is None or position_provider is None or monster_provider is None:
             raise RuntimeError("Attach to the FlyFF window first.")
-        attach_policy = getattr(service, "attach_policy", None)
-        metadata = _RuntimeMetadata(
-            attach_policy_name=getattr(attach_policy, "name", None),
-            presence_validation_source=getattr(
-                service, "presence_validation_source", None
-            ),
+
+        session_id = self._next_diagnostic_session_id
+        self._next_diagnostic_session_id += 1
+        self._diagnostic_session_id = session_id
+
+        def run(token: CancellationToken) -> RecordingSink:
+            def report(message: str) -> None:
+                rendered = str(message)
+                self.bus.publish_status(
+                    "recording_start_status", rendered, session_id=session_id
+                )
+                self.bus.log(rendered, "msg_blue")
+
+            sink = self._start_recording_now(token, report, started_by=started_by)
+            report("Recording session ready.")
+            return sink
+
+        self.workers.start(
+            name="recording-start",
+            kind=WorkerKind.DIAGNOSTIC,
+            target=run,
+            session_id=session_id,
         )
-        self.recording = RecordingSink(
-            native_process_service=service,
-            position_provider=position_provider,
-            monster_provider=monster_provider,
-            ownership=RecordingOwnership(started_by=started_by),
-            character_name=self._attached_title or "player",
-            metadata=metadata,
-        )
-        return self.recording
+        return session_id
+
+    def _start_recording_now(
+        self,
+        token: CancellationToken,
+        report: Callable[[str], None],
+        *,
+        started_by: str,
+    ) -> RecordingSink:
+        """Blocking: ensure native readiness, then construct exactly
+        one passive ``RecordingSink`` over the bot's own already-
+        attached native reader -- never a second scanner
+        (docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md section
+        1a). Only ever called off the GUI thread: ``start_recording()``
+        above dispatches it to a background worker; ``start_rl()``'s own
+        RUNTIME_AUTO path calls it directly since that already runs
+        inside its own background CONTROL worker.
+        """
+        if self.recording is not None and self.recording.is_running:
+            raise RuntimeError("A recording is already active.")
+        if not self._recording_start_lock.acquire(blocking=False):
+            raise RuntimeError("A recording is already being prepared.")
+        try:
+            if self.recording is not None and self.recording.is_running:
+                raise RuntimeError("A recording is already active.")
+            service = getattr(self.bot, "native_process_service", None)
+            position_provider = getattr(self.bot, "position_provider", None)
+            monster_provider = getattr(self.bot, "monster_provider", None)
+            if (
+                service is None
+                or position_provider is None
+                or monster_provider is None
+            ):
+                raise RuntimeError("Attach to the FlyFF window first.")
+            result = self.ensure_native_ready(
+                token, report, verbose=True, log_label="recording-start"
+            )
+            ready = result.outcome in (
+                NativeDiagnosticOutcome.RECOVERY_NOT_NEEDED,
+                NativeDiagnosticOutcome.RECOVERY_RESTORED_FROM_PROFILE,
+            ) or (
+                result.recovery is not None
+                and result.recovery.succeeded
+                and result.recovery.applied
+            )
+            if not ready:
+                outcome_label = (
+                    result.recovery.outcome.value
+                    if result.recovery is not None
+                    else result.outcome.value
+                )
+                raise RuntimeError(
+                    "Native pointers could not be made ready for recording "
+                    f"({outcome_label})."
+                )
+            attach_policy = getattr(service, "attach_policy", None)
+            metadata = _RuntimeMetadata(
+                attach_policy_name=getattr(attach_policy, "name", None),
+                presence_validation_source=getattr(
+                    service, "presence_validation_source", None
+                ),
+            )
+            self.recording = RecordingSink(
+                native_process_service=service,
+                position_provider=position_provider,
+                monster_provider=monster_provider,
+                ownership=RecordingOwnership(started_by=started_by),
+                character_name=self._attached_title or "player",
+                metadata=metadata,
+            )
+            return self.recording
+        finally:
+            self._recording_start_lock.release()
 
     def stop_recording(self) -> Path | None:
         if self.recording is None:
@@ -306,187 +416,75 @@ class RuntimeController:
         *,
         verbose: bool = True,
     ) -> bool:
-        """Resolve expected stale/null native state inside the control worker."""
+        """Resolve expected stale/null native state inside the control
+        worker.
+
+        Delegates to the ONE canonical ensure-native-ready state machine
+        (``position.native_diagnostics.run_native_diagnostic``: current
+        state -> persisted fast restore -> full discovery) -- the same
+        engine the manual Recover Pointers button and Start Recording
+        use (``ensure_native_ready`` below). This method no longer
+        duplicates that ordering itself; a duplicated, startup-only copy
+        of this logic is what previously let the manual-recovery path
+        skip the persisted-profile step entirely (MISTAKES.md).
+        """
 
         service = getattr(self.bot, "native_process_service", None)
         if service is None:
             return True
-        recovery_log = _RecoveryLog("startup-recovery")
-        recovery_log.write(
-            f"mode={'verbose' if verbose else 'training'}"
+        result = self.ensure_native_ready(
+            token,
+            report,
+            verbose=verbose,
+            log_label="startup-recovery",
+            timeout_seconds=self.STARTUP_POINTER_RECOVERY_TIMEOUT_SECONDS,
         )
-        # Fast-restore diagnostics (docs/PROJECT_GOALS.md-adjacent live
-        # acceptance finding: a user-run relaunch against the same,
-        # still-open FlyFF client fell back to full discovery instead of
-        # the expected RecoveredNativeProfile fast restore). These are
-        # transition/event logs, not per-frame -- state-change points
-        # only, so the evidence stays readable.
-        attach_policy = getattr(service, "attach_policy", None)
-        profile_path = getattr(service, "recovery_profile_path", None)
-        profile_exists = profile_path is not None and Path(profile_path).is_file()
-        recovery_log.write(
-            f"attach_policy={getattr(attach_policy, 'name', 'unknown')} "
-            f"recovered_profile_path={profile_path} "
-            f"profile_exists={profile_exists}"
-        )
-        try:
-            service.read_pointer_snapshot()
-            recovery_log.write(
-                "Existing in-process native reader validated "
-                "(presence_validation_source="
-                f"{getattr(service, 'presence_validation_source', 'unproven')})."
+        if result.outcome is NativeDiagnosticOutcome.RECOVERY_RESTORED_FROM_PROFILE:
+            try:
+                snapshot = service.read_pointer_snapshot()
+            except NativePointerSnapshotError as error:
+                report(
+                    "Restored native profile did not pass startup "
+                    f"verification: {error}. No input was activated."
+                )
+                return False
+            report(
+                "Native startup preflight restored the last known "
+                f"validated profile: player=0x{snapshot.player_base:X}."
             )
             return True
-        except NativePointerSnapshotError:
-            recovery_log.write(
-                "Existing in-process native reader was unavailable or stale."
-            )
-
-        profile_hints = self._pointer_recovery_hints(
-            cancellation=token,
-            health_attempts=1,
-        )
-        profile_deadline = monotonic() + self.PROFILE_VALIDATION_TIMEOUT_SECONDS
-
-        def profile_status(message: str) -> None:
-            recovery_log.write(message)
-            normalized = message.casefold()
-            if (
-                verbose
-                or normalized.startswith("checking the last known")
-                or "validated" in normalized
-                or "full recovery" in normalized
-            ):
-                report(message)
-            self.bus.heartbeat("control")
-
-        restore_profile = getattr(service, "try_restore_persisted_profile", None)
-        if callable(restore_profile):
-            recovery_log.write(
-                "profile_load_attempted=True" if profile_exists
-                else "profile_load_attempted=True (no file on disk)"
-            )
-            try:
-                restore_ok = restore_profile(
-                    hints=profile_hints,
-                    cancellation=token,
-                    deadline=profile_deadline,
-                    status_callback=profile_status,
-                )
-                recovery_log.write(
-                    f"restore_validation_result={restore_ok} "
-                    f"restore_mode={getattr(service, 'last_profile_restore_mode', 'unknown')} "
-                    f"rejection_reason={getattr(service, 'last_profile_restore_error', None)}"
-                )
-                if restore_ok:
-                    snapshot = service.read_pointer_snapshot()
-                    presence_source = getattr(
-                        service, "presence_validation_source", "unproven"
-                    )
-                    recovery_log.write(
-                        f"presence_validation_source={presence_source} "
-                        f"presence_validated={presence_source != 'unproven'}"
-                    )
-                    report(
-                        "Native startup preflight restored the last known "
-                        "validated profile: "
-                        f"player=0x{snapshot.player_base:X}."
-                    )
-                    return True
-            except Exception as error:  # noqa: BLE001 - optional fast path.
-                recovery_log.write(
-                    f"restore_validation_result=False "
-                    f"rejection_reason={type(error).__name__}: {error}"
-                )
-                report(
-                    "Last known native profile could not be used; full recovery "
-                    f"will run. {type(error).__name__}: {error}"
-                )
-        else:
-            recovery_log.write("profile_load_attempted=False (service has no restore method)")
-
-        recovery_log.write(
-            f"fallback_reason=restore_did_not_apply full_discovery_started=True"
-        )
-        report("Native pointers unavailable; running full startup recovery.")
-        recovery_log.write("Native pointers unavailable; running full startup recovery.")
-        if recovery_log.path is not None:
-            report(f"Native recovery log: {recovery_log.path}")
-        timeout = self.STARTUP_POINTER_RECOVERY_TIMEOUT_SECONDS
-        deadline = monotonic() + timeout
-
-        def publish(progress) -> None:
-            message = str(progress.message)
-            phase = str(getattr(progress, "phase", ""))
-            recovery_log.write(f"[{phase or 'recovery'}] {message}")
-            if verbose or phase in {
-                "success",
-                "cache_hit",
-                "cancelled",
-                "deadline",
-                "error",
-            }:
-                report(message)
-            elif (
-                message.startswith("Dynamically recovered the authoritative")
-                or message.startswith("Validated target scan read")
-                or message.startswith("Authoritative actor scan")
-                or message.startswith("Authoritative actor candidate")
-                or message.startswith("Reusing the last validated authoritative")
-                or message.startswith("Found one selected player")
-                or message.startswith("Native player pointer recovered")
-            ):
-                report(message)
-            self.bus.heartbeat("control")
-
-        try:
-            result = service.recover_pointers(
-                persist=False,
-                cancellation=token,
-                deadline=deadline,
-                timeout_seconds=timeout,
-                status_callback=publish,
-                hints=self._pointer_recovery_hints(
-                    cancellation=token,
-                    health_attempts=8,
-                ),
-            )
-        except Exception as error:  # noqa: BLE001 - expected startup boundary.
-            recovery_log.write(
-                "Startup recovery failed: "
-                f"{type(error).__name__}: {error}"
-            )
+        if result.outcome is NativeDiagnosticOutcome.RECOVERY_NOT_NEEDED:
+            return True
+        if result.error is not None:
             report(
                 "Native pointer startup recovery could not complete: "
-                f"{type(error).__name__}: {error}. No input was activated."
+                f"{result.error}. No input was activated."
             )
             return False
-        if not result.succeeded or not result.applied:
-            recovery_log.write(
-                "Startup recovery did not apply: "
-                f"outcome={result.outcome.value}."
+        if (
+            result.recovery is None
+            or not result.recovery.succeeded
+            or not result.recovery.applied
+        ):
+            outcome_label = (
+                result.recovery.outcome.value
+                if result.recovery is not None
+                else result.outcome.value
             )
             report(
                 "Native pointers remain unavailable after bounded recovery "
-                f"({result.outcome.value}). No input was activated."
+                f"({outcome_label}). No input was activated."
             )
             return False
         try:
             snapshot = service.read_pointer_snapshot()
         except NativePointerSnapshotError as error:
-            recovery_log.write(
-                "Startup verification failed: " + str(error)
-            )
             report(
                 "Recovered native pointers did not pass startup verification: "
                 f"{error}. No input was activated."
             )
             return False
         if snapshot.mode == "independent":
-            recovery_log.write(
-                "Startup recovery completed in independent mode: "
-                f"player=0x{snapshot.player_base:X}."
-            )
             report(
                 "Native pointer startup preflight ready in independent mode: "
                 f"player=0x{snapshot.player_base:X}; world pointer not required."
@@ -497,6 +495,100 @@ class RuntimeController:
                 f"player=0x{snapshot.player_base:X}, world=0x{snapshot.world_base:X}."
             )
         return True
+
+    def ensure_native_ready(
+        self,
+        token: CancellationToken,
+        report: Callable[[str], None],
+        *,
+        verbose: bool = True,
+        log_label: str = "native-ready",
+        timeout_seconds: float | None = None,
+    ) -> NativeDiagnosticReport:
+        """The one canonical ensure-native-ready operation: current
+        state -> persisted fast restore -> full discovery, in that
+        order (docs/architecture/POSITION_AND_POINTER_RECOVERY.md).
+        Every consumer that needs a ready native attachment before doing
+        real work -- farming/training startup, Start Recording, the
+        manual Recover Pointers diagnostic -- calls through this one
+        method (or the diagnostic path that shares its underlying
+        ``run_native_diagnostic`` engine) rather than each hand-rolling
+        its own copy of this ordering.
+
+        Returns the full ``NativeDiagnosticReport`` so callers can
+        inspect exactly what happened (profile restore vs. full
+        discovery vs. already healthy) rather than a bare bool.
+        """
+
+        service = getattr(self.bot, "native_process_service", None)
+        recovery_log = _RecoveryLog(log_label)
+        recovery_log.write(f"mode={'verbose' if verbose else 'training'}")
+        timeout = float(timeout_seconds or self.STARTUP_POINTER_RECOVERY_TIMEOUT_SECONDS)
+        deadline = monotonic() + timeout
+
+        def publish(progress: NativeDiagnosticProgress) -> None:
+            phase = str(progress.phase or "")
+            message = str(progress.message)
+            recovery_log.write(f"[{phase or 'recovery'}] {message}")
+            normalized = message.casefold()
+            important_phase = phase in {
+                "health",
+                "not_needed",
+                "profile_restore_applied",
+                "full_discovery",
+                "success",
+                "cache_hit",
+                "cancelled",
+                "deadline",
+                "error",
+            }
+            if (
+                verbose
+                or important_phase
+                or normalized.startswith("checking the last known")
+                or "validated" in normalized
+                or "full recovery" in normalized
+                or message.startswith("Dynamically recovered the authoritative")
+                or message.startswith("Validated target scan read")
+                or message.startswith("Authoritative actor scan")
+                or message.startswith("Authoritative actor candidate")
+                or message.startswith("Reusing the last validated authoritative")
+                or message.startswith("Found one selected player")
+                or message.startswith("Native player pointer recovered")
+            ):
+                report(message)
+            self.bus.heartbeat("control")
+
+        result = run_native_diagnostic(
+            self.bot,
+            recover=True,
+            persist=False,
+            cancellation=token,
+            deadline=deadline,
+            timeout_seconds=timeout,
+            status_callback=publish,
+            recovery_hints=self._pointer_recovery_hints(
+                cancellation=token,
+                health_attempts=8,
+            ),
+        )
+        recovery_log.write(
+            f"attach_policy={getattr(getattr(service, 'attach_policy', None), 'name', 'unknown')} "
+            f"current_pointer_validation={result.before.status.value} "
+            f"recovered_profile_path={result.profile_path} "
+            f"profile_exists={result.profile_exists} "
+            f"profile_restore_attempted={result.profile_restore_attempted} "
+            f"profile_restore_applied={result.profile_restore_applied} "
+            f"restore_mode={result.restore_mode} "
+            f"rejection_reason={result.rejection_reason} "
+            f"fallback_reason={result.fallback_reason} "
+            f"full_discovery_started={result.full_discovery_started} "
+            f"presence_validation_source={getattr(service, 'presence_validation_source', 'unproven')} "
+            f"final_health={result.after.status.value}"
+        )
+        if recovery_log.path is not None and result.full_discovery_started:
+            report(f"Native recovery log: {recovery_log.path}")
+        return result
 
     def start_mapper(
         self,
@@ -728,6 +820,22 @@ class RuntimeController:
                 status_callback=publish,
                 recovery_hints=recovery_hints,
             )
+            if recovery_log is not None:
+                service = getattr(self.bot, "native_process_service", None)
+                recovery_log.write(
+                    f"current_pointer_validation={report.before.status.value} "
+                    f"recovered_profile_path={report.profile_path} "
+                    f"profile_exists={report.profile_exists} "
+                    f"profile_restore_attempted={report.profile_restore_attempted} "
+                    f"profile_restore_applied={report.profile_restore_applied} "
+                    f"restore_mode={report.restore_mode} "
+                    f"rejection_reason={report.rejection_reason} "
+                    f"fallback_reason={report.fallback_reason} "
+                    f"full_discovery_started={report.full_discovery_started} "
+                    "presence_validation_source="
+                    f"{getattr(service, 'presence_validation_source', 'unproven')} "
+                    f"final_health={report.after.status.value}"
+                )
             snapshot = report.after
             facts = snapshot.runtime
             pointer = (
@@ -773,7 +881,14 @@ class RuntimeController:
                 f"ocr_enabled={facts.ocr_enabled}; "
                 f"ocr_anchor_cached={facts.ocr_anchor_cached}; "
                 f"focused={facts.target_focused}; "
-                f"coordinate_error={facts.coordinate_error or 'none'}.",
+                f"coordinate_error={facts.coordinate_error or 'none'}; "
+                f"profile_path={report.profile_path}; "
+                f"profile_exists={report.profile_exists}; "
+                f"profile_restore_attempted={report.profile_restore_attempted}; "
+                f"profile_restore_applied={report.profile_restore_applied}; "
+                f"restore_mode={report.restore_mode}; "
+                f"fallback_reason={report.fallback_reason}; "
+                f"full_discovery_started={report.full_discovery_started}.",
                 "msg_blue",
             )
             self.bus.publish_status(

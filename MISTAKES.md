@@ -1045,3 +1045,132 @@ project's own no-silent-rewrite rule.
   before the action that button guards, not after it returns -- a fast
   operation can complete and free its guard before a post-hoc disable
   ever takes effect.
+
+### [2026-08-21] Start Recording began against unavailable native pointers, needing a separate manual recovery step
+
+- What happened: a live-observed user run pressed Start Recording
+  while native pointers were unavailable. The recorder started
+  immediately; its native reads then emitted errors. Only after the
+  user separately, manually ran Recover Pointers did discovery succeed
+  and the recording start working correctly. The manual "Recover
+  Pointers" diagnostic path (`position.native_diagnostics.
+  run_native_diagnostic`, `recover=True`) also turned out to jump
+  straight to a full structural scan whenever health wasn't already
+  `HEALTHY`, never attempting the persisted-profile fast restore that
+  farming/training's own startup path (`RuntimeController.
+  _prepare_native_pointer_startup`) already had -- two independent,
+  duplicated readiness implementations, only one of which actually
+  tried the fast path.
+- Root cause: "Start Recording" was implemented as "construct a sink
+  over whatever the current attachment state happens to be" rather
+  than as an intent -- "make the bot ready, then record." No canonical
+  ensure-native-ready operation existed at all: farming/training
+  startup had its own hand-rolled current-state -> persisted-restore
+  -> full-discovery sequence, while the manual Recover Pointers path
+  had a *different*, shorter sequence (current-state -> full-discovery
+  only, no persisted-restore step) baked directly into
+  `run_native_diagnostic`.
+- How caught: user-run live evidence (this correction request) showing
+  Start Recording failing against unavailable pointers, and separately
+  a full rediscovery running after a bot restart instead of the
+  expected persisted-profile fast restore.
+- Fix: the current-state -> persisted-restore -> full-discovery
+  ordering now lives in exactly one place,
+  `position.native_diagnostics.run_native_diagnostic` (used by every
+  explicit-recovery caller), plus `RuntimeController.
+  ensure_native_ready()` as the one shared wrapper adding logging/
+  reporting on top of it. `start_recording()` now calls this before
+  constructing a `RecordingSink`, and dispatches to a background
+  worker (mirroring `start_native_diagnostic`'s own async pattern)
+  since a required full-discovery fallback can take real time and must
+  never block the GUI thread. `_prepare_native_pointer_startup` no
+  longer duplicates this ordering -- it delegates to the same shared
+  method.
+- Lesson: a UI action ("Start Recording", "Recover Pointers") should
+  express the user's *intent*, with the application resolving whatever
+  internal prerequisites that intent requires -- never require the
+  user to manually perform an internal readiness step (like running a
+  separate recovery) before the action they actually wanted will work.
+  And when the same class of prerequisite ("make native state ready")
+  is needed by more than one caller, implement it exactly once and
+  have every caller share it -- a second, independently-written copy
+  of the same sequence is where the two versions silently diverge.
+
+### [2026-08-21] a successful recovery silently skipped saving the persisted profile, with no diagnostic trace
+
+- What happened: `NativeProcessService._persist_independent_profile`
+  returned `None` unconditionally -- both on genuine success and on
+  every skip case (no mapped module, no authoritative relation
+  recovered, relation not validated, no monster targets discovered).
+  A caller had no way to distinguish "profile saved" from "profile
+  silently not saved," and no log line or status message was ever
+  produced for the skip case at all. This is a concrete, previously-
+  invisible root cause for "why is `recovered_profile_path` never
+  actually usable on the next startup" reports: the ORIGINAL recovery
+  may have genuinely succeeded (pointers worked, bot ran fine) while
+  still never writing a profile to disk, with nothing anywhere
+  recording that fact.
+- Root cause: the method's early-return guard clauses treated "don't
+  have enough evidence to build a trustworthy profile" the same as
+  "profile written successfully" -- both were a bare `return` with no
+  signal distinguishing them, and the one caller
+  (`_recover_pointers_locked`) only reported anything when the method
+  *raised*, never when it silently declined to save.
+- How caught: source inspection while root-causing a live-reported
+  cross-bot-restart fast-restore failure (this correction request,
+  section 10) -- not itself proven to be what happened in that
+  specific live report (see `POSITION_AND_POINTER_RECOVERY.md`'s
+  "Duplicate recovery logs" and "not reproducible" subsections for
+  what *was* independently confirmed), but a real, verifiable gap
+  regardless.
+- Fix: `_persist_independent_profile` now returns `str | None` -- a
+  short human-readable skip reason, or `None` only on genuine success.
+  `_recover_pointers_locked` reports that reason through the existing
+  `status_callback` (the same channel it already used for the
+  exception case), so a skipped save is now visible in the recovery
+  log exactly like a failed one. Covered by
+  `tests/test_native_process_service.py::
+  test_profile_persistence_skip_reason_is_reported_not_silent`.
+- Lesson: a function that can either "do the thing" or "correctly
+  decide not to" must make that distinction visible in its return
+  value/signal, not just its side effects -- a bare `return` used for
+  both "success, nothing more to report" and "skipped, here's why" is
+  indistinguishable to every caller and erases the diagnostic trail
+  precisely where it would matter most (persistence steps, one-shot
+  writes, anything whose absence is only discoverable much later).
+
+### [2026-08-20] a git stash/pop cycle silently unstaged two deletions that had already been staged
+
+- What happened: mid-session, `git stash` (to verify two test failures
+  were pre-existing on the entry commit) then `git stash pop` was used
+  on a working tree that already had `apps/recorder_headless_cli.py`
+  and `recording_session.py` staged as deletions (`D ` in `git status
+  --short`, i.e. staged, worktree matching). After the pop, both
+  showed as ` D` instead -- deleted in the worktree but no longer
+  staged. Running the final test suite worked fine (the files were
+  genuinely gone from disk), but a commit made without re-checking the
+  index at that point would have silently reverted those two files to
+  present-in-HEAD/absent-from-the-commit, contradicting the rest of
+  the change.
+- Root cause: `git stash`/`git stash pop` restore working-tree content
+  correctly but do not guarantee identical staged/unstaged status for
+  every path afterward, particularly for deletions -- not a bug, just
+  a git behavior easy to assume away when a stash cycle is used
+  as a quick "diff this against a clean tree" tool mid-task rather
+  than as a deliberate stage-boundary operation.
+- How caught: self-caught, by following this project's own standing
+  rule (`git diff --cached --name-status` before every commit) rather
+  than assuming the index still matched what had been staged earlier
+  in the session.
+- Fix: re-staged the two deletions explicitly
+  (`git add apps/recorder_headless_cli.py recording_session.py`)
+  before committing; no other effect since the working tree content
+  was already correct.
+- Lesson: any git operation that touches the working tree broadly
+  (`stash`, `checkout` of another ref, `reset`, a subagent/background
+  process that might run git commands) invalidates prior assumptions
+  about what is currently staged -- always re-run `git diff --cached
+  --name-status` immediately before the actual `git commit`, not just
+  once earlier in the session, especially after such an operation.
+  Explicit-path `git add` does not remove files that go missing from
+  the intended commit; only re-checking the full index catches that.

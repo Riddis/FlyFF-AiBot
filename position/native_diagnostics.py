@@ -4,6 +4,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
 from enum import Enum
 from math import isfinite
+from pathlib import Path
 from time import monotonic
 from typing import Any, cast
 
@@ -106,6 +107,7 @@ class NativeHealthSnapshot:
 class NativeDiagnosticOutcome(str, Enum):
     HEALTH_ONLY = "health_only"
     RECOVERY_NOT_NEEDED = "recovery_not_needed"
+    RECOVERY_RESTORED_FROM_PROFILE = "recovery_restored_from_profile"
     RECOVERY_UNAVAILABLE = "recovery_unavailable"
     RECOVERY_SUCCEEDED = "recovery_succeeded"
     RECOVERY_NOT_APPLIED = "recovery_not_applied"
@@ -133,7 +135,18 @@ NativeDiagnosticStatusCallback = Callable[[NativeDiagnosticProgress], None]
 
 @dataclass(frozen=True, slots=True)
 class NativeDiagnosticReport:
-    """Typed result of a managed health or explicit recovery request."""
+    """Typed result of a managed health or explicit recovery request.
+
+    Deliberately separate, semantically distinct fields (MISTAKES.md:
+    an earlier version conflated these into misleading combinations
+    like ``restore_validation_result=True`` with ``restore_mode=unknown``
+    and no file on disk). ``before.status``/``after.status`` are the
+    current/final pointer validation; the ``profile_*`` fields below are
+    ``None``/``False`` whenever a persisted-profile restore was never
+    attempted (e.g. a genuinely healthy attachment, or no
+    ``try_restore_persisted_profile`` on the service) -- never populated
+    with a stale or invented value.
+    """
 
     outcome: NativeDiagnosticOutcome
     recovery_requested: bool
@@ -144,6 +157,14 @@ class NativeDiagnosticReport:
     progress_updates: int
     last_progress: NativeDiagnosticProgress | None
     error: str | None = None
+    profile_path: str | None = None
+    profile_exists: bool | None = None
+    profile_restore_attempted: bool = False
+    profile_restore_applied: bool = False
+    restore_mode: str | None = None
+    rejection_reason: str | None = None
+    fallback_reason: str | None = None
+    full_discovery_started: bool = False
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-friendly recursive dataclass representation."""
@@ -383,6 +404,10 @@ def run_native_diagnostic(
             status_callback(progress)
 
     before = collect_native_health(bot, clock=clock)
+    service = getattr(bot, "native_process_service", None)
+    profile_path_value = getattr(service, "recovery_profile_path", None) if service is not None else None
+    profile_path = None if profile_path_value is None else str(profile_path_value)
+    profile_exists = profile_path_value is not None and Path(profile_path_value).is_file()
     emit(
         NativeDiagnosticProgress(
             phase="health",
@@ -399,6 +424,8 @@ def run_native_diagnostic(
             recovery=None,
             progress_updates=updates,
             last_progress=last_progress,
+            profile_path=profile_path,
+            profile_exists=profile_exists,
         )
 
     if before.status is NativeHealthStatus.HEALTHY:
@@ -422,9 +449,10 @@ def run_native_diagnostic(
             recovery=None,
             progress_updates=updates,
             last_progress=last_progress,
+            profile_path=profile_path,
+            profile_exists=profile_exists,
         )
 
-    service = getattr(bot, "native_process_service", None)
     if service is None or bool(getattr(service, "is_closed", False)):
         emit(
             NativeDiagnosticProgress(
@@ -442,7 +470,101 @@ def run_native_diagnostic(
             progress_updates=updates,
             last_progress=last_progress,
             error="Native process attachment is unavailable",
+            profile_path=profile_path,
+            profile_exists=profile_exists,
         )
+
+    # Single canonical ensure-native-ready ordering (docs/architecture/
+    # POSITION_AND_POINTER_RECOVERY.md): current state -> persisted
+    # fast restore -> full discovery, in that order, for every caller
+    # of explicit recovery (manual "Recover Pointers", farming/training
+    # startup, Start Recording) -- not a bespoke, duplicated sequence
+    # per caller. A live-observed cross-bot-restart failure traced to
+    # exactly this: the manual recovery path used to jump straight to
+    # a full scan whenever health wasn't already HEALTHY, never trying
+    # the persisted profile at all (MISTAKES.md).
+    restore_profile_fn = getattr(service, "try_restore_persisted_profile", None)
+    profile_restore_attempted = False
+    profile_restore_applied = False
+    restore_mode: str | None = None
+    rejection_reason: str | None = None
+    if callable(restore_profile_fn):
+        profile_restore_attempted = True
+        emit(
+            NativeDiagnosticProgress(
+                phase="profile_restore",
+                message=(
+                    "Checking the last known persisted native pointer profile..."
+                    if profile_exists
+                    else "No persisted native pointer profile file on disk; "
+                    "skipping fast restore."
+                ),
+            )
+        )
+
+        def profile_status(message: str) -> None:
+            emit(NativeDiagnosticProgress(phase="profile_restore", message=str(message)))
+
+        try:
+            profile_restore_applied = bool(
+                restore_profile_fn(
+                    hints=recovery_hints,
+                    cancellation=cancellation,
+                    deadline=bounded_deadline,
+                    status_callback=profile_status,
+                )
+            )
+        except Exception as error:  # noqa: BLE001 - optional fast path; full scan remains available.
+            profile_restore_applied = False
+            rejection_reason = f"{type(error).__name__}: {error}"
+        restore_mode = getattr(service, "last_profile_restore_mode", None)
+        if not profile_restore_applied and rejection_reason is None:
+            last_error = getattr(service, "last_profile_restore_error", None)
+            rejection_reason = None if last_error is None else str(last_error)
+        if profile_restore_applied:
+            after = collect_native_health(bot, clock=clock)
+            presence_source = getattr(service, "presence_validation_source", "unproven")
+            emit(
+                NativeDiagnosticProgress(
+                    phase="profile_restore_applied",
+                    message=(
+                        "Restored the last known validated native pointer "
+                        f"profile (restore_mode={restore_mode}, "
+                        f"presence_validation_source={presence_source})."
+                    ),
+                )
+            )
+            return NativeDiagnosticReport(
+                outcome=NativeDiagnosticOutcome.RECOVERY_RESTORED_FROM_PROFILE,
+                recovery_requested=True,
+                persistence_requested=bool(persist),
+                before=before,
+                after=after,
+                recovery=None,
+                progress_updates=updates,
+                last_progress=last_progress,
+                profile_path=profile_path,
+                profile_exists=profile_exists,
+                profile_restore_attempted=True,
+                profile_restore_applied=True,
+                restore_mode=restore_mode,
+                rejection_reason=None,
+                fallback_reason=None,
+                full_discovery_started=False,
+            )
+        emit(
+            NativeDiagnosticProgress(
+                phase="full_discovery",
+                message="Persisted profile restore did not apply; running full "
+                "discovery.",
+            )
+        )
+
+    fallback_reason = (
+        "restore_did_not_apply"
+        if profile_restore_attempted
+        else "no_restore_method_on_service"
+    )
 
     def pointer_status(progress: PointerRecoveryProgress) -> None:
         emit(
@@ -481,6 +603,14 @@ def run_native_diagnostic(
             progress_updates=updates,
             last_progress=last_progress,
             error=error_text,
+            profile_path=profile_path,
+            profile_exists=profile_exists,
+            profile_restore_attempted=profile_restore_attempted,
+            profile_restore_applied=False,
+            restore_mode=restore_mode,
+            rejection_reason=rejection_reason,
+            fallback_reason=fallback_reason,
+            full_discovery_started=True,
         )
 
     after = collect_native_health(bot, clock=clock)
@@ -494,6 +624,14 @@ def run_native_diagnostic(
         recovery=recovery,
         progress_updates=updates,
         last_progress=last_progress,
+        profile_path=profile_path,
+        profile_exists=profile_exists,
+        profile_restore_attempted=profile_restore_attempted,
+        profile_restore_applied=False,
+        restore_mode=restore_mode,
+        rejection_reason=rejection_reason,
+        fallback_reason=fallback_reason,
+        full_discovery_started=True,
     )
 
 

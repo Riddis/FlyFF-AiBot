@@ -23,6 +23,7 @@ from farming.trainer import (
     _TrainingCallback,
     train_native_farming,
 )
+from position import NativePointerSnapshot
 import runtime_controller as runtime_controller_module
 from runtime_bus import RuntimeBus
 from runtime_controller import RuntimeController
@@ -330,14 +331,23 @@ def test_fatal_training_failure_preserves_last_known_good_model(
 
 
 class _FakeNativeProcessService:
-    """Minimal stand-in so _prepare_native_pointer_startup's "existing
-    reader already valid" fast path returns immediately, without
-    exercising real recovery -- this test is about the trainer's own
-    preflight/model_preflight/learn/save sequencing, not native pointer
-    recovery."""
+    """Minimal stand-in so the shared ensure-native-ready state machine's
+    "existing reader already valid" fast path returns immediately,
+    without exercising real recovery -- this test is about the
+    trainer's own preflight/model_preflight/learn/save sequencing, not
+    native pointer recovery. Must be a fully-shaped NativePointerSnapshot
+    (not a partial SimpleNamespace): collect_native_health reads every
+    field to build its health snapshot."""
 
-    def read_pointer_snapshot(self) -> object:
-        return SimpleNamespace(player_base=0)
+    def read_pointer_snapshot(self) -> NativePointerSnapshot:
+        return NativePointerSnapshot(
+            player_pointer_address=0x500000,
+            world_pointer_address=0x600000,
+            player_base=0x20000000,
+            world_base=0x30000000,
+            generation=1,
+            captured_at=0.0,
+        )
 
 
 class _FakeRecordingSink:

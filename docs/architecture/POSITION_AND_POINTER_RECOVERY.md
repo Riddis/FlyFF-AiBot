@@ -135,6 +135,15 @@ source this phase, but consistent with the confirmed-unchanged
 7. One expensive process-memory scan at a time — minimap, preview,
    training, and diagnostics share one reader/cache and a single-flight
    refresh.
+8. Any caller that needs a ready native attachment before doing real
+   work implements that as current-state → persisted-profile fast
+   restore → full discovery, in that order, and does so by calling the
+   one shared implementation (`position.native_diagnostics.
+   run_native_diagnostic` / `RuntimeController.ensure_native_ready`) —
+   never a second, independently-written copy of this ordering. A
+   duplicated copy is exactly how the manual Recover Pointers path
+   went years without ever trying the persisted-profile fast path (see
+   the "second, concrete gap" subsection below).
 
 ### Player/layout recovery (independent mode)
 
@@ -207,13 +216,14 @@ decision order: existing live in-process reader → same-process cache →
 stable cross-process profile plus one relation scan → full recovery.
 Each stage validates before use and falls back safely.
 
-### Fast-restore live-reported failure — investigated, not yet root-caused
+### Fast-restore live-reported failure — one concrete cause fixed, general case still open
 
-**Confidence: VERIFIED_CONTRACT for the mechanism, UNRESOLVED for the
-live failure.** A user-run session reported: close the dev bot, leave
-the same FlyFF client open, relaunch — expected same-process-cache fast
-restore, observed full discovery instead. Investigated offline only
-(no live execution by an agent):
+**Confidence: VERIFIED_CONTRACT for the mechanism and for the fix
+below; UNRESOLVED for whether it fully explains every live report.** A
+user-run session reported: close the dev bot, leave the same FlyFF
+client open, relaunch — expected same-process-cache fast restore,
+observed full discovery instead. Investigated offline only (no live
+execution by an agent):
 
 - The `same_process_cache` restore path was previously covered only at
   the pure-mechanics level
@@ -261,6 +271,64 @@ recovery runs. `NativeProcessService.presence_validation_source` (new
 read-only property, mirrors the existing `last_profile_restore_*`
 properties) makes this readable without reaching into the private
 `_independent_reader`.
+
+### A second, concrete gap found and fixed: manual Recover Pointers never tried the persisted profile at all
+
+**Confidence: VERIFIED_CONTRACT.** A later live-observed run showed a
+user restarting the *bot* (not FlyFF), then pressing Recover Pointers,
+and observing a full independent-mode rediscovery (`strategy=
+anchored_independent`, hundreds of actors scanned, ~9 seconds) — not a
+same-process-cache fast restore, even though a valid persisted profile
+from the prior session should have existed. Source inspection found
+the actual cause: `position.native_diagnostics.run_native_diagnostic`
+(the function behind the manual Recover Pointers button, via
+`RuntimeController.start_native_diagnostic`) went straight from "health
+check" to "full `recover_pointers()` scan" whenever health wasn't
+already `HEALTHY` — it never called `try_restore_persisted_profile()`
+at all. Only `RuntimeController._prepare_native_pointer_startup`
+(farming/training's own startup path) had ever implemented the
+persisted-restore-before-full-discovery ordering, and it was a
+separate, hand-duplicated implementation that the manual-recovery path
+never shared. So a user who restarted the bot and pressed Recover
+Pointers (rather than Start Training) always got a full scan,
+regardless of whether a valid profile was on disk.
+
+**Fix:** the current-state → persisted-restore → full-discovery
+ordering now lives in exactly one place — `run_native_diagnostic`
+itself — so every caller of explicit recovery (manual Recover
+Pointers, farming/training startup via `RuntimeController.
+ensure_native_ready()`, and Start Recording, see
+`docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md` section 1a)
+gets the persisted-profile fast path automatically. `NativeDiagnosticReport`
+gained explicit fields for this (`profile_path`, `profile_exists`,
+`profile_restore_attempted`, `profile_restore_applied`, `restore_mode`,
+`rejection_reason`, `fallback_reason`, `full_discovery_started`) so the
+distinction between "already healthy," "restored from profile," and
+"fell back to full discovery, here's why" is visible in every recovery
+log and diagnostic summary, never inferred. Proven by
+`tests/test_native_diagnostics.py::
+test_persisted_profile_restore_succeeds_and_skips_full_discovery` and
+its sibling rejection/no-file/no-method tests.
+
+**A second, previously-invisible contributing cause was also found and
+fixed while root-causing this:** `NativeProcessService.
+_persist_independent_profile` silently skipped saving a profile
+(returning `None` either way, no report) whenever the reader lacked a
+validated authoritative relation or discovered monster targets — a
+recovery could succeed (pointers worked, bot ran fine) while never
+writing a profile to disk, with nothing anywhere recording that fact.
+It now returns a skip reason, reported through the same
+`status_callback` channel used for an outright save failure. See
+MISTAKES.md's "a successful recovery silently skipped saving the
+persisted profile" entry.
+
+**This does not itself prove what happened in the *original*
+"relaunch produced `recovered_profile_path=None`" report** (see the
+"not reproducible" subsection below, which remains a separate, still-
+open question) — but it is a real, verifiable, now-fixed gap that
+independently explains the newer "bot restart → Recover Pointers →
+full scan" evidence, and closes one legitimate path by which a valid
+persisted profile could go unused.
 
 ### Duplicate recovery logs / scan storms — root-caused and fixed
 
