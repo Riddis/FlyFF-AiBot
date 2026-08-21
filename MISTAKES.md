@@ -1215,3 +1215,52 @@ project's own no-silent-rewrite rule.
   newly-discovered failure predates the current session's diff (verify
   via `git log -- <file>` on the implicated files), record it here and
   move on rather than expanding scope to fix it immediately.
+
+## Category: repository hygiene / gitattributes-path drift
+
+### [2026-08-21] `.gitattributes` byte-preservation rules silently stopped applying after path collapses
+- What happened: `.gitattributes`' "BYTE-PRESERVATION RULES" section grants
+  `-text` (no line-ending conversion) to files participating in the
+  historical-reproduction SHA-256 byte-identity guard
+  (`scratchpad_historical_reproduction_guard.py`,
+  `router_v2_historical_reproduction_snapshot_20260815.json`) and the G11
+  map-fingerprint contract. All entries were still written against their
+  original `flyff_farming_simulator/...`-, `foreground_vision_bot/...`-,
+  and `flyff_farming_recorder/...`-prefixed paths from before the Phase-7
+  root collapse. Those directories no longer exist (confirmed:
+  `flyff_farming_simulator/` is gone entirely, not even a README).
+  `git check-attr text -- simulator/kinodynamic_route_planner.py` (the
+  file's real current path) returned `text: auto`, not `text: unset` --
+  meaning the `-text` protection was not applying to any of the 8 renamed
+  files, or to `map_assets/map.json`, `mapper/maps/tower_aoe/map.json`,
+  `recordings/INDEX.{json,md}`, or the (then still root-level)
+  `movement_calibration*.csv`/`calibration_*.csv` evidence files.
+- Root cause: `.gitattributes` entries are plain path strings, not
+  references -- when Phase 7 (and later cleanups) moved/collapsed the
+  directories these paths pointed at, nothing re-pathed the attribute
+  rules to match, and nothing mechanically checks that every
+  `.gitattributes` path still resolves to a real current file (unlike
+  `CANONICAL_OWNERS.toml`'s `[[shim]]` table, which
+  `migration_integrity.py` does check for exactly this failure mode).
+- How caught: self-caught, reading `.gitattributes` end-to-end while
+  scoping an unrelated root-cleanliness task (moving root-level
+  calibration CSVs) and noticing the stale directory prefixes; confirmed
+  with `git check-attr text -- <real current path>` rather than assuming.
+- Fix: repathed all entries in the byte-preservation section to their
+  real current locations (`simulator/`, `scratchpad_*.py` at root,
+  `evaluations/`, `models/`, `map_assets/`, `mapper/maps/tower_aoe/`,
+  `recordings/`, `run_logs/calibration_evidence/`). Re-verified with
+  `git check-attr` (`text: unset` at every path) and re-ran
+  `tests/test_historical_tag_reproducibility.py` (4 passed). `git status`
+  showed no working-tree diff on any of these files after the fix --
+  the working tree's actual bytes already happened to match the
+  committed blob in this checkout (this bug was a latent risk for a
+  FRESH clone/checkout, not active corruption here), so no
+  `git add --renormalize` was needed or run.
+- Lesson: whenever a directory referenced by name in `.gitattributes`
+  (or any other plain-path config file) is moved, renamed, or deleted,
+  grep `.gitattributes` for that prefix in the SAME batch -- a stale
+  gitattributes path fails silently (no error, no test failure in an
+  already-checked-out working tree) and only bites a fresh clone, which
+  makes it exactly the kind of gap that survives many rounds of
+  "everything passes" validation undetected.

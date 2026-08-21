@@ -4,8 +4,8 @@
 # BYTE-PRESERVATION RULES (narrow, deliberate exception)
 # =============================================================================
 # These files participate in a SHA-256 byte-identity contract: the historical
-# reproduction guard (flyff_farming_simulator/scratchpad_historical_reproduction_
-# guard.py) and the frozen snapshot evaluations/router_v2_historical_reproduction_
+# reproduction guard (scratchpad_historical_reproduction_guard.py) and the
+# frozen snapshot evaluations/router_v2_historical_reproduction_
 # snapshot_20260815.json hash their RAW BYTES and refuse to run on any mismatch.
 #
 # The repository has core.autocrlf=true, which rewrites line endings on checkout.
@@ -25,20 +25,28 @@
 #   - both *_manifest.json files carry frozen hashes in
 #     router_v2_historical_reproduction_snapshot_20260815.json, and the 820M
 #     manifest is additionally passed as `extra_files` at run time
+#
+# 2026-08-21: repathed from their original flyff_farming_simulator/-prefixed
+# locations to their current root-relative locations. The Phase-7 root
+# collapse (and later cleanups) moved these files' real content without this
+# section being updated, so `-text` was silently NOT applying to any of them
+# (confirmed via `git check-attr text -- <path>` showing `text: auto`) --
+# a real gap in this byte-preservation contract, found during root-cleanliness
+# review, not merely a cosmetic staleness. See MISTAKES.md.
 # -----------------------------------------------------------------------------
 
-flyff_farming_simulator/simulator/kinodynamic_route_planner.py    -text
-flyff_farming_simulator/simulator/movement_kernel.py              -text
-flyff_farming_simulator/scratchpad_general_router_episode.py      -text
-flyff_farming_simulator/scratchpad_beginner_navigation_mix_pools.py -text
-flyff_farming_simulator/scratchpad_legacy_qualified_selector.py   -text
+simulator/kinodynamic_route_planner.py    -text
+simulator/movement_kernel.py              -text
+scratchpad_general_router_episode.py      -text
+scratchpad_beginner_navigation_mix_pools.py -text
+scratchpad_legacy_qualified_selector.py   -text
 
-flyff_farming_simulator/evaluations/router_mix_final_pool_820000000_manifest.json          -text
-flyff_farming_simulator/evaluations/router_mix_qualification_pool_840000000_manifest.json  -text
+evaluations/router_mix_final_pool_820000000_manifest.json          -text
+evaluations/router_mix_qualification_pool_840000000_manifest.json  -text
 
 # Binary already, but stated explicitly so the hash contract does not depend on
 # git's binary auto-detection.
-flyff_farming_simulator/models/generalized_waypoint_both_seed2_0051200.zip -text
+models/generalized_waypoint_both_seed2_0051200.zip -text
 
 # =============================================================================
 # Phase-2 preservation repair: exact Phase-0 artifact bytes; do not EOL-normalize
@@ -68,17 +76,19 @@ flyff_farming_simulator/models/generalized_waypoint_both_seed2_0051200.zip -text
 # remains in force for ordinary future text. `git add --renormalize` was NOT run.
 # -----------------------------------------------------------------------------
 
-flyff_farming_simulator/map_assets/map.json                       -text
-foreground_vision_bot/mapper/maps/tower_aoe/map.json              -text
+map_assets/map.json                                                -text
+mapper/maps/tower_aoe/map.json                                    -text
 
-flyff_farming_simulator/recordings/INDEX.json                     -text
-flyff_farming_simulator/recordings/INDEX.md                       -text
+recordings/INDEX.json                                              -text
+recordings/INDEX.md                                                -text
 
-flyff_farming_recorder/calibration_holdout_ramp_results.csv       -text
-flyff_farming_recorder/calibration_holdout_step_results.csv       -text
-flyff_farming_recorder/calibration_steering_pulses.csv            -text
-flyff_farming_recorder/calibration_tick_extraction.csv            -text
-flyff_farming_recorder/calibration_tick_extraction_v2.csv         -text
-flyff_farming_recorder/calibration_trials.csv                     -text
-flyff_farming_recorder/movement_calibration.csv                   -text
-flyff_farming_recorder/movement_calibration_steering.csv          -text
+# 2026-08-21: calibration evidence moved root -> run_logs/calibration_evidence/
+# as part of root-cleanliness cleanup; repathed here in the same batch.
+run_logs/calibration_evidence/calibration_holdout_ramp_results.csv -text
+run_logs/calibration_evidence/calibration_holdout_step_results.csv -text
+run_logs/calibration_evidence/calibration_steering_pulses.csv      -text
+run_logs/calibration_evidence/calibration_tick_extraction.csv      -text
+run_logs/calibration_evidence/calibration_tick_extraction_v2.csv   -text
+run_logs/calibration_evidence/calibration_trials.csv               -text
+run_logs/calibration_evidence/movement_calibration.csv             -text
+run_logs/calibration_evidence/movement_calibration_steering.csv    -text
