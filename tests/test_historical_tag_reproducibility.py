@@ -10,14 +10,19 @@ fail-closed behavior, documented in
 Historical reproduction is commit-addressed: this test is what makes that
 claim checkable rather than merely asserted in prose.
 
-Path note: ``REQUIRED_FILES`` lists CURRENT (post-Phase-7-collapse) paths.
-Phase 7's "mechanically collapse project roots" commit (``bfc5c6d``, dated
-2026-08-17) relocated these files without changing their bytes. The B4 tag
-(dated 2026-08-16, BEFORE that collapse) still has them at their
-pre-collapse nested path under ``flyff_farming_simulator/`` (confirmed via
-``git ls-tree -r --name-only historical-reproduction-baseline-20260815``).
-This test resolves that pre-collapse layout explicitly -- it is the
-content, not the path, that the frozen snapshot actually pins."""
+Path note: ``REQUIRED_FILES`` lists CURRENT paths, which have moved twice
+since the B4 tag. Phase 7's "mechanically collapse project roots" commit
+(``bfc5c6d``, dated 2026-08-17) relocated these files without changing
+their bytes; the 2026-08-21 repository cleanup then moved the three
+``scratchpad_*.py`` entries again, from repository root into
+``scratchpad/``, again without changing their bytes (see MISTAKES.md,
+"repository hygiene / gitattributes-path drift"). The B4 tag (dated
+2026-08-16, BEFORE either move) has them at their original nested path
+under ``flyff_farming_simulator/``, with no ``scratchpad/`` segment
+(confirmed via ``git ls-tree -r --name-only
+historical-reproduction-baseline-20260815``). This test resolves that
+original pre-collapse layout explicitly -- it is the content, not the
+current path, that the frozen snapshot actually pins."""
 
 from __future__ import annotations
 
@@ -32,7 +37,13 @@ REPO = Path(__file__).resolve().parents[1]
 HISTORICAL_TAG = "historical-reproduction-baseline-20260815"
 EXPECTED_TAG_SHA = "a90de59232b81753c1b2ea35b8990325c26674e5"
 
-PRE_COLLAPSE_PATH = {rel: f"flyff_farming_simulator/{rel}" for rel in guard.REQUIRED_FILES}
+# The B4 tag predates both the Phase-7 root collapse and the 2026-08-21
+# scratchpad/ reorg -- strip the scratchpad/ segment REQUIRED_FILES now
+# carries (it didn't exist at that tag) before prepending the pre-collapse
+# flyff_farming_simulator/ prefix.
+PRE_COLLAPSE_PATH = {
+    rel: f"flyff_farming_simulator/{rel.removeprefix('scratchpad/')}" for rel in guard.REQUIRED_FILES
+}
 
 
 def _git_show(ref: str, path: str) -> bytes:

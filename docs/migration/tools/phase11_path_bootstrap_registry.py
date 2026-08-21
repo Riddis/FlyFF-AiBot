@@ -61,30 +61,32 @@ TRAINING_ENTRYPOINT_BOOTSTRAPS = frozenset(
     }
 )
 
-# Pre-existing root scratchpad_*.py research scripts, unrelated to Phase
-# 10/11, self-bootstrapping for direct root-level invocation. Unchanged
-# this phase (Section 16: no bulk scratchpad reorganization).
+# Pre-existing scratchpad_*.py research scripts, unrelated to Phase
+# 10/11, self-bootstrapping for direct script invocation. Moved from
+# repository root into scratchpad/ in the 2026-08-21 repository cleanup
+# (Section 14 of that cleanup's directive); repathed here in the same
+# batch.
 SCRATCHPAD_BOOTSTRAPS = frozenset(
     {
-        "scratchpad_aggregate_target_thrashing.py",
-        "scratchpad_beginner_navigation_mix_train.py",
-        "scratchpad_build_oracle_fresh_confirmation.py",
-        "scratchpad_catastrophic_case_coarse_route_check.py",
-        "scratchpad_coarse_route_proof_of_mechanism.py",
-        "scratchpad_coarse_route_proof_of_mechanism_v2.py",
-        "scratchpad_coarse_route_rollout_verification.py",
-        "scratchpad_debug_waypoint_no_effect.py",
-        "scratchpad_diagnose_fresh_confirmation_onsets.py",
-        "scratchpad_diagnose_robust_origin_at_onset.py",
-        "scratchpad_diagnose_v3_terminal_gate_onsets.py",
-        "scratchpad_generalized_waypoint_train_reward_ablation.py",
-        "scratchpad_matched_eval_target_hysteresis.py",
-        "scratchpad_measure_target_thrashing.py",
-        "scratchpad_measure_target_thrashing_missing.py",
-        "scratchpad_ppo_pure_navigation.py",
-        "scratchpad_ppo_pure_navigation_v2.py",
-        "scratchpad_qualify_oracle_fresh_confirmation.py",
-        "scratchpad_single_obstacle_train.py",
+        "scratchpad/scratchpad_aggregate_target_thrashing.py",
+        "scratchpad/scratchpad_beginner_navigation_mix_train.py",
+        "scratchpad/scratchpad_build_oracle_fresh_confirmation.py",
+        "scratchpad/scratchpad_catastrophic_case_coarse_route_check.py",
+        "scratchpad/scratchpad_coarse_route_proof_of_mechanism.py",
+        "scratchpad/scratchpad_coarse_route_proof_of_mechanism_v2.py",
+        "scratchpad/scratchpad_coarse_route_rollout_verification.py",
+        "scratchpad/scratchpad_debug_waypoint_no_effect.py",
+        "scratchpad/scratchpad_diagnose_fresh_confirmation_onsets.py",
+        "scratchpad/scratchpad_diagnose_robust_origin_at_onset.py",
+        "scratchpad/scratchpad_diagnose_v3_terminal_gate_onsets.py",
+        "scratchpad/scratchpad_generalized_waypoint_train_reward_ablation.py",
+        "scratchpad/scratchpad_matched_eval_target_hysteresis.py",
+        "scratchpad/scratchpad_measure_target_thrashing.py",
+        "scratchpad/scratchpad_measure_target_thrashing_missing.py",
+        "scratchpad/scratchpad_ppo_pure_navigation.py",
+        "scratchpad/scratchpad_ppo_pure_navigation_v2.py",
+        "scratchpad/scratchpad_qualify_oracle_fresh_confirmation.py",
+        "scratchpad/scratchpad_single_obstacle_train.py",
     }
 )
 

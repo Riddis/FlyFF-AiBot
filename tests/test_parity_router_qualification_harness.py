@@ -15,7 +15,7 @@ import hashlib
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-FROZEN_SOURCE = REPO / "scratchpad_general_router_episode.py"
+FROZEN_SOURCE = REPO / "scratchpad" / "scratchpad_general_router_episode.py"
 HARNESS_SOURCE = REPO / "tests" / "helpers" / "router_qualification_harness.py"
 EXPECTED_FROZEN_SHA256 = "dc7ce7ff6940c1f4e98fad5b66fecb7f58c1616b3d0693935db2d7b3f4576f39"
 COPIED_DEFINITIONS = (

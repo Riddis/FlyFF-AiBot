@@ -37,9 +37,9 @@
 
 simulator/kinodynamic_route_planner.py    -text
 simulator/movement_kernel.py              -text
-scratchpad_general_router_episode.py      -text
-scratchpad_beginner_navigation_mix_pools.py -text
-scratchpad_legacy_qualified_selector.py   -text
+scratchpad/scratchpad_general_router_episode.py      -text
+scratchpad/scratchpad_beginner_navigation_mix_pools.py -text
+scratchpad/scratchpad_legacy_qualified_selector.py   -text
 
 evaluations/router_mix_final_pool_820000000_manifest.json          -text
 evaluations/router_mix_qualification_pool_840000000_manifest.json  -text

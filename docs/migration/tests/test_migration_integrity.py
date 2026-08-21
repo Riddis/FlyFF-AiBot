@@ -582,11 +582,11 @@ def test_actual_supplement_covers_exactly_the_three_post_phase7_r7c_edges() -> N
     rows = integrity.load_supplement(REPO / integrity.DEFAULT_SUPPLEMENT)
     assert len(rows) == 3
     assert integrity.supplement_keys(rows) == {
-        "R7c|SplitSteeringNavigationPolicy|scratchpad_generalized_waypoint_train_reward_ablation.py"
+        "R7c|SplitSteeringNavigationPolicy|scratchpad/scratchpad_generalized_waypoint_train_reward_ablation.py"
         "|reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy",
-        "R7c|SplitSteeringNavigationPolicy|scratchpad_single_obstacle_train.py"
+        "R7c|SplitSteeringNavigationPolicy|scratchpad/scratchpad_single_obstacle_train.py"
         "|reexport_from=simulator.split_branch_policy:SplitSteeringNavigationPolicy",
-        "R7c|SteeringAction|scratchpad_single_obstacle_train.py"
+        "R7c|SteeringAction|scratchpad/scratchpad_single_obstacle_train.py"
         "|reexport_from=farming.actions:SteeringAction",
     }
 
