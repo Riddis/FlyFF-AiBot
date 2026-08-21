@@ -51,7 +51,7 @@ def test_publish_native_monster_map_imports_overlay_class_not_submodule(
     monkeypatch.setattr(overlay_module, "NativeMonsterMapOverlay", _Overlay)
 
     # Import only after the Windows stubs are installed.
-    from Bot import Bot
+    from bot.Bot import Bot
 
     bot = Bot.__new__(Bot)
     bot.config = {

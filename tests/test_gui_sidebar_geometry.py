@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import pytest
 
-from Gui import Gui
+from bot.Gui import Gui
 
 # Generous tolerance, not a fragile exact-pixel assertion (font metrics,
 # theme, and minor per-machine rendering differences all shift this a

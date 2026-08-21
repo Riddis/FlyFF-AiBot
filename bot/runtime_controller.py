@@ -22,8 +22,8 @@ from position import (
     PointerRecoveryHints,
     run_native_diagnostic,
 )
-from preview_service import PreviewService
-from recording_sink import RecordingOwnership, RecordingSink, _RuntimeMetadata
+from .preview_service import PreviewService
+from .recording_sink import RecordingOwnership, RecordingSink, _RuntimeMetadata
 from runtime_bus import FarmingSessionSnapshot, RuntimeBus
 from worker_manager import (
     CancellationToken,

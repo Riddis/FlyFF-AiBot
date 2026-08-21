@@ -6,25 +6,14 @@ from pathlib import Path
 
 # One directory deep under the repository root (apps/); direct invocation
 # (python apps/dev_app.py) sets sys.path[0] to this file's own directory,
-# not the repository root, so the root-level GUI/runtime modules below
-# need it added explicitly (same bootstrap pattern devtools/native/*.py
-# already uses).
+# not the repository root, so the top-level packages below need it added
+# explicitly (same bootstrap pattern devtools/native/*.py already uses).
 APP_ROOT = Path(__file__).resolve().parents[1]
 if str(APP_ROOT) not in sys.path:
     sys.path.insert(0, str(APP_ROOT))
 
-# bot/*.py (Bot.py, Gui.py, runtime_controller.py, recording_sink.py,
-# preview_service.py) moved out of the repository root into bot/ in the
-# 2026-08-21 repository cleanup; they still import each other as bare
-# siblings (e.g. Gui.py's `from runtime_controller import
-# RuntimeController`), so bot/ needs its own sys.path entry rather than
-# rewriting every cross-import to a dotted bot.* form.
-BOT_DIR = APP_ROOT / "bot"
-if str(BOT_DIR) not in sys.path:
-    sys.path.insert(0, str(BOT_DIR))
-
-from Bot import Bot  # noqa: E402
-from Gui import Gui  # noqa: E402
+from bot.Bot import Bot  # noqa: E402
+from bot.Gui import Gui  # noqa: E402
 from utils.helpers import print_logo  # noqa: E402
 
 # Instances

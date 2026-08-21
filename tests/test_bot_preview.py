@@ -5,7 +5,7 @@ from time import time
 from types import SimpleNamespace
 
 import numpy as np
-from Bot import Bot
+from bot.Bot import Bot
 from libs.HumanKeyboard import VKEY
 
 

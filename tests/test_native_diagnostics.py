@@ -23,7 +23,7 @@ from position.NativePointerRecovery import (
     PointerRecoveryProgress,
 )
 from runtime_bus import RuntimeBus, RuntimeStatus
-from runtime_controller import RuntimeController
+from bot.runtime_controller import RuntimeController
 from worker_manager import WorkerKind
 
 

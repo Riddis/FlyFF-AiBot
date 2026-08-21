@@ -24,7 +24,7 @@ from position.NativeFlyffMonsterProvider import (
     NativeActor,
 )
 from position.PositionProvider import PlayerPose
-from recording_sink import RecordingOwnership, RecordingSink
+from bot.recording_sink import RecordingOwnership, RecordingSink
 
 
 class _FakeService:

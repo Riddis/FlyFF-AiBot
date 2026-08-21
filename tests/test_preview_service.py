@@ -4,7 +4,7 @@ from threading import Event
 from time import monotonic
 
 import numpy as np
-from preview_service import PreviewService
+from bot.preview_service import PreviewService
 from runtime_bus import RuntimeBus
 from worker_manager import WorkerManager
 

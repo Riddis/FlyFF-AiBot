@@ -103,26 +103,14 @@ R1B_EXACT_EXCEPTIONS: dict[tuple[str, str], frozenset[str]] = {
 }
 
 
-# apps/dev_app.py and tests/conftest.py both put bot/ on sys.path
-# alongside the repository root (2026-08-21 repository cleanup moved
-# Bot.py/Gui.py/runtime_controller.py/recording_sink.py/preview_service.py
-# there, but they still cross-import each other as bare siblings, e.g.
-# Gui.py's `from runtime_controller import RuntimeController`) -- this
-# walker has to search the same two roots a real interpreter would, or
-# it silently stops resolving past `from Bot import Bot` and understates
-# the closure instead of computing it.
-_EXTRA_SEARCH_SUBDIRS = ("bot",)
-
-
 def _module_file(module_name: str, repo: Path = REPO) -> Path | None:
     rel = Path(*module_name.split("."))
-    for root in (repo, *(repo / sub for sub in _EXTRA_SEARCH_SUBDIRS)):
-        module_candidate = root / rel.with_suffix(".py")
-        if module_candidate.is_file():
-            return module_candidate
-        package_candidate = root / rel / "__init__.py"
-        if package_candidate.is_file():
-            return package_candidate
+    module_candidate = repo / rel.with_suffix(".py")
+    if module_candidate.is_file():
+        return module_candidate
+    package_candidate = repo / rel / "__init__.py"
+    if package_candidate.is_file():
+        return package_candidate
     return None
 
 

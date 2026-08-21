@@ -24,10 +24,10 @@ from types import ModuleType
 
 import pytest
 
-import runtime_controller as runtime_controller_module
+import bot.runtime_controller as runtime_controller_module
 from position import NativePointerSnapshot
 from runtime_bus import RuntimeBus
-from runtime_controller import RuntimeController
+from bot.runtime_controller import RuntimeController
 from worker_manager import CancellationToken, WorkerKind
 
 

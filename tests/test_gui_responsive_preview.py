@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from Gui import Gui
+from bot.Gui import Gui
 from runtime_bus import TaskCompletion
 
 

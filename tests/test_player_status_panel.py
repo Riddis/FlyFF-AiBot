@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import cv2 as cv
 import numpy as np
-from Bot import Bot
+from bot.Bot import Bot
 from libs.DigitReader import DigitReader
 from libs.PlayerStatusPanel import DynamicPlayerStatusReader
 

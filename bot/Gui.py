@@ -19,7 +19,7 @@ from runtime_bus import (
     RuntimeBus,
     RuntimeStatus,
 )
-from runtime_controller import RuntimeController
+from .runtime_controller import RuntimeController
 from utils.helpers import get_window_handlers, hex_variant
 
 

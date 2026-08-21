@@ -24,9 +24,9 @@ from farming.trainer import (
     train_native_farming,
 )
 from position import NativePointerSnapshot
-import runtime_controller as runtime_controller_module
+import bot.runtime_controller as runtime_controller_module
 from runtime_bus import RuntimeBus
-from runtime_controller import RuntimeController
+from bot.runtime_controller import RuntimeController
 from worker_manager import CancellationToken
 
 

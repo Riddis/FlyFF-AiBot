@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 
 import PySimpleGUI as sg
-from Gui import Gui
+from bot.Gui import Gui
 
 
 class _FakeElement:
