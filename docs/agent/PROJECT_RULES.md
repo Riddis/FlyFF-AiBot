@@ -62,7 +62,7 @@ This rule is never overridden by any operating mode, including
   directory name or age is not evidence. See
   [`docs/architecture/COMPONENT_OWNERSHIP.md`](../architecture/COMPONENT_OWNERSHIP.md).
 - Never widen the one registered R1b exception
-  (`runtime_controller.py` → `farming.trainer`, 4 exact symbols).
+  (`bot/runtime_controller.py` → `farming.trainer`, 4 exact symbols).
 - Never touch the checkpoint-ABI/pickle module-identity compatibility
   shims (`simulator/split_branch_policy.py`,
   `simulator/kinodynamic_route_planner.py`,

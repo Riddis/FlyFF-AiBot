@@ -69,8 +69,8 @@ apps/dev_app.py
 
 `recorder.*` (the standalone recorder package) is never imported by
 `apps/dev_app.py`'s closure (section 4's R1b boundary,
-`tests/test_dev_app_import_closure.py`) -- `recording_sink.py` and
-`recording_format.py` are stdlib+msgpack-only root-level modules built
+`tests/test_dev_app_import_closure.py`) -- `bot/recording_sink.py` and
+root-level `recording_format.py` are stdlib+msgpack-only modules built
 specifically so the dev app never needs to reach into `recorder/`.
 
 **`RuntimeBus`** (`runtime_bus.py`, stdlib-only): one shared instance
@@ -176,7 +176,7 @@ USER-RUN.
 
 ## 4. The R1b exception — one real coupling, not yet resolved
 
-`runtime_controller.py` imports exactly four symbols
+`bot/runtime_controller.py` imports exactly four symbols
 (`dry_run_native_farming`, `run_native_farming_agent`,
 `train_native_farming`, `validate_native_farming_data`) from
 `farming.trainer`, lazily, inside a function body. This is the **one**
@@ -218,7 +218,7 @@ what that closure actually contains and
 
 The profile deliberately does **not** decide: the final shipped
 checkpoint, whether vision-based OCR/UI-detection is retained or
-replaced by pure-native reading, whether `runtime_controller.py`'s
+replaced by pure-native reading, whether `bot/runtime_controller.py`'s
 `farming.trainer` coupling is redesigned, the final entrypoint name, or
 whether `torch`/`gymnasium`/`stable_baselines3`'s DUAL_ROLE
 classification changes the `requirements*.txt` split. These are recorded
@@ -234,7 +234,7 @@ as `unresolved_future_choices`, not silently resolved.
 | `mapper/` | Map catalog, coordinate mapping, editor GUI, offline RL-map tooling (`mapper/rl/{FeatureExtractor,GymEnv,OfflineTraining}.py` are the training-only exception) | `farming/map_context.py`, `Gui.py` |
 | `recorder/` | Standalone historical recorder's own writer/format/`provenance.py` (`ExperimentProvenance`, docs/PROJECT_GOALS.md section 6), plus `evidence_catalog.py`'s post-hoc sidecar labeling used by both the standalone recorder and the dev bot | `apps/recorder_app.py`, standalone PyInstaller build. **Never** the dev app's own import closure (R1b/section 4) |
 | `recording_format.py` | Root-level, stdlib+msgpack-only packed-stream write primitives (`PackedStreamWriter`, `package_session`, etc.), extracted out of `recorder/format.py` (which now re-exports them) specifically so the dev app never has to import `recorder` to write an archive | `recording_sink.py`, `recorder/format.py` |
-| `recording_sink.py` | The dev bot's own in-process recording sink (`RecordingSink`) — a passive consumer of the dev bot's already-attached native reader triad, never a second scanner or subprocess (docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md section 1a) | `RuntimeController` |
+| `bot/recording_sink.py` | The dev bot's own in-process recording sink (`RecordingSink`) — a passive consumer of the dev bot's already-attached native reader triad, never a second scanner or subprocess (docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md section 1a) | `RuntimeController` |
 | `simulator/schema.py` + `legacy/manifest_compat.py` | Canonical archive/recording **reader** (`RecordingArchive`/`RecordedFrame`/`RecordedActor`/`RecordedEvent`) — corrected classification, not `archives/` (which does not exist) | `tools.inventory_recordings`, `devtools.archives.*`, tests |
 | `devtools/` | Dev-only offline utilities kept after Phase-10's GUI-orchestration layer was removed ([ADR 0007](../decisions/0007-dev-bot-first-is-not-an-ide.md)): `devtools.native.*`, `devtools.calibration.*`, `devtools.archives.*`, `devtools.telemetry` — CLI/library use, invoked directly by a developer, never launched by `apps/dev_app.py` | `apps/telemetry_cli.py`, developers directly |
 | `simulator/` (rest) | Training/environment implementation (router/static/single-obstacle waypoint envs, curriculum, CLI) | Training scripts, `docs/migration/tests/`, never the dev app |

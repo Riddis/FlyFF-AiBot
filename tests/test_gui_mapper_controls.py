@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def test_persistent_map_management_controls_are_retained() -> None:
-    gui_source = (Path(__file__).resolve().parents[1] / "Gui.py").read_text(
+    gui_source = (Path(__file__).resolve().parents[1] / "bot" / "Gui.py").read_text(
         encoding="utf-8"
     )
 
@@ -26,7 +26,7 @@ def test_persistent_map_management_controls_are_retained() -> None:
 
 
 def test_removed_legacy_buttons_have_no_live_gui_references() -> None:
-    gui_source = (Path(__file__).resolve().parents[1] / "Gui.py").read_text(
+    gui_source = (Path(__file__).resolve().parents[1] / "bot" / "Gui.py").read_text(
         encoding="utf-8"
     )
 
@@ -46,7 +46,7 @@ def test_removed_legacy_buttons_have_no_live_gui_references() -> None:
     assert "Trace Map While I Drive" in gui_source
 
 def test_gui_exposes_managed_native_health_and_recovery_commands() -> None:
-    gui_source = (Path(__file__).resolve().parents[1] / "Gui.py").read_text(
+    gui_source = (Path(__file__).resolve().parents[1] / "bot" / "Gui.py").read_text(
         encoding="utf-8"
     )
 
@@ -60,7 +60,7 @@ def test_gui_exposes_managed_native_health_and_recovery_commands() -> None:
 
 
 def test_gui_exposes_three_functional_bot_vision_toggles() -> None:
-    gui_source = (Path(__file__).resolve().parents[1] / "Gui.py").read_text(
+    gui_source = (Path(__file__).resolve().parents[1] / "bot" / "Gui.py").read_text(
         encoding="utf-8"
     )
 
@@ -75,7 +75,7 @@ def test_gui_exposes_three_functional_bot_vision_toggles() -> None:
 
 
 def test_gui_has_session_statistics_and_configurable_eva_key() -> None:
-    gui_source = (Path(__file__).resolve().parents[1] / "Gui.py").read_text(
+    gui_source = (Path(__file__).resolve().parents[1] / "bot" / "Gui.py").read_text(
         encoding="utf-8"
     )
 
@@ -103,7 +103,7 @@ def test_mapper_uses_selected_eva_hotkey_instead_of_hardcoded_f1() -> None:
 
 
 def test_statistics_span_the_top_and_live_map_reflows_without_bot_vision() -> None:
-    gui_source = (Path(__file__).resolve().parents[1] / "Gui.py").read_text(
+    gui_source = (Path(__file__).resolve().parents[1] / "bot" / "Gui.py").read_text(
         encoding="utf-8"
     )
 
@@ -120,7 +120,7 @@ def test_statistics_span_the_top_and_live_map_reflows_without_bot_vision() -> No
 
 
 def test_map_edit_buttons_share_one_row_and_ui_redetection_is_exposed() -> None:
-    gui_source = (Path(__file__).resolve().parents[1] / "Gui.py").read_text(
+    gui_source = (Path(__file__).resolve().parents[1] / "bot" / "Gui.py").read_text(
         encoding="utf-8"
     )
 
@@ -136,7 +136,7 @@ def test_map_edit_buttons_share_one_row_and_ui_redetection_is_exposed() -> None:
 
 def test_idle_map_preview_is_rendered_from_current_grid_configuration() -> None:
     controller_source = (
-        Path(__file__).resolve().parents[1] / "runtime_controller.py"
+        Path(__file__).resolve().parents[1] / "bot" / "runtime_controller.py"
     ).read_text(encoding="utf-8")
 
     assert 'radius = load_mapper_config().local_map_radius_cells' in controller_source
@@ -152,7 +152,7 @@ def test_live_map_defaults_to_fifty_cell_radius() -> None:
     mapper_config = (project / "mapper" / "coordinate_mapper.json").read_text(
         encoding="utf-8"
     )
-    bot_source = (project / "Bot.py").read_text(encoding="utf-8")
+    bot_source = (project / "bot" / "Bot.py").read_text(encoding="utf-8")
 
     assert "local_map_radius_cells: int = 50" in mapper_source
     assert '"local_map_radius_cells": 50' in mapper_config

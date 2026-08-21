@@ -788,7 +788,7 @@ class Gui:
         import shutil
         from pathlib import Path
 
-        project_root = Path(__file__).resolve().parent
+        project_root = Path(__file__).resolve().parents[1]
         debug_directories = [
             project_root / "debug" / "minimap_heading",
         ]

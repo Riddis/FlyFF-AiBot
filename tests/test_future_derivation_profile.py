@@ -111,11 +111,11 @@ def test_point_07_resolution_is_self_contained_to_this_worktree() -> None:
 
 
 # 8. Exactly one registered exception exists (the R1b
-#    runtime_controller.py -> farming.trainer coupling), and it is not
-#    silently expanded into a general allowance.
+#    bot/runtime_controller.py -> farming.trainer coupling), and it is
+#    not silently expanded into a general allowance.
 def test_point_08_exactly_one_registered_exception_the_r1b_coupling() -> None:
     report = _report()
-    assert report.exceptions_applied == ["runtime_controller.py -> farming.trainer"]
+    assert report.exceptions_applied == ["bot/runtime_controller.py -> farming.trainer"]
 
 
 # 9. DUAL_ROLE third-party packages (torch/gymnasium/stable_baselines3) are

@@ -13,6 +13,16 @@ APP_ROOT = Path(__file__).resolve().parents[1]
 if str(APP_ROOT) not in sys.path:
     sys.path.insert(0, str(APP_ROOT))
 
+# bot/*.py (Bot.py, Gui.py, runtime_controller.py, recording_sink.py,
+# preview_service.py) moved out of the repository root into bot/ in the
+# 2026-08-21 repository cleanup; they still import each other as bare
+# siblings (e.g. Gui.py's `from runtime_controller import
+# RuntimeController`), so bot/ needs its own sys.path entry rather than
+# rewriting every cross-import to a dotted bot.* form.
+BOT_DIR = APP_ROOT / "bot"
+if str(BOT_DIR) not in sys.path:
+    sys.path.insert(0, str(BOT_DIR))
+
 from Bot import Bot  # noqa: E402
 from Gui import Gui  # noqa: E402
 from utils.helpers import print_logo  # noqa: E402

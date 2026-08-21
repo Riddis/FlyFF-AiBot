@@ -130,7 +130,7 @@ Shared/core packages must never import `devtools`, `recorder`
 training/environment code, `legacy` (except the one `simulator/
 schema.py` exact-path exception — see `[rules.R7b]` in
 `CANONICAL_OWNERS.toml`), or test code — except the one exact R1b
-exception (`runtime_controller.py` → `farming.trainer`, section 4 of
+exception (`bot/runtime_controller.py` → `farming.trainer`, section 4 of
 `SYSTEM_OVERVIEW.md`). devtools/recorder/simulator/training may freely
 import shared/core (the allowed direction).
 

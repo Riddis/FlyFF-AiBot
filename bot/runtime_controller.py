@@ -39,7 +39,7 @@ class _RecoveryLog:
     def __init__(self, label: str) -> None:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
         directory = (
-            Path(__file__).resolve().parent
+            Path(__file__).resolve().parents[1]
             / "training_logs"
             / "native_recovery"
         )

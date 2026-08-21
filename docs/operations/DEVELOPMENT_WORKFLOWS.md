@@ -144,7 +144,7 @@ correct mistakes rather than rewrite history.
 
 ## Evidence / Sources
 
-- `apps/dev_app.py`, `recording_sink.py`, `recording_format.py`
+- `apps/dev_app.py`, `bot/recording_sink.py`, `recording_format.py`
 - `docs/RUNBOOK.md` (superseded prior-generation detail, ported forward
   as HISTORICAL_EVIDENCE/BEST_CURRENT_ESTIMATE where cross-referenced)
 - `docs/architecture/SYSTEM_OVERVIEW.md`,

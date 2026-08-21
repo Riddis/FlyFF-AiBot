@@ -16,7 +16,7 @@ entrypoint's first-level imports").
 R1B_EXACT_EXCEPTIONS -- one registered, pre-existing, source-backed
 exception
 ---------------------------------------------------------------------
-The source audit found that ``runtime_controller.py``'s
+The source audit found that ``bot/runtime_controller.py``'s
 ``start_rl()`` method has a function-scoped (lazy) import:
 ``from farming.trainer import (dry_run_native_farming,
 run_native_farming_agent, train_native_farming,
@@ -29,7 +29,9 @@ require either the subprocess independently attaching to the same live
 game window (a real attachment/farming-runtime redesign) or an IPC/RPC
 bridge -- both explicitly out of scope for Phase 10. This is pre-existing
 architecture, not something Phase 10 introduced (confirmed: `git diff
-HEAD -- runtime_controller.py` for this section is empty).
+HEAD -- runtime_controller.py` for this section is empty; the file
+itself moved root -> bot/ in the 2026-08-21 repository cleanup,
+unrelated to this section, content otherwise unchanged).
 
 This is the ONLY registered exception. It is exact on both the importing
 file and the imported symbol set -- not a prefix or module-level
@@ -90,7 +92,7 @@ DISALLOWED_MODULE_PREFIXES = (
 # Exactly one entry. Section 21/Phase-10 amendment: PRE_EXISTING_SOURCE_BACKED_EXCEPTION,
 # introduced_by_phase10=False. See module docstring for the full account.
 R1B_EXACT_EXCEPTIONS: dict[tuple[str, str], frozenset[str]] = {
-    ("runtime_controller.py", "farming.trainer"): frozenset(
+    ("bot/runtime_controller.py", "farming.trainer"): frozenset(
         {
             "dry_run_native_farming",
             "run_native_farming_agent",
@@ -101,14 +103,26 @@ R1B_EXACT_EXCEPTIONS: dict[tuple[str, str], frozenset[str]] = {
 }
 
 
+# apps/dev_app.py and tests/conftest.py both put bot/ on sys.path
+# alongside the repository root (2026-08-21 repository cleanup moved
+# Bot.py/Gui.py/runtime_controller.py/recording_sink.py/preview_service.py
+# there, but they still cross-import each other as bare siblings, e.g.
+# Gui.py's `from runtime_controller import RuntimeController`) -- this
+# walker has to search the same two roots a real interpreter would, or
+# it silently stops resolving past `from Bot import Bot` and understates
+# the closure instead of computing it.
+_EXTRA_SEARCH_SUBDIRS = ("bot",)
+
+
 def _module_file(module_name: str, repo: Path = REPO) -> Path | None:
     rel = Path(*module_name.split("."))
-    module_candidate = repo / rel.with_suffix(".py")
-    if module_candidate.is_file():
-        return module_candidate
-    package_candidate = repo / rel / "__init__.py"
-    if package_candidate.is_file():
-        return package_candidate
+    for root in (repo, *(repo / sub for sub in _EXTRA_SEARCH_SUBDIRS)):
+        module_candidate = root / rel.with_suffix(".py")
+        if module_candidate.is_file():
+            return module_candidate
+        package_candidate = root / rel / "__init__.py"
+        if package_candidate.is_file():
+            return package_candidate
     return None
 
 
@@ -228,7 +242,7 @@ def _violations(all_names: set[str]) -> list[str]:
 def test_only_one_r1b_exception_is_registered() -> None:
     assert len(R1B_EXACT_EXCEPTIONS) == 1
     (importer, dependency), symbols = next(iter(R1B_EXACT_EXCEPTIONS.items()))
-    assert importer == "runtime_controller.py"
+    assert importer == "bot/runtime_controller.py"
     assert dependency == "farming.trainer"
     assert symbols == frozenset(
         {"dry_run_native_farming", "run_native_farming_agent", "train_native_farming", "validate_native_farming_data"}
@@ -241,10 +255,10 @@ def test_runtime_controller_still_makes_exactly_the_registered_lazy_import() -> 
     changes (symbol added/removed, or the import becomes module-level),
     this must fail so the exception gets re-reviewed, not silently
     widened."""
-    edges = _import_edges(REPO / "runtime_controller.py")
+    edges = _import_edges(REPO / "bot" / "runtime_controller.py")
     trainer_edges = [symbols for module, symbols in edges if module == "farming.trainer"]
     assert len(trainer_edges) == 1, "expected exactly one farming.trainer import edge in runtime_controller.py"
-    assert trainer_edges[0] == R1B_EXACT_EXCEPTIONS[("runtime_controller.py", "farming.trainer")]
+    assert trainer_edges[0] == R1B_EXACT_EXCEPTIONS[("bot/runtime_controller.py", "farming.trainer")]
 
 
 def test_dev_app_closure_excludes_recorder_simulator_training_and_legacy() -> None:
@@ -310,14 +324,15 @@ class TestExceptionMechanismIsExact:
         return _transitive_local_closure(repo / "entry.py", repo=repo, exceptions=R1B_EXACT_EXCEPTIONS)
 
     def test_the_registered_exception_is_accepted_for_its_exact_importer(self, tmp_path: Path) -> None:
-        # A synthetic "runtime_controller.py" (matched by relative path)
-        # making exactly the registered import must not expand into
-        # farming/trainer.py's own torch/gymnasium/sb3 dependencies.
+        # A synthetic "bot/runtime_controller.py" (matched by relative
+        # path) making exactly the registered import must not expand
+        # into farming/trainer.py's own torch/gymnasium/sb3 dependencies.
         closure = self._closure_for_synthetic_entry(
             tmp_path,
-            entry_source="import runtime_controller\n",
+            entry_source="import bot.runtime_controller\n",
             extra_files={
-                "runtime_controller.py": (
+                "bot/__init__.py": "",
+                "bot/runtime_controller.py": (
                     "def start_rl():\n"
                     "    from farming.trainer import (\n"
                     "        dry_run_native_farming, run_native_farming_agent,\n"
@@ -355,14 +370,15 @@ class TestExceptionMechanismIsExact:
         assert "torch" in closure
 
     def test_importing_a_non_permitted_symbol_from_the_same_file_is_not_excepted(self, tmp_path: Path) -> None:
-        # runtime_controller.py importing farming.trainer but requesting a
-        # DIFFERENT symbol set (not a subset of the registered one) must
-        # not match the exception.
+        # bot/runtime_controller.py importing farming.trainer but
+        # requesting a DIFFERENT symbol set (not a subset of the
+        # registered one) must not match the exception.
         closure = self._closure_for_synthetic_entry(
             tmp_path,
-            entry_source="import runtime_controller\n",
+            entry_source="import bot.runtime_controller\n",
             extra_files={
-                "runtime_controller.py": (
+                "bot/__init__.py": "",
+                "bot/runtime_controller.py": (
                     "def start_rl():\n"
                     "    from farming.trainer import some_other_function\n"
                 ),

@@ -16,7 +16,7 @@ recorder's process nor its acquisition path:
   using `RECORDING_ATTACH_POLICY` (see `POSITION_AND_POINTER_RECOVERY.md`)
   — its own, independent acquisition path, retained for historical/
   compatibility use only. The dev bot never invokes it (section 1a).
-- **Dev-bot recording sink:** root-level `recording_sink.py`'s
+- **Dev-bot recording sink:** `bot/recording_sink.py`'s
   `RecordingSink`, in-process, never a subprocess (section 1a).
 - **Reader (canonical archive reader):** `simulator/schema.py`
   (`RecordingArchive`, `RecordedFrame`, `RecordedActor`,

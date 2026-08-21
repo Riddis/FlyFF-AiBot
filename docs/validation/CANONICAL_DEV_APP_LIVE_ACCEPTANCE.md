@@ -12,6 +12,13 @@ position/pointer-recovery specific). This one validates `apps/dev_app.py`
 itself — launch, attach, GUI usability, and normal shutdown — as a
 whole, end to end, for the first time since consolidation.
 
+Note on paths below: `Gui.py`/`Bot.py`/`runtime_controller.py` moved
+from repository root into `bot/` in the 2026-08-21 repository cleanup.
+Tracebacks and file references captured from the live runs below are
+left exactly as originally recorded (accurate to those runs' actual
+paths at the time) — read `Gui.py` as `bot/Gui.py`, etc., for any
+future re-run against current HEAD.
+
 **No agent may execute any part of this procedure.** Agents prepare it
 and analyze returned evidence; the user runs it. See
 `docs/agent/PROJECT_RULES.md`.

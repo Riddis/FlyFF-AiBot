@@ -23,9 +23,9 @@ against frozen expectations.
 
 **R1b** — The one registered exception to "the dev app's import closure
 excludes recorder/simulator-training/legacy/torch/gymnasium/
-stable_baselines3": `runtime_controller.py` importing exactly 4 named
-symbols from `farming.trainer`, because those functions require the
-live, already-attached `Bot` instance.
+stable_baselines3": `bot/runtime_controller.py` importing exactly 4
+named symbols from `farming.trainer`, because those functions require
+the live, already-attached `Bot` instance.
 
 **R7c** — The migration ruler's ratcheted count of accepted re-export/
 compatibility findings (currently 204). May decrease when a

@@ -47,7 +47,7 @@ from recording_format import (
     PackedStreamWriter,
 )
 
-REPO_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_FRAME_INTERVAL_SECONDS = 0.20
 DEFAULT_VISION_RADIUS_NATIVE = 80.0
 

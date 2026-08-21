@@ -114,7 +114,7 @@ class Bot:
         self._last_native_map_error_at = 0.0
 
         self.digit_reader = DigitReader(
-            digits_dir=Path(__file__).parent / "assets" / "digits",
+            digits_dir=Path(__file__).resolve().parents[1] / "assets" / "digits",
             threshold=0.85,
         )
         self.kill_counter_reader = DynamicKillCounterReader(
@@ -887,7 +887,7 @@ class Bot:
             if not name or height_offset is None:
                 continue
 
-            image_path = Path(__file__).parent / "assets" / "names" / f"{name}.png"
+            image_path = Path(__file__).resolve().parents[1] / "assets" / "names" / f"{name}.png"
             image = cv.imread(
                 str(image_path),
                 cv.IMREAD_GRAYSCALE,

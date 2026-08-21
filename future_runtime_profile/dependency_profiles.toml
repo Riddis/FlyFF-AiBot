@@ -93,7 +93,7 @@ additional_shared_entry_files = [
 # itself needs, not what a training-only file bundled in the same
 # directory happens to import. farming.trainer remains reachable ONLY
 # through the one registered known_exact_exceptions edge from
-# runtime_controller.py -- it is not otherwise part of this candidate.
+# bot/runtime_controller.py -- it is not otherwise part of this candidate.
 excluded_from_shared_entry_walk = [
   "farming/sb3_adapter.py",
   "farming/sb3_training.py",
@@ -164,7 +164,7 @@ forbidden_first_party_prefixes = [
 unresolved_future_choices = [
   "final shipped checkpoint has not been selected (models/generalized_waypoint_both_seed2_0051200.zip is the frozen R10-tracked corpus member every ABI test exercises, not a shipping decision)",
   "whether cv2-vision-based OCR/UI-detection/minimap-heading template matching is retained or replaced by pure-native reading in a future derivative",
-  "whether runtime_controller.py's farming.trainer coupling is omitted or redesigned for a future derivative (explicitly not assigned to any phase yet)",
+  "whether bot/runtime_controller.py's farming.trainer coupling is omitted or redesigned for a future derivative (explicitly not assigned to any phase yet)",
   "final entrypoint name/location for any future derivative (explicitly not apps/live_bot.py, per this phase's own prohibition)",
   "whether requirements.txt/requirements-training.txt's existing split changes to reflect torch/gymnasium/stable_baselines3's DUAL_ROLE classification",
 ]
@@ -175,7 +175,7 @@ unresolved_future_choices = [
 # contract; it is recorded so the resolver can classify it correctly
 # rather than silently ignoring or silently forbidding it.
 [[profiles.future_runtime_candidate.known_exact_exceptions]]
-importer = "runtime_controller.py"
+importer = "bot/runtime_controller.py"
 dependency = "farming.trainer"
 symbols = [
   "dry_run_native_farming", "run_native_farming_agent",
