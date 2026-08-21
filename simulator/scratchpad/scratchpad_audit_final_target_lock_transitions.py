@@ -55,7 +55,7 @@ from .scratchpad_beginner_navigation_mix_pools import (
 )
 from .scratchpad_router_patch_qualification_pool import QUALIFICATION_SPEC_SEED
 from simulator.environment import RecordedFarmingEnv
-from simulator.kinodynamic_route_planner import (
+from navigation.kinodynamic_route_planner import (
     TargetPersistenceController, TargetSwitchReason, _clearance_cells_native, _direct_hop_min_clearance,
     _normalize_angle, plan_route, select_persistent_waypoint_experimental_collision_free_fallback,
 )

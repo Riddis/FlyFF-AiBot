@@ -33,7 +33,7 @@ from stable_baselines3 import PPO
 from .scratchpad_beginner_routing_two_wall_s_route import held_out_two_wall_specs_for_direction
 from .scratchpad_general_router_episode import build_multi_wall_world
 from simulator.environment import RecordedFarmingEnv
-from simulator.kinodynamic_route_planner import (
+from navigation.kinodynamic_route_planner import (
     DESIRED_CLEARANCE_CELLS, TargetPersistenceController, _clearance_cells_native,
     _direct_hop_min_clearance, plan_route, select_persistent_waypoint,
 )

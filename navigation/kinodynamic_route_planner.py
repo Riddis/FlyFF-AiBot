@@ -157,16 +157,6 @@ class KinoState:
         return heading_to_bin(self.heading)
 
 
-# Module identity is pinned to its pre-Phase-9 location: the frozen Phase-3
-# G8c fixture (tests/fixtures/migration/router_kernel.json) embeds
-# f"{type(value).__module__}.{type(value).__qualname__}" for every decoded
-# KinoState via phase3_capture.py's typed encoders. The file physically moved
-# to navigation/kinodynamic_route_planner.py per Phase 9; this override keeps
-# the frozen fixture reproducing byte-identically without rewriting it. See
-# docs/migration/PHASE9_NAVIGATION_OWNER_ANALYSIS.md section 2.
-KinoState.__module__ = "simulator.kinodynamic_route_planner"
-
-
 def _state_key(x: float, z: float, heading_bin: int, previous_steering: SteeringDirection) -> tuple[int, int, int, int]:
     return (int(round(x / POSITION_SNAP_CELLS)), int(round(z / POSITION_SNAP_CELLS)), heading_bin, int(previous_steering))
 
@@ -375,10 +365,6 @@ class RouteEdgeInfo:
     distance_cells: float
     heading_change_radians: float
     robust_clearance_cells: float
-
-
-# See KinoState's module-identity note above -- same reason, same fixture.
-RouteEdgeInfo.__module__ = "simulator.kinodynamic_route_planner"
 
 
 def annotate_route_edges(map_model: Any, route: list[KinoState]) -> list[RouteEdgeInfo]:

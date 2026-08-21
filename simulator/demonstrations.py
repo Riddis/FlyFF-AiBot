@@ -14,14 +14,13 @@ from farming.actions import (
 )
 from farming.map_features import DirectPathState
 from farming.observation import (
-    OBSERVATION_SCHEMA_HASH,
-    OBSERVATION_SCHEMA_ID,
     ActorObservation,
     ObservationBuilder,
     ObservationFrame,
     ObservationScales,
     PlayerObservation,
 )
+from farming.observation_contract import OBSERVATION_SCHEMA_HASH, OBSERVATION_SCHEMA_ID
 
 from .map_model import MapModel
 from .schema import (

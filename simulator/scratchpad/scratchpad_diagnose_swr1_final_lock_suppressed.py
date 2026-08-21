@@ -32,7 +32,7 @@ from .scratchpad_beginner_navigation_mix_pools import _reconstruct_single_wall_w
 from .scratchpad_diagnose_single_wall_right_1_regression import DEV_POOL_EPISODE_SEED_BASE, INDEX, STRATUM, _seed_counter_for
 from .scratchpad_router_patch_qualification_pool import QUALIFICATION_SPEC_SEED
 from simulator.environment import RecordedFarmingEnv
-from simulator.kinodynamic_route_planner import (
+from navigation.kinodynamic_route_planner import (
     DESIRED_CLEARANCE_CELLS, TargetPersistenceController, TargetSwitchReason, _direct_hop_min_clearance,
     _nearest_route_index, plan_route, select_persistent_waypoint_experimental_collision_free_fallback,
 )

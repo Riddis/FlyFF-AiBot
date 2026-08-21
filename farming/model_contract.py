@@ -16,12 +16,8 @@ from .actions import (
     POLICY_ACTION_NVECS,
     STEERING_NAMES,
 )
-from .observation import (
-    OBSERVATION_SCHEMA_HASH,
-    OBSERVATION_SCHEMA_ID,
-    OBSERVATION_SIZE,
-    observation_schema_hash,
-)
+from .observation import OBSERVATION_SIZE, observation_schema_hash
+from .observation_contract import OBSERVATION_SCHEMA_HASH, OBSERVATION_SCHEMA_ID
 
 # No metadata-less scalar-action model is compatible with the factorized
 # contract. These names remain exported so older reporting/import code fails

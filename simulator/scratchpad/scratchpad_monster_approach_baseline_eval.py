@@ -65,7 +65,7 @@ from stable_baselines3 import PPO
 from farming.actions import FarmingEvent
 from .scratchpad_monster_approach_baseline_pool import build_monster_approach_world, spec_from_episode_dict
 from simulator.environment import RecordedFarmingEnv, SimActor
-from simulator.kinodynamic_route_planner import TargetPersistenceController, plan_route, select_persistent_waypoint
+from navigation.kinodynamic_route_planner import TargetPersistenceController, plan_route, select_persistent_waypoint
 from simulator.navigation_history import NavigationHistoryWrapper
 
 ROOT = Path(__file__).resolve().parents[2]

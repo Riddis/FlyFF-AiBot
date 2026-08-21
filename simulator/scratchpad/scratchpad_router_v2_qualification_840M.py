@@ -70,7 +70,7 @@ from .scratchpad_historical_reproduction_guard import verify_historical_snapshot
 from .scratchpad_legacy_qualified_selector import select_persistent_waypoint_legacy_pre_v2
 from .scratchpad_router_v2_guarded_development_validation import eval_open_stratum
 from .scratchpad_router_v2_qualification_pool import QUALIFICATION_SPEC_SEED
-from simulator.kinodynamic_route_planner import select_persistent_waypoint_experimental_invalid_hop_guard
+from navigation.kinodynamic_route_planner import select_persistent_waypoint_experimental_invalid_hop_guard
 
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE_CHECKPOINT = ROOT / "models" / "generalized_waypoint_both_seed2_0051200.zip"

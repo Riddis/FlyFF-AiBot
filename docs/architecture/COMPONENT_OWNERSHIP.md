@@ -42,28 +42,50 @@ Never assume a file is dead because it "looks old." Check
 | Session outcome classification | `farming/session.py` | R7a |
 | Native position/monster stack | `position/NativeFlyffMonsterProvider.py`, `position/NativeFlyffPositionProvider.py`, `position/native_process_service.py` | R7a |
 | Persistent waypoint selection | `navigation/kinodynamic_route_planner.py` | R7a |
-| Shared movement kernel | `navigation/movement_kernel.py` (note: `AdvanceResult.__module__` is runtime-pinned to `simulator.movement_kernel` for frozen G8c fixture compatibility — the AST-level source definition R7a tracks is still here) | R7a |
+| Shared movement kernel | `navigation/movement_kernel.py` | R7a |
 | Shared navigation evidence | `navigation/navigation_evidence.py` | R7a |
 | Tower map profiles | `farming/map_profile.py` | R7a |
 
 ## 3. Three distinct kinds of "not the canonical implementation"
 
-### 3a. Permanent compatibility re-exports (`removal_gate = "NEVER"`, no `retirement_condition`)
+### 3a. Former permanent compatibility re-exports (retired 2026-08-21)
 
-- `farming/observation.py`'s shim (`OBSERVATION_SCHEMA_HASH`,
-  `OBSERVATION_SCHEMA_ID`) — permanent canonical-API compatibility
-  re-export.
-- `simulator/kinodynamic_route_planner.py` (re-exports `KinoState`,
-  `RouteEdgeInfo`) and `simulator/movement_kernel.py` (re-exports
-  `AdvanceResult`) — **runtime ABI compatibility**, not simulator
-  algorithms. See `docs/architecture/DATA_AND_MODEL_CONTRACTS.md`.
+Three shims previously carried `removal_gate = "NEVER"` with no
+`retirement_condition` field — the "genuinely permanent, not a
+migration artifact" category, distinct from section 3b's
+phase-conditioned shims:
 
-These three are genuinely permanent: `pickle.loads()` of a live
-frozen-checkpoint-era instance requires a real importable module at
-these exact paths (`KinoState.__module__`/`RouteEdgeInfo.__module__`/
-`AdvanceResult.__module__` are pinned there for frozen G7/G8c
-typed-encoding fixture compatibility), independent of anything this
-migration did.
+- `farming/observation.py`'s re-export of `OBSERVATION_SCHEMA_HASH`/
+  `OBSERVATION_SCHEMA_ID` (true canonical owner: `farming/
+  observation_contract.py`).
+- `simulator/kinodynamic_route_planner.py` (re-exported `KinoState`,
+  `RouteEdgeInfo`) and `simulator/movement_kernel.py` (re-exported
+  `AdvanceResult`) — pickle module-identity compatibility, not
+  simulator algorithms.
+
+**They no longer exist.** The post-migration compatibility purge
+re-examined the "permanent" claim against actual evidence instead of
+trusting it inherited: `farming/observation.py` had real canonical
+implementation of its own (`ObservationBuilder` and the whole
+observation-construction pipeline), so it was kept, but its accidental
+re-export of the two schema constants was removed — internal code now
+uses private aliases, and every current consumer imports the two
+constants directly from `farming/observation_contract.py`. For the
+pickle-identity pair, a static pickle disassembly (`pickletools.dis`,
+no execution) of every internal file inside `models/generalized_
+waypoint_both_seed2_0051200.zip` found zero references to either
+module or to `KinoState`/`RouteEdgeInfo`/`AdvanceResult` anywhere —
+their `__module__` pins existed solely for `tests/fixtures/migration/
+router_kernel.json`, a Phase-3 G8c fixture nothing in the current
+product or test suite reads or validates. Both shim files were
+deleted; `KinoState`/`RouteEdgeInfo`/`AdvanceResult` now carry their
+natural `navigation.*` module identity. `simulator/split_branch_
+policy.py` (see `docs/architecture/DATA_AND_MODEL_CONTRACTS.md`) is
+unaffected — the checkpoint genuinely does reference it, confirmed by
+the same disassembly. See
+[ADR 0002](../decisions/0002-preserve-abi-compatibility-shims.md)'s
+Retirement section for the full evidence trail. `CANONICAL_OWNERS.
+toml`'s `[[shim]]` table is now empty.
 
 ### 3b. Test-contract-retirement-conditioned shims (retired 2026-08-21)
 
@@ -95,8 +117,9 @@ to prove the same historical purity/parity facts via `git show`/
 tag instead. With no live test contract left requiring them,
 `foreground_vision_bot/` and `flyff_farming_recorder/` were deleted
 entirely, and all 16 `[[shim]]` entries removed from
-`CANONICAL_OWNERS.toml`. Only the 3 section-3a shims remain in the
-registry.
+`CANONICAL_OWNERS.toml`. The 3 section-3a shims were later also
+retired (2026-08-21 compatibility purge, see 3a above) — the
+`[[shim]]` table is now empty.
 
 A machine check enforces this stays retired (not merely re-tagged):
 `docs/migration/tests/test_migration_integrity.py::

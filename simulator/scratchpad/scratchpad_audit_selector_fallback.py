@@ -37,7 +37,7 @@ from stable_baselines3 import PPO
 
 from .scratchpad_beginner_navigation_mix_pools import DEV_POOL_SPEC_SEED, _reconstruct_two_wall_world, load_manifest
 from simulator.environment import RecordedFarmingEnv
-from simulator.kinodynamic_route_planner import (
+from navigation.kinodynamic_route_planner import (
     DESIRED_CLEARANCE_CELLS, TargetPersistenceController, _direct_hop_min_clearance, _segment_clear,
     annotate_route_edges, plan_route, select_persistent_waypoint,
 )

@@ -107,16 +107,6 @@ class AdvanceResult:
     next_previous_steering: SteeringDirection
 
 
-# Module identity is pinned to its pre-Phase-9 location: the frozen Phase-3
-# G8c fixture (tests/fixtures/migration/router_kernel.json) embeds
-# f"{type(value).__module__}.{type(value).__qualname__}" for every decoded
-# AdvanceResult via phase3_capture.py's typed encoders. The file physically
-# moved to navigation/movement_kernel.py per Phase 9; this override keeps the
-# frozen fixture reproducing byte-identically without rewriting it. See
-# docs/migration/PHASE9_NAVIGATION_OWNER_ANALYSIS.md section 2.
-AdvanceResult.__module__ = "simulator.movement_kernel"
-
-
 def _normalize_angle(angle: float) -> float:
     return math.atan2(math.sin(angle), math.cos(angle))
 

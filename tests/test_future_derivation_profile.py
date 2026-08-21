@@ -77,8 +77,6 @@ def test_point_04_abi_compatibility_modules_distinguished_and_reexport_only() ->
     report = _report()
     assert report.abi_compatibility_modules == [
         "simulator.split_branch_policy",
-        "simulator.kinodynamic_route_planner",
-        "simulator.movement_kernel",
     ]
     assert report.duplicate_ownership_issues == []
     assert report.missing_tracked_files == []

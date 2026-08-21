@@ -14,8 +14,6 @@ from farming.observation import (
     LEGACY_MASK_START,
     LOCAL_MAP_START,
     OBSERVATION_FIELDS,
-    OBSERVATION_SCHEMA_HASH,
-    OBSERVATION_SCHEMA_ID,
     OBSERVATION_SIZE,
     UNIFIED_STATE_START,
     ActorObservation,
@@ -26,6 +24,7 @@ from farming.observation import (
     observation_schema_descriptor,
     observation_schema_hash,
 )
+from farming.observation_contract import OBSERVATION_SCHEMA_HASH, OBSERVATION_SCHEMA_ID
 
 
 def _frame() -> ObservationFrame:

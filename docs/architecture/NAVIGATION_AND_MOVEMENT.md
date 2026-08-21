@@ -129,11 +129,12 @@ than each environment/evaluation harness re-deriving them independently
 `navigation.movement_kernel`) — they are training/environment glue, not
 a second implementation of the kinematics or route-planning algorithms.
 `simulator/kinodynamic_route_planner.py` and `simulator/movement_
-kernel.py` are the two Phase-9 **runtime ABI compatibility shims**
-(pickle module-identity only, zero behavior) — see
-`DATA_AND_MODEL_CONTRACTS.md` section 1c. Do not confuse these
-behavior-free shims with the simulator's own real adapter code in the
-other files listed above.
+kernel.py` were the two Phase-9 **runtime ABI compatibility shims**
+(pickle module-identity only, zero behavior); both were retired in the
+2026-08-21 compatibility purge once a static pickle disassembly of the
+frozen checkpoint proved neither was actually load-bearing for it — see
+`DATA_AND_MODEL_CONTRACTS.md` section 1c. `KinoState`/`RouteEdgeInfo`/
+`AdvanceResult` now carry their natural `navigation.*` module identity.
 
 ## 7. What the generalized-waypoint checkpoint is (and is not)
 

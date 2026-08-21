@@ -66,10 +66,6 @@ DISALLOWED_MODULE_PREFIXES = (
     "simulator.cli",
     "simulator.trainer",
     "simulator.fair_time_cli",
-    # Phase-9 pickle-compat shims: valid for pickle module-identity, but
-    # must not be part of the dev app's own import closure (Section 21.F).
-    "simulator.kinodynamic_route_planner",
-    "simulator.movement_kernel",
     "legacy",
     # farming.trainer itself is deliberately NOT listed here: it is the
     # sanctioned (exact-exception) edge's own target, and must be able to

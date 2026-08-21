@@ -63,7 +63,7 @@ from pathlib import Path
 
 import numpy as np
 
-from simulator.kinodynamic_route_planner import plan_route
+from navigation.kinodynamic_route_planner import plan_route
 from simulator.map_model import MapModel
 from simulator.single_obstacle_env import GAP_SIDES, GapSide, MAP_HALF_SIZE_CELLS, ObstacleSpec, _wall_cell_bounds
 from simulator.static_waypoint_env import SYMMETRIC_MOVEMENT

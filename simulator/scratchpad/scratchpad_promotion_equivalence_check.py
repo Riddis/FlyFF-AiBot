@@ -30,7 +30,7 @@ from .scratchpad_beginner_routing_two_wall_s_route import held_out_two_wall_spec
 from .scratchpad_general_router_episode import build_multi_wall_world
 from .scratchpad_router_v2_qualification_pool import QUALIFICATION_SPEC_SEED as SEED_830M
 from simulator.environment import RecordedFarmingEnv
-from simulator.kinodynamic_route_planner import (
+from navigation.kinodynamic_route_planner import (
     TargetPersistenceController, plan_route, select_persistent_waypoint, select_persistent_waypoint_experimental_invalid_hop_guard,
 )
 from simulator.navigation_history import NavigationHistoryWrapper

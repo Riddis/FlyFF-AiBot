@@ -1,18 +1,23 @@
-"""Phase-9 pickle-compatibility hardening (2026-08-17): tests for the two
-narrow, behavior-free compatibility shims
-(simulator/kinodynamic_route_planner.py, simulator/movement_kernel.py)
-created after a fresh-subprocess probe proved that pinning
-KinoState.__module__/RouteEdgeInfo.__module__/AdvanceResult.__module__ back
-to their pre-Phase-9 path strings (for frozen G7/G8c fixture compatibility)
-was not sufficient for actual pickle.dumps()/pickle.loads() of a live
-instance -- only for the frozen fixtures' own string-based
-__module__.__qualname__ encoding.
+"""Post-migration compatibility purge (2026-08-21): the two pickle-compat
+shims (simulator/kinodynamic_route_planner.py, simulator/movement_kernel.py)
+created 2026-08-17 were removed. A static pickle disassembly of every
+internal file inside models/generalized_waypoint_both_seed2_0051200.zip
+(the checkpoint these shims were originally believed to protect) found
+zero references to either shim module or to KinoState/RouteEdgeInfo/
+AdvanceResult anywhere -- their __module__ pins existed solely for
+tests/fixtures/migration/router_kernel.json, a Phase-3 G8c migration-
+continuity fixture nothing in the current product or test suite reads
+or validates. See docs/decisions/0002-preserve-abi-compatibility-shims.md's
+Retirement section for the full evidence trail.
 
-Covers, in order: canonical implementation origin, legacy-import identity,
-in-process and cold-subprocess pickle round-trips, absence of duplicate
-behavioral definitions, and the historical guard's fail-closed
-classification shift these shims cause (MISSING -> hash mismatch, still a
-refusal, never a pass)."""
+KinoState/RouteEdgeInfo/AdvanceResult now carry their natural
+navigation.* module identity (no override). Covers, in order: canonical
+implementation origin, in-process and cold-subprocess pickle round-trips
+under that natural identity, and the historical guard's fail-closed
+classification with the shims absent (still MISSING, still a refusal,
+never a pass -- the guard already refused to run before this change,
+since its own tracked files had drifted from their 2026-08-15 snapshot
+hash back on 2026-08-17 when these shims were first introduced)."""
 
 from __future__ import annotations
 
@@ -69,15 +74,21 @@ def test_canonical_implementation_origin_remains_navigation() -> None:
     assert "AdvanceResult" in kernel_classes
 
 
-def test_legacy_import_resolves_to_the_same_class_objects() -> None:
-    import navigation.kinodynamic_route_planner as canonical_router
-    import navigation.movement_kernel as canonical_kernel
-    import simulator.kinodynamic_route_planner as legacy_router
-    import simulator.movement_kernel as legacy_kernel
+def test_no_module_identity_override_remains() -> None:
+    """The classes must carry their natural module identity -- no
+    __module__ assignment anywhere in their defining files."""
+    for path, names in (
+        (REPO / "navigation/kinodynamic_route_planner.py", ("KinoState", "RouteEdgeInfo")),
+        (REPO / "navigation/movement_kernel.py", ("AdvanceResult",)),
+    ):
+        source = path.read_text(encoding="utf-8")
+        for name in names:
+            assert f"{name}.__module__" not in source, f"{path}: {name}.__module__ override still present"
 
-    assert legacy_router.KinoState is canonical_router.KinoState
-    assert legacy_router.RouteEdgeInfo is canonical_router.RouteEdgeInfo
-    assert legacy_kernel.AdvanceResult is canonical_kernel.AdvanceResult
+
+def test_shim_modules_no_longer_exist() -> None:
+    assert not (REPO / "simulator" / "kinodynamic_route_planner.py").exists()
+    assert not (REPO / "simulator" / "movement_kernel.py").exists()
 
 
 def test_pickle_round_trip_succeeds_in_process() -> None:
@@ -100,7 +111,9 @@ def test_pickle_round_trip_succeeds_in_a_fresh_subprocess_with_only_repo_root_on
     """The rigorous form of the check above: a cold interpreter, only the
     collapsed repository root inserted onto sys.path (plus whatever -I
     isolated mode keeps for the stdlib/venv itself), proving this doesn't
-    depend on some other module having already been imported first."""
+    depend on some other module having already been imported first, and
+    that no simulator.* compatibility module is required for this to
+    work."""
     result = subprocess.run(
         [sys.executable, "-I", "-c", PICKLE_PROBE.format(repo=str(REPO))],
         cwd=REPO, capture_output=True, text=True, timeout=60,
@@ -112,55 +125,26 @@ def test_pickle_round_trip_succeeds_in_a_fresh_subprocess_with_only_repo_root_on
 
     same_class, equal, module, qualname = parsed["KinoState"]
     assert same_class == "True" and equal == "True"
-    assert module == "simulator.kinodynamic_route_planner" and qualname == "KinoState"
+    assert module == "navigation.kinodynamic_route_planner" and qualname == "KinoState"
 
     same_class, equal, module, qualname = parsed["RouteEdgeInfo"]
     assert same_class == "True" and equal == "True"
-    assert module == "simulator.kinodynamic_route_planner" and qualname == "RouteEdgeInfo"
+    assert module == "navigation.kinodynamic_route_planner" and qualname == "RouteEdgeInfo"
 
     same_class, equal, module, qualname = parsed["AdvanceResult"]
     assert same_class == "True" and equal == "True"
-    assert module == "simulator.movement_kernel" and qualname == "AdvanceResult"
+    assert module == "navigation.movement_kernel" and qualname == "AdvanceResult"
 
 
-def test_compat_shims_contain_no_duplicate_behavioral_definitions() -> None:
-    """The shims must be pure re-export: only __future__ import, the
-    navigation.* import, and an __all__ assignment. No class/function
-    definitions, no other logic, ever."""
-    for shim_path, forbidden_class_names in (
-        (REPO / "simulator/kinodynamic_route_planner.py", {"KinoState", "RouteEdgeInfo"}),
-        (REPO / "simulator/movement_kernel.py", {"AdvanceResult"}),
-    ):
-        tree = ast.parse(shim_path.read_text(encoding="utf-8"), filename=str(shim_path))
-        offenders = []
-        for node in tree.body:
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                offenders.append(f"{type(node).__name__}:{node.name}")
-            elif isinstance(node, ast.Assign):
-                targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
-                if targets != ["__all__"]:
-                    offenders.append(f"Assign:{targets}")
-            elif isinstance(node, ast.ImportFrom):
-                continue
-            elif isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
-                continue  # module docstring
-            else:
-                offenders.append(f"{type(node).__name__}")
-        assert offenders == [], f"{shim_path}: unexpected non-re-export content: {offenders}"
-        assert forbidden_class_names <= set().union(*[
-            {alias.name for alias in node.names}
-            for node in tree.body if isinstance(node, ast.ImportFrom)
-        ]), f"{shim_path}: expected class names not found among its imports"
-
-
-def test_historical_guard_still_fails_closed_with_the_shims_present() -> None:
-    """The shims now occupy the two paths scratchpad_historical_
-    reproduction_guard.py's REQUIRED_FILES checks, so the guard's
-    fail-closed REASON shifts from MISSING (Phase 9, no file there at all)
-    to a hash mismatch (Phase-9-hardening, a real but different file is
-    there) -- both are refusals; neither is a pass, and this is not a
-    "fix" of the guard, just documentation of the new reason. No
-    REQUIRED_FILES bytes were touched to produce this result."""
+def test_historical_guard_fails_closed_with_shims_removed() -> None:
+    """The shims previously occupied the two paths scratchpad_historical_
+    reproduction_guard.py's REQUIRED_FILES checks. With the shims
+    removed, the guard's fail-closed REASON reverts to MISSING (its
+    original Phase-9 state, before the 2026-08-17 hardening shims ever
+    existed) -- still a refusal, never a pass. This is not a "fix" of
+    the guard: it already refused to run before this change too, since
+    its tracked files had already drifted from the 2026-08-15 snapshot
+    hash the moment those shims first narrowed to pure re-exports."""
     import simulator.scratchpad.scratchpad_historical_reproduction_guard as guard
 
     with pytest.raises(RuntimeError) as excinfo:
@@ -168,7 +152,7 @@ def test_historical_guard_still_fails_closed_with_the_shims_present() -> None:
     message = str(excinfo.value)
     assert "simulator/kinodynamic_route_planner.py" in message
     assert "simulator/movement_kernel.py" in message
-    assert "MISSING" not in message, "expected a hash mismatch now that a real (shim) file exists at these paths"
+    assert "MISSING" in message, "expected MISSING now that the shim files no longer exist"
     for rel in guard.REQUIRED_FILES:
         if rel in ("simulator/kinodynamic_route_planner.py", "simulator/movement_kernel.py"):
             continue

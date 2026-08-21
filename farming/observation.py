@@ -24,7 +24,8 @@ from .map_features import (
     LOCAL_MAP_TELEPORT_BUFFER,
     LOCAL_MAP_TELEPORT_TRIGGER,
 )
-from .observation_contract import OBSERVATION_SCHEMA_HASH, OBSERVATION_SCHEMA_ID
+from .observation_contract import OBSERVATION_SCHEMA_HASH as _CANONICAL_SCHEMA_HASH
+from .observation_contract import OBSERVATION_SCHEMA_ID as _CANONICAL_SCHEMA_ID
 
 FloatArray = NDArray[np.float32]
 
@@ -281,7 +282,7 @@ def observation_schema_descriptor(
 ) -> dict[str, object]:
     selected_scales = scales or ObservationScales()
     return {
-        "schema_id": OBSERVATION_SCHEMA_ID,
+        "schema_id": _CANONICAL_SCHEMA_ID,
         "dtype": "float32",
         "size": OBSERVATION_SIZE,
         "fields": OBSERVATION_FIELDS,
@@ -458,7 +459,7 @@ def observation_schema_hash(scales: ObservationScales | None = None) -> str:
     return sha256(payload).hexdigest().upper()
 
 
-if observation_schema_hash() != OBSERVATION_SCHEMA_HASH:
+if observation_schema_hash() != _CANONICAL_SCHEMA_HASH:
     raise RuntimeError("Canonical observation schema descriptor does not match its metadata hash")
 
 
@@ -474,7 +475,7 @@ class ObservationBuilder:
 
     @property
     def schema_id(self) -> str:
-        return OBSERVATION_SCHEMA_ID
+        return _CANONICAL_SCHEMA_ID
 
     @property
     def schema_hash(self) -> str:
@@ -565,7 +566,7 @@ class ObservationBuilder:
         if vector.shape != (OBSERVATION_SIZE,):
             raise RuntimeError(
                 f"Observation shape {vector.shape} does not match "
-                f"{OBSERVATION_SCHEMA_ID} ({OBSERVATION_SIZE},)"
+                f"{_CANONICAL_SCHEMA_ID} ({OBSERVATION_SIZE},)"
             )
         if not np.all(np.isfinite(vector)):
             raise RuntimeError("Observation contains a non-finite value")

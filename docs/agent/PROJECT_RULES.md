@@ -63,10 +63,14 @@ This rule is never overridden by any operating mode, including
   [`docs/architecture/COMPONENT_OWNERSHIP.md`](../architecture/COMPONENT_OWNERSHIP.md).
 - Never widen the one registered R1b exception
   (`bot/runtime_controller.py` → `farming.trainer`, 4 exact symbols).
-- Never touch the checkpoint-ABI/pickle module-identity compatibility
-  shims (`simulator/split_branch_policy.py`,
-  `simulator/kinodynamic_route_planner.py`,
-  `simulator/movement_kernel.py`) — permanent by construction. See
+- Never touch `simulator/split_branch_policy.py` (checkpoint-ABI/pickle
+  module-identity compatibility, permanent by construction) without
+  first proving, not assuming, what specifically still needs it —
+  `simulator/kinodynamic_route_planner.py`/`simulator/movement_kernel.py`
+  carried the exact same "permanent by construction" language until a
+  static pickle disassembly of the actual checkpoint proved neither was
+  checkpoint-load-bearing; both were retired in the 2026-08-21
+  compatibility purge. See
   [ADR 0002](../decisions/0002-preserve-abi-compatibility-shims.md).
 - A migration phase number is **never**, by itself, evidence that a
   retained compatibility surface is safe to remove — check the actual

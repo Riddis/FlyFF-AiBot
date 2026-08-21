@@ -38,8 +38,6 @@ EXPECTED_TEST_CONTRACT_RETIREMENT_COUNT = 0
 
 RUNTIME_ABI_PATHS = (
     "simulator/split_branch_policy.py",
-    "simulator/kinodynamic_route_planner.py",
-    "simulator/movement_kernel.py",
 )
 
 CURRENT_DOC_DIRS = (
@@ -85,6 +83,8 @@ INTENTIONALLY_NONEXISTENT_PATHS = frozenset({
     "devtools/artifact_inventory.py",
     "devtools/session_context.py",
     "apps/recorder_headless_cli.py",
+    "simulator/kinodynamic_route_planner.py",
+    "simulator/movement_kernel.py",
 })
 STALE_QUALIFIERS = (
     "facade", "shim", "compat", "superseded", "stale", "prior-generation",

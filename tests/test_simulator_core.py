@@ -481,7 +481,7 @@ def test_behavior_clone_rejects_wrong_dataset_schema(tmp_path: Path) -> None:
 def test_behavior_clone_rejects_one_session_dataset(tmp_path: Path) -> None:
     from types import SimpleNamespace
 
-    from farming.observation import OBSERVATION_SCHEMA_HASH, OBSERVATION_SCHEMA_ID
+    from farming.observation_contract import OBSERVATION_SCHEMA_HASH, OBSERVATION_SCHEMA_ID
     from simulator.training import behavior_clone
 
     dataset = tmp_path / "one_session.npz"

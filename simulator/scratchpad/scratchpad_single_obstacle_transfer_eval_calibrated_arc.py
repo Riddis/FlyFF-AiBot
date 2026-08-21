@@ -29,7 +29,7 @@ Reports, per seed x condition x gap_side: success, any physical contact,
 timeout/non-success, path efficiency (geodesic-based, matching single_
 obstacle_env's own methodology), ticks to success, oscillation rate,
 direct LEFT<->RIGHT reversal rate, STRAIGHT fraction, minimum obstacle
-clearance (simulator.kinodynamic_route_planner._clearance_cells_native,
+clearance (navigation.kinodynamic_route_planner._clearance_cells_native,
 the same genuine local-search clearance measure the kinodynamic planner
 itself uses), and the contact tick if applicable.
 

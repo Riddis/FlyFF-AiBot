@@ -43,7 +43,7 @@ import math
 from pathlib import Path
 
 from .scratchpad_monster_approach_baseline_pool import FULL_POOL_SPEC_SEED, build_monster_approach_world, load_manifest, spec_from_episode_dict
-from simulator.kinodynamic_route_planner import _segment_clear, plan_route
+from navigation.kinodynamic_route_planner import _segment_clear, plan_route
 from simulator.single_obstacle_env import MAP_HALF_SIZE_CELLS
 
 ROOT = Path(__file__).resolve().parents[2]

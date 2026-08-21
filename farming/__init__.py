@@ -61,9 +61,12 @@ _EXPORT_MODULES = {
         "validate_model_contract",
     )},
     **{name: ".observation" for name in (
-        "OBSERVATION_FIELDS", "OBSERVATION_SCHEMA_HASH", "OBSERVATION_SCHEMA_ID",
+        "OBSERVATION_FIELDS",
         "OBSERVATION_SIZE", "ActorObservation", "ObservationBuilder", "ObservationFrame",
         "ObservationScales", "PlayerObservation",
+    )},
+    **{name: ".observation_contract" for name in (
+        "OBSERVATION_SCHEMA_HASH", "OBSERVATION_SCHEMA_ID",
     )},
     **{name: ".reward" for name in (
         "RewardCalculator", "RewardComponents", "RewardConfig", "RewardEvidence", "RewardResult",

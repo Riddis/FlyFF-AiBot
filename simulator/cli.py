@@ -10,7 +10,7 @@ from typing import Callable
 import numpy as np
 from farming.actions import ACTION_NAMES, FarmingAction
 from farming.model_contract import ModelContractMetadata
-from farming.observation import OBSERVATION_SCHEMA_HASH, OBSERVATION_SCHEMA_ID
+from farming.observation_contract import OBSERVATION_SCHEMA_HASH, OBSERVATION_SCHEMA_ID
 
 from .demonstrations import export_demonstrations
 from .environment import RecordedFarmingEnv

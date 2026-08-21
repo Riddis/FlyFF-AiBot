@@ -28,7 +28,7 @@ from .scratchpad_beginner_navigation_mix_pools import load_manifest
 from .scratchpad_router_patch_qualification_pool import QUALIFICATION_SPEC_SEED
 from .scratchpad_router_patch_qualification_compare import DEV_POOL_EPISODE_SEED_BASE, select_persistent_waypoint_old
 from simulator.environment import RecordedFarmingEnv
-from simulator.kinodynamic_route_planner import (
+from navigation.kinodynamic_route_planner import (
     DESIRED_CLEARANCE_CELLS, TargetPersistenceController, _direct_hop_min_clearance, _segment_clear,
     annotate_route_edges, plan_route, select_persistent_waypoint_experimental_collision_free_fallback,
 )

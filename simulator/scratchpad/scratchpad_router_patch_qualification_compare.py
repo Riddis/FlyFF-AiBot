@@ -60,7 +60,7 @@ from . import scratchpad_general_router_episode as gre
 from .scratchpad_beginner_navigation_mix_pools import eval_obstacle_manifest, load_manifest
 from .scratchpad_generalized_waypoint_train_reward_ablation import eval_held_out
 from .scratchpad_router_patch_qualification_pool import QUALIFICATION_SPEC_SEED
-from simulator.kinodynamic_route_planner import (
+from navigation.kinodynamic_route_planner import (
     DESIRED_CLEARANCE_CELLS, _direct_hop_min_clearance, annotate_route_edges,
     select_persistent_waypoint_experimental_collision_free_fallback,
 )
@@ -134,7 +134,7 @@ def _spot_check_old_selector_fidelity() -> None:
     manifest = _load(ROOT / "simulator" / "evaluations" / f"router_mix_dev_pool_{DEV_POOL_SPEC_SEED}_manifest.json")
     episode = manifest["strata"]["two_wall_right_then_left"]["accepted"][8]
     map_model, world, final_native, initial_heading = _reconstruct_two_wall_world(episode)
-    from simulator.kinodynamic_route_planner import plan_route
+    from navigation.kinodynamic_route_planner import plan_route
     route = plan_route(map_model, start_x=0.0, start_z=0.0, start_heading=initial_heading,
                         destination_x=final_native[0], destination_z=final_native[1])
     pre_pose = tuple(rtl8_tick2["pre_pose_xzh_deg"])

@@ -53,7 +53,7 @@ from .scratchpad_diagnose_single_wall_right_1_regression import _instrumented_se
 from .scratchpad_router_patch_qualification_compare import DEV_POOL_EPISODE_SEED_BASE, select_persistent_waypoint_old
 from .scratchpad_router_patch_qualification_pool import QUALIFICATION_SPEC_SEED
 from simulator.environment import RecordedFarmingEnv
-from simulator.kinodynamic_route_planner import (
+from navigation.kinodynamic_route_planner import (
     TargetPersistenceController, plan_route, select_persistent_waypoint_experimental_collision_free_fallback,
 )
 from simulator.navigation_history import NavigationHistoryWrapper

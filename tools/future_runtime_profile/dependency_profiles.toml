@@ -113,14 +113,24 @@ excluded_from_shared_entry_walk = [
   "mapper/tools/train_mapper_offline.py",
 ]
 
-# Checkpoint-ABI/pickle-compatibility surfaces -- NOT simulator algorithms
-# to drag in wholesale. Canonical algorithm ownership stays under
-# navigation/*; these three modules exist solely so the frozen checkpoint
-# corpus keeps deserializing.
+# Checkpoint-ABI/pickle-compatibility surface -- NOT a simulator algorithm
+# to drag in wholesale. This module exists solely so the frozen checkpoint
+# corpus keeps deserializing (its policy class's pinned __module__).
+#
+# simulator.kinodynamic_route_planner/simulator.movement_kernel were
+# removed from this list in the post-migration compatibility purge: their
+# __module__ pins on navigation.kinodynamic_route_planner's KinoState/
+# RouteEdgeInfo and navigation.movement_kernel's AdvanceResult existed
+# solely for tests/fixtures/migration/router_kernel.json (a Phase-3 G8c
+# migration-continuity fixture nothing in the current product/test suite
+# actually reads or validates), not for models/generalized_waypoint_
+# both_seed2_0051200.zip -- a static pickle disassembly of every embedded
+# blob in that checkpoint's data/policy.pth/policy.optimizer.pth/
+# pytorch_variables.pth confirmed zero references to either module or to
+# KinoState/RouteEdgeInfo/AdvanceResult. Canonical algorithm ownership
+# stays under navigation/*, now with its natural module identity.
 runtime_abi_compatibility_modules = [
   "simulator.split_branch_policy",
-  "simulator.kinodynamic_route_planner",
-  "simulator.movement_kernel",
 ]
 
 # Third-party packages a future runtime candidate may need -- DUAL_ROLE

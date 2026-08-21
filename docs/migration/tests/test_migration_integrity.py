@@ -307,16 +307,17 @@ def test_non_bridge_retained_shim_registers_reexports() -> None:
 
 def test_actual_non_bridge_retained_shims_are_accepted_by_bridge_validator() -> None:
     registry = integrity.load_registry(REPO)
-    retained = [shim for shim in registry["shim"] if shim["bridge_id"] == "NONE"]
-    # 3 genuinely permanent shims: farming/observation.py's canonical-API
-    # re-export, plus simulator/kinodynamic_route_planner.py and
-    # simulator/movement_kernel.py's pickle-module-identity compatibility
-    # re-exports. The 16 TEST_CONTRACT_RETIREMENT-conditioned shims
+    retained = [shim for shim in registry.get("shim", []) if shim["bridge_id"] == "NONE"]
+    # 0 shims remain. The 16 TEST_CONTRACT_RETIREMENT-conditioned shims
     # (foreground_vision_bot/farming/*, flyff_farming_recorder/position/*)
     # were retired -- see test_phase12_transitioned_shims_were_retired_
     # not_merely_retagged below -- in the 2026-08-21 repository cleanup,
-    # per ADR 0005's own stated retirement condition.
-    assert len(retained) == 3
+    # per ADR 0005's own stated retirement condition. The 3 shims that
+    # were genuinely permanent at that time (farming/observation.py,
+    # simulator/kinodynamic_route_planner.py, simulator/movement_kernel.py)
+    # were separately retired in the 2026-08-21 post-migration
+    # compatibility purge -- see ADR 0002's Retirement section.
+    assert len(retained) == 0
     errors = integrity.bridge_errors(REPO, registry, current_phase=7)
     assert not [error for error in errors if error.startswith("Retained shim")]
 
@@ -695,24 +696,24 @@ def test_phase12_transitioned_shims_were_retired_not_merely_retagged() -> None:
     # No shim anywhere still claims the expired PHASE_12 gate, and no shim
     # anywhere still claims the now-exercised TEST_CONTRACT_RETIREMENT
     # condition (its only prior claimants were the 16 retired shims above).
-    assert [s["location"] for s in registry["shim"] if s.get("removal_gate") == "PHASE_12"] == []
+    assert [s["location"] for s in registry.get("shim", []) if s.get("removal_gate") == "PHASE_12"] == []
     assert [
-        s["location"] for s in registry["shim"] if s.get("retirement_condition") == "TEST_CONTRACT_RETIREMENT"
+        s["location"] for s in registry.get("shim", []) if s.get("retirement_condition") == "TEST_CONTRACT_RETIREMENT"
     ] == []
 
-    # The genuinely permanent shims (unrelated to this Phase-12 finding)
-    # must remain, unaffected by the retirement above.
-    permanent_never = {
-        "farming/observation.py",
-        "simulator/kinodynamic_route_planner.py",
-        "simulator/movement_kernel.py",
-    }
-    for location in permanent_never:
-        shim = shims[location]
-        assert shim.get("removal_gate") == "NEVER", location
-        assert "retirement_condition" not in shim, (
-            f"{location} was incorrectly given a retirement_condition -- it is permanent, not test-contract-gated"
-        )
+    # The 3 shims that were genuinely permanent as of this Phase-12
+    # finding (unaffected by ITS retirement) were later also retired,
+    # separately, in the 2026-08-21 post-migration compatibility purge --
+    # not because a phase number advanced (this test's own point: that is
+    # never sufficient), but because a static pickle disassembly of the
+    # actual frozen checkpoint proved two of the three were never
+    # checkpoint-load-bearing in the first place, and the third's
+    # accidental re-export was separable from its real canonical
+    # implementation. See
+    # docs/decisions/0002-preserve-abi-compatibility-shims.md's
+    # Retirement section for the full evidence trail. The registry's
+    # [[shim]] table is now empty.
+    assert registry.get("shim", []) == []
 
     # The registry shrinking does not upset the ruler's own bridge/shim
     # validation.

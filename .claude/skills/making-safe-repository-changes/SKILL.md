@@ -59,7 +59,8 @@ migration (Phases 0–13), generalized for ongoing use.
 - Push without explicit authorization.
 - Assume a phase number or old-looking path means something is safe to
   delete — see [ADR 0005](../../../docs/decisions/0005-phase-is-not-evidence-of-retirement.md).
-- Widen the R1b exception or touch the checkpoint-ABI/pickle-identity
-  shims (`simulator/split_branch_policy.py`,
-  `simulator/kinodynamic_route_planner.py`,
-  `simulator/movement_kernel.py`).
+- Widen the R1b exception or touch `simulator/split_branch_policy.py`
+  (checkpoint-ABI/pickle-identity shim) without first proving what
+  specifically still needs it — see [ADR 0002](../../../docs/decisions/0002-preserve-abi-compatibility-shims.md)'s
+  2026-08-21 retirement section for why an inherited "permanent" claim
+  turned out to be wrong for two sibling shims once actually checked.

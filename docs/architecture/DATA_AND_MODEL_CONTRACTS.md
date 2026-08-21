@@ -62,27 +62,31 @@ definitions would change `__module__.__qualname__` and break
 (`resolution_phase = "NEVER_WITHOUT_CHECKPOINT_GATE"`), distinct from
 the canonical navigation algorithm implementation under `navigation/*`.
 
-### 1c. Pickle / dataclass module-identity compatibility
+### 1c. Pickle / dataclass module-identity compatibility (retired 2026-08-21)
 
-Three additional classes need a real importable module at a *pinned*
-path even though their implementation now lives under `navigation/*`:
-
-| Class | Pinned `__module__` | Canonical implementation |
-|---|---|---|
-| `KinoState`, `RouteEdgeInfo` | `simulator.kinodynamic_route_planner` | `navigation/kinodynamic_route_planner.py` |
-| `AdvanceResult` | `simulator.movement_kernel` | `navigation/movement_kernel.py` |
-
-This exists because the frozen Phase-3 G7/G8c typed-encoding fixtures
-were serialized with these module paths baked in, and — separately —
-`pickle.loads()` of a *live* instance requires a real importable module
-at the class's `__module__`, not just a string override on the class
-object. Confirmed via a fresh-subprocess round-trip probe (failed
-before these shims existed: `PicklingError: No module named
-simulator.kinodynamic_route_planner`). `simulator/
-kinodynamic_route_planner.py` and `simulator/movement_kernel.py` are
-zero-behavior re-export shims — proven by AST scan
-(`tests/test_pickle_module_identity_compat.py::
-test_compat_shims_contain_no_duplicate_behavioral_definitions`).
+`KinoState`/`RouteEdgeInfo` (`navigation/kinodynamic_route_planner.py`)
+and `AdvanceResult` (`navigation/movement_kernel.py`) previously carried
+`__module__` pinned to `simulator.kinodynamic_route_planner`/
+`simulator.movement_kernel`, backed by zero-behavior re-export shim
+files at those paths, so that `pickle.loads()` of a live instance would
+find a real importable module at the pinned path. The post-migration
+compatibility purge re-examined what that pinning actually protected: a
+static pickle disassembly (`pickletools.dis`, no execution) of every
+internal file inside `models/generalized_waypoint_both_seed2_
+0051200.zip` found zero references to either module or to any of these
+three classes anywhere in the checkpoint. The pins existed solely for
+`tests/fixtures/migration/router_kernel.json` (a Phase-3 G8c
+migration-continuity fixture; its own capture manifest already labeled
+its role "migration continuity, not renewed scientific qualification"),
+which no current test or product code reads or validates. Both shim
+files were deleted and the `__module__` pins removed; all three classes
+now carry their natural `navigation.*` identity, proven via a
+fresh-subprocess pickle round-trip
+(`tests/test_pickle_module_identity_compat.py`). See
+[ADR 0002](../decisions/0002-preserve-abi-compatibility-shims.md)'s
+Retirement section for the full evidence trail. `simulator/
+split_branch_policy.py` (1b above) is unaffected — the checkpoint
+genuinely does reference it.
 
 ### 1d. R10 and checkpoint immutability
 
@@ -149,8 +153,8 @@ see `docs/migration/PHASE11_RUNTIME_RESOURCE_MANIFEST.tsv` row 2
   `navigation/kinodynamic_route_planner.py`,
   `navigation/movement_kernel.py`
 - `CANONICAL_OWNERS.toml` (`serialized_split_policy_api`,
-  `serialized_farming_training_api` concepts;
-  `simulator/kinodynamic_route_planner.py`/`simulator/movement_kernel.py`
-  shims)
+  `serialized_farming_training_api` concepts)
+- [ADR 0002](../decisions/0002-preserve-abi-compatibility-shims.md)
+  (Retirement section: the pickle-identity shims' retirement evidence)
 - `tests/test_pickle_module_identity_compat.py`
 - `docs/migration/PHASE11_RUNTIME_RESOURCE_MANIFEST.tsv`

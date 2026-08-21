@@ -64,9 +64,9 @@ _G4_PROBE = r"""
 import json, sys
 out = {}
 from farming.observation import (
-    OBSERVATION_SCHEMA_ID, OBSERVATION_SIZE, OBSERVATION_SCHEMA_HASH,
-    OBSERVATION_FIELDS, observation_schema_hash,
+    OBSERVATION_SIZE, OBSERVATION_FIELDS, observation_schema_hash,
 )
+from farming.observation_contract import OBSERVATION_SCHEMA_ID, OBSERVATION_SCHEMA_HASH
 from farming.actions import POLICY_ACTION_NVECS, SteeringAction, FarmingEvent
 from farming.model_contract import MODEL_CONTRACT_METADATA_VERSION
 out["OBSERVATION_SCHEMA_ID"] = OBSERVATION_SCHEMA_ID
