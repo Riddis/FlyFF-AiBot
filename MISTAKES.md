@@ -1264,3 +1264,38 @@ project's own no-silent-rewrite rule.
   already-checked-out working tree) and only bites a fresh clone, which
   makes it exactly the kind of gap that survives many rounds of
   "everything passes" validation undetected.
+
+## Category: source duplication
+
+### [2026-08-21] two byte-identical root launcher scripts for the same CLI, undetected for at least since Phase 7
+- What happened: `run_fair_time_simulator.py` and
+  `run_reward_audited_simulator.py` (both root-level) were byte-for-byte
+  identical -- both exactly `from simulator.fair_time_cli import main;
+  if __name__ == "__main__": raise SystemExit(main())`. Zero references
+  to either exact filename existed anywhere else in the repository
+  (docs, other code, PowerShell scripts). `simulator/fair_time_cli.py`'s
+  own argparse description ("FlyFF fair-time, reward-audited farming
+  simulator commands (v1.8)") already covers BOTH concepts in one CLI,
+  confirming these were never meant to diverge -- one was redundant
+  from the start, not merely converged over time.
+- Root cause: undiscovered because nothing ever exercised either
+  filename by name (no test, no doc, no script) -- pure dead weight
+  that neither broke anything nor got noticed. `docs/migration/
+  PHASE7_MOVE_MANIFEST.tsv` shows both were already byte-identical
+  (same SHA-256) at their pre-Phase-7 `flyff_farming_simulator/`
+  origin, so this predates even that migration by an unknown margin.
+- How caught: self-caught, while reviewing root-level Python files for
+  Section 13 (simulator/training coherence) of the SALVAGE-continuation
+  directive and noticing both files were suspiciously tiny (99 bytes).
+- Fix: consolidated to one canonical entrypoint,
+  `apps/fair_time_cli.py`, matching the established `apps/*_cli.py`
+  convention already used for `simulator.cli`/`recorder_app`/
+  `telemetry_cli` (bootstrap pattern, registered in
+  `phase11_path_bootstrap_registry.py`). Both root duplicates removed
+  (`git rm`). Updated the one test that enumerates specialist apps
+  (`test_specialist_apps_do_not_import_each_other`) to include it.
+- Lesson: a file with (a) zero references anywhere and (b) byte-identical
+  content to a sibling is worth an active search before accepting it as
+  "probably fine, just old" -- root-cleanliness review should diff
+  suspiciously-similar-looking file pairs, not just check each file's
+  own individual relevance.

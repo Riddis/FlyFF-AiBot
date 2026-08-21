@@ -35,6 +35,7 @@ from __future__ import annotations
 APP_AND_DEVTOOLS_BOOTSTRAPS = frozenset(
     {
         "apps/dev_app.py",
+        "apps/fair_time_cli.py",
         "apps/recorder_app.py",
         "apps/simulator_cli.py",
         "apps/telemetry_cli.py",

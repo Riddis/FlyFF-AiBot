@@ -290,17 +290,18 @@ def test_dev_app_closure_is_nonempty_and_includes_expected_in_process_modules() 
 
 
 def test_specialist_apps_do_not_import_each_other() -> None:
-    """apps/recorder_app.py, apps/telemetry_cli.py, apps/simulator_cli.py
-    are independent specialist launchers, each invoked directly by a
-    developer -- none should import another app's implementation
-    directly. Recording is a passive sink over the dev app's own
-    already-attached native reader (recording_sink.py), never a
-    separate process/app."""
+    """apps/recorder_app.py, apps/telemetry_cli.py, apps/simulator_cli.py,
+    apps/fair_time_cli.py are independent specialist launchers, each
+    invoked directly by a developer -- none should import another app's
+    implementation directly. Recording is a passive sink over the dev
+    app's own already-attached native reader (recording_sink.py), never
+    a separate process/app."""
     app_entries = {
         "apps.dev_app": REPO / "apps" / "dev_app.py",
         "apps.recorder_app": REPO / "apps" / "recorder_app.py",
         "apps.telemetry_cli": REPO / "apps" / "telemetry_cli.py",
         "apps.simulator_cli": REPO / "apps" / "simulator_cli.py",
+        "apps.fair_time_cli": REPO / "apps" / "fair_time_cli.py",
     }
     for own_name, path in app_entries.items():
         closure = {module for module, _symbols in _import_edges(path)}
