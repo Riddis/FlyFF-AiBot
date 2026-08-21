@@ -154,6 +154,35 @@ def test_recorder_format_reexport_module_does_not_exist() -> None:
     )
 
 
+def test_active_field_profiler_facade_does_not_exist() -> None:
+    assert not (REPO / "devtools" / "recorder" / "active_field_profiler.py").is_file(), (
+        "devtools/recorder/active_field_profiler.py reappeared -- it was a behavior-free "
+        "compatibility re-export of position.profiling.active_field_profiler.ActiveFieldProfiler; "
+        "its only importers (devtools/recorder/session.py, tests/test_recorder_core.py) were "
+        "migrated to import the canonical module directly"
+    )
+
+
+def test_independent_native_reader_has_no_hp_offset_backward_compat_alias() -> None:
+    from position.IndependentNativeReader import IndependentNativeReader
+
+    assert not hasattr(IndependentNativeReader, "hp_offset"), (
+        "IndependentNativeReader.hp_offset (a backward-compatible alias for "
+        "player_hp_offset) reappeared -- a repo-wide search found zero current call sites"
+    )
+
+
+def test_bot_set_config_rejects_unknown_keys() -> None:
+    import pytest
+
+    from bot.Bot import Bot
+
+    bot = Bot.__new__(Bot)
+    bot.config = {"show_frames": False}
+    with pytest.raises(ValueError, match="Unknown bot config key"):
+        bot.set_config(some_typo_or_obsolete_key=True)
+
+
 def test_canonical_owners_has_no_migration_phase_bookkeeping_fields() -> None:
     registry = tomllib.loads((REPO / "CANONICAL_OWNERS.toml").read_text(encoding="utf-8"))
     assert "strategy" not in registry, "CANONICAL_OWNERS.toml regained an unused 'strategy' field"

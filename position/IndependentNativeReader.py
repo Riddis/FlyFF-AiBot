@@ -859,12 +859,6 @@ class IndependentNativeReader:
         return self._active_species_is_cross_slot_alias
 
     @property
-    def hp_offset(self) -> int:
-        """Backward-compatible alias for the player live-HP offset."""
-
-        return self.player_hp_offset
-
-    @property
     def monster_hp_candidate_offsets(self) -> tuple[int, ...]:
         """The exact tester discovery already proved one live monster HP field."""
 

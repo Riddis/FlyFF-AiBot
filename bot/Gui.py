@@ -879,17 +879,6 @@ class Gui:
         self.window["-EVA-HOTKEY-"].update(eva_hotkey)
         bot.set_config(eva_hotkey=eva_hotkey)
 
-        bot.set_config(
-            mob_pos_match_threshold=0.7,
-            mob_still_alive_match_threshold=0.7,
-            mob_existence_match_threshold=0.7,
-            inventory_perin_converter_match_threshold=0.7,
-            inventory_icons_match_threshold=0.7,
-            mobs_kill_goal=None,
-            fight_time_limit_sec=8,
-            delay_to_check_mob_still_alive_sec=0.25,
-        )
-
         saved_map = sg.user_settings_get_entry(
             "saved_map_name",
             self.map_catalog.default_name,

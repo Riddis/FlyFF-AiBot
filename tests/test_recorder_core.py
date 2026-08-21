@@ -280,7 +280,7 @@ def test_background_rediscovery_is_adaptive_and_movement_triggered() -> None:
 def test_active_field_profiler_recovers_instantiated_duplicate_without_using_zero_hp_as_negative() -> None:
     import struct
 
-    from devtools.recorder.active_field_profiler import ActiveFieldProfiler
+    from position.profiling.active_field_profiler import ActiveFieldProfiler
 
     class Memory:
         def __init__(self) -> None:
@@ -406,7 +406,7 @@ def test_active_field_profiler_report_keeps_promoted_offset_after_evidence_drift
 
     import struct
 
-    from devtools.recorder.active_field_profiler import ActiveFieldProfiler
+    from position.profiling.active_field_profiler import ActiveFieldProfiler
 
     class Memory:
         def __init__(self) -> None:

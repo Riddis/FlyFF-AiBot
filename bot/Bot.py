@@ -302,12 +302,16 @@ class Bot:
             service.close()
 
     def set_config(self, **options) -> None:
+        unknown = set(options) - set(self.config)
+        if unknown:
+            raise ValueError(
+                "Unknown bot config key(s): " + ", ".join(sorted(unknown))
+            )
+
         reload_templates = False
         reset_native_map = False
 
         for key, value in options.items():
-            # Keep accepting obsolete GUI settings so the old GUI does not
-            # crash while it is being replaced.
             self.config[key] = value
 
             if key == "selected_mobs":
