@@ -10,6 +10,7 @@ recording_format.py's primitives."""
 
 from __future__ import annotations
 
+import threading
 import time
 import zipfile
 from pathlib import Path
@@ -153,3 +154,118 @@ def test_stop_finalizes_cleanly_and_returns_the_archive_path(tmp_path: Path) -> 
     output_zip = sink.stop()
     assert not sink.is_running
     assert output_zip.is_file()
+
+
+def test_stop_is_idempotent_and_returns_the_same_cached_path(tmp_path: Path) -> None:
+    sink = RecordingSink(
+        native_process_service=_FakeService(),
+        position_provider=_FakePositionProvider(),
+        monster_provider=_FakeMonsterProvider(),
+        ownership=RecordingOwnership(started_by="USER"),
+        frame_interval_seconds=0.02,
+        output_root=tmp_path,
+    )
+    time.sleep(0.05)
+    first = sink.stop()
+    second = sink.stop()
+    third = sink.stop()
+    assert first == second == third
+    assert first.is_file()
+
+
+def test_concurrent_stop_calls_are_single_flight_and_never_corrupt_the_archive(
+    tmp_path: Path,
+) -> None:
+    """Reproduces the bug this pass fixes: two concurrent stop() callers
+    used to both run the full finalize sequence independently -- the
+    second call's atomic_json() recreated the just-removed staging
+    directory and package_session() overwrote the first call's valid,
+    complete archive with a manifest-only one. With single-flight
+    finalization, every concurrent caller must get the exact same
+    result and the archive must retain its real frame/event data."""
+    sink = RecordingSink(
+        native_process_service=_FakeService(),
+        position_provider=_FakePositionProvider(),
+        monster_provider=_FakeMonsterProvider(),
+        ownership=RecordingOwnership(started_by="USER"),
+        frame_interval_seconds=0.02,
+        output_root=tmp_path,
+    )
+    time.sleep(0.1)
+
+    worker_count = 8
+    barrier = threading.Barrier(worker_count)
+    results: list[Path] = [None] * worker_count  # type: ignore[list-item]
+    errors: list[BaseException] = []
+
+    def call_stop(index: int) -> None:
+        try:
+            barrier.wait(timeout=5.0)
+            results[index] = sink.stop()
+        except BaseException as error:  # noqa: BLE001 - captured for the assertion below.
+            errors.append(error)
+
+    threads = [
+        threading.Thread(target=call_stop, args=(index,)) for index in range(worker_count)
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10.0)
+
+    assert not errors
+    assert len(set(results)) == 1
+    output_zip = results[0]
+    assert output_zip is not None
+    assert output_zip.is_file()
+
+    import json
+
+    with zipfile.ZipFile(output_zip) as archive:
+        names = set(archive.namelist())
+        assert {"manifest.json", "frames.msgpack.gz", "events.msgpack.gz", "inputs.msgpack.gz"} <= names
+        manifest = json.loads(archive.read("manifest.json"))
+        # The bug this test guards against silently zeroed these out by
+        # overwriting the real archive with a fresh, near-empty one.
+        assert manifest["frame_count"] > 0
+
+
+def test_poll_thread_that_will_not_stop_raises_and_preserves_staging_data(
+    tmp_path: Path,
+) -> None:
+    """If the poll thread cannot be joined within the finalize timeout,
+    stop() must refuse to close writers or remove the staging directory
+    (write-after-close / lost data), and must surface a clear error --
+    not silently proceed as if finalization succeeded."""
+
+    release_poll_thread = threading.Event()
+
+    class _StuckMonsterProvider(_FakeMonsterProvider):
+        def refresh_slot_cache(self, pointer_snapshot, *, cancellation=None, deadline=None, force=False):
+            release_poll_thread.wait(timeout=5.0)
+            return super().refresh_slot_cache(
+                pointer_snapshot, cancellation=cancellation, deadline=deadline, force=force
+            )
+
+    sink = RecordingSink(
+        native_process_service=_FakeService(),
+        position_provider=_FakePositionProvider(),
+        monster_provider=_StuckMonsterProvider(),
+        ownership=RecordingOwnership(started_by="USER"),
+        frame_interval_seconds=0.02,
+        output_root=tmp_path,
+        finalize_join_timeout_seconds=0.05,
+    )
+    session_directory = sink.session_directory
+    try:
+        with pytest.raises(RuntimeError, match="did not stop"):
+            sink.stop()
+        assert session_directory.is_dir()
+        assert (session_directory / "frames.msgpack.gz").is_file()
+        # A repeated stop() call must consistently report the same
+        # failure rather than silently succeeding or hanging again.
+        with pytest.raises(RuntimeError, match="previously failed"):
+            sink.stop()
+    finally:
+        release_poll_thread.set()
+        sink._thread.join(timeout=5.0)

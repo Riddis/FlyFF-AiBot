@@ -696,8 +696,12 @@ class Gui:
         self.window["-START_MANUAL_MAPPER-"].update(
             disabled=(not attached or running)
         )
+        recording_active = (
+            self.controller.recording is not None
+            and self.controller.recording.is_running
+        )
         self.window["-STOP_BOT-"].update(disabled=(not attached or not running))
-        self.window["-ATTACH_WINDOW-"].update(disabled=running)
+        self.window["-ATTACH_WINDOW-"].update(disabled=(running or recording_active))
         self.window["-MAP-NAME-"].update(disabled=running)
         self.window["-EVA-HOTKEY-"].update(disabled=running)
         self.window["-REDETECT-UI-"].update(disabled=not attached)
@@ -710,14 +714,15 @@ class Gui:
         self.window["-RECOVER_POINTERS-"].update(
             disabled=(not attached or running)
         )
-        recording_active = (
-            self.controller.recording is not None
-            and self.controller.recording.is_running
-        )
         self.window["-RECORDING-START-"].update(
             disabled=(not attached or recording_active)
         )
-        self.window["-RECORDING-STOP-"].update(disabled=not recording_active)
+        # Disabled while control is active too: farming/training must not
+        # lose its recording to a manual Stop Recording click (section 7);
+        # RuntimeController.stop_recording() itself also rejects this.
+        self.window["-RECORDING-STOP-"].update(
+            disabled=(not recording_active or running)
+        )
 
     def __set_bot_vision_visibility(self, enabled: bool) -> None:
         """Collapse the vision row so the live map moves up immediately."""

@@ -378,3 +378,54 @@ def test_start_recording_and_recover_pointers_cannot_run_concurrently(
     service.release.set()
     assert controller.workers.join(WorkerKind.DIAGNOSTIC, 2.0)
     assert len(FakeRecordingSink.instances) == 1
+
+
+# --- Reattach must be impossible while a recording is active ----------------
+
+
+def test_attach_is_rejected_while_a_recording_is_active(
+    controller: RuntimeController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    controller.start_recording(started_by="USER")
+    assert controller.recording is not None
+
+    monkeypatch.setattr(controller.preview, "stop", lambda *_a, **_k: True)
+    monkeypatch.setattr(controller.capture, "attach", lambda *_a, **_k: 1)
+
+    with pytest.raises(RuntimeError, match="recording is active"):
+        controller.attach(12345)
+
+
+# --- Manual/external Stop Recording must not race an active control worker --
+
+
+def test_stop_recording_is_rejected_while_control_is_active(
+    controller: RuntimeController,
+) -> None:
+    controller.start_recording(started_by="USER")
+
+    class _FakeWorkers:
+        def is_active(self, kind) -> bool:
+            return kind is WorkerKind.CONTROL
+
+    monkeypatch_target = controller.workers
+    controller.workers = _FakeWorkers()  # type: ignore[assignment]
+    try:
+        with pytest.raises(RuntimeError, match="control is active"):
+            controller.stop_recording()
+        # The recording must remain untouched by the rejected call.
+        assert controller.recording is not None
+        assert not FakeRecordingSink.instances[0].stopped
+    finally:
+        controller.workers = monkeypatch_target
+
+
+def test_stop_recording_succeeds_once_control_is_no_longer_active(
+    controller: RuntimeController,
+) -> None:
+    controller.start_recording(started_by="USER")
+    # control_active is False by construction here (no control worker
+    # was ever started) -- the external stop must succeed normally.
+    output = controller.stop_recording()
+    assert output is not None
+    assert controller.recording is None

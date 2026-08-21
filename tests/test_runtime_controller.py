@@ -231,6 +231,51 @@ def test_shutdown_timeout_preserves_resources_and_can_finalize_once() -> None:
     assert bot.release_calls == 1
 
 
+def test_shutdown_finalizes_recording_only_after_the_control_worker_stops() -> None:
+    """Section 5 forward correction: shutdown() used to finalize any
+    active recording BEFORE cancelling/joining the CONTROL worker, so a
+    still-running farming/training loop could still be calling
+    add_runtime_event on a sink shutdown() had already closed. The
+    control worker must observe cancellation and fully stop before the
+    recording is touched."""
+
+    bot = FakeBot()
+    bus = RuntimeBus()
+    controller = RuntimeController(bot, bus)
+    events: list[str] = []
+
+    class _SequencedSink:
+        def __init__(self) -> None:
+            self._running = True
+
+        @property
+        def is_running(self) -> bool:
+            return self._running
+
+        def stop(self):
+            events.append("recording-finalized")
+            self._running = False
+            return "/fake/output.zip"
+
+    controller.recording = _SequencedSink()  # type: ignore[assignment]
+
+    started = Event()
+
+    def control(token):
+        started.set()
+        token.wait(5.0)
+        events.append("control-worker-observed-cancel")
+
+    controller.workers.start(name="rl-agent", kind=WorkerKind.CONTROL, target=control)
+    assert started.wait(1.0)
+
+    results = controller.shutdown(2.0)
+
+    assert all(results.values())
+    assert events == ["control-worker-observed-cancel", "recording-finalized"]
+    assert controller.recording is None
+
+
 def test_rl_startup_enablement_belongs_to_preflighted_farming(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

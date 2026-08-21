@@ -23,7 +23,7 @@ from position import (
     run_native_diagnostic,
 )
 from .preview_service import PreviewService
-from .recording_sink import RecordingOwnership, RecordingSink, _RuntimeMetadata
+from .recording_sink import RecordingOwnership, RecordingSink, build_runtime_metadata
 from runtime.runtime_bus import FarmingSessionSnapshot, RuntimeBus
 from runtime.worker_manager import (
     CancellationToken,
@@ -171,6 +171,10 @@ class RuntimeController:
             raise RuntimeError(
                 "Cannot reattach while native diagnostics are active. Stop them first."
             )
+        if self.recording is not None and self.recording.is_running:
+            raise RuntimeError(
+                "Cannot reattach while a recording is active. Stop recording first."
+            )
         if not self.preview.stop(3.0):
             raise RuntimeError("Previous preview worker did not stop.")
         self.bot.release_input()
@@ -270,8 +274,15 @@ class RuntimeController:
                 # Rule E: only finalize a recording THIS call started.
                 # A user-started recording keeps running until the user
                 # presses Stop Recording, even if farming/training ends.
+                # Uses the internal finalize path, not the public
+                # stop_recording(): this finally-block still runs while
+                # the CONTROL worker (this very call) is technically
+                # still "active" from WorkerManager's perspective, and
+                # the public method now rejects external stops in that
+                # state (section 7: farming/training must not lose its
+                # recording to a manual/external stop).
                 if recording_started_here:
-                    self.stop_recording()
+                    self._finalize_recording_internal()
 
         self._start_control(f"rl-{mode}", run)
 
@@ -384,7 +395,8 @@ class RuntimeController:
                     f"({outcome_label})."
                 )
             attach_policy = getattr(service, "attach_policy", None)
-            metadata = _RuntimeMetadata(
+            metadata = build_runtime_metadata(
+                self.bot,
                 attach_policy_name=getattr(attach_policy, "name", None),
                 presence_validation_source=getattr(
                     service, "presence_validation_source", None
@@ -397,12 +409,34 @@ class RuntimeController:
                 ownership=RecordingOwnership(started_by=started_by),
                 character_name=self._attached_title or "player",
                 metadata=metadata,
+                window_handle=self._attached_hwnd,
             )
             return self.recording
         finally:
             self._recording_start_lock.release()
 
     def stop_recording(self) -> Path | None:
+        """External/manual stop (GUI "Stop Recording" button, any other
+        caller outside this class). Rejects while a control worker is
+        active: farming/training must not lose its recording to a
+        manual stop (section 7) -- the recording keeps running until
+        the control task itself ends, at which point the internal
+        finalize path (this call's own start_rl finally-block, or
+        shutdown()) closes it."""
+
+        if self.control_active:
+            raise RuntimeError(
+                "Cannot stop the active recording while farming/training "
+                "control is active. Stop the control task first."
+            )
+        return self._finalize_recording_internal()
+
+    def _finalize_recording_internal(self) -> Path | None:
+        """The only path allowed to finalize a recording while a control
+        worker is ending/ended -- used by start_rl()'s own finally
+        block (Rule E) and by shutdown() (after the control worker has
+        actually stopped). Never guarded by control_active."""
+
         if self.recording is None:
             return None
         output_zip = self.recording.stop()
@@ -1102,12 +1136,13 @@ class RuntimeController:
             if self._shutdown_finalized:
                 return dict(self._shutdown_results)
 
-            if self.recording is not None:
-                try:
-                    self.stop_recording()
-                except Exception:  # noqa: BLE001 - shutdown must not hang on this.
-                    pass
-
+            # Signal/cancel every worker (including CONTROL) and wait for
+            # them to actually terminate BEFORE touching any recording.
+            # Finalizing first (the previous ordering) could close/remove
+            # a recording's staging data while the CONTROL worker's own
+            # run_native_farming_agent loop was still calling the
+            # captured add_runtime_event bound method on it -- a race
+            # this ordering removes by construction (section 5).
             remaining = max(0.0, deadline - monotonic())
             results = self.workers.shutdown(remaining)
             self._shutdown_results = dict(results)
@@ -1123,7 +1158,21 @@ class RuntimeController:
                 )
                 self.bus.publish_status("runtime_status", message)
                 self.bus.log(message, "msg_red")
+                # A still-active worker (e.g. CONTROL) may still be using
+                # the recording -- leave it untouched rather than risk
+                # finalizing underneath it.
                 return dict(results)
+
+            # Every worker has fully stopped: finalize any recording that
+            # is still open exactly once, via the internal path (the
+            # public stop_recording() would itself no-op here since
+            # control_active is now false, but this is explicit about
+            # which path owns shutdown-time finalization).
+            if self.recording is not None:
+                try:
+                    self._finalize_recording_internal()
+                except Exception:  # noqa: BLE001 - shutdown must not hang on this.
+                    pass
 
             try:
                 self.bot.stop()
