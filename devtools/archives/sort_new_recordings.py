@@ -102,8 +102,7 @@ def _write_markdown_index(recordings_root: Path, index_json_path: Path) -> Path:
         if "error" in entry:
             lines.append(f"| `{entry['filename']}` | | | | | | | | ERROR: {entry['error']} |")
             continue
-        path = Path(entry["path"])
-        bucket = path.parent.name
+        bucket = entry.get("bucket", "?")
         duration = entry.get("duration_seconds")
         duration_text = f"{duration:.0f}" if isinstance(duration, (int, float)) else "?"
         lines.append(
@@ -144,9 +143,20 @@ def main() -> int:
             continue
         for path in sorted(bucket_dir.glob("*.zip")):
             try:
-                entries.append(classify_recording(path))
+                classified = classify_recording(path)
             except Exception as error:  # noqa: BLE001
-                entries.append({"path": str(path), "filename": path.name, "error": f"{type(error).__name__}: {error}"})
+                entries.append({"filename": path.name, "bucket": bucket, "error": f"{type(error).__name__}: {error}"})
+                continue
+            # The tracked index is not a runtime source of truth and must
+            # stay portable across machines/checkouts -- classify_recording's
+            # absolute "path" is dropped in favor of "bucket" (the one
+            # piece of location information that IS stable/portable: which
+            # of the three known buckets this archive currently sorts
+            # into). Local source-directory discovery remains an explicit
+            # runtime/tool input, never baked into this file.
+            classified.pop("path", None)
+            classified["bucket"] = bucket
+            entries.append(classified)
 
     index_json_path = root / "INDEX.json"
     index_json_path.write_text(json.dumps(entries, indent=2) + "\n", encoding="utf-8")

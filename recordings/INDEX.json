@@ -1,7 +1,7 @@
 [
   {
-    "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\recordings\\training\\SEND_TO_RIDDIMS_Riddims_20260803T212218.573109Z.zip",
     "filename": "SEND_TO_RIDDIMS_Riddims_20260803T212218.573109Z.zip",
+    "bucket": "training",
     "sha256": "27934E5167C8F4A03E7B376F2106C714B7E7D187ED96A080E49CE7E1FF7BFCCB",
     "recorder_version": "1.7.0",
     "duration_seconds": 776.3781249999884,
@@ -46,8 +46,8 @@
     ]
   },
   {
-    "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\recordings\\training\\SEND_TO_RIDDIMS_Riddims_20260805T172406.597517Z.zip",
     "filename": "SEND_TO_RIDDIMS_Riddims_20260805T172406.597517Z.zip",
+    "bucket": "training",
     "sha256": "352E59177C2A9850C87116DEEB8E2301FD6E22938468FFA313DC5DB8614FE92C",
     "recorder_version": "1.11.0",
     "duration_seconds": 576.5819763999898,
@@ -92,8 +92,8 @@
     ]
   },
   {
-    "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\recordings\\eva_only\\SEND_TO_RIDDIMS_poot_20260804T163533.542137Z.zip",
     "filename": "SEND_TO_RIDDIMS_poot_20260804T163533.542137Z.zip",
+    "bucket": "eva_only",
     "sha256": "63B44BAFCB687E5035D1AF4256CB8DEAA0465FDA4B17A9BDD7A2EDE8B5D0E287",
     "recorder_version": "1.9.0",
     "duration_seconds": 58.28785130009055,
@@ -136,8 +136,8 @@
     ]
   },
   {
-    "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\recordings\\eva_only\\SEND_TO_RIDDIMS_poot_20260804T163750.567290Z.zip",
     "filename": "SEND_TO_RIDDIMS_poot_20260804T163750.567290Z.zip",
+    "bucket": "eva_only",
     "sha256": "902F2A014AC0524087157F1EC416C524B3BC304F345D7ADB7FA91B97BA83F699",
     "recorder_version": "1.9.0",
     "duration_seconds": 379.1623758999631,
@@ -180,8 +180,8 @@
     ]
   },
   {
-    "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\recordings\\eva_only\\SEND_TO_RIDDIMS_poot_20260804T164942.048891Z.zip",
     "filename": "SEND_TO_RIDDIMS_poot_20260804T164942.048891Z.zip",
+    "bucket": "eva_only",
     "sha256": "B377F2E8DA92442BD8E0DCA0A04F0C58F293D1C6C838D8BDAFC01F3B1E061FCB",
     "recorder_version": "1.9.0",
     "duration_seconds": 441.46145059983246,
@@ -224,8 +224,8 @@
     ]
   },
   {
-    "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\recordings\\eva_only\\SEND_TO_RIDDIMS_WetFartChan_20260804T013220.661349Z.zip",
     "filename": "SEND_TO_RIDDIMS_WetFartChan_20260804T013220.661349Z.zip",
+    "bucket": "eva_only",
     "sha256": "F791348DEAE2BD3B0086B4256A0C902403DBFC8A9EC9D3F66124F54BB0EA3D0C",
     "recorder_version": "1.9.0",
     "duration_seconds": 710.1679509000387,
@@ -268,8 +268,8 @@
     ]
   },
   {
-    "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\recordings\\eva_only\\SEND_TO_RIDDIMS_WetFartChan_20260804T015033.737143Z.zip",
     "filename": "SEND_TO_RIDDIMS_WetFartChan_20260804T015033.737143Z.zip",
+    "bucket": "eva_only",
     "sha256": "BB68A68F27343221D5268A85BC14ACCBE4FB4E9EA00568977DBAD36214C2A40A",
     "recorder_version": "1.9.0",
     "duration_seconds": 263.4352053999901,
@@ -312,8 +312,8 @@
     ]
   },
   {
-    "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\recordings\\eva_only\\SEND_TO_RIDDIMS_WetFartChan_20260804T020125.838396Z.zip",
     "filename": "SEND_TO_RIDDIMS_WetFartChan_20260804T020125.838396Z.zip",
+    "bucket": "eva_only",
     "sha256": "C46C320A6B479E1FE4F4AAE93B162672F72EDDD25C5855F6B4BD589F4A17C496",
     "recorder_version": "1.9.0",
     "duration_seconds": 470.68130469997413,
