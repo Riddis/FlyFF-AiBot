@@ -170,7 +170,7 @@ status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
 resolution_phase = "PHASE_9"
-note = "AdvanceResult's runtime __module__ is explicitly pinned to simulator.movement_kernel for frozen G8c fixture compatibility (docs/migration/PHASE9_NAVIGATION_OWNER_ANALYSIS.md section 2); the AST-level source definition -- what R7a tracks -- is here, in navigation/movement_kernel.py, unaffected by that runtime override."
+note = "AdvanceResult carries its natural navigation.movement_kernel module identity (the runtime __module__ pin to simulator.movement_kernel, previously kept for a frozen G8c fixture nothing current reads, was retired 2026-08-21 -- see ADR 0002's Retirement section)."
 
 [[concept]]
 id = "shared_navigation_evidence"
