@@ -21,10 +21,17 @@ class ValidatedModel:
 
 
 def resolve_model_artifact(path: str | Path) -> Path:
+    """Ensure a ``.zip`` artifact path without truncating a dotted stem.
+
+    ``Path.with_suffix(".zip")`` replaces only the text after the FINAL
+    dot, so a dotted stem like ``policy.final`` would silently become
+    ``policy.zip`` instead of ``policy.final.zip``. Append instead of
+    replace unless the name already ends in ``.zip``."""
+
     resolved = Path(path)
-    return (
-        resolved if resolved.suffix.lower() == ".zip" else resolved.with_suffix(".zip")
-    )
+    if resolved.suffix.lower() == ".zip":
+        return resolved
+    return resolved.with_name(resolved.name + ".zip")
 
 
 def load_and_validate_model(

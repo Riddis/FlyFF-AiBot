@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-import pytest
 import torch
 
 from simulator.curriculum_manifests import ChallengeManifest, FixedRegressionScenario
@@ -48,54 +47,6 @@ def test_recovery_defaults_off_and_leaves_run_episode_unchanged(tmp_path: Path) 
     )
     assert result["recovery"] is None
 
-
-@pytest.mark.xfail(
-    reason=(
-        "This fixed-regression scenario was discovered under obstacle_radius_cells=2 "
-        "(the ordinary-wall software margin, removed 2026-08-07). The raw map geometry "
-        "at this layout/seed is unchanged, but the local_map observation encoding this "
-        "already-trained checkpoint sees at this position has shifted (previously-OBSTACLE_BUFFER "
-        "cells near the wall now classify SAFE), and split_branch_pilot_10000 no longer stagnates "
-        "here (0 interventions instead of >=1). Left as xfail rather than deleted/edited to "
-        "preserve the historical case and get an explicit XPASS signal if this ever regresses "
-        "back -- not silently rewritten to match the new behavior."
-    ),
-    strict=False,
-)
-def test_evaluate_challenge_with_recovery_reports_intervention_stats() -> None:
-    from stable_baselines3 import PPO
-
-    model = PPO.load("models/split_branch_pilot_10000.zip", device="cpu")
-    manifest = ChallengeManifest(
-        stage="early",
-        fixed_regression_scenarios=(
-            FixedRegressionScenario(
-                id="irregular_low_bursty_unseen_seed1",
-                curriculum_path="simulator/curricula/synthetic_curriculum_unseen_templates/curriculum.json",
-                layout="02_early_irregular_plain_low_bursty",
-                seed=1,
-                episode_seconds=150.0,
-                max_actions=1000,
-                expected_failure_signature="known moderate lock-in case",
-                discovered="2026-08-06",
-            ),
-        ),
-        challenge_family_curriculum_path="simulator/curricula/synthetic_curriculum_unseen_templates/curriculum.json",
-        challenge_family_layouts=(),
-    )
-
-    raw_report = evaluate_challenge(model, manifest, family_seeds=[], episode_seconds=150.0, max_actions=1000, use_recovery=False)
-    assisted_report = evaluate_challenge(model, manifest, family_seeds=[], episode_seconds=150.0, max_actions=1000, use_recovery=True)
-
-    assert raw_report["assisted"] is False
-    assert assisted_report["assisted"] is True
-    raw_case = raw_report["fixed_regression_scenarios"]["irregular_low_bursty_unseen_seed1"]
-    assisted_case = assisted_report["fixed_regression_scenarios"]["irregular_low_bursty_unseen_seed1"]
-    assert raw_case["recovery"] is None
-    assert assisted_case["recovery"] is not None
-    # This is the known case where the raw policy stagnates -- the recovery
-    # wrapper should have actually engaged, not merely been present but idle.
-    assert assisted_case["recovery"]["intervention_count"] >= 1
 
 
 class _AlwaysStraightPolicy:

@@ -29,8 +29,6 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 MODELS_DIR = ROOT / "models"
 EVAL_DIR = ROOT / "simulator" / "evaluations"
-MODELS_DIR.mkdir(exist_ok=True)
-EVAL_DIR.mkdir(exist_ok=True)
 
 SEED = 0
 TRAINING_CURRICULUM = str(ROOT / "simulator" / "curricula" / "synthetic_curriculum" / "curriculum.json")
@@ -72,6 +70,9 @@ def check_no_nan(model, where: str) -> None:
 
 
 def main() -> None:
+    MODELS_DIR.mkdir(exist_ok=True)
+    EVAL_DIR.mkdir(exist_ok=True)
+
     from simulator.basic_environment import collect_basic_dagger_dataset, save_basic_dagger_dataset
     from simulator.basic_training import (
         bootstrap_event_head,

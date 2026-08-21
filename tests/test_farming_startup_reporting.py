@@ -15,7 +15,7 @@ from farming.reporting import (
     atomic_write_json,
     save_session_artifacts,
 )
-from farming.startup import load_and_validate_model
+from farming.startup import load_and_validate_model, resolve_model_artifact
 
 
 class FakeModel:
@@ -91,6 +91,39 @@ def test_atomic_json_replace_failure_preserves_previous_file_and_cleans_temp(
 
     assert json.loads(destination.read_text(encoding="utf-8")) == {"old": True}
     assert list(tmp_path.glob(".*.tmp.json")) == []
+
+
+def test_resolve_model_artifact_appends_zip_without_a_suffix(tmp_path: Path) -> None:
+    assert resolve_model_artifact(tmp_path / "policy") == tmp_path / "policy.zip"
+
+
+def test_resolve_model_artifact_is_unchanged_when_already_zip(tmp_path: Path) -> None:
+    assert resolve_model_artifact(tmp_path / "policy.zip") == tmp_path / "policy.zip"
+
+
+def test_resolve_model_artifact_preserves_a_dotted_stem(tmp_path: Path) -> None:
+    """Path.with_suffix(".zip") would truncate at the LAST dot,
+    silently turning policy.final into policy.zip instead of
+    policy.final.zip -- this is the exact double-.zip.zip-adjacent bug
+    this test guards against."""
+    assert (
+        resolve_model_artifact(tmp_path / "policy.final")
+        == tmp_path / "policy.final.zip"
+    )
+
+
+def test_resolve_model_artifact_preserves_dots_in_parent_directories(
+    tmp_path: Path,
+) -> None:
+    parent = tmp_path / "run.v2.3"
+    assert resolve_model_artifact(parent / "policy.final") == parent / "policy.final.zip"
+
+
+def test_atomic_save_model_preserves_a_dotted_stem(tmp_path: Path) -> None:
+    model = FakeModel()
+    record = atomic_save_model(model, tmp_path / "policy.final")
+    assert Path(record.path) == tmp_path / "policy.final.zip"
+    assert Path(record.path).is_file()
 
 
 def test_atomic_model_save_embeds_contract_and_validates_zip(tmp_path: Path) -> None:

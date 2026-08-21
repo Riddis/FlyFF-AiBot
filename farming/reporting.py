@@ -14,6 +14,7 @@ from typing import Protocol
 import numpy as np
 
 from .model_contract import ModelContractMetadata, sha256_file
+from .startup import resolve_model_artifact
 
 
 class SavableModel(Protocol):
@@ -182,9 +183,7 @@ def atomic_save_model(
         None,
     ] = os.replace,
 ) -> ArtifactRecord:
-    path = Path(destination)
-    if path.suffix.lower() != ".zip":
-        path = path.with_suffix(".zip")
+    path = resolve_model_artifact(destination)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = _temporary_path(path, ".zip")
     contract = metadata or ModelContractMetadata.current()

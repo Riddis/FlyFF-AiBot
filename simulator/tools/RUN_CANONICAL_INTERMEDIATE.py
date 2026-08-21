@@ -53,8 +53,6 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 MODELS_DIR = ROOT / "models"
 EVAL_DIR = ROOT / "simulator" / "evaluations"
-MODELS_DIR.mkdir(exist_ok=True)
-EVAL_DIR.mkdir(exist_ok=True)
 
 SEED = 0
 GRADUATED_BEGINNER_CHECKPOINT = MODELS_DIR / "canonical_beginner_graduated.zip"
@@ -164,6 +162,9 @@ def run_heldout_evaluation(checkpoint_path, heldout_manifest, *, label: str) -> 
 
 
 def main() -> None:
+    MODELS_DIR.mkdir(exist_ok=True)
+    EVAL_DIR.mkdir(exist_ok=True)
+
     from stable_baselines3 import PPO
 
     from simulator.basic_training import canonical_checkpoint_name
