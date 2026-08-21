@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
+import pytest
 
 from simulator.navigation_dataset import (
     CATEGORY_PRECEDENCE,
@@ -98,13 +101,27 @@ def test_group_into_events_handles_empty_and_single():
     assert _group_into_events(["ordinary"]) == [("ordinary", 0, 0)]
 
 
+_SPLIT_BRANCH_PILOT_CHECKPOINT = Path("models/split_branch_pilot_15000.zip")
+
+
+@pytest.mark.skipif(
+    not _SPLIT_BRANCH_PILOT_CHECKPOINT.is_file(),
+    reason=(
+        f"{_SPLIT_BRANCH_PILOT_CHECKPOINT} is a local training artifact, deliberately "
+        "gitignored (see .gitignore's blanket `*.zip` rule -- only "
+        "models/generalized_waypoint_both_seed2_0051200.zip is the one tracked exception) "
+        "and genuinely absent from a fresh clone/checkout, not merely misplaced. This is an "
+        "environment-dependent integration smoke test, not a code-correctness gate; it runs "
+        "normally wherever that checkpoint happens to exist locally."
+    ),
+)
 def test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts():
     """Integration smoke test on real layouts known to produce a mix (from
     the calibration run: wide_neck/split_field templates show heavy
     contact, open_field shows mostly-clear movement)."""
     from stable_baselines3 import PPO
 
-    model = PPO.load("models/split_branch_pilot_15000.zip", device="cpu")
+    model = PPO.load(str(_SPLIT_BRANCH_PILOT_CHECKPOINT), device="cpu")
     config = MiningConfig(max_events_per_layout_seed=15, max_events_per_episode=8)
     result = mine_navigation_dataset(
         "simulator/curricula/synthetic_curriculum/curriculum.json",

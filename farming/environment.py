@@ -834,6 +834,18 @@ class UnifiedFarmingEnv:
                             ),
                             cancellation=self.cancellation,
                         )
+                        if not self.control.is_target_foreground():
+                            # Focus was lost during cast confirmation. Discard
+                            # the whole result -- same "no observation, reward,
+                            # PPO step, or contact inference while unfocused"
+                            # rule the movement branch below applies, not a
+                            # partial credit for whatever confirm_cast saw --
+                            # and refresh the baseline the same way a focus
+                            # pause at the top of this loop does, since the
+                            # pre-cast `before` position is now stale motion
+                            # timing across an untrustworthy interval.
+                            kill_result = NativeKillResult((), 0, 0, 0, False, 0.0)
+                            before = self._refresh_baseline_after_focus_pause(selected)
                     break
 
                 self._wait(self.config.control_interval_seconds)
