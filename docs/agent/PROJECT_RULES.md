@@ -76,6 +76,27 @@ This rule is never overridden by any operating mode, including
   retained compatibility surface is safe to remove — check the actual
   retirement condition. See
   [ADR 0005](../decisions/0005-phase-is-not-evidence-of-retirement.md).
+- **The migration is finished (2026-08-21).** Current HEAD is not
+  obligated to keep carrying frozen historical implementation bytes,
+  guard scripts, or parity tests merely so a specific past result stays
+  byte-reproducible in place — historical reproduction means checking
+  out the relevant git tag (e.g. `historical-reproduction-baseline-
+  20260815`, `router-selector-historical-scratchpad-pre-removal-
+  20260821`) and running it there, not forcing current source to carry
+  it. `docs/migration/tools/migration_integrity.py` and
+  `docs/migration/tests/` remain real, currently-enforced current-state
+  checks (duplicate ownership, dependency direction, checkpoint
+  resolution) — they are not "migration in progress" bookkeeping merely
+  because they live under `docs/migration/`. Conversely, "our own
+  tracked config/test/index still uses the old name/value" is **never**
+  by itself evidence that compatibility code must be kept — that is
+  internal migration debt to migrate, not a real external contract.
+  Only a genuine dependency outside this repository's controlled
+  artifact set (verified, not assumed) justifies retaining a
+  compatibility layer. See
+  [ADR 0002](../decisions/0002-preserve-abi-compatibility-shims.md)'s
+  Retirement section and `tests/test_compatibility_architecture_
+  clean.py` for a worked example of both sides of this line.
 
 ## 4. Test / gate discipline
 

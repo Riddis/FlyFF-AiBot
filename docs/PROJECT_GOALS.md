@@ -132,6 +132,17 @@ every repository utility as a launchable feature — see
 training/calibration tooling remains CLI-only; the GUI exposes live
 farming/attach/diagnostic controls, not a general command launcher.
 
+**The existing real-client training/fine-tuning integration
+(`farming/trainer.py`, reached only through `bot/runtime_controller.py`'s
+one registered R1b exception) is current dev-app functionality, but it
+predates substantial later simulator/recording/observation architecture
+work and has not been kept current with it.** It remains present and
+load-bearing — nothing here authorizes deleting it or its supporting
+primitives — but it is not validated, exercised, or declared ready
+against the current simulator/recording stack. A deliberate
+re-integration pass is required before productive real-client training
+is attempted again; that pass is not scheduled or scoped here.
+
 ## 5. The real ↔ simulator feedback loop
 
 Real-client evidence exists to improve simulator fidelity, curriculum
