@@ -1,15 +1,17 @@
 """Zero-compatibility product gate (2026-08-21 post-migration compatibility
-purge). Structurally verifies the specific compatibility dirt this purge
-removed does not silently come back -- not a general-purpose "no legacy
-code" policy, and not brittle against historical prose: it checks current
-source/config structure, never docs/migration/** content.
+purge, extended in the same day's follow-up correction). Structurally
+verifies the specific compatibility dirt these two passes removed does
+not silently come back -- not a general-purpose "no legacy code" policy,
+and not brittle against historical prose: it checks current source/config
+structure, never docs/migration/** content.
 
 legacy/manifest_compat.py is intentionally NOT covered here: it was
-investigated during the purge and kept, proven load-bearing for real
-recorder-1.7.0/1.9.0-era archives (recordings/INDEX.json,
-recordings/recording_provenance.json) that still need it to remain
-readable -- a real current external dependency, not migration debt. A
-gate asserting its absence would be asserting something false."""
+investigated during the purge (twice, independently) and kept both
+times, proven load-bearing for real recorder-1.7.0/1.9.0-era archives
+(recordings/INDEX.json, recordings/recording_provenance.json) that still
+need it to remain readable -- a real current external dependency, not
+migration debt. A gate asserting its absence would be asserting
+something false."""
 
 from __future__ import annotations
 
@@ -63,3 +65,79 @@ def test_utils_package_does_not_exist_at_root() -> None:
         "utils/ reappeared at repository root -- its one file (helpers.py) belongs in libs/ "
         "(the 2026-08-21 root-accountability correction)"
     )
+
+
+def test_farming_package_does_not_export_active_metadataless_constants() -> None:
+    import farming
+
+    for name in ("ACTIVE_METADATALESS_MODEL_SHA256", "ACTIVE_METADATALESS_MODEL_CONTRACT_HASH"):
+        assert name not in farming.__all__, (
+            f"{name} reappeared in farming.__all__ -- a repo-wide search found zero consumers "
+            "for it anywhere; re-justify against real current evidence before re-adding it"
+        )
+        assert not hasattr(farming, name), f"farming.{name} reappeared as a live attribute"
+
+
+def test_native_reader_does_not_accept_deprecated_hp_offset_argument() -> None:
+    import inspect
+
+    from position.IndependentNativeReader import IndependentNativeReader
+
+    parameters = inspect.signature(IndependentNativeReader.__init__).parameters
+    assert "current_hp_offset" not in parameters, (
+        "IndependentNativeReader.__init__ regained the deprecated current_hp_offset argument -- "
+        "its only caller was a self-labeled-deprecated devtools diagnostic flag, never a "
+        "canonical production caller"
+    )
+
+
+def test_farming_config_has_no_old_key_alias_table() -> None:
+    source = (REPO / "farming" / "config.py").read_text(encoding="utf-8")
+    assert "unified_control_interval_seconds" not in source, (
+        "farming/config.py reintroduced an old-key alias mapping -- the shipped "
+        "farming/native_farming.json uses canonical key names directly; migrate the config "
+        "file, don't reintroduce translation logic"
+    )
+    assert "teleport_pointer_grace_seconds" not in source
+    assert "teleport_pointer_poll_seconds" not in source
+
+
+def test_shipped_farming_config_uses_only_canonical_key_names() -> None:
+    import json
+
+    payload = json.loads((REPO / "farming" / "native_farming.json").read_text(encoding="utf-8"))
+    for old_key in (
+        "unified_control_interval_seconds",
+        "teleport_pointer_grace_seconds",
+        "teleport_pointer_poll_seconds",
+    ):
+        assert old_key not in payload, f"farming/native_farming.json still uses the old key {old_key!r}"
+
+
+def test_router_selector_historical_scratchpad_family_stays_removed() -> None:
+    for relative in (
+        "simulator/scratchpad/scratchpad_historical_reproduction_guard.py",
+        "simulator/scratchpad/scratchpad_general_router_episode.py",
+        "simulator/scratchpad/scratchpad_beginner_navigation_mix_pools.py",
+        "simulator/scratchpad/scratchpad_legacy_qualified_selector.py",
+    ):
+        assert not (REPO / relative).is_file(), (
+            f"{relative} reappeared -- this dated, one-time 2026-08-14/15 router-selector "
+            "investigation's outcome already lives in navigation/kinodynamic_route_planner.py; "
+            "reproduce it via git tag router-selector-historical-scratchpad-pre-removal-20260821 "
+            "instead of restoring frozen source to current HEAD"
+        )
+
+
+def test_canonical_owners_has_no_migration_phase_bookkeeping_fields() -> None:
+    registry = tomllib.loads((REPO / "CANONICAL_OWNERS.toml").read_text(encoding="utf-8"))
+    assert "strategy" not in registry, "CANONICAL_OWNERS.toml regained an unused 'strategy' field"
+    for concept in registry.get("concept", []):
+        assert "resolution_phase" not in concept, (
+            f"{concept.get('id')}: resolution_phase reappeared -- confirmed unused by any "
+            "current tool/test; historical phase records belong in a commit message, not live config"
+        )
+        assert "permitted_compatibility" not in concept, (
+            f"{concept.get('id')}: permitted_compatibility reappeared -- confirmed unused by any "
+            "current tool/test"
+        )
