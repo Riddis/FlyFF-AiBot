@@ -42,6 +42,7 @@ APP_AND_DEVTOOLS_BOOTSTRAPS = frozenset(
         "devtools/archives/list_world_model_eligible.py",
         "devtools/archives/sort_new_recordings.py",
         "devtools/calibration/calibration_capture.py",
+        "devtools/native/inspect_native_monsters.py",
         "devtools/native/probe_native_position.py",
         "devtools/native/scan_native_pointer_workflow.py",
         "devtools/native/test_native_independent_reader.py",

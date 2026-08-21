@@ -6,12 +6,21 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-from assets.Assets import MobInfo
-from position import (
+# Two directories deep under the repository root (devtools/native/);
+# direct invocation sets sys.path[0] to this file's own directory, not
+# the repository root, so the packages below need it added explicitly
+# (same bootstrap pattern devtools/native/probe_native_position.py
+# already uses).
+APP_ROOT = Path(__file__).resolve().parents[2]
+if str(APP_ROOT) not in sys.path:
+    sys.path.insert(0, str(APP_ROOT))
+
+from assets.Assets import MobInfo  # noqa: E402
+from position import (  # noqa: E402
     create_native_monster_provider,
     create_native_monster_provider_from_process_id,
 )
-from utils.helpers import get_window_handlers
+from utils.helpers import get_window_handlers  # noqa: E402
 
 
 def _parse_int(value: str) -> int:

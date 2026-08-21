@@ -93,7 +93,7 @@ The authoritative current-client sequence is
 For actor-specific inspection, with control stopped:
 
 ```powershell
-..\.venv\Scripts\python.exe inspect_native_monsters.py --window-title Flyff --json
+..\.venv\Scripts\python.exe devtools\native\inspect_native_monsters.py --window-title Flyff --json
 ```
 
 This explicit command may perform actor discovery; it is not a preview/hot-path
