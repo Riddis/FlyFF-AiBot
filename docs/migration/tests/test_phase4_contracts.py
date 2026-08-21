@@ -81,9 +81,19 @@ def test_canonical_package_preserves_bot_public_api_lazily() -> None:
     condition) -- its historical __all__ content is read via the frozen
     legacy-roots-pre-removal-20260821 tag instead of the live
     filesystem. The live-import assertions below (farming.__all__ ==
-    that historical set, plus the two __module__ identity checks) are
-    still a genuine current invariant, checked live against canonical
-    farming/ exactly as before."""
+    that historical set minus deliberately-removed dead API, plus the
+    two __module__ identity checks) are still a genuine current
+    invariant, checked live against canonical farming/ exactly as
+    before.
+
+    ACTIVE_METADATALESS_MODEL_CONTRACT_HASH/ACTIVE_METADATALESS_MODEL_
+    SHA256 were removed from farming/__init__.py's __all__ in the
+    2026-08-21 post-migration compatibility purge: a fresh repo-wide
+    search found zero consumers anywhere except their own definition
+    and this export surface -- dead internal API, not a re-export any
+    real current or external caller used. Excluded from this
+    comparison explicitly, by name, rather than loosening the
+    assertion generally."""
     result = subprocess.run(
         ["git", "show", "legacy-roots-pre-removal-20260821:foreground_vision_bot/farming/__init__.py"],
         cwd=REPO,
@@ -92,12 +102,17 @@ def test_canonical_package_preserves_bot_public_api_lazily() -> None:
         check=True,
     )
     tree = ast.parse(result.stdout)
-    expected = next(
+    historical = next(
         ast.literal_eval(node.value)
         for node in tree.body
         if isinstance(node, ast.Assign)
         and any(isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets)
     )
+    removed_dead_api = {
+        "ACTIVE_METADATALESS_MODEL_CONTRACT_HASH",
+        "ACTIVE_METADATALESS_MODEL_SHA256",
+    }
+    expected = [name for name in historical if name not in removed_dead_api]
     sys.path.insert(0, str(REPO))
     try:
         import farming

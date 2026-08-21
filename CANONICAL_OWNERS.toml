@@ -1,7 +1,18 @@
 schema_version = 1
-current_phase = 14
-strategy = "C -> A, defer B"
 purpose = "Machine-consumed current/target ownership registry for behaviorally sensitive concepts"
+
+# The migration is finished (2026-08-21). current_phase is NOT active
+# migration-stage tracking -- it is the reference phase number
+# docs/migration/tools/migration_integrity.py's bridge_errors() compares
+# every docs/migration/BRIDGES.md [[bridge]] entry's removal_gate
+# against, to catch a bridge accidentally left un-retired. Every bridge
+# with a PHASE_N gate (B1/B2=PHASE_7, B3=PHASE_8) is already
+# status="removed" with empty locations; only B4 (removal_gate="NEVER",
+# phase-number-independent) remains genuinely active. No value >= 8
+# changes that check's outcome today -- kept at its real historical
+# value rather than bumped further, since bumping it would falsely
+# imply an ongoing phase sequence that no longer exists.
+current_phase = 14
 
 [repository]
 python_roots = ["."]
@@ -23,7 +34,6 @@ target_owner = "farming/map_profile.py"
 status = "green-canonical-named-consumer-profiles"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "PHASE_6"
 
 [[concept]]
 id = "observation_schema_id"
@@ -36,8 +46,6 @@ target_owner = "farming/observation_contract.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-permitted_compatibility = "root-level canonical API; retained old paths own no behavior"
-resolution_phase = "PHASE_4"
 
 [[concept]]
 id = "observation_size"
@@ -50,8 +58,6 @@ target_owner = "farming/observation.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-permitted_compatibility = "root-level canonical API; retained old paths own no behavior"
-resolution_phase = "PHASE_4"
 
 [[concept]]
 id = "policy_action_nvecs"
@@ -64,8 +70,6 @@ target_owner = "farming/actions.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-permitted_compatibility = "root-level canonical API; retained old paths own no behavior"
-resolution_phase = "PHASE_4"
 
 [[concept]]
 id = "farming_action_contract"
@@ -78,7 +82,6 @@ target_owner = "farming/actions.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "PHASE_4"
 
 [[concept]]
 id = "farming_observation_contract"
@@ -92,7 +95,6 @@ target_owner = "farming; recorder archive metadata is a consumer"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "PHASE_4"
 
 [[concept]]
 id = "farming_model_contract"
@@ -105,7 +107,6 @@ target_owner = "farming/model_contract.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "PHASE_4"
 
 [[concept]]
 id = "farming_reward_contract"
@@ -118,7 +119,6 @@ target_owner = "farming/reward.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "PHASE_4"
 
 [[concept]]
 id = "farming_session_contract"
@@ -131,7 +131,6 @@ target_owner = "farming/session.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "PHASE_4"
 
 [[concept]]
 id = "native_position_stack"
@@ -146,8 +145,6 @@ target_owner = "position with explicit live/recording attach policies and profil
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-permitted_compatibility = "root-level canonical API; retained old paths own no behavior"
-resolution_phase = "PHASE_5"
 
 [[concept]]
 id = "qualified_persistent_waypoint_selector"
@@ -158,7 +155,6 @@ target_owner = "navigation/kinodynamic_route_planner.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "PHASE_9"
 
 [[concept]]
 id = "shared_movement_kernel"
@@ -169,7 +165,6 @@ target_owner = "navigation/movement_kernel.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "PHASE_9"
 note = "AdvanceResult carries its natural navigation.movement_kernel module identity (the runtime __module__ pin to simulator.movement_kernel, previously kept for a frozen G8c fixture nothing current reads, was retired 2026-08-21 -- see ADR 0002's Retirement section)."
 
 [[concept]]
@@ -181,7 +176,6 @@ target_owner = "navigation/navigation_evidence.py"
 status = "green-canonical-shared-owner"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "PHASE_9"
 
 [[concept]]
 id = "serialized_split_policy_api"
@@ -192,7 +186,6 @@ target_owner = "simulator namespace retained as checkpoint ABI unless a separate
 status = "green-frozen-checkpoint-abi"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "NEVER_WITHOUT_CHECKPOINT_GATE"
 
 [[concept]]
 id = "serialized_farming_training_api"
@@ -203,4 +196,3 @@ target_owner = "farming.sb3_training namespace retained as checkpoint ABI unless
 status = "green-frozen-checkpoint-abi"
 accepted_baseline_violation = false
 minimum_owners = 1
-resolution_phase = "NEVER_WITHOUT_CHECKPOINT_GATE"
