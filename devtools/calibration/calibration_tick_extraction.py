@@ -247,9 +247,10 @@ def summarize(x: np.ndarray, label: str) -> str:
 
 
 def main() -> None:
-    csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("movement_calibration_steering.csv")
+    default_csv = Path("run_logs/calibration_evidence/movement_calibration_steering.csv")
+    csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else default_csv
     ticks = extract(csv_path)
-    ticks.to_csv("calibration_tick_extraction.csv", index=False)
+    ticks.to_csv("run_logs/calibration_evidence/calibration_tick_extraction.csv", index=False)
 
     tick_order = [1, 2, 3, 4, 5, "steady"]
     print(f"{'tick':>10s}  {'action':>7s}  distance_cells                                                  heading_change_radians")

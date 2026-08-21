@@ -1,5 +1,15 @@
 # Controlled movement-calibration recording protocol (revised 2026-08-12, v3)
 
+> **Historical capture protocol, already executed.** The evidence this
+> protocol produced now lives in
+> [`run_logs/calibration_evidence/`](calibration_evidence/) (moved from
+> the repository root in the 2026-08-21 repository cleanup). References
+> below to `flyff_farming_recorder\...` and to bare output filenames
+> describe that historical session as it actually ran, at paths that no
+> longer exist -- not instructions to run against the current tree. If
+> a new calibration capture is ever needed, adapt the commands below and
+> write output to `run_logs/calibration_evidence/`.
+
 **v3 update**: the benchmark came back decisively positive -- 20,219 Hz
 achieved, 100% read success (303,288/303,288 reads over 15s), over 500x
 the ~40Hz threshold that would justify tap-based capture. Position-only
