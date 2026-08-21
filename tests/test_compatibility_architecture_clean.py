@@ -1,5 +1,7 @@
 """Zero-compatibility product gate (2026-08-21 post-migration compatibility
-purge, extended in the same day's follow-up correction). Structurally
+purge, extended in the same day's follow-up correction, extended again the
+same day by a broader stale-reference sweep that found two more instances
+of the same pattern). Structurally
 verifies the specific compatibility dirt these two passes removed does
 not silently come back -- not a general-purpose "no legacy code" policy,
 and not brittle against historical prose: it checks current source/config
@@ -127,6 +129,29 @@ def test_router_selector_historical_scratchpad_family_stays_removed() -> None:
             "reproduce it via git tag router-selector-historical-scratchpad-pre-removal-20260821 "
             "instead of restoring frozen source to current HEAD"
         )
+
+
+def test_native_kill_tracker_has_no_dead_backward_compat_constructor_args() -> None:
+    import inspect
+
+    from farming.kills import NativeKillTracker
+
+    parameters = inspect.signature(NativeKillTracker.__init__).parameters
+    for name in ("minimum_absence_seconds", "dedupe_seconds"):
+        assert name not in parameters, (
+            f"NativeKillTracker.__init__ regained {name!r} -- a repo-wide search found zero "
+            "callers passing it anywhere (production or test); it was never stored or read "
+            "even when accepted, pure dead backward-compat surface for the old absence tracker"
+        )
+
+
+def test_recorder_format_reexport_module_does_not_exist() -> None:
+    assert not (REPO / "devtools" / "recorder" / "format.py").is_file(), (
+        "devtools/recorder/format.py reappeared -- its only two consumers "
+        "(devtools/recorder/session.py, tests/test_recorder_core.py) were migrated to import "
+        "runtime.recording_format directly; re-justify a re-export module against real current "
+        "evidence before adding it back"
+    )
 
 
 def test_canonical_owners_has_no_migration_phase_bookkeeping_fields() -> None:
