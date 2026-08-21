@@ -3,7 +3,7 @@ from __future__ import annotations
 from threading import Thread
 from time import sleep
 
-from runtime_bus import RuntimeBus
+from runtime.runtime_bus import RuntimeBus
 
 
 def test_mapper_recovery_request_roundtrip() -> None:

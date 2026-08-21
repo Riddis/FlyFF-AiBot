@@ -18,7 +18,7 @@ from simulator.factorized_training import atomic_save_policy
 from simulator.split_branch_policy import SplitSteeringEventPolicy
 from simulator.synthetic import iter_variant_environments
 
-_CURRICULUM = "curricula/synthetic_curriculum/curriculum.json"
+_CURRICULUM = "simulator/curricula/synthetic_curriculum/curriculum.json"
 
 
 def test_density_binned_eva_report_splits_by_target_count_and_recalls_correctly() -> None:

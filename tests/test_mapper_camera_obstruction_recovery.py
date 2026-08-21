@@ -200,7 +200,7 @@ def test_bounded_camera_recovery_turns_away_and_back_before_accepting_move(
 ) -> None:
     import numpy as np
 
-    from capture_service import FrameSample
+    from runtime.capture_service import FrameSample
     from libs.HumanKeyboard import KeyPressTiming
     from mapper.AdaptiveMapper import MapperConfig
     from mapper.AdaptiveRunMotionBaseline import CameraObstructionEvidence

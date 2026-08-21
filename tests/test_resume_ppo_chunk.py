@@ -9,7 +9,7 @@ from simulator.factorized_v193_cli import resume_ppo_chunk
 from simulator.split_branch_policy import SplitSteeringEventPolicy
 from simulator.synthetic import iter_variant_environments
 
-_CURRICULUM = Path("curricula/synthetic_curriculum/curriculum.json")
+_CURRICULUM = Path("simulator/curricula/synthetic_curriculum/curriculum.json")
 
 
 def test_resume_ppo_chunk_runs_learn_rehearsal_and_gate_without_retraining(tmp_path: Path) -> None:

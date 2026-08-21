@@ -9,10 +9,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol
 
-from capture_service import FrameSample
+from runtime.capture_service import FrameSample
 from libs.HumanKeyboard import VKEY, HumanKeyboard, KeyPressTiming
 from position import PlayerPose
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 from .AdaptiveMappingController import AdaptiveMappingController
 from .CompletionGuard import CompletionGuard, CompletionReport

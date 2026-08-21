@@ -33,7 +33,7 @@ def _run_from_elsewhere(code: str, cwd: Path, timeout: float = 15.0) -> subproce
 
 def test_project_paths_app_root_is_independent_of_caller_cwd(tmp_path: Path) -> None:
     result = _run_from_elsewhere(
-        "import project_paths; print(project_paths.APP_ROOT)",
+        "import runtime.project_paths as project_paths; print(project_paths.APP_ROOT)",
         cwd=tmp_path,
     )
     assert result.returncode == 0, result.stderr
@@ -42,7 +42,7 @@ def test_project_paths_app_root_is_independent_of_caller_cwd(tmp_path: Path) -> 
 
 def test_project_paths_resolve_app_path_is_independent_of_caller_cwd(tmp_path: Path) -> None:
     result = _run_from_elsewhere(
-        "import project_paths; print(project_paths.resolve_app_path('models'))",
+        "import runtime.project_paths as project_paths; print(project_paths.resolve_app_path('models'))",
         cwd=tmp_path,
     )
     assert result.returncode == 0, result.stderr

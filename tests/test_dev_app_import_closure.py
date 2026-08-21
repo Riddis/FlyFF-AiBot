@@ -273,8 +273,8 @@ def test_dev_app_closure_is_nonempty_and_includes_expected_in_process_modules() 
     dependencies."""
     closure = _transitive_local_closure(REPO / "apps" / "dev_app.py", exceptions=R1B_EXACT_EXCEPTIONS)
     assert len(closure) > 10
-    assert "runtime_bus" in closure
-    assert "worker_manager" in closure
+    assert "runtime.runtime_bus" in closure
+    assert "runtime.worker_manager" in closure
 
 
 def test_specialist_apps_do_not_import_each_other() -> None:

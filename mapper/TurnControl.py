@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from math import isfinite
 from time import monotonic
 
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 from mapper.MappingController import MappingController
 from mapper.MinimapHeading import (

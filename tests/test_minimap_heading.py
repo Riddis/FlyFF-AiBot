@@ -11,7 +11,7 @@ TEST_APP_ROOT = Path(__file__).resolve().parents[1]
 import cv2 as cv
 import numpy as np
 import pytest
-from capture_service import FrameSample
+from runtime.capture_service import FrameSample
 from mapper.MinimapHeading import (
     HeadingReading,
     MinimapAnchor,

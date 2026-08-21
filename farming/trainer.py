@@ -13,9 +13,9 @@ from time import monotonic
 from typing import Any, Protocol, cast
 
 import numpy as np
-from project_paths import resolve_app_path
+from runtime.project_paths import resolve_app_path
 from stable_baselines3.common.callbacks import BaseCallback
-from worker_manager import CancellationToken, WorkerCancelled
+from runtime.worker_manager import CancellationToken, WorkerCancelled
 
 from .actions import FarmingAction
 from .config import CONFIG_VERSION, FarmingRuntimeConfig

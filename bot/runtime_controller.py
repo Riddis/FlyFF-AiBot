@@ -10,7 +10,7 @@ from time import monotonic
 from typing import cast
 
 from assets.Assets import MobInfo
-from capture_service import CaptureService, FrameSource
+from runtime.capture_service import CaptureService, FrameSource
 from libs.WindowCapture import WindowCapture
 from mapper import Mapper
 from position import (
@@ -24,8 +24,8 @@ from position import (
 )
 from .preview_service import PreviewService
 from .recording_sink import RecordingOwnership, RecordingSink, _RuntimeMetadata
-from runtime_bus import FarmingSessionSnapshot, RuntimeBus
-from worker_manager import (
+from runtime.runtime_bus import FarmingSessionSnapshot, RuntimeBus
+from runtime.worker_manager import (
     CancellationToken,
     WorkerKind,
     WorkerManager,

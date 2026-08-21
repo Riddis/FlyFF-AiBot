@@ -38,7 +38,7 @@ from farming.observation_contract import (
     OBSERVATION_SCHEMA_HASH,
     OBSERVATION_SCHEMA_ID,
 )
-from recording_format import (
+from runtime.recording_format import (
     atomic_json,
     package_session,
     remove_session_directory,

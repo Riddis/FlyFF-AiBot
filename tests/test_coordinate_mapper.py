@@ -19,7 +19,7 @@ from mapper.CoordinateMapper import (
 from mapper.MinimapHeading import HeadingReading
 from mapper.OccupancyGrid import BLOCKED, FREE, OccupancyGrid
 from position import PlayerPose
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 
 def _pose(x: float, y: float, z: float) -> PlayerPose:

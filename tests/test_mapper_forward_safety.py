@@ -5,12 +5,12 @@ from typing import cast
 
 import numpy as np
 import pytest
-from capture_service import FrameSample
+from runtime.capture_service import FrameSample
 from libs.HumanKeyboard import KeyPressTiming
 from mapper.Explorer import ExplorerDecision
 from mapper.Mapper import Mapper, MapperConfig
 from mapper.OccupancyGrid import OccupancyGrid
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 
 def test_mapper_validates_forward_flow_with_actual_held_duration(

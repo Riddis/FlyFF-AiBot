@@ -43,7 +43,7 @@ from farming.map_context import FarmingMapContext  # noqa: E402
 from position import create_native_provider_attachment  # noqa: E402
 from position.native_process_service import NativeProcessService  # noqa: E402
 from utils.helpers import get_window_handlers  # noqa: E402
-from worker_manager import CancellationToken  # noqa: E402
+from runtime.worker_manager import CancellationToken  # noqa: E402
 
 
 def _parse_int(value: str) -> int:

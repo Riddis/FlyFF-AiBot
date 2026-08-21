@@ -25,9 +25,9 @@ from farming.trainer import (
 )
 from position import NativePointerSnapshot
 import bot.runtime_controller as runtime_controller_module
-from runtime_bus import RuntimeBus
+from runtime.runtime_bus import RuntimeBus
 from bot.runtime_controller import RuntimeController
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 
 class FakeControl:

@@ -26,9 +26,9 @@ import pytest
 
 import bot.runtime_controller as runtime_controller_module
 from position import NativePointerSnapshot
-from runtime_bus import RuntimeBus
+from runtime.runtime_bus import RuntimeBus
 from bot.runtime_controller import RuntimeController
-from worker_manager import CancellationToken, WorkerKind
+from runtime.worker_manager import CancellationToken, WorkerKind
 
 
 class _FakeNativeProcessService:

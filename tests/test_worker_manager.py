@@ -3,8 +3,8 @@ from __future__ import annotations
 from threading import Event
 
 import pytest
-from runtime_bus import RuntimeBus
-from worker_manager import WorkerKind, WorkerManager, WorkerState
+from runtime.runtime_bus import RuntimeBus
+from runtime.worker_manager import WorkerKind, WorkerManager, WorkerState
 
 
 def test_duplicate_worker_kind_is_rejected() -> None:

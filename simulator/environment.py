@@ -541,7 +541,7 @@ class RecordedFarmingEnv(_BaseEnv):
         constant regardless of steering, and turn magnitude depends on
         whether `action` continues the same steering direction as
         `self.previous_steering` (onset vs. steady) -- see
-        run_logs/REPLACEMENT_MOVEMENT_MODEL_SPEC_2026-08-13.md. No
+        simulator/run_logs/REPLACEMENT_MOVEMENT_MODEL_SPEC_2026-08-13.md. No
         movement noise is injected (see that spec's "Noise" section);
         self.rng is no longer consumed here."""
         current_steering = _STEERING_DIRECTION_BY_ACTION.get(action, SteeringDirection.NONE)

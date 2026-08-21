@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 from mapper.Mapper import Mapper
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 
 class Recorder:

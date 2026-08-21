@@ -38,7 +38,7 @@ from farming.native_world import CachedActorReader, PointerSnapshotReader, Snaps
 from position.native_process_service import NativePointerSnapshot
 from position.NativeFlyffMonsterProvider import NativeActor
 from position.PositionProvider import PlayerPose
-from worker_manager import CancellationToken, WorkerCancelled
+from runtime.worker_manager import CancellationToken, WorkerCancelled
 
 TELEMETRY_SCHEMA_VERSION: Final = 1
 DEFAULT_SAMPLE_INTERVAL_SECONDS: Final = 0.05

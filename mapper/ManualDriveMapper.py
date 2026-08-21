@@ -9,7 +9,7 @@ from time import monotonic
 from typing import Protocol
 
 from position import PlayerPose
-from worker_manager import CancellationToken, WorkerCancelled
+from runtime.worker_manager import CancellationToken, WorkerCancelled
 
 from .CoordinateFrame import CoordinateFrame
 from .CoordinateMapLogger import CoordinateMapLogger

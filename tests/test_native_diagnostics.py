@@ -22,9 +22,9 @@ from position.NativePointerRecovery import (
     PointerRecoveryMetrics,
     PointerRecoveryProgress,
 )
-from runtime_bus import RuntimeBus, RuntimeStatus
+from runtime.runtime_bus import RuntimeBus, RuntimeStatus
 from bot.runtime_controller import RuntimeController
-from worker_manager import WorkerKind
+from runtime.worker_manager import WorkerKind
 
 
 def _metrics(outcome: str) -> PointerRecoveryMetrics:

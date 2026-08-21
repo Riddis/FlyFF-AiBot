@@ -14,7 +14,7 @@ turn-rate asymmetry.
 CONFOUND REMOVED: measured 2026-08-10 that the real training curriculum's
 movement model has LEFT turning ~15% more per tick than RIGHT on average
 (folded-normal mean |turn|: LEFT=0.229 rad/13.1deg vs RIGHT=0.199 rad/
-11.4deg -- see run_logs/OVERNIGHT_20260809_PIPELINE.md). This module's
+11.4deg -- see simulator/run_logs/archive/OVERNIGHT_20260809_PIPELINE.md). This module's
 `build_symmetric_open_world` uses an explicitly equal-magnitude,
 zero-noise (deterministic) turn model instead, so any handedness this
 experiment reproduces cannot be blamed on that asymmetry -- it would have

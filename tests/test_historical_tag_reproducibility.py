@@ -31,18 +31,26 @@ import json
 import subprocess
 from pathlib import Path
 
-import scratchpad_historical_reproduction_guard as guard
+import simulator.scratchpad.scratchpad_historical_reproduction_guard as guard
 
 REPO = Path(__file__).resolve().parents[1]
 HISTORICAL_TAG = "historical-reproduction-baseline-20260815"
 EXPECTED_TAG_SHA = "a90de59232b81753c1b2ea35b8990325c26674e5"
 
-# The B4 tag predates both the Phase-7 root collapse and the 2026-08-21
-# scratchpad/ reorg -- strip the scratchpad/ segment REQUIRED_FILES now
-# carries (it didn't exist at that tag) before prepending the pre-collapse
+# The B4 tag predates the Phase-7 root collapse, the 2026-08-21
+# scratchpad/ reorg, AND the later simulator/scratchpad/ nesting -- strip
+# whichever scratchpad-prefix segment REQUIRED_FILES carries today (it
+# didn't exist at that tag) before prepending the pre-collapse
 # flyff_farming_simulator/ prefix.
+def _strip_scratchpad_prefix(rel: str) -> str:
+    for prefix in ("simulator/scratchpad/", "scratchpad/"):
+        if rel.startswith(prefix):
+            return rel[len(prefix):]
+    return rel
+
+
 PRE_COLLAPSE_PATH = {
-    rel: f"flyff_farming_simulator/{rel.removeprefix('scratchpad/')}" for rel in guard.REQUIRED_FILES
+    rel: f"flyff_farming_simulator/{_strip_scratchpad_prefix(rel)}" for rel in guard.REQUIRED_FILES
 }
 
 

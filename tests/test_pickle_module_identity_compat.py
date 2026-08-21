@@ -161,7 +161,7 @@ def test_historical_guard_still_fails_closed_with_the_shims_present() -> None:
     there) -- both are refusals; neither is a pass, and this is not a
     "fix" of the guard, just documentation of the new reason. No
     REQUIRED_FILES bytes were touched to produce this result."""
-    import scratchpad_historical_reproduction_guard as guard
+    import simulator.scratchpad.scratchpad_historical_reproduction_guard as guard
 
     with pytest.raises(RuntimeError) as excinfo:
         guard.verify_historical_snapshot()

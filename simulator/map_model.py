@@ -84,7 +84,7 @@ class MapModel:
 
     @classmethod
     def load(cls, directory: str | Path | None = None) -> "MapModel":
-        root = Path(directory) if directory is not None else Path(__file__).resolve().parents[1] / "map_assets"
+        root = Path(directory) if directory is not None else Path(__file__).resolve().parent / "map_assets"
         occupancy = np.asarray(np.load(root / "occupancy.npy", allow_pickle=False), dtype=np.uint8)
         metadata = json.loads((root / "map.json").read_text(encoding="utf-8"))
         frame = json.loads((root / "coordinate_frame.json").read_text(encoding="utf-8"))

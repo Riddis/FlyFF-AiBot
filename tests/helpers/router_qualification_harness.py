@@ -245,7 +245,7 @@ def run_episode_general_router(
         # sidecar feature is real policy input (prev_straight/prev_left/prev_right)
         # and the movement kernel is itself stateful w.r.t. previous steering, so
         # every prior router evaluation run through this function was measured
-        # with a corrupted observation. See run_logs/OVERNIGHT_20260813_OBSTACLE_
+        # with a corrupted observation. See simulator/run_logs/OVERNIGHT_20260813_OBSTACLE_
         # TRANSFER_REQUALIFICATION.md for the re-baseline this fix triggered.
         obs = env._augment(base_env._observation(), base_env.previous_steering)
 

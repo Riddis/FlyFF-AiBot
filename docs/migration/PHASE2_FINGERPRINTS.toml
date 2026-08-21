@@ -126,7 +126,7 @@ DEFAULT_SUBSTEPS = 10
 
 [g11]
 locations = [
-  "map_assets",
+  "simulator/map_assets",
   "mapper/maps/tower_aoe",
 ]
 pairs_must_be_byte_identical = true

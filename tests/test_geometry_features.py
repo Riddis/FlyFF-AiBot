@@ -12,7 +12,7 @@ from simulator.geometry_features import (
 )
 from simulator.synthetic import iter_variant_environments
 
-_CURRICULUM = "curricula/synthetic_curriculum/curriculum.json"
+_CURRICULUM = "simulator/curricula/synthetic_curriculum/curriculum.json"
 
 
 def test_derive_geometry_features_matches_environment_teacher_across_layouts() -> None:

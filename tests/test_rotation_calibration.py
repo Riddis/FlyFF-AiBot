@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from capture_service import FrameSample
+from runtime.capture_service import FrameSample
 from mapper.Calibration import (
     CalibrationResult,
     RotationCalibrator,
@@ -31,7 +31,7 @@ from mapper.RotationModel import (
     TurnTransition,
 )
 from mapper.TurnControl import uniform_rotation_model
-from worker_manager import CancellationToken, WorkerCancelled
+from runtime.worker_manager import CancellationToken, WorkerCancelled
 
 
 def _coarse_calibrator_for_deltas(

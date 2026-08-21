@@ -10,7 +10,7 @@ from typing import Any, Callable
 
 import numpy as np
 
-from project_paths import resolve_app_path
+from runtime.project_paths import resolve_app_path
 
 from .LayoutSources import (
     FullRealMapGenerator,

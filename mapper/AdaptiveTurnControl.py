@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from math import isfinite
 
 from libs.HumanKeyboard import KeyPressTiming
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 from .AdaptiveMappingController import AdaptiveMappingController
 from .AdaptiveMotionModel import AdaptiveMotionModel, TurnDirection

@@ -9,11 +9,11 @@ from time import monotonic
 from typing import Protocol
 
 import numpy as np
-from capture_service import FrameSample
+from runtime.capture_service import FrameSample
 from libs.HumanKeyboard import HumanKeyboard, KeyPressTiming
-from project_paths import MAPPING_MODELS_DIR
+from runtime.project_paths import MAPPING_MODELS_DIR
 from position import PlayerPose
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 from .AdaptiveMappingController import AdaptiveMappingController
 from .AdaptiveHeadingSafety import classify_forward_heading_drift

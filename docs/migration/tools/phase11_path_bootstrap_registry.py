@@ -47,48 +47,51 @@ APP_AND_DEVTOOLS_BOOTSTRAPS = frozenset(
         "devtools/native/scan_native_pointer_workflow.py",
         "devtools/native/test_native_independent_reader.py",
         "devtools/native/trace_native_pointer_access.py",
+        "mapper/tools/train_mapper_offline.py",
     }
 )
 
-# Pre-existing, unrelated to Phase 10/11: root training-orchestration
-# entrypoints and their worker, self-bootstrapping for direct root-level
-# invocation. Unchanged this phase (Section 16: no bulk reorganization).
+# Training-orchestration entrypoints and their worker, self-bootstrapping
+# for direct invocation. Moved from repository root into
+# simulator/tools/ in the final-structure repository cleanup (approved
+# Revision 2 + Revision 3 plan); repathed here in the same batch.
 TRAINING_ENTRYPOINT_BOOTSTRAPS = frozenset(
     {
-        "RUN_CANONICAL_ADVANCED.py",
-        "RUN_CANONICAL_BASIC.py",
-        "RUN_CANONICAL_BEGINNER.py",
-        "RUN_CANONICAL_INTERMEDIATE.py",
-        "_basic_round_eval_worker.py",
+        "simulator/tools/RUN_CANONICAL_ADVANCED.py",
+        "simulator/tools/RUN_CANONICAL_BASIC.py",
+        "simulator/tools/RUN_CANONICAL_BEGINNER.py",
+        "simulator/tools/RUN_CANONICAL_INTERMEDIATE.py",
+        "simulator/tools/_basic_round_eval_worker.py",
     }
 )
 
 # Pre-existing scratchpad_*.py research scripts, unrelated to Phase
 # 10/11, self-bootstrapping for direct script invocation. Moved from
-# repository root into scratchpad/ in the 2026-08-21 repository cleanup
-# (Section 14 of that cleanup's directive); repathed here in the same
-# batch.
+# repository root into scratchpad/ in the 2026-08-21 repository cleanup,
+# then into simulator/scratchpad/ in the final-structure repository
+# cleanup (approved Revision 2 + Revision 3 plan); repathed here in the
+# same batch each time.
 SCRATCHPAD_BOOTSTRAPS = frozenset(
     {
-        "scratchpad/scratchpad_aggregate_target_thrashing.py",
-        "scratchpad/scratchpad_beginner_navigation_mix_train.py",
-        "scratchpad/scratchpad_build_oracle_fresh_confirmation.py",
-        "scratchpad/scratchpad_catastrophic_case_coarse_route_check.py",
-        "scratchpad/scratchpad_coarse_route_proof_of_mechanism.py",
-        "scratchpad/scratchpad_coarse_route_proof_of_mechanism_v2.py",
-        "scratchpad/scratchpad_coarse_route_rollout_verification.py",
-        "scratchpad/scratchpad_debug_waypoint_no_effect.py",
-        "scratchpad/scratchpad_diagnose_fresh_confirmation_onsets.py",
-        "scratchpad/scratchpad_diagnose_robust_origin_at_onset.py",
-        "scratchpad/scratchpad_diagnose_v3_terminal_gate_onsets.py",
-        "scratchpad/scratchpad_generalized_waypoint_train_reward_ablation.py",
-        "scratchpad/scratchpad_matched_eval_target_hysteresis.py",
-        "scratchpad/scratchpad_measure_target_thrashing.py",
-        "scratchpad/scratchpad_measure_target_thrashing_missing.py",
-        "scratchpad/scratchpad_ppo_pure_navigation.py",
-        "scratchpad/scratchpad_ppo_pure_navigation_v2.py",
-        "scratchpad/scratchpad_qualify_oracle_fresh_confirmation.py",
-        "scratchpad/scratchpad_single_obstacle_train.py",
+        "simulator/scratchpad/scratchpad_aggregate_target_thrashing.py",
+        "simulator/scratchpad/scratchpad_beginner_navigation_mix_train.py",
+        "simulator/scratchpad/scratchpad_build_oracle_fresh_confirmation.py",
+        "simulator/scratchpad/scratchpad_catastrophic_case_coarse_route_check.py",
+        "simulator/scratchpad/scratchpad_coarse_route_proof_of_mechanism.py",
+        "simulator/scratchpad/scratchpad_coarse_route_proof_of_mechanism_v2.py",
+        "simulator/scratchpad/scratchpad_coarse_route_rollout_verification.py",
+        "simulator/scratchpad/scratchpad_debug_waypoint_no_effect.py",
+        "simulator/scratchpad/scratchpad_diagnose_fresh_confirmation_onsets.py",
+        "simulator/scratchpad/scratchpad_diagnose_robust_origin_at_onset.py",
+        "simulator/scratchpad/scratchpad_diagnose_v3_terminal_gate_onsets.py",
+        "simulator/scratchpad/scratchpad_generalized_waypoint_train_reward_ablation.py",
+        "simulator/scratchpad/scratchpad_matched_eval_target_hysteresis.py",
+        "simulator/scratchpad/scratchpad_measure_target_thrashing.py",
+        "simulator/scratchpad/scratchpad_measure_target_thrashing_missing.py",
+        "simulator/scratchpad/scratchpad_ppo_pure_navigation.py",
+        "simulator/scratchpad/scratchpad_ppo_pure_navigation_v2.py",
+        "simulator/scratchpad/scratchpad_qualify_oracle_fresh_confirmation.py",
+        "simulator/scratchpad/scratchpad_single_obstacle_train.py",
     }
 )
 

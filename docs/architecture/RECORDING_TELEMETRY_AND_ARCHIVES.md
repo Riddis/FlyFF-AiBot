@@ -50,7 +50,7 @@ on its own background thread at a fixed interval (default 0.2s),
 calling only `refresh_actor_cache()`/`read_frame()` — the same calls
 farming/training already makes every tick, not a new class of native
 operation. Write primitives (`PackedStreamWriter`, `package_session`,
-etc.) live in root-level `recording_format.py`, extracted out of
+etc.) live in `runtime/recording_format.py`, extracted out of
 `recorder/format.py` (which now re-exports them) specifically so
 `recording_sink.py` can reuse them **without the dev app importing
 `recorder`** — the R1b import-closure boundary

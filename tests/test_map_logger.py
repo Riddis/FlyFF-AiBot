@@ -4,7 +4,7 @@ import csv
 from time import monotonic
 
 import numpy as np
-from capture_service import FrameSample
+from runtime.capture_service import FrameSample
 from mapper.Explorer import ExplorerDecision
 from mapper.MapLogger import MapLogger
 from mapper.Mapper import Mapper, _StepResult

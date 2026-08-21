@@ -29,8 +29,8 @@ from position import (
 )
 
 if TYPE_CHECKING:
-    from capture_service import CaptureService, FrameSample
-    from runtime_bus import RuntimeBus
+    from runtime.capture_service import CaptureService, FrameSample
+    from runtime.runtime_bus import RuntimeBus
 
 
 Point = tuple[int, int]

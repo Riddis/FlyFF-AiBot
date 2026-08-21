@@ -74,7 +74,7 @@ EXCLUDED_NAME_GLOBS = (
 BULK_ARTIFACT_DIR_PREFIXES = (
     "models",
     "recordings",
-    "evaluations",
+    "simulator/evaluations",
 )
 BULK_ARTIFACT_NAME_GLOBS = ("*.npy", "*.zip", "*.pt", "*.pth", "*.onnx")
 

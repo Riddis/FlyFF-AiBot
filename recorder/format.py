@@ -7,7 +7,7 @@ without importing `recorder` itself. This module stays for
 
 from __future__ import annotations
 
-from recording_format import (
+from runtime.recording_format import (
     FORMAT_VERSION,
     PackedStreamWriter,
     atomic_json,

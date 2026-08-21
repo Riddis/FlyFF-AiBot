@@ -16,7 +16,7 @@ from position.NativeFlyffMonsterProvider import (
     CachedActorReadResult,
 )
 from position.PositionProvider import PlayerPose
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 
 class FakeKeyboard:

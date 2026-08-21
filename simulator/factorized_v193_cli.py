@@ -558,9 +558,9 @@ def build_parser() -> argparse.ArgumentParser:
     pilot = sub.add_parser("pilot")
     pilot.add_argument("curriculum", type=Path)
     pilot.add_argument("--output", type=Path, default=Path("models/generic_farming_v193_pilot.zip"))
-    pilot.add_argument("--evaluations", type=Path, default=Path("evaluations"))
+    pilot.add_argument("--evaluations", type=Path, default=Path("simulator/evaluations"))
     pilot.add_argument("--tensorboard", type=Path, default=Path("training_logs/factorized_v193"))
-    pilot.add_argument("--teacher-dataset", type=Path, default=Path("datasets/factorized_v193_teacher.npz"))
+    pilot.add_argument("--teacher-dataset", type=Path, default=Path("simulator/datasets/factorized_v193_teacher.npz"))
     pilot.add_argument("--timesteps", type=int, default=25_000)
     pilot.add_argument("--chunk-size", type=int, default=5_000)
     pilot.add_argument("--teacher-samples", type=int, default=12_000)
@@ -597,7 +597,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Every *.zip here with real EVA presses supervises the event head only.",
     )
     pilot.add_argument(
-        "--human-dataset", type=Path, default=Path("datasets/factorized_v193_human_demonstrations.npz")
+        "--human-dataset", type=Path, default=Path("simulator/datasets/factorized_v193_human_demonstrations.npz")
     )
     pilot.add_argument(
         "--human-fraction",
@@ -631,7 +631,7 @@ def build_parser() -> argparse.ArgumentParser:
     resume.add_argument("curriculum", type=Path)
     resume.add_argument("checkpoint", type=Path)
     resume.add_argument("--output", type=Path, required=True)
-    resume.add_argument("--evaluations", type=Path, default=Path("evaluations"))
+    resume.add_argument("--evaluations", type=Path, default=Path("simulator/evaluations"))
     resume.add_argument("--tensorboard", type=Path, default=Path("training_logs/factorized_v193_resume"))
     resume.add_argument("--teacher-dataset", type=Path, required=True)
     resume.add_argument("--teacher-batch-size", type=int, default=256)
@@ -695,10 +695,10 @@ def build_parser() -> argparse.ArgumentParser:
     dagger.add_argument("--device", default="auto")
     dagger.add_argument("--teacher-policy", default="obstacle_aware")
     dagger.add_argument(
-        "--dataset-output", type=Path, default=Path("datasets/factorized_v193_dagger_round.npz")
+        "--dataset-output", type=Path, default=Path("simulator/datasets/factorized_v193_dagger_round.npz")
     )
     dagger.add_argument(
-        "--output", type=Path, default=Path("evaluations/factorized_v193_dagger_diagnostic.json")
+        "--output", type=Path, default=Path("simulator/evaluations/factorized_v193_dagger_diagnostic.json")
     )
     return parser
 

@@ -29,7 +29,7 @@ from position.NativeFlyffMonsterProvider import (
     NativeActor,
 )
 from position.PositionProvider import PlayerPose
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 TELEMETRY_SOURCE = Path(__file__).resolve().parents[1] / "devtools" / "telemetry" / "observation_telemetry.py"
 

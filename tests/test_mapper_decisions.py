@@ -21,7 +21,7 @@ from mapper.RotationModel import (
     TurnMemoryMode,
     TurnMemoryPolicy,
 )
-from worker_manager import CancellationToken, WorkerCancelled
+from runtime.worker_manager import CancellationToken, WorkerCancelled
 
 
 def _mapper_for_blocked_observations() -> Mapper:

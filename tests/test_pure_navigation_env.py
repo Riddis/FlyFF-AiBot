@@ -33,7 +33,7 @@ _ACTIVE_OFFSET = _DIRECT_ACTOR_FIELD_NAMES.index("active")
 
 def _make_env(mode: str, *, episode_steps: int = 60, reward_mode: str = "safety"):
     entry, raw_env = next(iter(iter_variant_environments(
-        "curricula/synthetic_curriculum/curriculum.json", stage="early", seed=0,
+        "simulator/curricula/synthetic_curriculum/curriculum.json", stage="early", seed=0,
         episode_steps=episode_steps, episode_seconds=30.0,
     )))
     return (

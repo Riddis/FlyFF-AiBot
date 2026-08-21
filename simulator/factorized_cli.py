@@ -571,7 +571,7 @@ def build_parser() -> argparse.ArgumentParser:
     pilot = sub.add_parser("pilot")
     pilot.add_argument("curriculum", type=Path)
     pilot.add_argument("--output", type=Path, default=Path("models/generic_farming_v192_pilot.zip"))
-    pilot.add_argument("--evaluations", type=Path, default=Path("evaluations"))
+    pilot.add_argument("--evaluations", type=Path, default=Path("simulator/evaluations"))
     pilot.add_argument("--tensorboard", type=Path, default=Path("training_logs/factorized_v192"))
     pilot.add_argument("--timesteps", type=int, default=25_000)
     pilot.add_argument("--chunk-size", type=int, default=5_000)
@@ -581,7 +581,7 @@ def build_parser() -> argparse.ArgumentParser:
     pilot.add_argument(
         "--teacher-dataset",
         type=Path,
-        default=Path("datasets/factorized_v192_teacher.npz"),
+        default=Path("simulator/datasets/factorized_v192_teacher.npz"),
     )
     pilot.add_argument("--rehearsal-epochs", type=int, default=2)
     pilot.add_argument("--rehearsal-learning-rate", type=float, default=2.5e-5)

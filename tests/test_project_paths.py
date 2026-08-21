@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import project_paths
+import runtime.project_paths as project_paths
 
 
 def test_default_model_folders_are_separated() -> None:

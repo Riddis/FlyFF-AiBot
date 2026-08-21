@@ -12,7 +12,7 @@ from typing import Any, TypedDict
 
 import cv2 as cv
 import numpy as np
-from capture_service import FrameSample
+from runtime.capture_service import FrameSample
 
 FrameSupplier = Callable[[], np.ndarray | FrameSample | None]
 

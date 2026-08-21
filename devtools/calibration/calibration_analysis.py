@@ -180,11 +180,11 @@ def summarize(x: np.ndarray, label: str) -> str:
 
 
 def main() -> None:
-    default_csv = Path("run_logs/calibration_evidence/movement_calibration.csv")
+    default_csv = Path("simulator/run_logs/calibration_evidence/movement_calibration.csv")
     csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else default_csv
     trials = analyze(csv_path)
     trials = trials[trials.focused_all]
-    trials.to_csv("run_logs/calibration_evidence/calibration_trials.csv", index=False)
+    trials.to_csv("simulator/run_logs/calibration_evidence/calibration_trials.csv", index=False)
     print(f"Segmented {len(trials)} usable trials (focused throughout) from {csv_path}", flush=True)
     print(trials.action.value_counts(), flush=True)
 

@@ -59,7 +59,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-from scratchpad_beginner_routing_two_wall_s_route import TwoWallSpec
+from simulator.scratchpad.scratchpad_beginner_routing_two_wall_s_route import TwoWallSpec
 from simulator.single_obstacle_env import MAP_HALF_SIZE_CELLS, ObstacleSpec
 from simulator.static_waypoint_env import FIXED_HEADING
 from tests.helpers.router_qualification_harness import (

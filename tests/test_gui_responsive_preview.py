@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from bot.Gui import Gui
-from runtime_bus import TaskCompletion
+from runtime.runtime_bus import TaskCompletion
 
 
 class _Element:

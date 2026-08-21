@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from threading import Event, Thread
 
-from runtime_bus import RuntimeBus, RuntimeStatus
+from runtime.runtime_bus import RuntimeBus, RuntimeStatus
 
 
 def test_latest_values_replace_older_values() -> None:

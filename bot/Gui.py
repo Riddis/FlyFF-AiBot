@@ -13,7 +13,7 @@ import PySimpleGUI as sg
 from mapper.ManualMapEditor import ManualMapEditorSession
 from mapper.MapCatalog import MapCatalog
 from mapper.OccupancyGrid import OccupancyGrid
-from runtime_bus import (
+from runtime.runtime_bus import (
     FarmingSessionSnapshot,
     RuntimeAlert,
     RuntimeBus,

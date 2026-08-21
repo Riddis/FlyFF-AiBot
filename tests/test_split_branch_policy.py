@@ -10,7 +10,7 @@ from simulator.factorized_training import atomic_save_policy
 from simulator.split_branch_policy import SplitSteeringEventPolicy
 from simulator.synthetic import iter_variant_environments
 
-_CURRICULUM = "curricula/synthetic_curriculum/curriculum.json"
+_CURRICULUM = "simulator/curricula/synthetic_curriculum/curriculum.json"
 
 
 def _build_model(env):

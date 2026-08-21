@@ -8,9 +8,9 @@ from time import monotonic
 from typing import Protocol
 
 import numpy as np
-from capture_service import FrameSample
+from runtime.capture_service import FrameSample
 from libs.HumanKeyboard import HumanKeyboard, KeyPressTiming
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 from .CalibrationSchema import CalibrationSchemaError, MapperCalibration
 from .Explorer import Explorer, ExplorerDecision

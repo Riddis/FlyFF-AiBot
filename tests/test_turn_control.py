@@ -19,7 +19,7 @@ from mapper.TurnControl import (
     TurnControlError,
     uniform_rotation_model,
 )
-from worker_manager import CancellationToken, WorkerCancelled
+from runtime.worker_manager import CancellationToken, WorkerCancelled
 
 
 def _reading(

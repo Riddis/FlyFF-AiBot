@@ -37,12 +37,12 @@
 
 simulator/kinodynamic_route_planner.py    -text
 simulator/movement_kernel.py              -text
-scratchpad/scratchpad_general_router_episode.py      -text
-scratchpad/scratchpad_beginner_navigation_mix_pools.py -text
-scratchpad/scratchpad_legacy_qualified_selector.py   -text
+simulator/scratchpad/scratchpad_general_router_episode.py      -text
+simulator/scratchpad/scratchpad_beginner_navigation_mix_pools.py -text
+simulator/scratchpad/scratchpad_legacy_qualified_selector.py   -text
 
-evaluations/router_mix_final_pool_820000000_manifest.json          -text
-evaluations/router_mix_qualification_pool_840000000_manifest.json  -text
+simulator/evaluations/router_mix_final_pool_820000000_manifest.json          -text
+simulator/evaluations/router_mix_qualification_pool_840000000_manifest.json  -text
 
 # Binary already, but stated explicitly so the hash contract does not depend on
 # git's binary auto-detection.
@@ -76,19 +76,21 @@ models/generalized_waypoint_both_seed2_0051200.zip -text
 # remains in force for ordinary future text. `git add --renormalize` was NOT run.
 # -----------------------------------------------------------------------------
 
-map_assets/map.json                                                -text
+simulator/map_assets/map.json                                      -text
 mapper/maps/tower_aoe/map.json                                    -text
 
 recordings/INDEX.json                                              -text
 recordings/INDEX.md                                                -text
 
 # 2026-08-21: calibration evidence moved root -> run_logs/calibration_evidence/
-# as part of root-cleanliness cleanup; repathed here in the same batch.
-run_logs/calibration_evidence/calibration_holdout_ramp_results.csv -text
-run_logs/calibration_evidence/calibration_holdout_step_results.csv -text
-run_logs/calibration_evidence/calibration_steering_pulses.csv      -text
-run_logs/calibration_evidence/calibration_tick_extraction.csv      -text
-run_logs/calibration_evidence/calibration_tick_extraction_v2.csv   -text
-run_logs/calibration_evidence/calibration_trials.csv               -text
-run_logs/calibration_evidence/movement_calibration.csv             -text
-run_logs/calibration_evidence/movement_calibration_steering.csv    -text
+# as part of root-cleanliness cleanup, then run_logs/ moved under
+# simulator/ in the final-structure repository cleanup; repathed here
+# each time in the same batch.
+simulator/run_logs/calibration_evidence/calibration_holdout_ramp_results.csv -text
+simulator/run_logs/calibration_evidence/calibration_holdout_step_results.csv -text
+simulator/run_logs/calibration_evidence/calibration_steering_pulses.csv      -text
+simulator/run_logs/calibration_evidence/calibration_tick_extraction.csv      -text
+simulator/run_logs/calibration_evidence/calibration_tick_extraction_v2.csv   -text
+simulator/run_logs/calibration_evidence/calibration_trials.csv               -text
+simulator/run_logs/calibration_evidence/movement_calibration.csv             -text
+simulator/run_logs/calibration_evidence/movement_calibration_steering.csv    -text

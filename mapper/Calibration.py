@@ -12,8 +12,8 @@ from time import monotonic, monotonic_ns
 
 import cv2 as cv
 import numpy as np
-from capture_service import FrameSample
-from worker_manager import CancellationToken, WorkerCancelled
+from runtime.capture_service import FrameSample
+from runtime.worker_manager import CancellationToken, WorkerCancelled
 
 from .CalibrationSchema import MapperCalibration
 from .ForwardCalibration import (

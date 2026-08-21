@@ -5,8 +5,8 @@ from time import monotonic
 
 import numpy as np
 from bot.preview_service import PreviewService
-from runtime_bus import RuntimeBus
-from worker_manager import WorkerManager
+from runtime.runtime_bus import RuntimeBus
+from runtime.worker_manager import WorkerManager
 
 
 class FakeCapture:

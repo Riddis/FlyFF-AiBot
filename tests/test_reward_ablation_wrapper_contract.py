@@ -41,7 +41,7 @@ import math
 import numpy as np
 import pytest
 
-from scratchpad_generalized_waypoint_train_reward_ablation import LIVING_COST, RewardAblationWrapper
+from simulator.scratchpad.scratchpad_generalized_waypoint_train_reward_ablation import LIVING_COST, RewardAblationWrapper
 from simulator.navigation_history import NavigationHistoryWrapper
 from simulator.static_waypoint_env import StaticWaypointWrapper, WaypointSpec, make_static_waypoint_env
 
@@ -274,7 +274,7 @@ class TestRewardAblationWrapperContract:
         matching living_cost_only's own established convention that the
         cost applies uniformly, and confirming the progress reformulation
         applies on the terminal tick too, not just ordinary ones."""
-        from scratchpad_generalized_waypoint_train_reward_ablation import GAMMA
+        from simulator.scratchpad.scratchpad_generalized_waypoint_train_reward_ablation import GAMMA
 
         variant = _run_fixed_sequence("combined_discount_consistent_progress")
         for i, v in enumerate(variant["ticks"]):
@@ -290,7 +290,7 @@ class TestRewardAblationWrapperContract:
         mechanistic identity verified in scratchpad_potential_shaping_
         audit.py's Part B, now checked against the actual wrapper output
         rather than an offline recomputation."""
-        from scratchpad_generalized_waypoint_train_reward_ablation import GAMMA
+        from simulator.scratchpad.scratchpad_generalized_waypoint_train_reward_ablation import GAMMA
 
         both = _run_fixed_sequence("both")
         variant = _run_fixed_sequence("combined_discount_consistent_progress")

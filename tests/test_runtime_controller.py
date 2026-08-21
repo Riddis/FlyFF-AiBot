@@ -16,9 +16,9 @@ from position.NativePointerRecovery import (
     PointerRecoveryMetrics,
 )
 import bot.runtime_controller as runtime_controller_module
-from runtime_bus import RuntimeBus
+from runtime.runtime_bus import RuntimeBus
 from bot.runtime_controller import RuntimeController
-from worker_manager import CancellationToken, WorkerKind
+from runtime.worker_manager import CancellationToken, WorkerKind
 
 
 class FakeBot:

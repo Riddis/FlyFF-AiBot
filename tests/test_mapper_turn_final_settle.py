@@ -19,7 +19,7 @@ from libs.HumanKeyboard import KeyPressTiming
 from mapper.AdaptiveMotionModel import AdaptiveMotionModel
 from mapper.AdaptiveTurnControl import AdaptiveTurnController, AdaptiveTurnError
 from mapper.MinimapHeading import HeadingReading
-from worker_manager import CancellationToken
+from runtime.worker_manager import CancellationToken
 
 
 def _reading(angle: float, samples: int = 15) -> HeadingReading:

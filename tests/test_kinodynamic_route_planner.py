@@ -252,7 +252,7 @@ class TestPersistentWaypointCompression:
         cells at one point. select_persistent_waypoint must reject that
         distant candidate and fall back to a closer one whose direct hop
         clears the fuller DESIRED_CLEARANCE_CELLS margin."""
-        from scratchpad_single_obstacle_train import get_reference_movement
+        from simulator.scratchpad.scratchpad_single_obstacle_train import get_reference_movement
         from simulator.single_obstacle_env import (
             MAP_HALF_SIZE_CELLS, build_single_obstacle_world, held_out_obstacle_specs_for_side,
         )
@@ -295,7 +295,7 @@ class TestPersistentWaypointCompression:
         cumulative route distance from some resumed index."""
         import numpy as np
         from stable_baselines3 import PPO
-        from scratchpad_single_obstacle_train import get_reference_movement
+        from simulator.scratchpad.scratchpad_single_obstacle_train import get_reference_movement
         from simulator.single_obstacle_env import (
             SUCCESS_RADIUS_CELLS, build_single_obstacle_world, held_out_obstacle_specs_for_side,
         )

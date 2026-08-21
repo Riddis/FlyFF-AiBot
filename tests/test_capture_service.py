@@ -4,9 +4,9 @@ from threading import Event
 from time import monotonic
 
 import numpy as np
-from capture_service import CaptureService
-from runtime_bus import RuntimeBus, RuntimeStatus
-from worker_manager import WorkerKind, WorkerManager
+from runtime.capture_service import CaptureService
+from runtime.runtime_bus import RuntimeBus, RuntimeStatus
+from runtime.worker_manager import WorkerKind, WorkerManager
 
 
 class FakeSource:

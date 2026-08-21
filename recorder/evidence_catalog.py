@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from recording_format import atomic_json
+from runtime.recording_format import atomic_json
 from .provenance import ExperimentProvenance
 
 

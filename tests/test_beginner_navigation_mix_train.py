@@ -8,7 +8,7 @@ themselves mutually distinct.
 """
 from __future__ import annotations
 
-from scratchpad_beginner_navigation_mix_train import TRAIN_SEED_BASE, make_stream_rngs
+from simulator.scratchpad.scratchpad_beginner_navigation_mix_train import TRAIN_SEED_BASE, make_stream_rngs
 
 
 def _draws(rngs: dict, n: int = 5) -> dict:
@@ -46,7 +46,7 @@ class TestStreamRngSeparation:
                 )
 
     def test_all_three_continuation_seeds_and_all_four_workers_pairwise_distinct(self):
-        from scratchpad_beginner_navigation_mix_train import CONTINUATION_SEEDS, N_ENVS
+        from simulator.scratchpad.scratchpad_beginner_navigation_mix_train import CONTINUATION_SEEDS, N_ENVS
 
         all_draws = []
         keys = []

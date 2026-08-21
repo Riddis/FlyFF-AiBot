@@ -7,7 +7,7 @@
 ## 1. Authoritative Tower map bytes
 
 The frozen Phase-6 Tower map source, tracked in two byte-identical
-locations (`map_assets/` for the simulator, `mapper/maps/tower_aoe/` for
+locations (`simulator/map_assets/` for the simulator, `mapper/maps/tower_aoe/` for
 the live-bot mapper's catalog):
 
 | File | SHA256 |
@@ -16,7 +16,7 @@ the live-bot mapper's catalog):
 | `map.json` | `faaf8633457bc1bcdb61c781c8ca62c6f2e008174ed5b284c3d6c08df92fe815` |
 | `coordinate_frame.json` | `40339f6c397d38fe01d5b3a5300e5b9b6d499f06292f436b1f91ea34523a0414` |
 
-`map_assets/{coordinate_frame.json,map.json,occupancy.npy}` (consumed by
+`simulator/map_assets/{coordinate_frame.json,map.json,occupancy.npy}` (consumed by
 `simulator/map_model.py`, `simulator/synthetic.py`) and
 `mapper/maps/tower_aoe/{...}` (consumed by `mapper/MapCatalog.py`) are
 the **same Tower source**, deliberately duplicated since Phase 2/6 — not

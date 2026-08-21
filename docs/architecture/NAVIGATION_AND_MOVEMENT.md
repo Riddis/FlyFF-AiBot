@@ -71,7 +71,7 @@ provenance_only.py` and `tests/test_run_provenance.py`.
 
 **Calibration source (HISTORICAL_EVIDENCE, per the module's own
 docstring citations):** built from deployment-matched live calibration
-(`run_logs/REPLACEMENT_MOVEMENT_MODEL_SPEC_2026-08-13.md`; the module's
+(`simulator/run_logs/REPLACEMENT_MOVEMENT_MODEL_SPEC_2026-08-13.md`; the module's
 own docstring additionally cites a
 `movement_calibration_local_frame_analysis_output.txt` under `run_logs/`
 that is not currently present in the tracked tree — a pre-existing gap
