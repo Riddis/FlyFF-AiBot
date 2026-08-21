@@ -209,24 +209,16 @@ class FarmingRuntimeConfig:
         if not isinstance(payload, dict):
             raise ValueError("native_farming.json must contain an object")
 
-        aliases = {
-            "unified_control_interval_seconds": "control_interval_seconds",
-            "teleport_pointer_grace_seconds": "pointer_grace_seconds",
-            "teleport_pointer_poll_seconds": "pointer_poll_seconds",
-        }
         supported = {field.name for field in fields(cls)}
         values: dict[str, object] = {}
         unknown: list[str] = []
         for key, value in payload.items():
             if key in _DEPRECATED_KEYS:
                 continue
-            canonical = aliases.get(key, key)
-            if canonical not in supported:
+            if key not in supported:
                 unknown.append(str(key))
                 continue
-            if canonical in values:
-                raise ValueError(f"Duplicate canonical config key: {canonical}")
-            values[canonical] = value
+            values[key] = value
         if unknown:
             raise ValueError(
                 "Unknown native farming config keys: " + ", ".join(sorted(unknown))

@@ -259,7 +259,6 @@ class IndependentNativeReader:
         configured_player_offset: int | None = None,
         monster_current_hp_offset: int | None = None,
         monster_active_species_offset: int | None = None,
-        current_hp_offset: int | None = None,
         expected_full_hp_by_species: Mapping[int, int] | None = None,
         object_span: int = 0x4000,
         slots_each_direction: int = 0,
@@ -302,7 +301,6 @@ class IndependentNativeReader:
             if monster_active_species_offset is None
             else monster_active_species_offset
         )
-        legacy_current = None if current_hp_offset is None else int(current_hp_offset)
         for name, value in (
             ("player_hp_offset", self.player_hp_offset),
             ("monster_hp_offset", self.monster_hp_offset),
@@ -311,9 +309,6 @@ class IndependentNativeReader:
         ):
             if value < 0:
                 raise ValueError(f"{name} cannot be negative")
-        # Kept only so old commands fail softly. It is diagnostic only and does
-        # not override either dynamically discovered live HP field.
-        self.deprecated_current_hp_offset = legacy_current
         self.expected_full_hp_by_species = {
             int(species): int(hp)
             for species, hp in (expected_full_hp_by_species or {}).items()

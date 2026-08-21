@@ -19,11 +19,6 @@ from .actions import (
 from .observation import OBSERVATION_SIZE, observation_schema_hash
 from .observation_contract import OBSERVATION_SCHEMA_HASH, OBSERVATION_SCHEMA_ID
 
-# No metadata-less scalar-action model is compatible with the factorized
-# contract. These names remain exported so older reporting/import code fails
-# closed with a useful message instead of breaking at import time.
-ACTIVE_METADATALESS_MODEL_SHA256: Final = ""
-ACTIVE_METADATALESS_MODEL_CONTRACT_HASH: Final = ""
 MODEL_CONTRACT_METADATA_VERSION: Final = 2
 
 

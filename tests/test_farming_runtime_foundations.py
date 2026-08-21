@@ -149,7 +149,11 @@ def test_emergency_forward_pulse_releases_existing_movement_and_stops() -> None:
     ]
 
 
-def test_shipped_config_migrates_without_using_hierarchical_navigation() -> None:
+def test_shipped_config_uses_only_canonical_keys() -> None:
+    """farming/native_farming.json is the shipped, tracked config -- it must
+    use only current canonical field names directly (no key-alias migration
+    layer exists in farming/config.py as of the 2026-08-21 post-migration
+    compatibility purge)."""
     root = Path(__file__).parents[1]
 
     config = FarmingRuntimeConfig.load(root / "farming" / "native_farming.json")
@@ -181,6 +185,21 @@ def test_shipped_tower_map_loads_with_explicit_teleport_features() -> None:
     assert context.features.shape == (310, 294)
     assert context.native_units_per_cell == pytest.approx(1.6)
     assert len(context.content_hash) == 64
+
+
+def test_config_rejects_retired_key_alias_names(tmp_path: Path) -> None:
+    """The old-name -> canonical-name alias translation layer was removed
+    in the 2026-08-21 post-migration compatibility purge; a config using
+    the old names must now fail closed as unknown, not silently migrate."""
+    for old_key in (
+        "unified_control_interval_seconds",
+        "teleport_pointer_grace_seconds",
+        "teleport_pointer_poll_seconds",
+    ):
+        stale = tmp_path / "stale.json"
+        stale.write_text(json.dumps({old_key: 1.0}), encoding="utf-8")
+        with pytest.raises(ValueError, match="Unknown"):
+            FarmingRuntimeConfig.load(stale)
 
 
 def test_config_rejects_unknown_or_boolean_numeric_values(tmp_path: Path) -> None:

@@ -5,8 +5,6 @@ from importlib import import_module
 __all__ = [
     "ACTION_COUNT",
     "ACTION_NAMES",
-    "ACTIVE_METADATALESS_MODEL_CONTRACT_HASH",
-    "ACTIVE_METADATALESS_MODEL_SHA256",
     "CURRENT_MODEL_CONTRACT",
     "MODEL_CONTRACT_HASH",
     "OBSERVATION_FIELDS",
@@ -55,7 +53,6 @@ _EXPORT_MODULES = {
     )},
     **{name: ".map_features" for name in ("DirectPathState", "FarmingMapFeatures")},
     **{name: ".model_contract" for name in (
-        "ACTIVE_METADATALESS_MODEL_CONTRACT_HASH", "ACTIVE_METADATALESS_MODEL_SHA256",
         "CURRENT_MODEL_CONTRACT", "MODEL_CONTRACT_HASH", "ModelContractError",
         "ModelContractMetadata", "ModelContractValidation", "ModelSpaceSignature",
         "validate_model_contract",

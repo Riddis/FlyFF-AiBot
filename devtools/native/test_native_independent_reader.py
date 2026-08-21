@@ -183,12 +183,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--spawn-z", type=float, default=86.0)
     parser.add_argument("--player-hp", type=_positive_int, required=True)
     parser.add_argument(
-        "--current-hp-offset",
-        type=_nonnegative_int,
-        default=None,
-        help=argparse.SUPPRESS,
-    )
-    parser.add_argument(
         "--monster-hp",
         type=_monster_hp,
         action="append",
@@ -345,7 +339,6 @@ def main(argv: list[str] | None = None) -> int:
             configured_player_offset=config.player_pointer_offset,
             monster_current_hp_offset=config.hp_offset,
             monster_active_species_offset=config.active_species_offset,
-            current_hp_offset=args.current_hp_offset,
             expected_full_hp_by_species=exact_hp,
             object_span=args.object_span,
             slots_each_direction=args.slots_each_direction,
@@ -367,7 +360,6 @@ def main(argv: list[str] | None = None) -> int:
             "active_species_samples": reader.active_species_samples,
             "active_species_reliable": reader.active_species_reliable,
             "slots_each_direction": args.slots_each_direction,
-            "deprecated_current_hp_offset_argument": reader.deprecated_current_hp_offset,
             "discovery_active_species_is_cross_slot_alias": (
                 reader.active_species_is_cross_slot_alias
             ),
@@ -394,11 +386,6 @@ def main(argv: list[str] | None = None) -> int:
             f"{reader.active_species_matches}/{reader.active_species_samples}; "
             f"active gate={'enabled' if reader.active_species_reliable else 'disabled'}"
         )
-        if args.current_hp_offset is not None:
-            print(
-                f"Deprecated --current-hp-offset 0x{args.current_hp_offset:X} "
-                "was supplied. The configured monster layout takes precedence."
-            )
         poll_interval = max(0.01, float(args.poll_interval))
         output_interval = max(poll_interval, float(args.sample_interval))
         kill_event_radius = (
