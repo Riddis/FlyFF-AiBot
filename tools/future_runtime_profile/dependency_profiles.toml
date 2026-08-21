@@ -20,7 +20,7 @@ schema_version = 1
 description = "The canonical development application -- everything a developer needs, in one source tree."
 first_party_packages = [
   "apps", "bot", "runtime",
-  "farming", "position", "navigation", "mapper", "libs", "utils", "assets",
+  "farming", "position", "navigation", "mapper", "libs", "assets",
   "devtools", "simulator", "legacy",
 ]
 third_party = [
@@ -66,7 +66,7 @@ copied_fork = false
 # by actual import edges (PHASE11_DEPENDENCY_BOUNDARY_ANALYSIS.md section 1),
 # not directory-name assumption.
 shared_runtime_packages = [
-  "farming", "position", "navigation", "mapper", "libs", "utils", "assets",
+  "farming", "position", "navigation", "mapper", "libs", "assets",
 ]
 
 # Individual SHARED_RUNTIME_CORE files that live inside an otherwise

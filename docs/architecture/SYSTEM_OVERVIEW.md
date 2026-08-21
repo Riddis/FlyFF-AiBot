@@ -206,7 +206,7 @@ this mechanically.
 `derive_runtime_manifest.py` (`python -m tools.future_runtime_profile.
 derive_runtime_manifest`) is a **read-only, non-building dry-run
 resolver**. It statically walks the shared-runtime import closure
-(`farming`, `position`, `navigation`, `mapper`, `libs`, `utils`,
+(`farming`, `position`, `navigation`, `mapper`, `libs`,
 `assets`, plus `simulator/schema.py` and `legacy/manifest_compat.py`)
 and reports whether that closure is clean of forbidden dev/recorder/
 simulator-training surfaces, and whether the checkpoint-ABI compatibility

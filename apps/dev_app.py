@@ -14,7 +14,7 @@ if str(APP_ROOT) not in sys.path:
 
 from bot.Bot import Bot  # noqa: E402
 from bot.Gui import Gui  # noqa: E402
-from utils.helpers import print_logo  # noqa: E402
+from libs.helpers import print_logo  # noqa: E402
 
 # Instances
 gui = Gui("DarkAmber")

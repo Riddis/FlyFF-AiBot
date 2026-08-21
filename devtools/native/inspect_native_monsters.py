@@ -20,7 +20,7 @@ from position import (  # noqa: E402
     create_native_monster_provider,
     create_native_monster_provider_from_process_id,
 )
-from utils.helpers import get_window_handlers  # noqa: E402
+from libs.helpers import get_window_handlers  # noqa: E402
 
 
 def _parse_int(value: str) -> int:

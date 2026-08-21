@@ -120,7 +120,7 @@ canonical algorithms live under `navigation/*`. See
 
 ```text
 devtools/  ─┐
-recorder/   ├─►  farming/ position/ navigation/ mapper/ libs/ utils/ assets/
+recorder/   ├─►  farming/ position/ navigation/ mapper/ libs/ assets/
 simulator/  │        (SHARED_RUNTIME_CORE — never the reverse)
 training  ──┘
 ```
