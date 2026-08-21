@@ -3,43 +3,25 @@
 # =============================================================================
 # BYTE-PRESERVATION RULES (narrow, deliberate exception)
 # =============================================================================
-# These files participate in a SHA-256 byte-identity contract: the historical
-# reproduction guard (scratchpad_historical_reproduction_guard.py) and the
-# frozen snapshot evaluations/router_v2_historical_reproduction_
-# snapshot_20260815.json hash their RAW BYTES and refuse to run on any mismatch.
+# These two evaluation-pool manifests carry frozen hashes recorded in
+# evaluations/router_v2_historical_reproduction_snapshot_20260815.json (a
+# frozen artifact of the 2026-08-14/15 router-selector historical
+# investigation). The scripts and fail-closed guard that originally hashed
+# and enforced these bytes at runtime (scratchpad_historical_reproduction_
+# guard.py and the ~20-file scratchpad family it protected) were retired in
+# the 2026-08-21 post-migration compatibility purge -- see git tag
+# router-selector-historical-scratchpad-pre-removal-20260821 to reproduce
+# that investigation, or docs/decisions/0002-preserve-abi-compatibility-
+# shims.md and simulator/scratchpad/README.md for the full account. These
+# two manifest files remain as inert historical evidence; `-text` is kept
+# so a future checkout does not silently rewrite their line endings away
+# from the bytes the frozen snapshot's hashes describe.
 #
-# The repository has core.autocrlf=true, which rewrites line endings on checkout.
-# Without `-text` these files materialize with different bytes in a fresh
-# checkout than the frozen snapshot expects, and the guard fails -- which is
-# exactly what was observed at tag historical-reproduction-baseline-20260815's
-# original target (see docs/migration/DECISION_LOG.md, D7/D8).
-#
-# `-text` disables ALL line-ending conversion in both directions, so what is
-# committed is exactly what is checked out. This is deliberately scoped to the
-# guard-hash-sensitive set only. It is NOT a general normalization policy, and
-# `git add --renormalize` was NOT run.
-#
-# Evidence for each entry:
-#   - the 5 .py files + the .zip are scratchpad_historical_reproduction_guard.py
-#     REQUIRED_FILES
-#   - both *_manifest.json files carry frozen hashes in
-#     router_v2_historical_reproduction_snapshot_20260815.json, and the 820M
-#     manifest is additionally passed as `extra_files` at run time
-#
-# 2026-08-21: repathed from their original flyff_farming_simulator/-prefixed
-# locations to their current root-relative locations. The Phase-7 root
-# collapse (and later cleanups) moved these files' real content without this
-# section being updated, so `-text` was silently NOT applying to any of them
-# (confirmed via `git check-attr text -- <path>` showing `text: auto`) --
-# a real gap in this byte-preservation contract, found during root-cleanliness
-# review, not merely a cosmetic staleness. See MISTAKES.md.
+# The repository has core.autocrlf=true, which rewrites line endings on
+# checkout; `-text` disables ALL line-ending conversion in both directions
+# for these files specifically. This is NOT a general normalization policy,
+# and `git add --renormalize` was NOT run.
 # -----------------------------------------------------------------------------
-
-simulator/kinodynamic_route_planner.py    -text
-simulator/movement_kernel.py              -text
-simulator/scratchpad/scratchpad_general_router_episode.py      -text
-simulator/scratchpad/scratchpad_beginner_navigation_mix_pools.py -text
-simulator/scratchpad/scratchpad_legacy_qualified_selector.py   -text
 
 simulator/evaluations/router_mix_final_pool_820000000_manifest.json          -text
 simulator/evaluations/router_mix_qualification_pool_840000000_manifest.json  -text

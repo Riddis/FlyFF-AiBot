@@ -1,55 +1,36 @@
-"""Test-owned copy of the minimal manifest-evaluation closure from the
-frozen scratchpad_beginner_navigation_mix_pools.py, preserved verbatim, for
-current-tree test-collection continuity only.
+"""Minimal manifest-evaluation closure for the beginner-navigation-mix
+research scripts: ``DEV_POOL_SPEC_SEED``, ``_final_native_for``,
+``_reconstruct_single_wall_world``, ``_reconstruct_two_wall_world``,
+``eval_obstacle_manifest``, and ``load_manifest``. Used by
+``tests/test_beginner_navigation_mix_train.py`` (which exercises
+``make_stream_rngs``/``TRAIN_SEED_BASE``, unrelated to the router, but
+transitively imports this module) and by
+``simulator/scratchpad/scratchpad_beginner_navigation_mix_train.py``.
 
 Provenance
 ----------
-Source: ``scratchpad_beginner_navigation_mix_pools.py`` (repository root),
-one of ``scratchpad_historical_reproduction_guard.py``'s ``REQUIRED_FILES``
--- frozen, hash-checked historical evidence for the 840M/820M A-vs-D router
-reproduction. That file is never edited. Originating commit ``203ffb8``
-("Fix invalid-hop router fallback: qualify and promote
-select_persistent_waypoint v2"), path fixed by the Phase-7 mechanical
-root-collapse (``bfc5c6d``) with byte content unchanged since ``203ffb8``.
-Current SHA-256 ``dd9a4630c30059ce809ed8320c24b095eb9b3e4fe99b76a4e271a2404be84156``,
-confirmed equal to ``evaluations/router_v2_historical_reproduction_snapshot_20260815.json``'s
-recorded value for this path.
-
-``DEV_POOL_SPEC_SEED``, ``_final_native_for``, ``_reconstruct_single_wall_world``,
-``_reconstruct_two_wall_world``, ``eval_obstacle_manifest``, and
-``load_manifest`` below are copied byte-for-byte from that frozen file. The
-only changes are import-path substitutions, all mechanically necessary:
+Originally derived, 2026-08-17, from the frozen historical scratchpad
+``scratchpad_beginner_navigation_mix_pools.py`` (originating commit
+``203ffb8``, "Fix invalid-hop router fallback: qualify and promote
+select_persistent_waypoint v2") so
+``tests/test_beginner_navigation_mix_train.py`` would stay collectable
+once Phase 9's router move made the frozen original's own imports
+unimportable at current HEAD. Only import-path substitutions were made:
 ``build_multi_wall_world``/``run_episode_general_router``/
-``summarize_general_router`` now come from the sibling
-``tests/helpers/router_qualification_harness.py`` (itself a verbatim,
-provenance-tracked copy of the same frozen historical closure) instead of
-importing the now-unimportable ``scratchpad_general_router_episode``
-directly, and ``TwoWallSpec`` comes from
-``scratchpad_beginner_routing_two_wall_s_route`` (not itself frozen /
-not in ``REQUIRED_FILES``) unchanged. No control-flow, constant, or
-numeric behavior was edited.
+``summarize_general_router`` come from the sibling
+``tests/helpers/router_qualification_harness.py``, and ``TwoWallSpec``
+comes from ``scratchpad_beginner_routing_two_wall_s_route`` (both
+unrelated to the router-selector investigation). No control-flow,
+constant, or numeric behavior was edited.
 
-Why this copy exists: 2026-08-17, Phase 9 moved
-``simulator.kinodynamic_route_planner``/``simulator.movement_kernel`` to
-``navigation.*``. ``tests/test_beginner_navigation_mix_train.py`` -- a
-Phase-7-era tracked test that only exercises ``make_stream_rngs``/
-``TRAIN_SEED_BASE`` (pure RNG-seeding logic, unrelated to the router) --
-transitively became uncollectable because Python eagerly executes every
-top-level import of ``scratchpad_beginner_navigation_mix_train.py``,
-including its import of ``DEV_POOL_SPEC_SEED``/``eval_obstacle_manifest``/
-``load_manifest`` from the now-broken frozen
-``scratchpad_beginner_navigation_mix_pools.py``. Editing that frozen file
-directly to fix its imports would violate the same "no historical evidence
-rewrite" rule protecting ``scratchpad_general_router_episode.py`` (this was
-tried and reverted -- see the Phase-9 report). This test-owned copy
-repairs the current tracked test's collectibility without touching a single
-byte of the frozen original. Historical reproduction of the 840M/820M
-comparison remains commit-addressed and unaffected; it never depended on
-this test-owned copy.
-
-``tests/test_parity_beginner_navigation_mix_harness.py`` proves
-mechanically (via AST comparison) that this copy's function bodies are
-identical to the frozen source, so the two can never silently drift apart.
+The 2026-08-21 post-migration compatibility purge retired the frozen
+scratchpad family this was originally copied from (along with the guard
+that protected it and the parity test that proved byte-for-byte
+identity to it) -- this module is now the SOLE current implementation,
+not a copy of anything still present in the tree. To reproduce the
+original 840M/820M historical investigation exactly, checkout git tag
+``router-selector-historical-scratchpad-pre-removal-20260821`` (which
+still has the frozen scratchpad, its guard, and the parity test).
 """
 
 from __future__ import annotations

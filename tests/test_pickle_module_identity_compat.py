@@ -11,13 +11,17 @@ or validates. See docs/decisions/0002-preserve-abi-compatibility-shims.md's
 Retirement section for the full evidence trail.
 
 KinoState/RouteEdgeInfo/AdvanceResult now carry their natural
-navigation.* module identity (no override). Covers, in order: canonical
-implementation origin, in-process and cold-subprocess pickle round-trips
-under that natural identity, and the historical guard's fail-closed
-classification with the shims absent (still MISSING, still a refusal,
-never a pass -- the guard already refused to run before this change,
-since its own tracked files had drifted from their 2026-08-15 snapshot
-hash back on 2026-08-17 when these shims were first introduced)."""
+navigation.* module identity (no override). Covers canonical
+implementation origin and in-process/cold-subprocess pickle round-trips
+under that natural identity. scratchpad_historical_reproduction_guard.py
+itself (which this file previously also tested the fail-closed behavior
+of) was retired in the same compatibility purge that released the
+byte-frozen scratchpad family it protected -- see git tag
+router-selector-historical-scratchpad-pre-removal-20260821 to reproduce
+that historical investigation, and
+docs/architecture/NAVIGATION_AND_MOVEMENT.md for the current pointer to
+where its outcome (TargetPersistenceController's adoption) lives in
+current code."""
 
 from __future__ import annotations
 
@@ -25,8 +29,6 @@ import ast
 import subprocess
 import sys
 from pathlib import Path
-
-import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -134,26 +136,3 @@ def test_pickle_round_trip_succeeds_in_a_fresh_subprocess_with_only_repo_root_on
     same_class, equal, module, qualname = parsed["AdvanceResult"]
     assert same_class == "True" and equal == "True"
     assert module == "navigation.movement_kernel" and qualname == "AdvanceResult"
-
-
-def test_historical_guard_fails_closed_with_shims_removed() -> None:
-    """The shims previously occupied the two paths scratchpad_historical_
-    reproduction_guard.py's REQUIRED_FILES checks. With the shims
-    removed, the guard's fail-closed REASON reverts to MISSING (its
-    original Phase-9 state, before the 2026-08-17 hardening shims ever
-    existed) -- still a refusal, never a pass. This is not a "fix" of
-    the guard: it already refused to run before this change too, since
-    its tracked files had already drifted from the 2026-08-15 snapshot
-    hash the moment those shims first narrowed to pure re-exports."""
-    import simulator.scratchpad.scratchpad_historical_reproduction_guard as guard
-
-    with pytest.raises(RuntimeError) as excinfo:
-        guard.verify_historical_snapshot()
-    message = str(excinfo.value)
-    assert "simulator/kinodynamic_route_planner.py" in message
-    assert "simulator/movement_kernel.py" in message
-    assert "MISSING" in message, "expected MISSING now that the shim files no longer exist"
-    for rel in guard.REQUIRED_FILES:
-        if rel in ("simulator/kinodynamic_route_planner.py", "simulator/movement_kernel.py"):
-            continue
-        assert rel not in message

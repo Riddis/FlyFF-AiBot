@@ -1,59 +1,38 @@
-"""Test-owned copy of the general-router episode-running harness, preserved
-verbatim from the frozen historical scratchpad, for G8c current-tree
-navigation continuity tests only.
+"""General-router episode-running harness: ``GeneralRouterEpisodeResult``,
+``run_episode_general_router``, ``build_multi_wall_world``, and
+``summarize_general_router``. Used by ``tests/test_kinodynamic_route_
+planner.py`` and ``tests/test_router_waypoint_env.py`` as current-tree
+navigation continuity tests -- proving ``navigation.kinodynamic_route_
+planner``'s current behavior (that the default wiring still uses
+``TargetPersistenceController`` and preserves ``previous_steering``/
+path-efficiency instrumentation exactly), and by simulator/scratchpad
+research scripts (``scratchpad_beginner_navigation_mix_train.py``,
+``scratchpad_beginner_routing_two_wall_s_route.py``,
+``scratchpad_routing_regression_fixtures.py``) that need the same
+episode-running machinery.
 
 Provenance
 ----------
-Source: ``scratchpad_general_router_episode.py`` (repository root), one of
-``scratchpad_historical_reproduction_guard.py``'s ``REQUIRED_FILES`` --
-frozen, hash-checked historical evidence. Historical reproduction is
-commit-addressed at
-``historical-reproduction-baseline-20260815`` -> ``a90de59232b81753c1b2ea35b8990325c26674e5``
-(tag B4); that scratchpad is never edited and is explicitly allowed to
-become unimportable at current HEAD once Phase 9 moves
-``simulator.kinodynamic_route_planner`` to ``navigation.kinodynamic_route_planner``
-(the exact "EXPECTED FAIL-CLOSED AFTER PRODUCTION-NAVIGATION EXTRACTION"
-case documented in ``docs/migration/PHASE9_NAVIGATION_OWNER_ANALYSIS.md``
-section 6).
+Originally derived, 2026-08-17, from the frozen historical scratchpad
+``scratchpad_general_router_episode.py`` (one selector-import line
+mechanically updated from ``simulator.kinodynamic_route_planner`` to
+``navigation.kinodynamic_route_planner``; nothing else changed) so a
+current, importable copy of this episode-running machinery would exist
+once Phase 9's router move made the frozen original unimportable at
+current HEAD.
 
-``GeneralRouterEpisodeResult``, ``run_episode_general_router``,
-``build_multi_wall_world``, and ``summarize_general_router`` below are
-copied byte-for-byte from that frozen file at SHA-256
-``dc7ce7ff6940c1f4e98fad5b66fecb7f58c1616b3d0693935db2d7b3f4576f39``
-(confirmed equal to the historical guard's own frozen snapshot value for
-this file) -- the ONLY change is the router import, mechanically updated
-from ``simulator.kinodynamic_route_planner`` to
-``navigation.kinodynamic_route_planner`` (the file the qualified selector
-and persistence controller now live in). No other line, constant, or
-control-flow decision was edited. ``summarize_general_router`` itself
-needs no import change -- it only touches ``GeneralRouterEpisodeResult``
-and ``numpy``.
-
-Why this copy exists rather than an xfail/skip: the five tests that use
-this harness (``tests/test_kinodynamic_route_planner.py``) are G8c
-current-tree migration-continuity guards, not historical G8b/820M
-qualification -- they exist to prove
-``navigation.kinodynamic_route_planner``'s current behavior (specifically,
-that this harness's default wiring still uses ``TargetPersistenceController``
-and preserves ``previous_steering``/path-efficiency instrumentation
-exactly), not to reproduce the frozen scratchpad's own historical run.
-G8c must stay green after the extraction; the frozen scratchpad's own
-importability does not need to.
-
-``summarize_general_router`` was added for the same reason on
-2026-08-17: ``tests/test_beginner_navigation_mix_train.py`` (a Phase-7-era
-tracked test, unrelated to the Beginner Navigation Training Mix plan's own
-Phase-B scope gate) transitively imports it via
-``scratchpad_beginner_navigation_mix_pools.py``, and that import chain
-previously reached the frozen scratchpad directly. Phase 9's router move
-broke that chain purely at the import-path level; repairing it here is a
-mechanical source-availability fix, not a reopening of that separate,
-still-paused experiment -- no algorithm, training, or qualification logic
-is touched.
-
-``tests/test_parity_router_qualification_harness.py`` proves mechanically
-(via AST comparison) that this copy's function/class bodies are identical
-to the frozen source, so the two can never silently drift apart.
+The 2026-08-21 post-migration compatibility purge retired the frozen
+scratchpad family this was originally copied from (along with the guard
+that protected it and the parity test that proved byte-for-byte
+identity to it) -- this module is now the SOLE current implementation,
+not a copy of anything still present in the tree. To reproduce the
+original 2026-08-15 historical investigation exactly, checkout git tag
+``router-selector-historical-scratchpad-pre-removal-20260821`` (which
+still has the frozen scratchpad, its guard, and the parity test), or
+the earlier ``historical-reproduction-baseline-20260815`` tag (B4,
+commit ``a90de59232b81753c1b2ea35b8990325c26674e5``) for the pre-Phase-9
+state documented in ``docs/migration/PHASE9_NAVIGATION_OWNER_ANALYSIS.md``
+section 6.
 """
 
 from __future__ import annotations

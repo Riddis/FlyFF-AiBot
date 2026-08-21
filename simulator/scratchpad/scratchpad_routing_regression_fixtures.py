@@ -50,9 +50,9 @@ from stable_baselines3 import PPO
 
 from .scratchpad_beginner_routing_randomized_walls import held_out_randomized_wall_specs_for_side
 from .scratchpad_beginner_routing_two_wall_s_route import held_out_two_wall_specs_for_direction
-from .scratchpad_general_router_episode import build_multi_wall_world, run_episode_general_router
 from simulator.single_obstacle_env import MAP_HALF_SIZE_CELLS
 from simulator.static_waypoint_env import FIXED_HEADING
+from tests.helpers.router_qualification_harness import build_multi_wall_world, run_episode_general_router
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CHECKPOINT = ROOT / "models" / "generalized_waypoint_both_seed2_0051200.zip"

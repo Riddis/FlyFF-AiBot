@@ -1299,3 +1299,42 @@ project's own no-silent-rewrite rule.
   "probably fine, just old" -- root-cleanliness review should diff
   suspiciously-similar-looking file pairs, not just check each file's
   own individual relevance.
+
+## Category: diagnostic tooling / import side effects
+
+### [2026-08-21] bulk-importing every simulator/scratchpad/*.py file for a diagnostic importability sweep silently regenerated tracked curriculum/evaluation data
+- What happened: while classifying which scratchpad research scripts
+  were currently importable (as part of deciding which belonged to a
+  historical-only cluster safe to remove from current HEAD), a
+  diagnostic loop did `importlib.import_module()` on every file in
+  `simulator/scratchpad/`, purely to observe import success/failure. At
+  least one file (a curriculum-generation script) has real,
+  non-idempotent top-level code that runs on import -- not gated behind
+  `if __name__ == "__main__":` -- which regenerated and overwrote 19
+  already-committed, tracked files under `simulator/curricula/
+  synthetic_curriculum_oracle_fresh_confirmation/` and `simulator/
+  evaluations/manifests/oracle_fresh_confirmation.json` (binary `.gz`
+  world snapshots and JSON manifests) with fresh, different content as
+  an unintended side effect.
+- Root cause: treating `import` as a safe, read-only diagnostic
+  operation. It is not, for arbitrary scratchpad/research scripts that
+  were never written with import-safety as a design constraint (unlike
+  production package modules) -- some genuinely execute real
+  generation/training/evaluation logic at module-import time, not only
+  inside a `main()` guard.
+- How caught: self-caught immediately afterward, via a routine `git
+  status` before committing an unrelated batch of changes -- 19 files
+  no part of the intended change set showed as modified.
+- Fix: `git checkout -- <the 19 affected paths>` reverted them to their
+  committed content exactly; verified via `git status` that only the
+  actually-intended edits remained before proceeding.
+- Lesson: never bulk-`import` a directory of scratchpad/research
+  scripts to test importability without either (a) doing it in a
+  disposable checkout/worktree, or (b) running `git status` immediately
+  afterward and before any other work, to catch and revert unintended
+  side effects before they get tangled up with real changes. A `python
+  -c "import X"` subprocess check confirms an import error without this
+  risk when only import-success/failure (not full-repo side effects)
+  needs isolating -- still not fully safe against side effects, but at
+  least point-checkable one file at a time with an easy `git status`
+  audit after each.
