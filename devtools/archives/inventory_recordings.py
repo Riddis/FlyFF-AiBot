@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from recorder.movement_classification import MovementControlClassifier
+from devtools.recorder.movement_classification import MovementControlClassifier
 from simulator.schema import (
     RecordingArchive,
     allows_direct_movement_labels,

@@ -26,7 +26,7 @@ from .config import application_root
 def recorder_monster_config_path() -> Path:
     """Return the recorder-owned native resource in source and frozen layouts."""
 
-    source_path = Path(__file__).resolve().parents[1] / "position" / "native_monsters.json"
+    source_path = Path(__file__).resolve().parents[2] / "position" / "native_monsters.json"
     frozen_path = application_root() / "recorder_position" / "native_monsters.json"
     return frozen_path if frozen_path.is_file() else source_path
 

@@ -19,10 +19,9 @@ schema_version = 1
 [profiles.development]
 description = "The canonical development application -- everything a developer needs, in one source tree."
 first_party_packages = [
-  "apps", "Bot", "Gui", "runtime_controller", "runtime_bus", "worker_manager",
-  "capture_service", "preview_service", "project_paths",
+  "apps", "bot", "runtime",
   "farming", "position", "navigation", "mapper", "libs", "utils", "assets",
-  "devtools", "recorder", "simulator", "legacy",
+  "devtools", "simulator", "legacy",
 ]
 third_party = [
   "numpy", "cv2", "PySimpleGUI", "win32api", "win32gui", "win32con", "pywintypes",
@@ -32,7 +31,7 @@ third_party = [
 
 [profiles.recorder]
 description = "Recorder specialist application, launched as an independent subprocess by the dev app."
-first_party_packages = ["recorder", "position", "farming"]
+first_party_packages = ["devtools.recorder", "position", "farming"]
 third_party = ["numpy", "msgpack", "win32api", "win32gui", "win32con", "pywintypes", "tkinter"]
 entrypoint = "apps.recorder_app"
 
@@ -94,6 +93,16 @@ additional_shared_entry_files = [
 # directory happens to import. farming.trainer remains reachable ONLY
 # through the one registered known_exact_exceptions edge from
 # bot/runtime_controller.py -- it is not otherwise part of this candidate.
+#
+# mapper/tools/train_mapper_offline.py joined this list in the
+# 2026-08-21 repository cleanup, when it moved from the repository root
+# into mapper/tools/ (a simulator/training workflow script, not a
+# shared-runtime file) -- entirely off Phase 11's original analysis,
+# whose file set predates that move. Being physically inside mapper/
+# now puts it in the shared_runtime_packages rglob unless excluded here
+# too; it directly imports mapper.rl.OfflineTraining/GymEnv/
+# FeatureExtractor to run offline training, exactly the training-only
+# import pattern this list exists to keep out of the candidate closure.
 excluded_from_shared_entry_walk = [
   "farming/sb3_adapter.py",
   "farming/sb3_training.py",
@@ -101,6 +110,7 @@ excluded_from_shared_entry_walk = [
   "mapper/rl/FeatureExtractor.py",
   "mapper/rl/GymEnv.py",
   "mapper/rl/OfflineTraining.py",
+  "mapper/tools/train_mapper_offline.py",
 ]
 
 # Checkpoint-ABI/pickle-compatibility surfaces -- NOT simulator algorithms
@@ -137,7 +147,6 @@ candidate_runtime_resources = [
 # below. Dotted prefixes match the module itself and everything under it.
 forbidden_first_party_prefixes = [
   "devtools",
-  "recorder",
   "simulator.environment",
   "simulator.router_waypoint_env",
   "simulator.static_waypoint_env",
@@ -148,8 +157,8 @@ forbidden_first_party_prefixes = [
   "simulator.navigation_history",
   "simulator.cli",
   "simulator.fair_time_cli",
+  "simulator.scratchpad",
   "tests",
-  "scratchpad_",
 ]
 # Not forbidden: simulator.schema / legacy(.manifest_compat) -- corrected
 # SHARED_RUNTIME_CORE per section 1 above, walked explicitly via

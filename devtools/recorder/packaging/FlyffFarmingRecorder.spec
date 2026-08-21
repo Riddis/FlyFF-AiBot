@@ -4,7 +4,7 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules
 
 spec_path = Path(SPEC).resolve()
-app_root = spec_path.parent
+app_root = spec_path.parents[2]
 entry_script = app_root / "apps" / "recorder_app.py"
 
 hidden = collect_submodules("position") + [

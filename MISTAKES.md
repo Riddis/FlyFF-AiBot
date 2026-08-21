@@ -967,7 +967,7 @@ project's own no-silent-rewrite rule.
   "a capture-time UI burden the user must clear before pressing
   record" (never requested, actively rejected). The classification
   concepts were implemented as required constructor fields
-  (`recorder/provenance.py`'s `ExperimentProvenance`, with
+  (`devtools/recorder/provenance.py`'s `ExperimentProvenance`, with
   `CONTROLLED_EXPERIMENT` recordings hard-requiring a `protocol_id`)
   instead of optional after-the-fact labels.
 - How caught: explicit user correction (forward-product-correction
@@ -979,7 +979,7 @@ project's own no-silent-rewrite rule.
   `ExperimentProvenance` still exists (it is a legitimate concept) but
   is now applied two ways only: (a) the standalone historical
   recorder's own construction-time use, (b) post-hoc, via
-  `recorder/evidence_catalog.py`'s `attach_evidence_label()`, which
+  `devtools/recorder/evidence_catalog.py`'s `attach_evidence_label()`, which
   writes a sidecar JSON next to an already-written archive and never
   mutates the raw recording. `test_start_rl_skips_automatic_recording_
   without_a_cached_hp` (which blessed the skip-recording behavior) was

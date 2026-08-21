@@ -56,10 +56,10 @@ APP_ROOT = Path(__file__).resolve().parents[2]
 if str(APP_ROOT) not in sys.path:
     sys.path.insert(0, str(APP_ROOT))
 
-from recorder.config import RecorderConfig  # noqa: E402
-from recorder.keyboard import KeyboardSampler  # noqa: E402
-from recorder.native_capture import AttachedNativeClient, attach_native_client  # noqa: E402
-from recorder.windows import find_client_windows, foreground_window  # noqa: E402
+from devtools.recorder.config import RecorderConfig  # noqa: E402
+from devtools.recorder.keyboard import KeyboardSampler  # noqa: E402
+from devtools.recorder.native_capture import AttachedNativeClient, attach_native_client  # noqa: E402
+from devtools.recorder.windows import find_client_windows, foreground_window  # noqa: E402
 from position.IndependentNativeReader import IndependentNativeReadError  # noqa: E402
 
 

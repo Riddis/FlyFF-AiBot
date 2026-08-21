@@ -1,10 +1,10 @@
 """Generic gzip+msgpack packed-stream write primitives.
 
-Moved out of `recorder/format.py` (which now re-exports from here for
-backward compatibility) so the canonical dev app's own recording sink
+Moved out of `devtools/recorder/format.py` (which now re-exports from here
+for backward compatibility) so the canonical dev app's own recording sink
 (`recording_sink.py`) can reuse the exact same archive-writing code
-without importing the `recorder` package itself -- `recorder` stays
-outside the dev app's import closure (it is the *acquisition* package;
+without importing the `devtools.recorder` package itself -- `devtools.recorder`
+stays outside the dev app's import closure (it is the *acquisition* package;
 the dev app owns its own native reader and must never run a second
 one). This module never imports anything native/recorder-specific --
 stdlib plus `msgpack` only, the same as before the move.

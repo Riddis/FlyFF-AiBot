@@ -3,7 +3,7 @@
 Ad hoc research, diagnostic, and one-off qualification scripts used
 while developing the router/navigation and farming-approach behavior.
 None of these are part of the canonical `farming/`, `navigation/`,
-`simulator/`, `position/`, or `recorder/` packages, and none are
+`simulator/`, `position/`, or `devtools/recorder/` packages, and none are
 collected by pytest (`tests/` imports a handful of them as libraries --
 see below -- but no file in this directory is itself a `test_*.py`).
 

@@ -5,7 +5,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 $AppRoot = $PSScriptRoot
-$RepoRoot = Split-Path -Parent $AppRoot
+# This script moved from repository root into devtools/recorder/packaging/
+# in the final-structure repository cleanup (approved Revision 2 +
+# Revision 3 plan, Amendment 3) -- three levels deeper than before, so
+# $RepoRoot's relationship to $AppRoot needs three extra Split-Path
+# hops to still land on the exact same directory this script always
+# resolved .venv against (deliberately preserving that pre-existing
+# convention as-is, not "fixing" it as a side effect of this move).
+$RecorderRoot = Split-Path -Parent $AppRoot
+$DevtoolsRoot = Split-Path -Parent $RecorderRoot
+$TrueRepoRoot = Split-Path -Parent $DevtoolsRoot
+$RepoRoot = Split-Path -Parent $TrueRepoRoot
 $Python = Join-Path $RepoRoot ".venv\Scripts\python.exe"
 
 if (-not (Test-Path $Python)) {
@@ -22,7 +32,7 @@ if (-not $SkipTests) {
     $PytestBaseTemp = Join-Path $AppRoot ".pytest-build-temp"
     Remove-Item $PytestBaseTemp -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Path $PytestBaseTemp -Force | Out-Null
-    Push-Location $AppRoot
+    Push-Location $TrueRepoRoot
     try {
         & $Python -m pytest -q tests --basetemp $PytestBaseTemp
         if ($LASTEXITCODE -ne 0) {
@@ -75,7 +85,7 @@ if (-not $SkipPortablePackage) {
     New-Item -ItemType Directory -Path $PackageRoot -Force | Out-Null
     Copy-Item $ExePath (Join-Path $PackageRoot "FlyffFarmingRecorder.exe")
     Copy-Item (Join-Path $AppRoot "README.txt") (Join-Path $PackageRoot "READ_ME_FIRST.txt")
-    Copy-Item (Join-Path $AppRoot "recorder_config.json") (Join-Path $PackageRoot "recorder_config.json")
+    Copy-Item (Join-Path $RecorderRoot "recorder_config.json") (Join-Path $PackageRoot "recorder_config.json")
     Compress-Archive -Path (Join-Path $PackageRoot "*") -DestinationPath $PackageZip -Force
     Write-Host "Portable recorder ZIP created:"
     Write-Host "  $PackageZip"

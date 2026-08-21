@@ -191,7 +191,7 @@ relevant schema versions. If a recording belongs to a deliberately
 designed `CONTROLLED_EXPERIMENT` — purpose, protocol/test ID,
 hypothesis, controller type, data-use role — that interpretation is
 attached **after** the recording exists, as a sidecar evidence label
-(`recorder/evidence_catalog.py`'s `attach_evidence_label`) next to the
+(`devtools/recorder/evidence_catalog.py`'s `attach_evidence_label`) next to the
 already-written archive. **The raw archive itself is never mutated to
 add a label** — Claude/Codex and the user already know why a given
 recording was made; the label documents that decision, it does not

@@ -21,7 +21,7 @@ kind = "string"
 symbol = "OBSERVATION_SCHEMA_ID"
 owners = [
   "farming/observation.py",
-  "recorder/session.py",
+  "devtools/recorder/session.py",
 ]
 
 [g4.observation_schema_hash]
@@ -30,7 +30,7 @@ kind = "string"
 symbol = "OBSERVATION_SCHEMA_HASH"
 owners = [
   "farming/observation.py",
-  "recorder/session.py",
+  "devtools/recorder/session.py",
 ]
 recomputation_required = true
 recomputation_callable = "farming.observation.observation_schema_hash"

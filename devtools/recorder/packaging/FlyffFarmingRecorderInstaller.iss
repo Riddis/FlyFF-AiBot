@@ -9,7 +9,7 @@
   #define ReadmeFile "README.txt"
 #endif
 #ifndef ConfigFile
-  #define ConfigFile "recorder_config.json"
+  #define ConfigFile "..\recorder_config.json"
 #endif
 #ifndef InstallerOutputDir
   #define InstallerOutputDir "dist\farming_recorder_installer"

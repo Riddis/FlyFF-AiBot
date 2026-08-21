@@ -316,7 +316,7 @@ for name in json.loads(sys.argv[4]):
     bot_only[name] = str(pathlib.Path(importlib.import_module(f"farming.{name}").__file__).resolve())
 if mode.startswith("recorder-"):
     before_session = set(sys.modules)
-    importlib.import_module("recorder.session")
+    importlib.import_module("devtools.recorder.session")
 else:
     before_session = set(sys.modules)
 blocked = sorted(name for name in set(sys.modules) - before_session if mode.startswith("recorder-") and (name == "numpy" or name.startswith(("numpy.", "gymnasium", "stable_baselines3", "torch"))))
@@ -383,8 +383,8 @@ def check_b1(repo: Path) -> tuple[list[str], dict[str, Any]]:
         "conftest.py",
         "apps/telemetry_cli.py",
         "apps/recorder_app.py",
-        "recorder/session.py",
-        "FlyffFarmingRecorder.spec",
+        "devtools/recorder/session.py",
+        "devtools/recorder/packaging/FlyffFarmingRecorder.spec",
         "farming/__init__.py",
         "farming/observation.py",
     )
@@ -395,7 +395,7 @@ def check_b1(repo: Path) -> tuple[list[str], dict[str, Any]]:
         evidence["active_sources"][relative] = clean
         if not clean:
             failures.append(f"B1 bootstrap or marker remains in active source {relative}")
-    spec_source = (repo / "FlyffFarmingRecorder.spec").read_text(encoding="utf-8")
+    spec_source = (repo / "devtools/recorder/packaging/FlyffFarmingRecorder.spec").read_text(encoding="utf-8")
     expected_pathex = "pathex=[str(app_root)]"
     if expected_pathex not in spec_source:
         failures.append("B1/B2 recorder PyInstaller pathex is not the repository root only")

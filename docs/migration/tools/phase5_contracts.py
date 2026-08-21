@@ -188,7 +188,7 @@ rec_config_path = pathlib.Path(sys.argv[3])
 sys.path.insert(0, str(root))
 from position.MonsterConfig import load_native_monster_config
 from position.PositionConfig import load_native_position_config
-from recorder.config import RecorderConfig
+from devtools.recorder.config import RecorderConfig
 bot_monster = dataclasses.asdict(load_native_monster_config(root / "position/native_monsters.json"))
 rec_monster = dataclasses.asdict(load_native_monster_config(rec_monster_path))
 recorder = dataclasses.asdict(RecorderConfig.load(rec_config_path))

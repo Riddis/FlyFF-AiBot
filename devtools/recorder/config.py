@@ -14,7 +14,7 @@ def application_root() -> Path:
             return executable_root
         bundle_root = getattr(sys, "_MEIPASS", None)
         return Path(bundle_root) if bundle_root else executable_root
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parent
 
 
 @dataclass(frozen=True, slots=True)

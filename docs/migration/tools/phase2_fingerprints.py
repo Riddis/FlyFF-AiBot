@@ -215,7 +215,7 @@ def check_g4(repo: Path, fp: dict[str, Any]) -> tuple[list[str], dict[str, Any]]
 
     # Recorder consumes dependency-free canonical metadata and defines no copy.
     recorder_imports = _ast_imports(
-        repo / "recorder/session.py",
+        repo / "devtools/recorder/session.py",
         "farming.observation_contract",
         ("OBSERVATION_SCHEMA_ID", "OBSERVATION_SCHEMA_HASH"),
     )
@@ -228,7 +228,7 @@ def check_g4(repo: Path, fp: dict[str, Any]) -> tuple[list[str], dict[str, Any]]
         },
     )
     recorder_literals = _ast_constants(
-        repo / "recorder/session.py",
+        repo / "devtools/recorder/session.py",
         ("OBSERVATION_SCHEMA_ID", "OBSERVATION_SCHEMA_HASH"),
     )
     expect("recorder.schema_literal_copies", recorder_literals, {})

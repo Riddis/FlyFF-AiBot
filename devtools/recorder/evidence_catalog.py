@@ -9,7 +9,7 @@ ran it -- this module lets that be recorded once, after the fact,
 against a specific archive.
 
 Used for BOTH the dev bot's own recordings (recording_sink.py's
-RecordingSink) and the standalone recorder's (recorder/session.py's
+RecordingSink) and the standalone recorder's (devtools/recorder/session.py's
 RecorderController) -- neither writes provenance interpretation into
 its own capture path; this is the one place it is attached."""
 

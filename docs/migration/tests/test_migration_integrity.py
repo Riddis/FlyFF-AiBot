@@ -380,14 +380,14 @@ def test_b3_bootstrap_pattern_no_longer_present_in_inventory_recordings() -> Non
 
 
 def test_recorder_movement_classifier_resolves_as_a_normal_repository_import() -> None:
-    """Origin test: after B3's removal, recorder.movement_classification and
+    """Origin test: after B3's removal, devtools.recorder.movement_classification and
     simulator.schema must resolve from this worktree through ordinary,
     unmodified sys.path -- no bootstrap, no sibling/reference-tree fallback."""
-    spec = integrity.find_spec_without_import("recorder.movement_classification", [REPO])
+    spec = integrity.find_spec_without_import("devtools.recorder.movement_classification", [REPO])
     assert spec is not None and spec.origin is not None
     origin = Path(spec.origin).resolve()
     assert origin.is_relative_to(REPO.resolve())
-    assert origin == (REPO / "recorder" / "movement_classification.py").resolve()
+    assert origin == (REPO / "devtools" / "recorder" / "movement_classification.py").resolve()
 
     schema_spec = integrity.find_spec_without_import("simulator.schema", [REPO])
     assert schema_spec is not None and schema_spec.origin is not None

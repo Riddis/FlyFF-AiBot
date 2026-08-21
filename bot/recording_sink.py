@@ -18,10 +18,11 @@ frame acquisition -- the exact same call every farming/training tick
 already makes. It never constructs a new ``NativeProcessService``,
 never attaches, never scans.
 
-Archive writing reuses ``recording_format.py`` (the same primitives
-``recorder/format.py`` uses, moved to the repository root precisely so
-this module can reuse them without importing the ``recorder`` package
--- ``recorder`` stays outside the dev app's import closure, see
+Archive writing reuses ``runtime/recording_format.py`` (the same
+primitives ``devtools/recorder/format.py`` uses, extracted into the
+shared ``runtime`` package precisely so this module can reuse them
+without importing the ``devtools.recorder`` package -- ``devtools.recorder``
+stays outside the dev app's import closure, see
 ``tests/test_dev_app_import_closure.py``)."""
 
 from __future__ import annotations

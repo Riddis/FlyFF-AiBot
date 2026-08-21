@@ -139,7 +139,7 @@ def test_phase7_canonical_origins_hold_in_all_historical_test_contexts() -> None
         "navigation.kinodynamic_route_planner": "navigation/kinodynamic_route_planner.py",
         "navigation.movement_kernel": "navigation/movement_kernel.py",
         "navigation.navigation_evidence": "navigation/navigation_evidence.py",
-        "recorder": "recorder/__init__.py",
+        "devtools.recorder": "devtools/recorder/__init__.py",
         "runtime.runtime_bus": "runtime/runtime_bus.py",
         "mapper": "mapper/__init__.py",
         "mapper.Mapper": "mapper/Mapper.py",

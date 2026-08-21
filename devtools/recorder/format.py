@@ -1,9 +1,9 @@
 """Re-exports the generic packed-stream write primitives from
-`recording_format.py` (repository root) -- moved there so the dev app's
+`runtime/recording_format.py` -- moved there so the dev app's
 own recording sink can reuse the exact same archive-writing code
-without importing `recorder` itself. This module stays for
-`recorder/session.py` and anything else already importing
-`recorder.format` -- one implementation, two import paths."""
+without importing `devtools.recorder` itself. This module stays for
+`devtools/recorder/session.py` and anything else already importing
+`devtools.recorder.format` -- one implementation, two import paths."""
 
 from __future__ import annotations
 

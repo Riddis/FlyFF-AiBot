@@ -7,17 +7,17 @@ from farming.observation_contract import (
     OBSERVATION_SCHEMA_ID as _CANONICAL_OBSERVATION_SCHEMA_ID,
 )
 from position.IndependentNativeReader import IndependentActorSlotRead
-from recorder.config import RecorderConfig
-from recorder.format import PackedStreamWriter, read_packed_stream
-from recorder.keyboard import (
+from devtools.recorder.config import RecorderConfig
+from devtools.recorder.format import PackedStreamWriter, read_packed_stream
+from devtools.recorder.keyboard import (
     EVA_BIT,
     FORWARD_BIT,
     SUPPORTED_EVA_HOTKEYS,
     virtual_key_for_hotkey,
 )
-from recorder.movement_classification import MovementControlClassifier
-from recorder.lifecycle import LifecycleTracker
-from recorder.session import _OBSERVATION_SCHEMA_HASH, _OBSERVATION_SCHEMA_ID
+from devtools.recorder.movement_classification import MovementControlClassifier
+from devtools.recorder.lifecycle import LifecycleTracker
+from devtools.recorder.session import _OBSERVATION_SCHEMA_HASH, _OBSERVATION_SCHEMA_ID
 
 
 def actor(
@@ -233,16 +233,20 @@ def test_selected_species_are_separate_from_full_hp_anchors(tmp_path: Path) -> N
 
 def test_installer_preserves_recordings() -> None:
     installer = (
-        Path(__file__).resolve().parents[1] / "FlyffFarmingRecorderInstaller.iss"
+        Path(__file__).resolve().parents[1]
+        / "devtools"
+        / "recorder"
+        / "packaging"
+        / "FlyffFarmingRecorderInstaller.iss"
     ).read_text(encoding="utf-8")
     assert "[UninstallDelete]" not in installer
     assert "{userdocs}\\FlyffFarmingRecorder" not in installer
 
 
 def test_gui_starts_directly_in_farming_without_exploration_controls() -> None:
-    from recorder.gui import RecorderGui
+    from devtools.recorder.gui import RecorderGui
 
-    source = (Path(__file__).resolve().parents[1] / "recorder" / "gui.py").read_text(
+    source = (Path(__file__).resolve().parents[1] / "devtools" / "recorder" / "gui.py").read_text(
         encoding="utf-8"
     )
     assert "Test Hotkey" not in source
@@ -260,7 +264,7 @@ def test_background_rediscovery_is_adaptive_and_movement_triggered() -> None:
     assert config.rediscovery_stable_scan_interval_seconds == 2.0
     assert config.rediscovery_stable_scan_count == 3
     assert config.rediscovery_movement_trigger_native == 12.0
-    source = (Path(__file__).resolve().parents[1] / "recorder" / "session.py").read_text(
+    source = (Path(__file__).resolve().parents[1] / "devtools" / "recorder" / "session.py").read_text(
         encoding="utf-8"
     )
     assert "if rediscovery_thread is None and monotonic() >= next_rediscovery_at:" in source
@@ -276,7 +280,7 @@ def test_background_rediscovery_is_adaptive_and_movement_triggered() -> None:
 def test_active_field_profiler_recovers_instantiated_duplicate_without_using_zero_hp_as_negative() -> None:
     import struct
 
-    from recorder.active_field_profiler import ActiveFieldProfiler
+    from devtools.recorder.active_field_profiler import ActiveFieldProfiler
 
     class Memory:
         def __init__(self) -> None:
@@ -402,7 +406,7 @@ def test_active_field_profiler_report_keeps_promoted_offset_after_evidence_drift
 
     import struct
 
-    from recorder.active_field_profiler import ActiveFieldProfiler
+    from devtools.recorder.active_field_profiler import ActiveFieldProfiler
 
     class Memory:
         def __init__(self) -> None:
@@ -524,11 +528,11 @@ def test_active_field_profiler_report_keeps_promoted_offset_after_evidence_drift
 
 
 def test_recorder_profiles_and_uses_instantiated_field_as_verified_hint() -> None:
-    source = (Path(__file__).resolve().parents[1] / "recorder" / "session.py").read_text(
+    source = (Path(__file__).resolve().parents[1] / "devtools" / "recorder" / "session.py").read_text(
         encoding="utf-8"
     )
     capture_source = (
-        Path(__file__).resolve().parents[1] / "recorder" / "native_capture.py"
+        Path(__file__).resolve().parents[1] / "devtools" / "recorder" / "native_capture.py"
     ).read_text(encoding="utf-8")
     reader_source = (
         Path(__file__).resolve().parents[1]
@@ -568,7 +572,7 @@ def test_recording_provenance_emits_recording_role_the_simulator_gate_requires()
     ever be recognized as demonstration-ready through the embedded path,
     regardless of how confidently its movement was classified."""
 
-    source = (Path(__file__).resolve().parents[1] / "recorder" / "session.py").read_text(
+    source = (Path(__file__).resolve().parents[1] / "devtools" / "recorder" / "session.py").read_text(
         encoding="utf-8"
     )
     assert '"recording_role"' in source
@@ -719,7 +723,7 @@ def test_map_exit_guards_are_accuracy_first() -> None:
     assert config.map_exit_max_distance_from_spawn_native == 1500.0
     assert config.map_exit_jump_native == 250.0
     assert config.map_exit_confirmation_samples == 2
-    source = (Path(__file__).resolve().parents[1] / "recorder" / "session.py").read_text(
+    source = (Path(__file__).resolve().parents[1] / "devtools" / "recorder" / "session.py").read_text(
         encoding="utf-8"
     )
     assert 'stop_reason = "map_exit_detected"' in source
@@ -731,7 +735,7 @@ def test_map_exit_guards_are_accuracy_first() -> None:
 
 
 def test_quantizer_cannot_overflow_msgpack_on_stale_pointer_values() -> None:
-    source = (Path(__file__).resolve().parents[1] / "recorder" / "session.py").read_text(
+    source = (Path(__file__).resolve().parents[1] / "devtools" / "recorder" / "session.py").read_text(
         encoding="utf-8"
     )
     assert "9_000_000_000_000_000_000" in source
@@ -745,7 +749,7 @@ def test_player_discovery_does_not_gate_on_monster_instantiated_field() -> None:
         / "NativeTraceTargets.py"
     ).read_text(encoding="utf-8")
     capture_source = (
-        Path(__file__).resolve().parents[1] / "recorder" / "native_capture.py"
+        Path(__file__).resolve().parents[1] / "devtools" / "recorder" / "native_capture.py"
     ).read_text(encoding="utf-8")
     assert "exact_monster_bases = {int(item.base) for item in anchors}" in source
     assert "if base in exact_monster_bases:" in source

@@ -4,6 +4,16 @@ param()
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
+# This script moved from repository root into devtools/archives/ in the
+# final-structure repository cleanup (approved Revision 2 + Revision 3
+# plan) -- two levels deeper than before, so every path below that used
+# to be relative to the repo root now needs two extra Split-Path hops
+# (or an explicit $RepoRoot join) to still land on the same directories
+# it always resolved against.
+$ArchivesRoot = $PSScriptRoot
+$DevtoolsRoot = Split-Path -Parent $ArchivesRoot
+$RepoRoot = Split-Path -Parent $DevtoolsRoot
+
 # Drop new recording archives directly into recordings\ (the inbox root) --
 # not into recordings\training or recordings\eva_only yourself. This script
 # scans only that inbox root (never recursing into the already-sorted
@@ -21,12 +31,14 @@ Set-Location $PSScriptRoot
 # other, or both. Duplicate content (same SHA-256 as an archive already
 # sorted somewhere) is left in the inbox with a warning rather than moved.
 
+$VenvSearchRoot = Split-Path -Parent $RepoRoot
 $python = "python"
-if (Test-Path "..\.venv\Scripts\python.exe") {
-    $python = (Resolve-Path "..\.venv\Scripts\python.exe").Path
+$VenvPython = Join-Path $VenvSearchRoot ".venv\Scripts\python.exe"
+if (Test-Path $VenvPython) {
+    $python = (Resolve-Path $VenvPython).Path
 }
 
-$RecordingsRoot = Join-Path $PSScriptRoot "recordings"
+$RecordingsRoot = Join-Path $RepoRoot "recordings"
 New-Item -ItemType Directory -Path $RecordingsRoot -Force | Out-Null
 
 $inbox = @(Get-ChildItem -Path (Join-Path $RecordingsRoot "*.zip") -ErrorAction SilentlyContinue)
@@ -36,7 +48,7 @@ if ($inbox.Count -eq 0) {
 }
 else {
     Write-Host "Classifying and sorting $($inbox.Count) new archive(s)..."
-    & $python -u (Join-Path $PSScriptRoot "tools\sort_new_recordings.py") $RecordingsRoot
+    & $python -u (Join-Path $PSScriptRoot "sort_new_recordings.py") $RecordingsRoot
     if ($LASTEXITCODE -ne 0) {
         throw "Sorting failed."
     }

@@ -11,7 +11,7 @@ APP_ROOT = Path(__file__).resolve().parents[1]
 if str(APP_ROOT) not in sys.path:
     sys.path.insert(0, str(APP_ROOT))
 
-from recorder.gui import run_gui  # noqa: E402
+from devtools.recorder.gui import run_gui  # noqa: E402
 
 
 if __name__ == "__main__":
