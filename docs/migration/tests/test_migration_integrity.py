@@ -197,7 +197,9 @@ owner = "fixture"
 ```
 <!-- bridge-registry:end -->
 '''
-    (tmp_path / "BRIDGES.md").write_text(payload, encoding="utf-8")
+    bridges_path = tmp_path / "docs" / "migration" / "BRIDGES.md"
+    bridges_path.parent.mkdir(parents=True, exist_ok=True)
+    bridges_path.write_text(payload, encoding="utf-8")
     errors = integrity.bridge_errors(tmp_path, {"shim": []}, current_phase=1)
     assert "Bridge B1 expired at PHASE_1" in errors
 
@@ -222,7 +224,9 @@ owner = "fixture"
 ```
 <!-- bridge-registry:end -->
 '''
-    (tmp_path / "BRIDGES.md").write_text(payload, encoding="utf-8")
+    bridges_path = tmp_path / "docs" / "migration" / "BRIDGES.md"
+    bridges_path.parent.mkdir(parents=True, exist_ok=True)
+    bridges_path.write_text(payload, encoding="utf-8")
     before = integrity.bridge_errors(tmp_path, {"current_phase": 6, "shim": []})
     at_boundary = integrity.bridge_errors(tmp_path, {"current_phase": 7, "shim": []})
     assert "Bridge B1 expired at PHASE_7" not in before
@@ -230,7 +234,7 @@ owner = "fixture"
 
 
 def test_actual_bridge_removal_schedule_is_exact() -> None:
-    bridges = integrity._extract_bridge_toml(REPO / "BRIDGES.md")["bridge"]
+    bridges = integrity._extract_bridge_toml(REPO / "docs" / "migration" / "BRIDGES.md")["bridge"]
     gates = {bridge["id"]: bridge["removal_gate"] for bridge in bridges}
     assert gates == {
         "B1": "PHASE_7",
@@ -262,7 +266,9 @@ owner = "fixture"
 ```
 <!-- bridge-registry:end -->
 '''
-    (tmp_path / "BRIDGES.md").write_text(payload, encoding="utf-8")
+    bridges_path = tmp_path / "docs" / "migration" / "BRIDGES.md"
+    bridges_path.parent.mkdir(parents=True, exist_ok=True)
+    bridges_path.write_text(payload, encoding="utf-8")
     errors = integrity.bridge_errors(tmp_path, {"compatibility_surface": []}, current_phase=7)
     assert "Removed bridge B1 claims installed locations" in errors
 

@@ -152,7 +152,7 @@ def test_emergency_forward_pulse_releases_existing_movement_and_stops() -> None:
 def test_shipped_config_migrates_without_using_hierarchical_navigation() -> None:
     root = Path(__file__).parents[1]
 
-    config = FarmingRuntimeConfig.load(root / "native_farming.json")
+    config = FarmingRuntimeConfig.load(root / "farming" / "native_farming.json")
 
     assert config.control_interval_seconds == pytest.approx(0.2)
     assert config.pointer_grace_seconds == pytest.approx(3.0)

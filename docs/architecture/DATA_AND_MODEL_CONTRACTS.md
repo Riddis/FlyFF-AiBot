@@ -100,7 +100,7 @@ Which checkpoint (0051200 or a future one) actually ships in a future
 runtime derivative is **not decided**. 0051200 is simply the frozen
 corpus member every current ABI test exercises — not a shipping
 decision. Recorded as an `unresolved_future_choices` entry in
-`future_runtime_profile/dependency_profiles.toml`.
+`tools/future_runtime_profile/dependency_profiles.toml`.
 
 ## 2. Observation/action/reward contract (farming package)
 

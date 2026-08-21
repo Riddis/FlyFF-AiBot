@@ -18,7 +18,7 @@ complete (see [`docs/decisions/0003-dev-bot-first.md`](../decisions/0003-dev-bot
 A future deployment/live derivative, when it is built, will be **derived
 from this same canonical source tree** — never a copied fork. See
 [`docs/decisions/0001-canonical-source-single-tree.md`](../decisions/0001-canonical-source-single-tree.md)
-and `future_runtime_profile/` (a static, non-building dry-run resolver —
+and `tools/future_runtime_profile/` (a static, non-building dry-run resolver —
 see section 5 below) for why and how that derivation is kept provable
 without ever actually being performed yet.
 
@@ -194,7 +194,7 @@ migration, only discovered and characterized by it).
 
 **Status:** current dev-app functionality, not redesigned, not removed,
 not assigned to any phase. `farming.trainer` is excluded from the future
-runtime candidate's own closure (see `future_runtime_profile/`) but
+runtime candidate's own closure (see `tools/future_runtime_profile/`) but
 remains fully present and load-bearing in the current dev app. Never
 widen this exception past its exact four symbols — `tests/
 test_dev_app_import_closure.py::TestExceptionMechanismIsExact` enforces
@@ -202,8 +202,8 @@ this mechanically.
 
 ## 5. Future deployment derivation is a static proof, not a build
 
-`future_runtime_profile/dependency_profiles.toml` +
-`derive_runtime_manifest.py` (`python -m future_runtime_profile.
+`tools/future_runtime_profile/dependency_profiles.toml` +
+`derive_runtime_manifest.py` (`python -m tools.future_runtime_profile.
 derive_runtime_manifest`) is a **read-only, non-building dry-run
 resolver**. It statically walks the shared-runtime import closure
 (`farming`, `position`, `navigation`, `mapper`, `libs`, `utils`,
@@ -263,4 +263,4 @@ source — never before, and never as a parallel fork. See
 - `tests/test_dev_app_import_closure.py`,
   `tests/test_canonical_module_invocation.py`,
   `tests/test_future_derivation_profile.py`
-- `future_runtime_profile/dependency_profiles.toml`
+- `tools/future_runtime_profile/dependency_profiles.toml`

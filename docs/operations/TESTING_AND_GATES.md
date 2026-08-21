@@ -64,7 +64,7 @@ Phase-12 gate-semantics test).
 ## Future deployment derivation profile
 
 ```powershell
-.\.venv\Scripts\python.exe -m future_runtime_profile.derive_runtime_manifest
+.\.venv\Scripts\python.exe -m tools.future_runtime_profile.derive_runtime_manifest
 ```
 
 **Accepted result:** `FUTURE DEPLOYMENT DERIVATION PROFILE: PASS` — 89

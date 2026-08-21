@@ -1,7 +1,7 @@
 # Component Ownership & Dependency Boundaries
 
 **Confidence: VERIFIED_CONTRACT.** Cross-checked directly against
-`CANONICAL_OWNERS.toml`, `BRIDGES.md`, and
+`CANONICAL_OWNERS.toml`, `docs/migration/BRIDGES.md`, and
 `docs/migration/PHASE11_DEPENDENCY_BOUNDARY_ANALYSIS.md`. When this
 document and `CANONICAL_OWNERS.toml` disagree, `CANONICAL_OWNERS.toml`
 is authoritative (it is the machine contract the ruler enforces).
@@ -156,7 +156,7 @@ from importing `legacy/` directly.
 ## Evidence / Sources
 
 - `CANONICAL_OWNERS.toml` ([[concept]] and [[shim]] tables — authoritative)
-- `BRIDGES.md` (B1/B2/B3/B4 bridge registry and human summary)
+- `docs/migration/BRIDGES.md` (B1/B2/B3/B4 bridge registry and human summary)
 - `docs/migration/PHASE11_DEPENDENCY_BOUNDARY_ANALYSIS.md`
 - `docs/migration/codex_handoff/PHASE12_REPORT.md` sections 7/7a/7b
 - `docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv`,

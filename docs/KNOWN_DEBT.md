@@ -34,7 +34,7 @@ everything retained is "debt" in the pejorative sense. Each item states
   to reflect `torch`/`gymnasium`/`stable_baselines3`'s `DUAL_ROLE`
   classification.
 
-Source of record: `future_runtime_profile/dependency_profiles.toml`'s
+Source of record: `tools/future_runtime_profile/dependency_profiles.toml`'s
 `unresolved_future_choices`.
 
 ## Cleanup deferred from Phase 12, resolved in Phase 13/14

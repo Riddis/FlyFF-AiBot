@@ -77,7 +77,7 @@ planner/persistent-waypoint-selector system
 model calibrated against real per-tick trajectory measurements.
 
 **Future deployment derivation profile** — The static, non-building
-proof (`future_runtime_profile/`) that a future runtime candidate's
+proof (`tools/future_runtime_profile/`) that a future runtime candidate's
 import closure would currently resolve cleanly from canonical source.
 Passing this does **not** mean a runtime derivative exists or is ready
 to build.

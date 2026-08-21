@@ -23,7 +23,7 @@ recreating the same multi-root drift problem this migration just fixed.
 
 A future deployment/live derivative will be **derived from the same
 canonical source tree**, never maintained as a copied fork. Concretely:
-`future_runtime_profile/` defines a static profile of which packages a
+`tools/future_runtime_profile/` defines a static profile of which packages a
 future runtime candidate would need, and a dry-run resolver
 (`derive_runtime_manifest.py`) proves that closure is currently clean —
 without ever copying a single file. When a derivative is eventually
@@ -49,5 +49,5 @@ speculatively now.
 ## Evidence
 
 `docs/architecture/SYSTEM_OVERVIEW.md` section 5,
-`future_runtime_profile/dependency_profiles.toml`,
+`tools/future_runtime_profile/dependency_profiles.toml`,
 `docs/migration/codex_handoff/PHASE11_REPORT.md`.

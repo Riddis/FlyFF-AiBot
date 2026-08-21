@@ -137,7 +137,7 @@ candidate_third_party = [
 # audit list (PHASE11_RUNTIME_RESOURCE_MANIFEST.tsv is authoritative and
 # more detailed), not a copy/deployment plan.
 candidate_runtime_resources = [
-  "native_farming.json",
+  "farming/native_farming.json",
   "position/native_monsters.json",
   "position/native_position.json",
 ]

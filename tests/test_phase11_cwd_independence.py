@@ -7,7 +7,7 @@ Development Tools GUI panel it only ever served (see
 docs/decisions/0007-dev-bot-first-is-not-an-ide.md), so only the
 Phase-11 surfaces remain here: `project_paths` (pre-existing,
 `farming`/`recorder` resource-root resolution) and
-`future_runtime_profile.derive_runtime_manifest` (new this phase). Each
+`tools.future_runtime_profile.derive_runtime_manifest` (new this phase). Each
 is proven by resolving from a subprocess whose CWD is an unrelated temp
 directory -- never assuming `os.getcwd() == repo root`.
 """
@@ -52,7 +52,7 @@ def test_project_paths_resolve_app_path_is_independent_of_caller_cwd(tmp_path: P
 _LOAD_RESOLVER = (
     "import importlib.util, sys; "
     "spec = importlib.util.spec_from_file_location('phase11_derive_runtime_manifest', r'"
-    + str(REPO / "future_runtime_profile" / "derive_runtime_manifest.py") + "'); "
+    + str(REPO / "tools" / "future_runtime_profile" / "derive_runtime_manifest.py") + "'); "
     "mod = importlib.util.module_from_spec(spec); sys.modules[spec.name] = mod; spec.loader.exec_module(mod); "
 )
 

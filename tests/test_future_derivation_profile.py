@@ -1,6 +1,6 @@
 """Phase-11 future-derivability gate (Section 10 of the authorization).
 
-Formalizes the dry-run resolver's (`future_runtime_profile.derive_runtime_
+Formalizes the dry-run resolver's (`tools.future_runtime_profile.derive_runtime_
 manifest`) already-passing result into explicit, individually named
 proof-point assertions, so a future regression fails on the SPECIFIC
 property it breaks rather than only on an aggregate PASS/FAIL. This is a
@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-RESOLVER_PATH = REPO / "future_runtime_profile" / "derive_runtime_manifest.py"
+RESOLVER_PATH = REPO / "tools" / "future_runtime_profile" / "derive_runtime_manifest.py"
 
 _spec = importlib.util.spec_from_file_location("phase11_derive_runtime_manifest", RESOLVER_PATH)
 assert _spec is not None and _spec.loader is not None
@@ -134,7 +134,7 @@ def test_point_09_dual_role_third_party_not_excluded() -> None:
 def test_point_10_candidate_resources_tracked_and_present() -> None:
     report = _report()
     assert report.candidate_resources == [
-        "native_farming.json",
+        "farming/native_farming.json",
         "position/native_monsters.json",
         "position/native_position.json",
     ]

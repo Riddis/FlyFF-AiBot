@@ -1,6 +1,6 @@
 """Phase-11 future-derivation dry-run resolver.
 
-Reads future_runtime_profile/dependency_profiles.toml's
+Reads tools/future_runtime_profile/dependency_profiles.toml's
 [profiles.future_runtime_candidate] and statically resolves what a future
 deployment/live derivative's import closure would actually contain if
 built from THIS SAME canonical source tree (never a copied fork). This
@@ -21,8 +21,8 @@ silently tried to run against the wrong "packaging" entirely. Named
 future_runtime_profile/ instead -- confirmed collision-free.
 
 Usage:
-    python -m future_runtime_profile.derive_runtime_manifest
-    python -m future_runtime_profile.derive_runtime_manifest --json
+    python -m tools.future_runtime_profile.derive_runtime_manifest
+    python -m tools.future_runtime_profile.derive_runtime_manifest --json
 
 Exit code is 0 only if every check passes (candidate closure clean of
 forbidden dev/training implementation outside the registered exact
@@ -55,8 +55,8 @@ try:
 except ImportError:  # pragma: no cover - Python <3.11 fallback, unused here
     import tomli as tomllib  # type: ignore[no-redef]
 
-REPO = Path(__file__).resolve().parents[1]
-PROFILE_PATH = REPO / "future_runtime_profile" / "dependency_profiles.toml"
+REPO = Path(__file__).resolve().parents[2]
+PROFILE_PATH = REPO / "tools" / "future_runtime_profile" / "dependency_profiles.toml"
 
 
 def load_profile(path: Path = PROFILE_PATH) -> dict:

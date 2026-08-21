@@ -31,7 +31,7 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
-DEFAULT_PROVENANCE_REGISTRY = Path(__file__).resolve().parents[1] / "recording_provenance.json"
+DEFAULT_PROVENANCE_REGISTRY = Path(__file__).resolve().parents[1] / "recordings" / "recording_provenance.json"
 
 
 def missing_policy_contract_warning(archive_name: str) -> str:

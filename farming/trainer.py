@@ -428,7 +428,7 @@ def _set_focus_status_callback(
 
 
 def _default_config() -> FarmingRuntimeConfig:
-    return FarmingRuntimeConfig.load(resolve_app_path("native_farming.json"))
+    return FarmingRuntimeConfig.load(resolve_app_path("farming/native_farming.json"))
 
 
 def _session_paths(
