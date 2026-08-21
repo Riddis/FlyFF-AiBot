@@ -51,11 +51,12 @@ calling only `refresh_actor_cache()`/`read_frame()` — the same calls
 farming/training already makes every tick, not a new class of native
 operation. Write primitives (`PackedStreamWriter`, `package_session`,
 etc.) live in `runtime/recording_format.py`, extracted out of
-`devtools/recorder/format.py` (which now re-exports them) specifically so
-`recording_sink.py` can reuse them **without the dev app importing
-`devtools.recorder`** — the R1b import-closure boundary
-(`tests/test_dev_app_import_closure.py`) still holds: `devtools.recorder`
-is never reached from the dev app's import closure.
+`devtools/recorder/format.py` (deleted 2026-08-21; `devtools/recorder/
+session.py` now imports these primitives from `runtime.recording_format`
+directly) specifically so `recording_sink.py` can reuse them **without
+the dev app importing `devtools.recorder`** — the R1b import-closure
+boundary (`tests/test_dev_app_import_closure.py`) still holds:
+`devtools.recorder` is never reached from the dev app's import closure.
 
 **User-visible UI is trivial, no metadata questionnaire** (MISTAKES.md,
 "invented mandatory experiment-metadata UI fields the user never asked

@@ -1,7 +1,9 @@
 """Generic gzip+msgpack packed-stream write primitives.
 
-Moved out of `devtools/recorder/format.py` (which now re-exports from here
-for backward compatibility) so the canonical dev app's own recording sink
+Moved out of `devtools/recorder/format.py` (deleted 2026-08-21 once its
+only two consumers -- `devtools/recorder/session.py` and
+`tests/test_recorder_core.py` -- were migrated to import this module
+directly) so the canonical dev app's own recording sink
 (`recording_sink.py`) can reuse the exact same archive-writing code
 without importing the `devtools.recorder` package itself -- `devtools.recorder`
 stays outside the dev app's import closure (it is the *acquisition* package;

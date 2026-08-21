@@ -27,7 +27,7 @@ from .active_field_profiler import ActiveFieldProfiler
 from position.profiling.presence_promotion import promote_validated_presence_offset
 from .config import RecorderConfig
 from .provenance import ExperimentProvenance, OPERATIONAL_FEEDBACK_DEFAULT
-from .format import (
+from runtime.recording_format import (
     PackedStreamWriter,
     atomic_json,
     package_session,

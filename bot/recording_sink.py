@@ -19,7 +19,7 @@ already makes. It never constructs a new ``NativeProcessService``,
 never attaches, never scans.
 
 Archive writing reuses ``runtime/recording_format.py`` (the same
-primitives ``devtools/recorder/format.py`` uses, extracted into the
+primitives ``devtools/recorder/session.py`` imports directly, in the
 shared ``runtime`` package precisely so this module can reuse them
 without importing the ``devtools.recorder`` package -- ``devtools.recorder``
 stays outside the dev app's import closure, see

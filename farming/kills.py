@@ -69,9 +69,6 @@ class NativeKillTracker:
         zero_hp_confirmation_reads: int = 2,
         result_timeout_seconds: float = 2.0,
         poll_seconds: float = 0.05,
-        # Backward-compatible constructor inputs from the old absence tracker.
-        minimum_absence_seconds: float | None = None,
-        dedupe_seconds: float | None = None,
         clock: Callable[[], float] = monotonic,
         sleeper: Callable[[float], None] = sleep,
     ) -> None:
@@ -83,10 +80,6 @@ class NativeKillTracker:
             raise ValueError("zero_hp_confirmation_reads must be a positive integer")
         if result_timeout_seconds <= 0.0 or poll_seconds <= 0.0:
             raise ValueError("result_timeout_seconds and poll_seconds must be positive")
-        if minimum_absence_seconds is not None and minimum_absence_seconds <= 0.0:
-            raise ValueError("minimum_absence_seconds must be positive when provided")
-        if dedupe_seconds is not None and dedupe_seconds <= 0.0:
-            raise ValueError("dedupe_seconds must be positive when provided")
         self.zero_hp_confirmation_reads = int(zero_hp_confirmation_reads)
         self.result_timeout_seconds = float(result_timeout_seconds)
         self.poll_seconds = float(poll_seconds)

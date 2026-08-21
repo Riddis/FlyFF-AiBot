@@ -85,6 +85,7 @@ INTENTIONALLY_NONEXISTENT_PATHS = frozenset({
     "apps/recorder_headless_cli.py",
     "simulator/kinodynamic_route_planner.py",
     "simulator/movement_kernel.py",
+    "devtools/recorder/format.py",
 })
 STALE_QUALIFIERS = (
     "facade", "shim", "compat", "superseded", "stale", "prior-generation",

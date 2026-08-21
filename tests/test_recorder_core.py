@@ -8,7 +8,7 @@ from farming.observation_contract import (
 )
 from position.IndependentNativeReader import IndependentActorSlotRead
 from devtools.recorder.config import RecorderConfig
-from devtools.recorder.format import PackedStreamWriter, read_packed_stream
+from runtime.recording_format import PackedStreamWriter, read_packed_stream
 from devtools.recorder.keyboard import (
     EVA_BIT,
     FORWARD_BIT,
