@@ -1174,3 +1174,44 @@ project's own no-silent-rewrite rule.
   once earlier in the session, especially after such an operation.
   Explicit-path `git add` does not remove files that go missing from
   the intended commit; only re-checking the full index catches that.
+
+## Category: pre-existing test failures discovered during unrelated work
+
+### [2026-08-21] `test_focus_loss_during_eva_discards_kill_and_transition` fails at HEAD, unrelated to any change this session
+- What happened: running the full `tests/` suite after the migration-
+  governance/legacy-root-retirement commit (`b30f4cf`) surfaced 2
+  failures. One (`test_navigation_dataset.py::
+  test_mine_navigation_dataset_produces_all_four_categories_on_real_
+  layouts`) is an environment/local-artifact gap (`models/
+  split_branch_pilot_15000.zip` does not exist on this machine and is
+  not git-tracked -- not a code bug). The other,
+  `tests/test_farming_environment_lifecycle.py::
+  test_focus_loss_during_eva_discards_kill_and_transition`, is a real
+  deterministic logic-assertion failure: `assert step.info[
+  "native_kill_delta"] == 0` gets `1` instead. The test simulates a
+  kill confirmed while focus was lost mid-EVA (cast window) and expects
+  the kill to be discarded; it currently is not.
+- Root cause: not diagnosed. Neither `farming/environment.py` nor
+  `tests/test_farming_environment_lifecycle.py` has been touched since
+  commits `10f41c5`/`bfc5c6d` respectively (both well before this
+  session and before `b30f4cf`), so this is a pre-existing failure, not
+  a regression from the legacy-root-retirement work. Whether the bug is
+  in the discard logic (`farming/environment.py` around the
+  `is_target_foreground()`/`native_kill_delta` sites, lines ~840-1170)
+  or the test's own expectation is stale is unknown -- not investigated
+  further under a session-limit deadline.
+- How caught: running the full offline `tests/` suite (1197 passed, 2
+  failed, 2 skipped, 1 xfailed) as a validation step after an unrelated
+  commit.
+- Fix: none applied. Deliberately not fixed in the same session it was
+  found in -- kill-tracking/focus-loss logic is reward-adjacent farming
+  behavior and not something to patch under time pressure without
+  independent verification. Left as an open, recorded item for a future
+  session with time to properly diagnose it.
+- Lesson: always run the full `tests/` suite (not just the directly
+  relevant subset) after a repository-structure change, even one that
+  looks scoped to migration tooling/docs -- it can surface unrelated
+  pre-existing breakage that would otherwise go unnoticed. When a
+  newly-discovered failure predates the current session's diff (verify
+  via `git log -- <file>` on the implicated files), record it here and
+  move on rather than expanding scope to fix it immediately.
