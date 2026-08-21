@@ -11,7 +11,7 @@ from typing import Iterator
 
 import msgpack
 
-from legacy.manifest_compat import (
+from simulator.legacy_manifest_compat import (
     DEFAULT_PROVENANCE_REGISTRY,
     attested_by_registry,
     missing_map_contract_warning,
@@ -52,7 +52,7 @@ def allows_direct_movement_labels(
 
     Current-format archives embed this directly. Archives predating the
     embedded ``recording_provenance`` block fall back to the legacy external
-    attestation registry (``legacy.manifest_compat``)."""
+    attestation registry (``simulator.legacy_manifest_compat``)."""
 
     provenance = manifest.get("recording_provenance")
     embedded = bool(

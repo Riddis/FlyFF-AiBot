@@ -207,7 +207,7 @@ this mechanically.
 derive_runtime_manifest`) is a **read-only, non-building dry-run
 resolver**. It statically walks the shared-runtime import closure
 (`farming`, `position`, `navigation`, `mapper`, `libs`,
-`assets`, plus `simulator/schema.py` and `legacy/manifest_compat.py`)
+`assets`, plus `simulator/schema.py` and `simulator/legacy_manifest_compat.py`)
 and reports whether that closure is clean of forbidden dev/recorder/
 simulator-training surfaces, and whether the checkpoint-ABI compatibility
 modules and required runtime resources are present and tracked. It
@@ -235,7 +235,7 @@ as `unresolved_future_choices`, not silently resolved.
 | `devtools/recorder/` | Standalone historical recorder (dev/support tooling, not an independent product) — its own writer/format/`provenance.py` (`ExperimentProvenance`, docs/PROJECT_GOALS.md section 6), plus `evidence_catalog.py`'s post-hoc sidecar labeling used by both the standalone recorder and the dev bot; packaging/build files live in `devtools/recorder/packaging/` | `apps/recorder_app.py`, standalone PyInstaller build. **Never** the dev app's own import closure (R1b/section 4) |
 | `runtime/recording_format.py` | Stdlib+msgpack-only packed-stream write primitives (`PackedStreamWriter`, `package_session`, etc.), extracted out of `devtools/recorder/format.py` (deleted 2026-08-21; `devtools/recorder/session.py` now imports these primitives directly) specifically so the dev app never has to import `devtools.recorder` to write an archive; lives in the shared `runtime/` package (also `capture_service.py`, `runtime_bus.py`, `worker_manager.py`, `project_paths.py`) because it is consumed by both `bot/` and `devtools/recorder/` independently, and neither may depend on the other | `bot/recording_sink.py`, `devtools/recorder/session.py` |
 | `bot/recording_sink.py` | The dev bot's own in-process recording sink (`RecordingSink`) — a passive consumer of the dev bot's already-attached native reader triad, never a second scanner or subprocess (docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md section 1a) | `RuntimeController` |
-| `simulator/schema.py` + `legacy/manifest_compat.py` | Canonical archive/recording **reader** (`RecordingArchive`/`RecordedFrame`/`RecordedActor`/`RecordedEvent`) — corrected classification, not `archives/` (which does not exist) | `tools.inventory_recordings`, `devtools.archives.*`, tests |
+| `simulator/schema.py` + `simulator/legacy_manifest_compat.py` | Canonical archive/recording **reader** (`RecordingArchive`/`RecordedFrame`/`RecordedActor`/`RecordedEvent`) — corrected classification, not `archives/` (which does not exist) | `tools.inventory_recordings`, `devtools.archives.*`, tests |
 | `devtools/` | Dev-only offline utilities kept after Phase-10's GUI-orchestration layer was removed ([ADR 0007](../decisions/0007-dev-bot-first-is-not-an-ide.md)): `devtools.native.*`, `devtools.calibration.*`, `devtools.archives.*`, `devtools.telemetry` — CLI/library use, invoked directly by a developer, never launched by `apps/dev_app.py` | `apps/telemetry_cli.py`, developers directly |
 | `simulator/` (rest) | Training/environment implementation (router/static/single-obstacle waypoint envs, curriculum, CLI) | Training scripts, `docs/migration/tests/`, never the dev app |
 

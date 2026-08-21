@@ -8,21 +8,27 @@ reading all 8 Phase-0 archives' manifests -- see
 module isolates exactly those absence-driven compatibility decisions. It
 takes the current contract values (role/scheme) as parameters rather than
 importing them from ``simulator.schema``, so the dependency direction stays
-canonical (``simulator.schema``) -> legacy, never the reverse.
+canonical (``simulator.schema``) -> this module, never the reverse.
 
 A present-but-wrong contract is always a hard current-format validation
 failure in ``simulator.schema`` itself -- this module is consulted only when
 the relevant field is genuinely absent.
 
-This intentionally lives at top-level ``legacy/``, not nested under an
-``archives/`` package: the frozen Phase-3 G7 semantic contract encodes each
-decoded record's fully-qualified class name
-(``type(value).__module__.__qualname__``) as part of its typed hash, so
-``RecordingArchive``/``RecordedFrame``/``RecordedActor``/``RecordedEvent``
-cannot be relocated out of ``simulator.schema`` without changing that frozen
-hash -- see ``docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md`` section F for
-the full account of why the originally-planned ``archives/schema.py``
-placement was abandoned.
+This module used to live in a separate top-level ``legacy/`` package. That
+separate package was retired: it contained only these ~40 lines of plain
+warning/provenance-normalization functions (no G7 frozen dataclasses, which
+is the one thing that genuinely cannot move -- ``RecordingArchive``/
+``RecordedFrame``/``RecordedActor``/``RecordedEvent`` stay in
+``simulator/schema.py`` because the frozen Phase-3 G7 semantic contract
+encodes each decoded record's fully-qualified class name as part of its
+typed hash), and ``simulator/schema.py`` was already its only current
+importer. Colocating it here under its sole consumer's own ownership
+removes a needless architectural package boundary while preserving the
+real, still-load-bearing old-archive behavior unchanged -- see
+``docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md`` section F for the full
+original account of why a separate ``archives/schema.py`` placement was
+abandoned (that reasoning is about the frozen classes, not about this
+module).
 """
 
 from __future__ import annotations

@@ -7,13 +7,16 @@ not silently come back -- not a general-purpose "no legacy code" policy,
 and not brittle against historical prose: it checks current source/config
 structure, never docs/migration/** content.
 
-legacy/manifest_compat.py is intentionally NOT covered here: it was
-investigated during the purge (twice, independently) and kept both
-times, proven load-bearing for real recorder-1.7.0/1.9.0-era archives
-(recordings/INDEX.json, recordings/recording_provenance.json) that still
-need it to remain readable -- a real current external dependency, not
-migration debt. A gate asserting its absence would be asserting
-something false."""
+The historical archive-manifest compatibility logic itself (real
+support for recorder-1.7.0/1.9.0-era archives predating embedded
+policy_contract/map_contract/recording_provenance) is proven load-
+bearing and intentionally NOT removed -- see
+tests/test_archive_schema_legacy_compat.py. What WAS removed is the
+needless separate top-level legacy/ PACKAGE it used to live in (no G7
+frozen dataclasses lived there; simulator/schema.py was already its
+only importer) -- it now lives at simulator/legacy_manifest_compat.py,
+alongside its sole consumer. See CANONICAL_OWNERS.toml's retirement
+note for the former [rules.R7b]."""
 
 from __future__ import annotations
 
@@ -151,6 +154,25 @@ def test_recorder_format_reexport_module_does_not_exist() -> None:
         "(devtools/recorder/session.py, tests/test_recorder_core.py) were migrated to import "
         "runtime.recording_format directly; re-justify a re-export module against real current "
         "evidence before adding it back"
+    )
+
+
+def test_top_level_legacy_package_does_not_exist() -> None:
+    assert not (REPO / "legacy").exists(), (
+        "legacy/ reappeared at repository root -- its one real module "
+        "(manifest_compat.py, historical archive-manifest compatibility) "
+        "belongs at simulator/legacy_manifest_compat.py, alongside its sole "
+        "consumer simulator/schema.py; a separate top-level package for it "
+        "held no G7 frozen dataclasses and was not required"
+    )
+
+
+def test_canonical_owners_has_no_r7b_rule() -> None:
+    registry = tomllib.loads((REPO / "CANONICAL_OWNERS.toml").read_text(encoding="utf-8"))
+    assert "R7b" not in registry.get("rules", {}), (
+        "[rules.R7b] reappeared -- it policed the now-removed top-level legacy/ "
+        "package boundary; re-justify against real current evidence before "
+        "adding it back"
     )
 
 

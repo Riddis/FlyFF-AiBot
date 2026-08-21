@@ -303,19 +303,6 @@ def r9_findings(edges: Iterable[ImportEdge], tracked: set[str]) -> list[Finding]
     )
 
 
-def r7b_findings(edges: Iterable[ImportEdge], registry: dict[str, Any]) -> list[Finding]:
-    rule = registry["rules"]["R7b"]
-    legacy_segments = set(rule["legacy_path_segments"])
-    allowed = tuple(rule["allowed_importer_prefixes"])
-    findings: list[Finding] = []
-    for edge in edges:
-        if edge.resolved_path is None:
-            continue
-        if legacy_segments & set(Path(edge.resolved_path).parts) and not edge.importer.startswith(allowed):
-            findings.append(Finding("R7b", edge.imported_name, edge.importer, f"legacy_target={edge.resolved_path}"))
-    return sorted(findings)
-
-
 def _concept_findings(files: dict[str, str], registry: dict[str, Any]) -> tuple[list[Finding], list[str]]:
     findings: list[Finding] = []
     errors: list[str] = []
@@ -848,7 +835,7 @@ def collect(repo: Path, registry: dict[str, Any]) -> dict[str, Any]:
     findings, ownership_errors = _concept_findings(files, registry)
     edges = collect_import_edges(repo, files, roots)
     r9 = sorted([*parse_errors, *r9_findings(edges, set(tracked_paths(repo)))])
-    findings = sorted([*findings, *r7b_findings(edges, registry)])
+    findings = sorted(findings)
     return {
         "findings": findings,
         "ownership_errors": ownership_errors,

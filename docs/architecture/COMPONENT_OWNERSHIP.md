@@ -150,9 +150,7 @@ training  ──┘
 
 Shared/core packages must never import `devtools`, `recorder`
 (implementation, not its compatibility facades), simulator
-training/environment code, `legacy` (except the one `simulator/
-schema.py` exact-path exception — see `[rules.R7b]` in
-`CANONICAL_OWNERS.toml`), or test code — except the one exact R1b
+training/environment code, or test code — except the one exact R1b
 exception (`bot/runtime_controller.py` → `farming.trainer`, section 4 of
 `SYSTEM_OVERVIEW.md`). devtools/recorder/simulator/training may freely
 import shared/core (the allowed direction).
@@ -164,17 +162,23 @@ Enforced by: `tests/test_dev_app_import_closure.py`,
 generalization of the same one-way guard for the future-runtime-
 candidate closure specifically).
 
-## 5. `R7b`: the `legacy/` exception is exact, not a directory prefix
+## 5. Historical archive-manifest compatibility lives with its owner
 
-`simulator/schema.py` is listed **by exact path**, not a directory
-prefix, as the sole non-`legacy/`-rooted file allowed to import from
-`legacy/`. The frozen Phase-3 G7 semantic contract encodes each decoded
-record's fully-qualified class name as part of its typed hash, so
-`RecordingArchive`/`RecordedFrame`/`RecordedActor`/`RecordedEvent`
-cannot be relocated into a new top-level package without changing that
-frozen hash — see `docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md`
-section F. Every other ordinary product-code file remains restricted
-from importing `legacy/` directly.
+`simulator/legacy_manifest_compat.py` holds the absence-driven warning/
+provenance-normalization logic for archives predating embedded
+`policy_contract`/`map_contract`/`recording_provenance` (recorder
+1.7.0/1.9.0-era manifests). It used to live in a separate top-level
+`legacy/` package (policed by a since-retired `R7b` rule); an audit
+found it held no G7 frozen dataclasses and `simulator/schema.py` was
+already its only importer, so it was folded into `simulator/`'s own
+ownership and the package boundary removed — see `CANONICAL_OWNERS.toml`'s
+retirement note above the (now-empty) rule slot. The frozen Phase-3 G7
+semantic contract itself (`RecordingArchive`/`RecordedFrame`/
+`RecordedActor`/`RecordedEvent`) still cannot be relocated out of
+`simulator/schema.py`, since it encodes each decoded record's
+fully-qualified class name as part of its typed hash — see
+`docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md` section F. That
+constraint was never about the compatibility module's own location.
 
 ## Evidence / Sources
 

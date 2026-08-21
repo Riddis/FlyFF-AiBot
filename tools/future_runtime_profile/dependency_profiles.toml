@@ -21,7 +21,7 @@ description = "The canonical development application -- everything a developer n
 first_party_packages = [
   "apps", "bot", "runtime",
   "farming", "position", "navigation", "mapper", "libs", "assets",
-  "devtools", "simulator", "legacy",
+  "devtools", "simulator",
 ]
 third_party = [
   "numpy", "cv2", "PySimpleGUI", "win32api", "win32gui", "win32con", "pywintypes",
@@ -37,7 +37,7 @@ entrypoint = "apps.recorder_app"
 
 [profiles.simulator]
 description = "Simulator/training specialist CLI, launched as an independent subprocess by the dev app."
-first_party_packages = ["simulator", "navigation", "farming", "legacy"]
+first_party_packages = ["simulator", "navigation", "farming"]
 third_party = ["numpy", "gymnasium", "stable_baselines3", "torch", "msgpack"]
 entrypoint = "apps.simulator_cli"
 
@@ -72,14 +72,16 @@ shared_runtime_packages = [
 # Individual SHARED_RUNTIME_CORE files that live inside an otherwise
 # non-shared package (PHASE11_DEPENDENCY_BOUNDARY_ANALYSIS.md section 1:
 # simulator/schema.py is the canonical archive/recording reader,
-# legacy/manifest_compat.py is the compat logic behind it -- both
-# corrected per Phase-10 section 1, neither is a devtool or simulator
-# training/environment algorithm). Walked as entry points alongside
-# shared_runtime_packages so the resolver vouches for their closure too,
-# rather than merely not-forbidding them by omission.
+# simulator/legacy_manifest_compat.py is the compat logic behind it --
+# folded here from a former separate top-level legacy/ package once an
+# audit found it held no G7 frozen dataclasses and simulator/schema.py
+# was already its only importer -- neither file is a devtool or
+# simulator training/environment algorithm). Walked as entry points
+# alongside shared_runtime_packages so the resolver vouches for their
+# closure too, rather than merely not-forbidding them by omission.
 additional_shared_entry_files = [
   "simulator/schema.py",
-  "legacy/manifest_compat.py",
+  "simulator/legacy_manifest_compat.py",
 ]
 
 # TRAINING_ONLY files that live inside an otherwise-shared package
@@ -170,9 +172,9 @@ forbidden_first_party_prefixes = [
   "simulator.scratchpad",
   "tests",
 ]
-# Not forbidden: simulator.schema / legacy(.manifest_compat) -- corrected
-# SHARED_RUNTIME_CORE per section 1 above, walked explicitly via
-# additional_shared_entry_files instead of blocked here.
+# Not forbidden: simulator.schema / simulator.legacy_manifest_compat --
+# corrected SHARED_RUNTIME_CORE per section 1 above, walked explicitly
+# via additional_shared_entry_files instead of blocked here.
 
 # Deliberately unresolved -- explicit, not silently deferred. None of
 # these are decided in Phase 11 and none require deciding to satisfy the

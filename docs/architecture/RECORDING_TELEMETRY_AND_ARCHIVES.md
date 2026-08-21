@@ -8,22 +8,24 @@ There are two, deliberately separate, writers sharing one archive
 format — see section 1a for why the dev bot uses neither the standalone
 recorder's process nor its acquisition path:
 
-- **Standalone historical recorder:** `recorder/` (`RECORDER_ONLY` —
-  confirmed clean of `simulator.*`/`torch`/`gymnasium`/
-  `stable_baselines3`/`devtools.*`). Launched via `apps/recorder_app.py`
-  (`recorder.gui.run_gui()`, interactive, developer-run), also packaged
-  standalone via `FlyffFarmingRecorder.spec` (PyInstaller). Attaches
-  using `RECORDING_ATTACH_POLICY` (see `POSITION_AND_POINTER_RECOVERY.md`)
-  — its own, independent acquisition path, retained for historical/
-  compatibility use only. The dev bot never invokes it (section 1a).
+- **Standalone historical recorder:** `devtools/recorder/`
+  (`RECORDER_ONLY` — confirmed clean of `simulator.*`/`torch`/
+  `gymnasium`/`stable_baselines3`). Launched via `apps/recorder_app.py`
+  (`devtools.recorder.gui.run_gui()`, interactive, developer-run), also
+  packaged standalone via `FlyffFarmingRecorder.spec` (PyInstaller).
+  Attaches using `RECORDING_ATTACH_POLICY` (see
+  `POSITION_AND_POINTER_RECOVERY.md`) — its own, independent acquisition
+  path, retained for historical/compatibility use only. The dev bot
+  never invokes it (section 1a).
 - **Dev-bot recording sink:** `bot/recording_sink.py`'s
   `RecordingSink`, in-process, never a subprocess (section 1a).
 - **Reader (canonical archive reader):** `simulator/schema.py`
   (`RecordingArchive`, `RecordedFrame`, `RecordedActor`,
-  `RecordedEvent`), backed by `legacy/manifest_compat.py`. **Not**
-  `archives/` — that package does not exist; this was a Phase-8
-  correction to an earlier, wrong classification. Both files are
-  `SHARED_RUNTIME_CORE`, not devtools.
+  `RecordedEvent`), backed by `simulator/legacy_manifest_compat.py`
+  (folded in from a former separate top-level `legacy/` package — see
+  section 2). **Not** `archives/` — that package does not exist; this
+  was a Phase-8 correction to an earlier, wrong classification. Both
+  files are `SHARED_RUNTIME_CORE`, not devtools.
 
 ## 1a. The dev bot's recording sink is a passive consumer, never a second scanner
 
@@ -121,17 +123,20 @@ The frozen Phase-3 G7 semantic contract encodes each decoded record's
 **fully-qualified class name** as part of its typed hash. This means
 these classes cannot be relocated to a different module path without
 changing that frozen hash — which would break every archive ever
-produced against it. `[rules.R7b]` in `CANONICAL_OWNERS.toml`
-specifically carves out `simulator/schema.py` by exact path (not a
-directory prefix) as the one non-`legacy/`-rooted file allowed to import
-from `legacy/`, precisely to keep this reader at its frozen path. See
-`docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md` section F.
+produced against it. `simulator/schema.py` stays at its frozen path for
+exactly this reason. See `docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md`
+section F. (A former `[rules.R7b]` entry in `CANONICAL_OWNERS.toml`
+additionally policed a separate top-level `legacy/` package boundary
+for the absence-driven compatibility logic below — that package held
+no G7 frozen dataclasses, so it was folded into `simulator/`'s own
+ownership and the rule retired; see CANONICAL_OWNERS.toml's retirement
+note.)
 
 An archive is a zip with four required members:
 `manifest.json`, `frames.msgpack.gz`, `events.msgpack.gz`,
 `inputs.msgpack.gz`. `SUPPORTED_RECORDING_SCHEMA_VERSIONS = {2}` —
 only schema version 2 archives are currently readable; older schema
-versions require `legacy/manifest_compat.py`'s compatibility logic.
+versions require `simulator/legacy_manifest_compat.py`'s compatibility logic.
 `msgpack` is the serialization format for frame/event/input streams
 (classified `DUAL_ROLE`: `RECORDER` + `RUNTIME_INFERENCE`-adjacent — see
 `SYSTEM_OVERVIEW.md`).
@@ -224,10 +229,10 @@ identity/causality without support.
 
 ## Evidence / Sources
 
-- `simulator/schema.py`, `legacy/manifest_compat.py` (direct source
-  reads)
+- `simulator/schema.py`, `simulator/legacy_manifest_compat.py` (direct
+  source reads)
 - `docs/migration/PHASE8_ARCHIVE_OWNER_ANALYSIS.md`
-- `CANONICAL_OWNERS.toml` `[rules.R7b]`
+- `CANONICAL_OWNERS.toml` (retirement note above the repository table)
 - `docs/migration/PHASE11_DEPENDENCY_BOUNDARY_ANALYSIS.md` (recorder/
   schema classification)
 - `apps/telemetry_cli.py` (direct source read of its own docstring)

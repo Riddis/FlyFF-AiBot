@@ -65,7 +65,10 @@ def test_point_02_no_forbidden_dev_recorder_simulator_scratchpad_edges() -> None
 def test_point_03_simulator_training_environment_not_in_shared_closure() -> None:
     report = _report()
     simulator_modules = {m for m in report.candidate_first_party_modules if m.startswith("simulator.") or m == "simulator"}
-    allowed = set(report.abi_compatibility_modules) | {"simulator.schema"}
+    allowed = set(report.abi_compatibility_modules) | {
+        "simulator.schema",
+        "simulator.legacy_manifest_compat",
+    }
     assert simulator_modules <= allowed, simulator_modules - allowed
 
 
