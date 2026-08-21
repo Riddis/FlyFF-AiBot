@@ -1,8 +1,13 @@
-"""Mapper package public API with lazy imports.
+"""Mapper package public API, lazily imported.
 
-Ordinary runtime mapping now uses the native-coordinate mapper. The previous
-visual mapper and calibration utilities remain importable only for compatibility
-with old experiments and Bot Vision setup screens.
+Ordinary runtime mapping uses the native-coordinate mapper. The visual
+mapper and calibration utilities exported here (CoordinateMapper,
+ManualDriveMapper, AdaptiveMapper, RotationCalibrator,
+StateAwareRotationModel, MinimapAnchorSetup, MinimapHeadingDetector,
+NativeMonsterMapOverlay, ...) are a second, real, currently-used
+surface, not a compatibility facade for something retired: bot/Gui.py's
+"Bot Vision" setup screens and bot/runtime_controller.py both consume
+these classes directly, right now.
 """
 
 from __future__ import annotations
