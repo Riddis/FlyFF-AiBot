@@ -277,7 +277,7 @@ def _run_training(args: argparse.Namespace) -> int:
     except ImportError as error:
         raise SystemExit(
             "Training requires gymnasium, stable-baselines3, torch, and tensorboard. "
-            "Install requirements-training.txt first."
+            "Install requirements/training.txt first."
         ) from error
 
     _validate_ppo_settings(args)
@@ -624,7 +624,7 @@ def _load_policy(path: Path, *, device: str, env: Any | None = None):
     except ImportError as error:
         raise SystemExit(
             "Evaluation requires stable-baselines3 and torch. "
-            "Install requirements-training.txt first."
+            "Install requirements/training.txt first."
         ) from error
     checkpoint = _resolve_checkpoint(path)
     policy = PPO.load(str(checkpoint), env=env, device=device)

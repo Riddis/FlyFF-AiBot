@@ -175,7 +175,7 @@ unresolved_future_choices = [
   "whether cv2-vision-based OCR/UI-detection/minimap-heading template matching is retained or replaced by pure-native reading in a future derivative",
   "whether bot/runtime_controller.py's farming.trainer coupling is omitted or redesigned for a future derivative (explicitly not assigned to any phase yet)",
   "final entrypoint name/location for any future derivative (explicitly not apps/live_bot.py, per this phase's own prohibition)",
-  "whether requirements.txt/requirements-training.txt's existing split changes to reflect torch/gymnasium/stable_baselines3's DUAL_ROLE classification",
+  "whether requirements/base.txt/requirements/training.txt's existing split changes to reflect torch/gymnasium/stable_baselines3's DUAL_ROLE classification",
 ]
 
 # Exact (never prefix-based) registered exceptions to the forbidden list

@@ -278,7 +278,7 @@ def evaluate_checkpoint(
     try:
         from stable_baselines3 import PPO
     except ImportError as error:
-        raise SystemExit("Install requirements-training.txt before evaluation") from error
+        raise SystemExit("Install requirements/training.txt before evaluation") from error
 
     policy = PPO.load(str(checkpoint), device=device)
     validate_factorized_policy_contract(policy)
@@ -365,7 +365,7 @@ def run_pilot(args: argparse.Namespace) -> int:
     try:
         from stable_baselines3 import PPO
     except ImportError as error:
-        raise SystemExit("Install requirements-training.txt before training") from error
+        raise SystemExit("Install requirements/training.txt before training") from error
 
     env, training_layouts = _balanced_training_vec_env(
         args.curriculum,

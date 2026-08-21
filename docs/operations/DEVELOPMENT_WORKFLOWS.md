@@ -15,20 +15,20 @@ for the mechanism-level detail this doc does not repeat.
 From the repository root:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements/base.txt
 .\.venv\Scripts\python.exe -m apps.dev_app
 ```
 
-`requirements.txt` is the single base dependency set (bot/recorder
-runtime only). Two layered extras each `-r requirements.txt` to add to
-it, never duplicate it: `requirements-dev.txt` (`pytest`, `pyinstaller`
-— install this to run `tests/`) and `requirements-training.txt`
+`requirements/base.txt` is the single base dependency set (bot/recorder
+runtime only). Two layered extras each `-r base.txt` to add to
+it, never duplicate it: `requirements/dev.txt` (`pytest`, `pyinstaller`
+— install this to run `tests/`) and `requirements/training.txt`
 (`gymnasium`, `stable-baselines3`, `torch`, `tensorboard`, `rich` — for
 `simulator`/`farming` RL training). Install the one matching the task:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m pip install -r requirements-training.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements/dev.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements/training.txt
 ```
 
 This **supersedes** any older instruction to `Set-Location

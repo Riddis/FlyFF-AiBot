@@ -1,4 +1,4 @@
--r requirements.txt
+-r base.txt
 gymnasium>=1.0
 stable-baselines3>=2.6
 torch>=2.5

@@ -760,7 +760,7 @@ def _compare_saved_policies(
     except ImportError as error:
         raise SystemExit(
             "Checkpoint evaluation requires stable-baselines3 and torch. "
-            "Install requirements-training.txt first."
+            "Install requirements/training.txt first."
         ) from error
 
     random_rng = np.random.default_rng(seed + 987_654)
@@ -851,7 +851,7 @@ def _run_synthetic_training(args) -> int:
     except ImportError as error:
         raise SystemExit(
             "Training requires gymnasium, stable-baselines3, torch, and tensorboard. "
-            "Install requirements-training.txt first."
+            "Install requirements/training.txt first."
         ) from error
     _validate_ppo_settings(args)
     env = SyntheticCurriculumEnv(
@@ -1030,7 +1030,7 @@ def _evaluate_synthetic(args) -> int:
     except ImportError as error:
         raise SystemExit(
             "Checkpoint evaluation requires stable-baselines3 and torch. "
-            "Install requirements-training.txt first."
+            "Install requirements/training.txt first."
         ) from error
     checkpoint = _resolve_checkpoint_path(args.checkpoint)
     policy = PPO.load(str(checkpoint), device=args.device)
@@ -1279,7 +1279,7 @@ def main(argv: list[str] | None = None) -> int:
         except ImportError as error:
             raise SystemExit(
                 "Training requires gymnasium, stable-baselines3, torch, and tensorboard. "
-                "Install requirements-training.txt first."
+                "Install requirements/training.txt first."
             ) from error
         if args.n_steps < 1 or args.batch_size < 1 or args.n_epochs < 1:
             raise SystemExit("n-steps, batch-size, and n-epochs must be positive.")

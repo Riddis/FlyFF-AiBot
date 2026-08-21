@@ -43,10 +43,13 @@ session become invalid.
 From the repository root:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-Set-Location foreground_vision_bot
-..\.venv\Scripts\python.exe foreground_vision_farm.py
+.\.venv\Scripts\python.exe -m pip install -r requirements/base.txt
+.\.venv\Scripts\python.exe -m apps.dev_app
 ```
+
+See [`docs/operations/DEVELOPMENT_WORKFLOWS.md`](docs/operations/DEVELOPMENT_WORKFLOWS.md)
+for the full current install/launch procedure, including the `requirements/dev.txt`
+and `requirements/training.txt` extras.
 
 Then:
 
