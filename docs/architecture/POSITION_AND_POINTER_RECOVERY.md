@@ -470,10 +470,13 @@ The native-position/pointer-recovery rollback source this project
 protects is the **canonical `position/` package itself** (current
 dev-app source) — not a separate old implementation living elsewhere.
 The `flyff_farming_recorder/position/*.py` compatibility facades that
-share these class names are pure re-exports with zero logic (see
-`COMPONENT_OWNERSHIP.md` section 3b) — they are retained for a
-different, unrelated reason (a migration test contract), not because
-they hold G5-sensitive rollback logic themselves.
+once shared these class names were pure re-exports with zero logic
+(see `COMPONENT_OWNERSHIP.md` section 3b) — they were retained for a
+different, unrelated reason (a migration test contract), never because
+they held G5-sensitive rollback logic themselves, and were retired
+along with `flyff_farming_recorder/` entirely in the 2026-08-21
+repository cleanup (see `COMPONENT_OWNERSHIP.md` section 3b and
+[ADR 0005](../decisions/0005-phase-is-not-evidence-of-retirement.md)).
 
 ## Evidence / Sources
 

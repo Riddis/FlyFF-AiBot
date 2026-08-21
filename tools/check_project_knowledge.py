@@ -34,7 +34,7 @@ REPO = Path(__file__).resolve().parents[1]
 # The 16 shims transitioned in Phase 12 P12-A2/P12-CORRECTION -- the
 # source of truth for "accurately represented" is CANONICAL_OWNERS.toml
 # itself; this constant is only used to sanity-check the count agrees.
-EXPECTED_TEST_CONTRACT_RETIREMENT_COUNT = 16
+EXPECTED_TEST_CONTRACT_RETIREMENT_COUNT = 0
 
 RUNTIME_ABI_PATHS = (
     "simulator/split_branch_policy.py",
@@ -165,9 +165,12 @@ def check_referenced_current_paths() -> CheckResult:
 
 
 def check_canonical_owner_references() -> CheckResult:
-    """CANONICAL_OWNERS.toml itself parses, and the 16-shim
-    TEST_CONTRACT_RETIREMENT count this checker/docs assume matches
-    what is actually registered."""
+    """CANONICAL_OWNERS.toml itself parses, and the TEST_CONTRACT_
+    RETIREMENT count matches what is actually registered. The 16 shims
+    that once carried this condition (foreground_vision_bot/farming/*.py,
+    flyff_farming_recorder/position/*.py) were retired in the 2026-08-21
+    repository cleanup per ADR 0005's own stated retirement condition,
+    so the expected count is now 0."""
     owners_path = REPO / "CANONICAL_OWNERS.toml"
     if not owners_path.is_file():
         return CheckResult("canonical-owner references", False, ["CANONICAL_OWNERS.toml missing"])

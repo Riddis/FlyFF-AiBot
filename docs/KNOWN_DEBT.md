@@ -8,8 +8,7 @@ everything retained is "debt" in the pejorative sense. Each item states
 
 | Item | Why it exists | Retirement condition |
 |---|---|---|
-| 16 `TEST_CONTRACT_RETIREMENT` shims (`foreground_vision_bot/farming/*`, `flyff_farming_recorder/position/*`) | Load-bearing for `docs/migration/tests/test_phase{4,5}_contracts.py`'s frozen historical-reproduction checks | The specific test contract requiring each must be deliberately retired/replaced first — not a phase number. See [ADR 0005](decisions/0005-phase-is-not-evidence-of-retirement.md) |
-| 3 checkpoint-ABI/pickle-identity shims (`simulator/split_branch_policy.py`, `simulator/kinodynamic_route_planner.py`, `simulator/movement_kernel.py`) | Required for `pickle.loads()` of live checkpoint/fixture instances at their pinned `__module__` path | `removal_gate = "NEVER"` — genuinely permanent, not conditional. See [ADR 0002](decisions/0002-preserve-abi-compatibility-shims.md) |
+| 3 permanent compatibility re-export shims (`farming/observation.py`, `simulator/kinodynamic_route_planner.py`, `simulator/movement_kernel.py`) | `farming/observation.py` is a canonical-API compatibility re-export; the other two are required for `pickle.loads()` of live checkpoint/fixture instances at their pinned `__module__` path | `removal_gate = "NEVER"` — genuinely permanent, not conditional. See [ADR 0002](decisions/0002-preserve-abi-compatibility-shims.md). These are the only 3 entries left in `CANONICAL_OWNERS.toml`'s `[[shim]]` table since the 16 `TEST_CONTRACT_RETIREMENT`-conditioned shims were retired in the 2026-08-21 repository cleanup — see [ADR 0005](decisions/0005-phase-is-not-evidence-of-retirement.md). |
 | R1b coupling (`runtime_controller.py` → `farming.trainer`) | All four functions require the live, already-attached `Bot` instance as their first parameter; cannot cross a subprocess boundary without a real attachment redesign or an explicitly-forbidden IPC bridge | A deliberate farming-runtime/attachment redesign — not assigned to any phase |
 | B4 historical reproduction (git tag `historical-reproduction-baseline-20260815`) | Permanent commit/worktree address for the proven 2026-08-15 820M historical reproduction | `NEVER` — permanent by design |
 
@@ -107,9 +106,3 @@ See `docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md` sections
   by line from source this phase (the `position/` package itself is
   confirmed unchanged by every migration phase, which is the basis for
   treating it as still substantively accurate).
-- The 16 unregistered `flyff_farming_recorder/position/*.py` files
-  (siblings of the 7 formally registered `TEST_CONTRACT_RETIREMENT`
-  shims) are not individually listed in `CANONICAL_OWNERS.toml`'s
-  `[[shim]]` table, even though they are equally protected by the same
-  B2 manifest exact-match test contract — a registry-completeness gap,
-  documentation-only, not a functional problem.

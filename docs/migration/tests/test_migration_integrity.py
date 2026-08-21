@@ -302,10 +302,15 @@ def test_non_bridge_retained_shim_registers_reexports() -> None:
 def test_actual_non_bridge_retained_shims_are_accepted_by_bridge_validator() -> None:
     registry = integrity.load_registry(REPO)
     retained = [shim for shim in registry["shim"] if shim["bridge_id"] == "NONE"]
-    # 17 pre-Phase-9-hardening + 2 new permanent pickle-module-identity
-    # compatibility shims (simulator/kinodynamic_route_planner.py,
-    # simulator/movement_kernel.py) registered 2026-08-17.
-    assert len(retained) == 19
+    # 3 genuinely permanent shims: farming/observation.py's canonical-API
+    # re-export, plus simulator/kinodynamic_route_planner.py and
+    # simulator/movement_kernel.py's pickle-module-identity compatibility
+    # re-exports. The 16 TEST_CONTRACT_RETIREMENT-conditioned shims
+    # (foreground_vision_bot/farming/*, flyff_farming_recorder/position/*)
+    # were retired -- see test_phase12_transitioned_shims_were_retired_
+    # not_merely_retagged below -- in the 2026-08-21 repository cleanup,
+    # per ADR 0005's own stated retirement condition.
+    assert len(retained) == 3
     errors = integrity.bridge_errors(REPO, registry, current_phase=7)
     assert not [error for error in errors if error.startswith("Retained shim")]
 
@@ -631,10 +636,20 @@ def test_actual_repository_integrity_gate_is_green_via_frozen_baseline_plus_supp
 
 # Phase-12 P12-CORRECTION: bare removal_gate = "NEVER" means "no automatic
 # phase-number expiry" (the pre-existing sentinel), not "permanently
-# immortal" -- for the 16 shims transitioned off removal_gate = "PHASE_12"
-# in P12-A2, the separate retirement_condition field carries the actual
-# conditional-retirement semantics (eligible once the named migration test
-# contract is deliberately retired/replaced, not tied to any phase number).
+# immortal" -- these 16 shims were transitioned off removal_gate =
+# "PHASE_12" in P12-A2 onto retirement_condition = "TEST_CONTRACT_
+# RETIREMENT" (eligible once the named migration test contract is
+# deliberately retired/replaced, not tied to any phase number).
+#
+# 2026-08-21 repository cleanup: that retirement condition was exercised.
+# check_b1/check_b2 (docs/migration/tools/phase4_contracts.py,
+# phase5_contracts.py) were rewritten to prove these shims' historical
+# purity via the frozen legacy-roots-pre-removal-20260821 git tag instead
+# of requiring them to exist live on disk (per ADR 0005's own stated
+# retirement condition), so foreground_vision_bot/ and
+# flyff_farming_recorder/ -- and their CANONICAL_OWNERS.toml [[shim]]
+# entries -- were removed entirely. This test now asserts that retirement
+# stuck: none of these 16 locations may reappear in the live registry.
 _PHASE12_TRANSITIONED_SHIMS = {
     "foreground_vision_bot/farming/__init__.py",
     "foreground_vision_bot/farming/actions.py",
@@ -655,33 +670,32 @@ _PHASE12_TRANSITIONED_SHIMS = {
 }
 
 
-def test_phase12_transitioned_shims_carry_explicit_test_contract_retirement_condition() -> None:
+def test_phase12_transitioned_shims_were_retired_not_merely_retagged() -> None:
     registry = integrity.load_registry(REPO)
     shims = {shim["location"]: shim for shim in registry.get("shim", [])}
 
-    assert _PHASE12_TRANSITIONED_SHIMS <= shims.keys()
-
-    tagged = {
-        location
-        for location, shim in shims.items()
-        if shim.get("retirement_condition") == "TEST_CONTRACT_RETIREMENT"
-    }
-    assert tagged == _PHASE12_TRANSITIONED_SHIMS, (
-        f"missing={_PHASE12_TRANSITIONED_SHIMS - tagged} extra={tagged - _PHASE12_TRANSITIONED_SHIMS}"
+    # The 16 TEST_CONTRACT_RETIREMENT-conditioned shims must be gone from
+    # the registry, not merely still present-and-tagged -- their backing
+    # files (foreground_vision_bot/farming/*.py,
+    # flyff_farming_recorder/position/*.py) no longer exist on disk, and a
+    # registry entry pointing at a deleted location would itself fail
+    # migration_integrity.py's "Retained shim location missing" check.
+    assert _PHASE12_TRANSITIONED_SHIMS.isdisjoint(shims.keys()), (
+        f"still registered (should have been retired): {_PHASE12_TRANSITIONED_SHIMS & shims.keys()}"
     )
+    assert not (REPO / "foreground_vision_bot").exists()
+    assert not (REPO / "flyff_farming_recorder").exists()
 
-    for location in _PHASE12_TRANSITIONED_SHIMS:
-        shim = shims[location]
-        assert shim.get("removal_gate") == "NEVER", f"{location}: {shim.get('removal_gate')}"
-        assert shim.get("canonical_owner"), location
-        assert shim.get("reason"), location
-        assert shim.get("bridge_id") == "NONE", location
-
-    # No shim anywhere still claims the expired PHASE_12 gate.
+    # No shim anywhere still claims the expired PHASE_12 gate, and no shim
+    # anywhere still claims the now-exercised TEST_CONTRACT_RETIREMENT
+    # condition (its only prior claimants were the 16 retired shims above).
     assert [s["location"] for s in registry["shim"] if s.get("removal_gate") == "PHASE_12"] == []
+    assert [
+        s["location"] for s in registry["shim"] if s.get("retirement_condition") == "TEST_CONTRACT_RETIREMENT"
+    ] == []
 
     # The genuinely permanent shims (unrelated to this Phase-12 finding)
-    # must not be swept into the same conditional-retirement bucket.
+    # must remain, unaffected by the retirement above.
     permanent_never = {
         "farming/observation.py",
         "simulator/kinodynamic_route_planner.py",
@@ -694,5 +708,6 @@ def test_phase12_transitioned_shims_carry_explicit_test_contract_retirement_cond
             f"{location} was incorrectly given a retirement_condition -- it is permanent, not test-contract-gated"
         )
 
-    # The extra field does not upset the ruler's own bridge/shim validation.
+    # The registry shrinking does not upset the ruler's own bridge/shim
+    # validation.
     assert integrity.bridge_errors(REPO, registry) == []

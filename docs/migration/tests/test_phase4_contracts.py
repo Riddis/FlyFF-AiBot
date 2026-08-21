@@ -76,9 +76,22 @@ def test_b1_origins_bot_only_visibility_and_shim_api() -> None:
 
 
 def test_canonical_package_preserves_bot_public_api_lazily() -> None:
-    tree = ast.parse(
-        (REPO / "foreground_vision_bot/farming/__init__.py").read_text(encoding="utf-8")
+    """foreground_vision_bot/farming/__init__.py was removed in the
+    2026-08-21 repository cleanup (ADR 0005's TEST_CONTRACT_RETIREMENT
+    condition) -- its historical __all__ content is read via the frozen
+    legacy-roots-pre-removal-20260821 tag instead of the live
+    filesystem. The live-import assertions below (farming.__all__ ==
+    that historical set, plus the two __module__ identity checks) are
+    still a genuine current invariant, checked live against canonical
+    farming/ exactly as before."""
+    result = subprocess.run(
+        ["git", "show", "legacy-roots-pre-removal-20260821:foreground_vision_bot/farming/__init__.py"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
     )
+    tree = ast.parse(result.stdout)
     expected = next(
         ast.literal_eval(node.value)
         for node in tree.body
@@ -142,14 +155,18 @@ for name in names:
     origins[name] = None if spec is None or spec.origin is None else str(pathlib.Path(spec.origin).resolve())
 print(json.dumps(origins, sort_keys=True))
 """
-    # flyff_farming_simulator/ was removed entirely in the 2026-08-21
-    # repository cleanup (it never held any of its own frozen-contract-
-    # required package copies, unlike foreground_vision_bot/farming/
-    # and flyff_farming_recorder/position/ -- confirmed by a dedicated
-    # inventory pass) -- no cwd context can be a directory that no
-    # longer exists.
-    assert not (REPO / "flyff_farming_simulator").exists()
-    for context in (REPO, REPO / "foreground_vision_bot", REPO / "flyff_farming_recorder"):
+    # foreground_vision_bot/, flyff_farming_recorder/, and
+    # flyff_farming_simulator/ were all removed entirely in the
+    # 2026-08-21 repository cleanup (per ADR 0005's TEST_CONTRACT_
+    # RETIREMENT condition -- their historical facade content is
+    # proven separately via LEGACY_ROOTS_TAG in check_b1/check_b2, not
+    # by requiring these directories to exist). No cwd context can be a
+    # directory that no longer exists; REPO and two other real,
+    # still-current subdirectories preserve the original intent of
+    # proving import resolution is cwd-independent.
+    for name in ("foreground_vision_bot", "flyff_farming_recorder", "flyff_farming_simulator"):
+        assert not (REPO / name).exists()
+    for context in (REPO, REPO / "tests", REPO / "simulator"):
         result = subprocess.run(
             [sys.executable, "-I", "-c", probe, str(REPO), json.dumps(list(expected))],
             cwd=context,

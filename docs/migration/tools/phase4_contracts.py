@@ -22,6 +22,14 @@ import msgpack
 REPO_DEFAULT = Path(__file__).resolve().parents[3]
 FIXTURE_ROOT = Path("tests/fixtures/migration")
 PHASE3_TOOL = Path("docs/migration/tools/phase3_capture.py")
+# The historical entry commit at which foreground_vision_bot/farming/*.py
+# last existed as live source (same commit phase5_contracts.py's PHASE4_ENTRY
+# names) -- the 2026-08-21 repository cleanup deleted these facade files from
+# current HEAD (see ADR 0005's TEST_CONTRACT_RETIREMENT condition), so B1
+# shim purity is now proven against this frozen historical reference instead
+# of the live filesystem. The _b1_probe current-import-resolution checks
+# below are unaffected -- they never read this directory.
+HISTORICAL_LEGACY_ROOTS_COMMIT = "legacy-roots-pre-removal-20260821"
 EXPECTED_OBSERVATION_COUNT = 10_016
 EXPECTED_OBSERVATION_SIZE = 923
 EXPECTED_DIRECT_CASES = 4_126
@@ -339,8 +347,19 @@ def _b1_probe(repo: Path, mode: str) -> dict[str, Any]:
     return json.loads(result.stdout)
 
 
-def _shim_api(repo: Path, relative: str) -> tuple[set[str], set[str], bool]:
-    tree = ast.parse((repo / relative).read_text(encoding="utf-8"), filename=relative)
+def _git_show(repo: Path, ref: str, relative: str) -> str:
+    result = subprocess.run(
+        ["git", "show", f"{ref}:{relative}"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout
+
+
+def _shim_api_historical(repo: Path, ref: str, relative: str) -> tuple[set[str], set[str], bool]:
+    tree = ast.parse(_git_show(repo, ref, relative), filename=relative)
     imported: set[str] = set()
     exported: set[str] = set()
     for node in tree.body:
@@ -410,7 +429,9 @@ def check_b1(repo: Path) -> tuple[list[str], dict[str, Any]]:
     )
     for name in shim_names:
         relative = f"foreground_vision_bot/farming/{name}.py"
-        imported, exported, has_behavior = _shim_api(repo, relative)
+        imported, exported, has_behavior = _shim_api_historical(
+            repo, HISTORICAL_LEGACY_ROOTS_COMMIT, relative
+        )
         evidence["shims"][name] = {
             "imported": sorted(imported),
             "exported": sorted(exported),

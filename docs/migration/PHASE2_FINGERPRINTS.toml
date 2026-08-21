@@ -21,7 +21,6 @@ kind = "string"
 symbol = "OBSERVATION_SCHEMA_ID"
 owners = [
   "farming/observation.py",
-  "foreground_vision_bot/farming/observation.py",
   "recorder/session.py",
 ]
 
@@ -31,12 +30,11 @@ kind = "string"
 symbol = "OBSERVATION_SCHEMA_HASH"
 owners = [
   "farming/observation.py",
-  "foreground_vision_bot/farming/observation.py",
   "recorder/session.py",
 ]
 recomputation_required = true
 recomputation_callable = "farming.observation.observation_schema_hash"
-recomputation_note = "The bot and simulator implementations must RECOMPUTE this value, not merely declare it, so semantic descriptor drift is caught. The recorder copy is metadata-only and carries no recomputation mechanism."
+recomputation_note = "The canonical farming/ implementation must RECOMPUTE this value, not merely declare it, so semantic descriptor drift is caught. The recorder copy is metadata-only and carries no recomputation mechanism. (The former foreground_vision_bot/farming/observation.py copy was removed in the 2026-08-21 repository cleanup -- it was a pure re-export shim of canonical farming/observation.py, never an independent recomputation.)"
 
 [g4.observation_size]
 value = 923
@@ -44,7 +42,6 @@ kind = "int"
 symbol = "OBSERVATION_SIZE"
 owners = [
   "farming/observation.py",
-  "foreground_vision_bot/farming/observation.py",
 ]
 also_requires = "len(OBSERVATION_FIELDS) == OBSERVATION_SIZE"
 
@@ -54,7 +51,6 @@ kind = "int_tuple"
 symbol = "POLICY_ACTION_NVECS"
 owners = [
   "farming/actions.py",
-  "foreground_vision_bot/farming/actions.py",
 ]
 also_requires = "POLICY_ACTION_NVECS == (len(SteeringAction), len(FarmingEvent))"
 
@@ -84,7 +80,6 @@ kind = "int"
 symbol = "MODEL_CONTRACT_METADATA_VERSION"
 owners = [
   "farming/model_contract.py",
-  "foreground_vision_bot/farming/model_contract.py",
 ]
 
 # ---------------------------------------------------------------------------

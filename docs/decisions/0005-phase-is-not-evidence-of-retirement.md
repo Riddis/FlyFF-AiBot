@@ -2,7 +2,12 @@
 
 ## Status
 
-Accepted, discovered and corrected during Phase 12.
+Accepted, discovered and corrected during Phase 12. **Superseded in
+part 2026-08-21**: the `TEST_CONTRACT_RETIREMENT` condition this ADR
+defines was exercised — see "Retirement" below. The decision itself
+(a phase number is never, by itself, evidence of safety-to-remove)
+remains standing policy; only the specific 16-shim situation it was
+written about has been resolved.
 
 ## Context
 
@@ -37,11 +42,38 @@ pre-existing, real machine sentinel) plus a new, explicit
 `retirement_condition = "TEST_CONTRACT_RETIREMENT"` field, meaning:
 eligible for deletion only once the specific migration test contract
 requiring them is deliberately retired or replaced, and its consumers
-are proven unnecessary. This is mechanically distinguished from the 3
+are proven unnecessary. This was mechanically distinguished from the 3
 genuinely permanent `NEVER` shims (which receive no
 `retirement_condition` field at all) by
 `docs/migration/tests/test_migration_integrity.py::
-test_phase12_transitioned_shims_carry_explicit_test_contract_retirement_condition`.
+test_phase12_transitioned_shims_were_retired_not_merely_retagged`
+(that test's name and body were updated 2026-08-21; see "Retirement"
+below).
+
+## Retirement (2026-08-21)
+
+The `TEST_CONTRACT_RETIREMENT` condition was exercised. The two
+migration test contracts that previously required unconditional live
+reads of these 16 files (`docs/migration/tools/phase4_contracts.py::
+check_b1`, `phase5_contracts.py::check_b2`) were rewritten to prove the
+same historical purity/parity facts via `git show`/`git ls-tree`
+against a new frozen tag, `legacy-roots-pre-removal-20260821`, instead
+of requiring the files to exist live in current HEAD. With no live
+test contract left requiring them:
+
+- `foreground_vision_bot/` and `flyff_farming_recorder/` were deleted
+  entirely (`git rm -r`).
+- All 16 corresponding `[[shim]]` entries were removed from
+  `CANONICAL_OWNERS.toml` (3 shims remain: the genuinely permanent
+  `NEVER` ones from the Decision above).
+- `docs/migration/PHASE2_FINGERPRINTS.toml`'s `[g4]` owner lists,
+  `docs/migration/tests/test_migration_integrity.py`, and
+  `docs/migration/tests/test_phase{2,4}_contracts.py` were updated to
+  match.
+
+This is the intended end-state this ADR's condition was designed to
+reach: the migration's own historical-reproduction evidence no longer
+requires an obsolete final filesystem to keep existing.
 
 ## Consequences
 
@@ -62,5 +94,7 @@ test_phase12_transitioned_shims_carry_explicit_test_contract_retirement_conditio
 
 `docs/migration/codex_handoff/PHASE12_REPORT.md` sections 7, 7a, 7b;
 `CANONICAL_OWNERS.toml`; `docs/migration/tests/test_migration_
-integrity.py::test_phase12_transitioned_shims_carry_explicit_test_
-contract_retirement_condition`.
+integrity.py::test_phase12_transitioned_shims_were_retired_not_merely_
+retagged`; git tag `legacy-roots-pre-removal-20260821`;
+`docs/migration/tools/phase4_contracts.py::check_b1`;
+`docs/migration/tools/phase5_contracts.py::check_b2`.

@@ -9,22 +9,26 @@ is authoritative (it is the machine contract the ruler enforces).
 ## 1. One canonical behavioral implementation, many compatibility surfaces
 
 A directory or filename does **not** by itself indicate semantic role.
-The repository deliberately retains old, root-qualified copies of
+`CANONICAL_OWNERS.toml`'s `[[shim]]` table is the single source of
+truth for "is this a compatibility facade, and under what condition can
+it ever be removed." As of the 2026-08-21 repository cleanup, only
+three such facades remain (section 3a) — all genuinely permanent
+runtime-ABI compatibility re-exports, not migration scaffolding.
+
+The repository previously also retained old, root-qualified copies of
 several packages (`foreground_vision_bot/farming/*`,
-`flyff_farming_recorder/position/*`) as pure re-export facades pointing
-at the real, canonical, root-level implementation. These facades:
+`flyff_farming_recorder/position/*`) as pure re-export facades. Those
+16 facades existed only because the migration's own frozen historical-
+reproduction test contracts read them, never because current product
+code imported them — never a real current-ABI requirement. Per
+[`docs/decisions/0005-phase-is-not-evidence-of-retirement.md`](../decisions/0005-phase-is-not-evidence-of-retirement.md)'s
+own stated `TEST_CONTRACT_RETIREMENT` condition, those test contracts
+were rewritten to prove the same historical facts via the frozen
+`legacy-roots-pre-removal-20260821` git tag instead of requiring live
+fossil files, and `foreground_vision_bot/` and
+`flyff_farming_recorder/` were then deleted entirely. See section 3b.
 
-- contain **zero behavioral statements** (no class/function definitions
-  of their own — mechanically enforced, see section 3);
-- exist **only** because the migration's own frozen historical-
-  reproduction test contracts still read them (section 3) — not because
-  any current product code imports them;
-- are governed by `CANONICAL_OWNERS.toml`'s `[[shim]]` table, which is
-  the single source of truth for "is this a compatibility facade, and
-  under what condition can it ever be removed."
-
-Never assume a file is dead because it "looks old" or lives under a
-directory name that predates the Phase-7 root collapse. Check
+Never assume a file is dead because it "looks old." Check
 `CANONICAL_OWNERS.toml` first.
 
 ## 2. Canonical owners (selected, non-exhaustive — full list in `CANONICAL_OWNERS.toml`'s `[[concept]]` table)
@@ -61,41 +65,42 @@ these exact paths (`KinoState.__module__`/`RouteEdgeInfo.__module__`/
 typed-encoding fixture compatibility), independent of anything this
 migration did.
 
-### 3b. Test-contract-retirement-conditioned shims (`removal_gate = "NEVER"` + `retirement_condition = "TEST_CONTRACT_RETIREMENT"`)
+### 3b. Test-contract-retirement-conditioned shims (retired 2026-08-21)
 
-16 shims: 9 under `foreground_vision_bot/farming/*.py`
-(`__init__`, `actions`, `model_contract`, `map_masks`, `reward`,
-`session`, `map_profile`, `observation`, `map_features`) and 7 under
+`removal_gate = "NEVER"` means **no automatic phase-number expiry** — it
+does **not** mean permanently immortal like the section-3a shims.
+`retirement_condition = "TEST_CONTRACT_RETIREMENT"` was the separate,
+explicit field carrying the real meaning: a shim became eligible for
+deletion once the specific migration test contract requiring it was
+**deliberately retired or replaced** and its consumers were proven
+unnecessary — never merely because a phase number advanced. See
+[`docs/decisions/0005-phase-is-not-evidence-of-retirement.md`](../decisions/0005-phase-is-not-evidence-of-retirement.md).
+
+16 shims previously carried this condition: 9 under
+`foreground_vision_bot/farming/*.py` (`__init__`, `actions`,
+`model_contract`, `map_masks`, `reward`, `session`, `map_profile`,
+`observation`, `map_features`) and 7 under
 `flyff_farming_recorder/position/*.py` (`__init__`, `attachment_factory`,
 `factory`, `monster_factory`, `NativeFlyffMonsterProvider`,
 `NativeFlyffPositionProvider`, `native_process_service`).
 
-`removal_gate = "NEVER"` means **no automatic phase-number expiry** — it
-does **not** mean permanently immortal like the section-3a shims.
-`retirement_condition = "TEST_CONTRACT_RETIREMENT"` is the separate,
-explicit field carrying the real meaning: these become eligible for
-deletion only once the specific migration test contract requiring them
-is **deliberately retired or replaced** and its consumers are proven
-unnecessary — never merely because a phase number advances. See
-[`docs/decisions/0005-phase-is-not-evidence-of-retirement.md`](../decisions/0005-phase-is-not-evidence-of-retirement.md).
+**They no longer exist.** `docs/migration/tools/phase4_contracts.py::
+check_b1` and `phase5_contracts.py::check_b2` — the two migration test
+contracts that previously required unconditional live reads of these
+files (an unconditional `.read_text()` per farming facade; an exact
+`glob("flyff_farming_recorder/position/*.py")` count of 23 matched
+against `docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv`) — were rewritten
+to prove the same historical purity/parity facts via `git show`/
+`git ls-tree` against the frozen `legacy-roots-pre-removal-20260821`
+tag instead. With no live test contract left requiring them,
+`foreground_vision_bot/` and `flyff_farming_recorder/` were deleted
+entirely, and all 16 `[[shim]]` entries removed from
+`CANONICAL_OWNERS.toml`. Only the 3 section-3a shims remain in the
+registry.
 
-**Why they're still required today:**
-`docs/migration/tests/test_phase4_contracts.py::check_b1` does an
-unconditional `.read_text()` on each of the 9 farming facades (plus a
-dedicated AST-parse test of `__init__.py`'s `__all__`). `docs/migration/
-tests/test_phase5_contracts.py::check_b2` requires an **exact**
-`glob("flyff_farming_recorder/position/*.py")` count of 23, matched
-against the frozen 23-row `docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv`
-— deleting even one of the 23 files there (only 7 of which are
-individually registered in `CANONICAL_OWNERS.toml`; the other 16 are
-equally protected by the same directory-level glob/manifest match, a
-registry-completeness gap noted but not fixed) breaks that test. Both
-tests are part of the required `docs/migration/tests/` baseline (77
-passed).
-
-A machine check enforces this classification stays correct:
+A machine check enforces this stays retired (not merely re-tagged):
 `docs/migration/tests/test_migration_integrity.py::
-test_phase12_transitioned_shims_carry_explicit_test_contract_retirement_condition`.
+test_phase12_transitioned_shims_were_retired_not_merely_retagged`.
 
 ### 3c. Runtime ABI compatibility (checkpoint deserializability, not a "shim" in the loose sense)
 

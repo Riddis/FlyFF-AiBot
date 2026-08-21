@@ -62,15 +62,20 @@ def test_g4_requires_live_schema_hash_recomputation() -> None:
 
 
 def test_g4_covers_every_current_owner_not_one_convenient_copy() -> None:
+    """Owner counts dropped by one per concept in the 2026-08-21
+    repository cleanup: foreground_vision_bot/farming/*.py (a pure
+    re-export shim of canonical farming/*.py, removed per ADR 0005's
+    TEST_CONTRACT_RETIREMENT condition) is no longer a separate current
+    owner to track for drift."""
     g4 = FP["g4"]
     for concept in ("observation_schema_id", "observation_schema_hash"):
         owners = g4[concept]["owners"]
-        assert len(owners) == 3, concept
+        assert len(owners) == 2, concept
         for owner in owners:
             assert (REPO / owner).is_file(), owner
     for concept in ("observation_size", "policy_action_nvecs", "model_contract_metadata_version"):
         owners = g4[concept]["owners"]
-        assert len(owners) == 2, concept
+        assert len(owners) == 1, concept
         for owner in owners:
             assert (REPO / owner).is_file(), owner
 

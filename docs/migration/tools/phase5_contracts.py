@@ -13,6 +13,7 @@ from typing import Any
 
 REPO_DEFAULT = Path(__file__).resolve().parents[3]
 PHASE4_ENTRY = "210e4e91a1cce8f6f7db56b8f4b77f4522f56d73"
+LEGACY_ROOTS_TAG = "legacy-roots-pre-removal-20260821"  # last commit with foreground_vision_bot/flyff_farming_recorder facades, see ADR 0005
 BOT_POSITION = "foreground_vision_bot/position"
 RECORDER_POSITION = "flyff_farming_recorder/position"
 CANONICAL_POSITION = "position"
@@ -148,32 +149,59 @@ print(json.dumps({
 
 
 def check_g9(repo: Path) -> tuple[list[str], dict[str, Any]]:
+    """G9 effective-configuration parity. The bot-side comparisons
+    (bot_monster/position) are current product invariants, read live
+    from canonical position/. The recorder-side comparisons
+    (rec_monster/recorder) compare against flyff_farming_recorder/'s
+    now-deleted historical config -- proven by extracting its frozen
+    content at LEGACY_ROOTS_TAG (recorder_config.json specifically at PHASE4_ENTRY, predating it) to temp files and running it through the
+    real loader, rather than requiring the file to exist in current
+    HEAD (see ADR 0005's TEST_CONTRACT_RETIREMENT condition)."""
     failures: list[str] = []
     baseline = json.loads(
         (repo / "docs/migration/EFFECTIVE_CONFIG_BASELINE.json").read_text(
             encoding="utf-8"
         )
     )
-    probe = r'''
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        rec_monster_path = tmp_path / "rec_native_monsters.json"
+        rec_monster_path.write_text(
+            _git(repo, "show", f"{LEGACY_ROOTS_TAG}:{RECORDER_POSITION}/native_monsters.json"),
+            encoding="utf-8",
+        )
+        rec_config_path = tmp_path / "rec_recorder_config.json"
+        rec_config_path.write_text(
+            # recorder_config.json never existed under flyff_farming_recorder/
+            # at LEGACY_ROOTS_TAG (only position/ did) -- this specific
+            # historical file predates that, at PHASE4_ENTRY.
+            _git(repo, "show", f"{PHASE4_ENTRY}:flyff_farming_recorder/recorder_config.json"),
+            encoding="utf-8",
+        )
+        probe = r'''
 import dataclasses, json, pathlib, sys
 root = pathlib.Path(sys.argv[1])
+rec_monster_path = pathlib.Path(sys.argv[2])
+rec_config_path = pathlib.Path(sys.argv[3])
 sys.path.insert(0, str(root))
 from position.MonsterConfig import load_native_monster_config
 from position.PositionConfig import load_native_position_config
 from recorder.config import RecorderConfig
 bot_monster = dataclasses.asdict(load_native_monster_config(root / "position/native_monsters.json"))
-rec_monster = dataclasses.asdict(load_native_monster_config(root / "flyff_farming_recorder/position/native_monsters.json"))
-recorder = dataclasses.asdict(RecorderConfig.load(root / "flyff_farming_recorder/recorder_config.json"))
+rec_monster = dataclasses.asdict(load_native_monster_config(rec_monster_path))
+recorder = dataclasses.asdict(RecorderConfig.load(rec_config_path))
 position = dataclasses.asdict(load_native_position_config(root / "position/native_position.json"))
 print(json.dumps({"bot_monster": bot_monster, "rec_monster": rec_monster, "recorder": recorder, "position": position}, sort_keys=True))
 '''
-    result = subprocess.run(
-        [sys.executable, "-I", "-c", probe, str(repo)],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+        result = subprocess.run(
+            [sys.executable, "-I", "-c", probe, str(repo), str(rec_monster_path), str(rec_config_path)],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
     actual = json.loads(result.stdout)
     components = baseline["components"]
     expected_bot = components["foreground_vision_bot"]["monster_config"]["effective"]
@@ -198,7 +226,7 @@ print(json.dumps({"bot_monster": bot_monster, "rec_monster": rec_monster, "recor
     if not all(comparisons["presence_values"].values()):
         failures.append(f"G9 presence value mismatch: {comparisons['presence_values']}")
     recorder_json = json.loads(
-        (repo / "flyff_farming_recorder/position/native_monsters.json").read_text()
+        _git(repo, "show", f"{LEGACY_ROOTS_TAG}:{RECORDER_POSITION}/native_monsters.json")
     )
     if "presence_sampling" in recorder_json:
         failures.append("G9 recorder position JSON incorrectly owns presence settings")
@@ -206,6 +234,18 @@ print(json.dumps({"bot_monster": bot_monster, "rec_monster": rec_monster, "recor
 
 
 def check_b2(repo: Path) -> tuple[list[str], dict[str, Any]]:
+    """Prove B2: canonical position/ owns the live implementation (a
+    current product invariant, checked live), and the retired
+    flyff_farming_recorder/position/ facade was a pure historical
+    re-export at LEGACY_ROOTS_TAG (a historical fact,
+    checked via git show -- the 2026-08-21 repository cleanup deleted
+    these facade files from current HEAD; see ADR 0005's
+    TEST_CONTRACT_RETIREMENT condition). The facade's identity-re-export
+    property is proven by construction: zero behavioral statements +
+    exact import parity with its historical bindings means `from
+    position.X import Y` mechanically binds the same object Python
+    itself would resolve `position.X.Y` to -- no live import of the
+    now-deleted package is needed to prove that."""
     failures: list[str] = []
     manifest_path = repo / "docs/migration/PHASE5_B2_SHIM_MANIFEST.tsv"
     with manifest_path.open(encoding="utf-8", newline="") as handle:
@@ -218,21 +258,22 @@ def check_b2(repo: Path) -> tuple[list[str], dict[str, Any]]:
             if row.get("path")
         ]
     manifest_paths = {row["path"] for row in rows}
-    actual_paths = {
-        path.relative_to(repo).as_posix()
-        for path in (repo / RECORDER_POSITION).glob("*.py")
-    }
-    if len(rows) != 23 or manifest_paths != actual_paths:
+    historical_paths = set(
+        _git(
+            repo, "ls-tree", "-r", "--name-only", LEGACY_ROOTS_TAG, RECORDER_POSITION
+        ).splitlines()
+    )
+    historical_paths = {path for path in historical_paths if path.endswith(".py")}
+    if len(rows) != 23 or manifest_paths != historical_paths:
         failures.append(
-            f"B2 manifest/files differ: rows={len(rows)}, "
-            f"missing={sorted(actual_paths - manifest_paths)}, "
-            f"extra={sorted(manifest_paths - actual_paths)}"
+            f"B2 manifest/historical-files differ: rows={len(rows)}, "
+            f"missing={sorted(historical_paths - manifest_paths)}, "
+            f"extra={sorted(manifest_paths - historical_paths)}"
         )
     historical = _historical_bindings(repo)
     shim_evidence: dict[str, Any] = {}
-    for relative in sorted(actual_paths):
-        path = repo / relative
-        source = path.read_text(encoding="utf-8-sig")
+    for relative in sorted(historical_paths):
+        source = _git(repo, "show", f"{LEGACY_ROOTS_TAG}:{relative}")
         tree = ast.parse(source, filename=relative)
         behavior = [
             type(node).__name__
@@ -266,13 +307,7 @@ root = pathlib.Path(sys.argv[1])
 sys.path.insert(0, str(root))
 names = ["position", "position.IndependentNativeReader", "position.NativeTraceTargets", "position.native_process_service", "position.RecoveredNativeProfile"]
 origins = {name: str(pathlib.Path(importlib.import_module(name).__file__).resolve()) for name in names}
-compat = importlib.import_module("flyff_farming_recorder.position.IndependentNativeReader")
-canonical = importlib.import_module("position.IndependentNativeReader")
-print(json.dumps({
-    "origins": origins,
-    "compat_origin": str(pathlib.Path(compat.__file__).resolve()),
-    "identity": compat.IndependentNativeReader is canonical.IndependentNativeReader,
-}, sort_keys=True))
+print(json.dumps({"origins": origins}, sort_keys=True))
 '''
     result = subprocess.run(
         [sys.executable, "-I", "-c", probe, str(repo)],
@@ -291,15 +326,8 @@ print(json.dumps({
     }
     if wrong:
         failures.append(f"B2 noncanonical origins: {wrong}")
-    compatibility_owner = (repo / RECORDER_POSITION).resolve()
-    if not Path(payload["compat_origin"]).resolve().is_relative_to(compatibility_owner):
-        failures.append(f"B2 retained facade origin escaped repository: {payload['compat_origin']}")
-    if not payload["identity"]:
-        failures.append("B2 retained facade does not re-export the canonical implementation")
     return failures, {
         "origins": origins,
-        "compat_origin": payload["compat_origin"],
-        "identity": payload["identity"],
         "manifest_rows": len(rows),
         "shims": shim_evidence,
     }

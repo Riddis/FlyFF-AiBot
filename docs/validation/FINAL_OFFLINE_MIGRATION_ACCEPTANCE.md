@@ -1,5 +1,17 @@
 # Final Offline Migration Acceptance — Phase 14
 
+> **Historical acceptance record, pinned to the Phase-14 commit below.**
+> Sections 2 and 13's legacy-root/shim counts describe that point in
+> time only. The 16 `TEST_CONTRACT_RETIREMENT`-conditioned shims
+> (`foreground_vision_bot/farming/*`, `flyff_farming_recorder/
+> position/*`) were retired and both directories deleted in the
+> 2026-08-21 repository cleanup — see
+> [`docs/architecture/COMPONENT_OWNERSHIP.md`](../architecture/COMPONENT_OWNERSHIP.md)
+> section 3b and
+> [ADR 0005](../decisions/0005-phase-is-not-evidence-of-retirement.md)
+> for current state. Not rewritten below, to preserve this as accurate
+> evidence of what Phase 14 actually validated.
+
 - Commit under test (working tree at time of evidence gathering): `3c9e12f0dab3022e882b1813adc4037edc8576ce`, then all Phase-14 changes described below (final HEAD recorded in `PHASE14_REPORT.md` once committed).
 - Branch: `refactor/consolidation-phase1`. Unpushed, no upstream, not on origin.
 - Scope: **migration/consolidation completeness only.** This record does NOT assert G5, G5-P2, live-client validation, live training, deployment readiness, or overall project completion. Those remain out of scope by design (see `docs/migration/codex_handoff/PHASE14_REPORT.md` section 33).
