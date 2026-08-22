@@ -162,6 +162,45 @@ def test_start_recording_creates_exactly_one_sink(controller: RuntimeController)
     assert controller.recording is FakeRecordingSink.instances[0]
 
 
+def test_recording_metadata_carries_real_attach_and_presence_provenance(
+    controller: RuntimeController,
+) -> None:
+    """Section 9: new recordings must carry real session-start
+    provenance, not leave it permanently unpopulated. attach_policy_name
+    and presence_validation_source come straight from the attached
+    native_process_service and must always be threaded through --
+    map_name is also populated here since FakeBot.config carries it."""
+    controller.bot.config["selected_map_name"] = "Tower AoE"
+    controller.start_recording(started_by="USER")
+    metadata = FakeRecordingSink.instances[0].kwargs["metadata"]
+    assert metadata.presence_validation_source == "authoritative_refresh"
+    assert metadata.map_name == "Tower AoE"
+    # "Tower AoE" is a real, current map catalog entry -- its real
+    # content hash (a 64-character SHA-256 hex digest) is collected,
+    # not invented and not silently dropped.
+    assert metadata.map_content_hash is not None
+    assert len(metadata.map_content_hash) == 64
+    assert metadata.map_contract is not None
+    assert set(metadata.map_contract) == {
+        "origin_native_x",
+        "origin_native_z",
+        "native_units_per_cell",
+    }
+
+
+def test_recording_metadata_leaves_map_fields_none_when_no_map_selected(
+    controller: RuntimeController,
+) -> None:
+    """Section 9: for a manual recording before any map is selected, the
+    absence must be represented truthfully -- never invent a map."""
+    controller.bot.config["selected_map_name"] = None
+    controller.start_recording(started_by="USER")
+    metadata = FakeRecordingSink.instances[0].kwargs["metadata"]
+    assert metadata.map_name is None
+    assert metadata.map_content_hash is None
+    assert metadata.map_contract is None
+
+
 def test_start_recording_rejects_a_second_concurrent_session(controller: RuntimeController) -> None:
     controller.start_recording(started_by="USER")
     with pytest.raises(RuntimeError, match="already active"):
