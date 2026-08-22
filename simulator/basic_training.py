@@ -1559,4 +1559,3 @@ def bootstrap_event_head(
         "train_samples": int(len(train_idx)),
         "validation_samples": int(len(val_idx)),
     }
-
