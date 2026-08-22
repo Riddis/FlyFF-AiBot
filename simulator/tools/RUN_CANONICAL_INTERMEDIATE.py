@@ -171,8 +171,9 @@ def check_round_passes_absolute_bar(heldout_agg: dict) -> tuple[bool, list[str]]
 
 def run_heldout_evaluation(checkpoint_path, heldout_manifest, *, label: str) -> dict:
     # Composed frozen-navigation evaluation -- see RUN_CANONICAL_BEGINNER.py's
-    # run_full_evaluation for the identical reasoning: checkpoint_path is an
-    # event-only policy, graded through the same architecture it trains under.
+    # run_full_evaluation for the identical reasoning: checkpoint_path is a
+    # SplitFarmingTargetEventPolicy checkpoint, graded through the same
+    # architecture it trains under.
     from simulator.milestone_evaluator import evaluate_heldout_parallel
 
     heldout = evaluate_heldout_parallel(
@@ -187,11 +188,14 @@ def _require_farming_policy_action_space(model, *, where: str) -> None:
     from gymnasium import spaces
 
     from farming.actions import FarmingEvent
+    from simulator.farming_target_policy import TARGET_ACTION_SIZE
 
-    if not isinstance(model.action_space, spaces.Discrete) or model.action_space.n != len(FarmingEvent):
+    expected = [TARGET_ACTION_SIZE, len(FarmingEvent)]
+    if not isinstance(model.action_space, spaces.MultiDiscrete) or list(model.action_space.nvec) != expected:
         raise RuntimeError(
             f"{where}: checkpoint has action_space={model.action_space}, expected "
-            f"Discrete({len(FarmingEvent)}) -- the event-only contract must never drift back to MultiDiscrete."
+            f"MultiDiscrete({expected}) -- [target_selection, event]. Must never drift back to a bare "
+            "Discrete(len(FarmingEvent)) event-only contract."
         )
 
 

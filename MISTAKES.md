@@ -177,6 +177,48 @@ Entry template:
   training loop) is exactly the kind of consumer a local/nearby-only search
   misses.
 
+### [2026-08-22] `RUN_CANONICAL_INTERMEDIATE.py`'s action-space guard was never updated for the target+event contract
+- What happened: `RUN_CANONICAL_BEGINNER.py` and `RUN_CANONICAL_ADVANCED.py`
+  each define their own independent copy of
+  `_require_farming_policy_action_space` (not a shared function), and both
+  were correctly updated during the target-selection rewrite to check
+  `MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])`.
+  `RUN_CANONICAL_INTERMEDIATE.py`'s own copy was missed and still checked
+  the retired `Discrete(len(FarmingEvent))` event-only contract -- meaning
+  it would have raised `RuntimeError` and refused to run against every
+  legitimate Beginner-graduated checkpoint the current architecture
+  actually produces (a total, immediate script failure, not a silent
+  drift), while its error message simultaneously claimed to be guarding
+  against exactly the regression it had itself become.
+- Root cause: the same guard logic was duplicated three times (once per
+  script) instead of shared, so updating two of the three during a
+  contract change gave no guarantee the third was updated too -- nothing
+  about editing `RUN_CANONICAL_BEGINNER.py`/`RUN_CANONICAL_ADVANCED.py`
+  would surface that `RUN_CANONICAL_INTERMEDIATE.py` still needed the same
+  edit, and no test exercised any of the three guards directly.
+- How caught: self-caught while writing documentation for this change --
+  cross-referencing all three scripts' guard functions side by side (to
+  describe them accurately in docs) surfaced the mismatch; not caught by
+  the 57-test focused suite run immediately beforehand, since nothing in
+  it called `RUN_CANONICAL_INTERMEDIATE.main()` or its guard function
+  directly.
+- Fix: updated `RUN_CANONICAL_INTERMEDIATE.py`'s guard to the same
+  `MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])` check and error
+  message as the other two scripts; added
+  `tests/test_canonical_script_action_space_guards.py`, parametrized over
+  all three scripts, asserting each guard accepts a real current-contract
+  checkpoint and rejects a reconstructed stale `Discrete(len(FarmingEvent))`
+  one -- so a future drift in any one script's copy fails a test directly,
+  not just a live run.
+- Lesson: when the same validation logic is duplicated across multiple
+  near-identical scripts (rather than factored into one shared function),
+  a contract change requires grepping for the guard's own distinguishing
+  content (its expected-shape literal, its error string) across every
+  script that defines it, not just the ones you're already editing for
+  other reasons -- and duplicated validation logic like this is worth a
+  direct unit test precisely because normal integration/pipeline tests
+  are unlikely to exercise a top-level script's own guard function.
+
 ## Category: statistics / counting / accounting
 
 ### [2026-08-14] imprecise claim that planner failures are "excluded from accounting" in `summarize_general_router`
