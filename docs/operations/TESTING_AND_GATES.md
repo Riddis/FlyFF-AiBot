@@ -14,27 +14,25 @@ shown.
 .\.venv\Scripts\python.exe -m pytest tests/ -q
 ```
 
-**Accepted baseline:** 1190 passed, 4 established pre-existing/unrelated
-failures, 2 skipped, 1 xfailed. The four accepted failures are:
+**Accepted baseline: ZERO failures.** A pytest exit code of 1 (or any
+non-zero exit) is a build break — investigate it, do not normalize or
+hide it. There is no standing list of "established pre-existing"
+failures; if one is ever discovered, fix it or explicitly document why
+it is being deferred (with a tracked issue/ADR), not silently accepted
+as a permanent baseline.
 
-- `tests/test_farming_environment_lifecycle.py::
-  test_focus_loss_during_eva_discards_kill_and_transition`
-- `tests/test_farming_training_session.py::
-  test_normal_training_status_is_concise_and_uses_total_model_steps`
-- `tests/test_farming_training_session.py::
-  test_training_callback_publishes_structured_session_statistics`
-- `tests/test_navigation_dataset.py::
-  test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts`
-  (a pre-existing gitignored-artifact gap —
-  `models/split_branch_pilot_15000.zip` vs. the test's own
-  `.zip.zip`-suffixed lookup)
+Skips are acceptable only when the skipped test's own skip reason
+documents a genuinely environment-dependent, optional gap — for
+example `tests/test_navigation_dataset.py::
+test_mine_navigation_dataset_produces_all_four_categories_on_real_layouts`
+skips itself when the local-only, gitignored
+`models/split_branch_pilot_15000.zip` checkpoint is absent (it is not
+part of the tracked repository; see `.gitignore`'s one pinned
+exception). A skip must never be used to hide a new failure.
 
-**A pytest exit code of 1 is expected and correct** when exactly these
-four failures remain — it is not a build break. **A fifth failure is
-never accepted** without investigation; do not normalize or hide any
-new failure. If a shell pipeline (e.g. `| tail -N`) is used, remember it
-masks pytest's own exit code with the pipeline's — check pytest's exit
-code directly when it matters (see `docs/migration/codex_handoff/
+If a shell pipeline (e.g. `| tail -N`) is used, remember it masks
+pytest's own exit code with the pipeline's — check pytest's exit code
+directly when it matters (see `docs/migration/codex_handoff/
 STATE.json`'s `phase10_pytest_exit_code_note` for the specific mistake
 this note exists to prevent repeating).
 
@@ -44,8 +42,10 @@ this note exists to prevent repeating).
 .\.venv\Scripts\python.exe docs\migration\tools\migration_integrity.py check
 ```
 
-**Accepted baseline:** `ok: true`, `R6=0 R7a=0 R7b=0 R7c=204 R9=0
-R10=0`. `R10` additionally reports `r10_checkpoint_count: 313`,
+**Accepted baseline:** `ok: true`, `R6=0 R7a=0 R7b=0 R7c=200 R9=0
+R10=0`. (`R7b` is a retired rule kept only so a legacy/ package boundary
+never silently reappears uncaught -- see `CANONICAL_OWNERS.toml`'s
+retirement note.) `R10` additionally reports `r10_checkpoint_count: 313`,
 `r10_module_reference_rows: 317`, `r10_failures: []`. `R7c` may
 *decrease* if a compatibility surface is legitimately retired; it must
 never grow without an explicit forward supplement
@@ -58,8 +58,7 @@ which new entries are accounted for.
 .\.venv\Scripts\python.exe -m pytest docs\migration\tests\ -q
 ```
 
-**Accepted baseline:** 77 passed, 0 failed (76 pre-Phase-13 + 1 new
-Phase-12 gate-semantics test).
+**Accepted baseline:** 72 passed, 0 failed.
 
 ## Future deployment derivation profile
 
@@ -67,12 +66,13 @@ Phase-12 gate-semantics test).
 .\.venv\Scripts\python.exe -m tools.future_runtime_profile.derive_runtime_manifest
 ```
 
-**Accepted result:** `FUTURE DEPLOYMENT DERIVATION PROFILE: PASS` — 89
-candidate first-party modules, 3 ABI-compatibility modules, 0 forbidden
-dependency edges, 0 missing tracked files, 0 duplicate-ownership issues,
-1 exception applied (the R1b coupling). This does not mean a runtime
-derivative exists or is ready to build — see
-`docs/architecture/SYSTEM_OVERVIEW.md` section 5.
+**Accepted result:** `FUTURE DEPLOYMENT DERIVATION PROFILE: PASS` — 90
+candidate first-party modules, 1 ABI-compatibility module
+(`simulator.split_branch_policy`), 0 forbidden dependency edges, 0
+missing tracked files, 0 duplicate-ownership issues, 1 exception
+applied (the R1b coupling). This does not mean a runtime derivative
+exists or is ready to build — see `docs/architecture/SYSTEM_OVERVIEW.md`
+section 5.
 
 ## Project knowledge check
 

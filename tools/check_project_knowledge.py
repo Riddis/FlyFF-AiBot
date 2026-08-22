@@ -47,7 +47,7 @@ CURRENT_DOC_DIRS = (
     "docs/decisions",
     "docs/agent",
 )
-CURRENT_DOC_ROOT_FILES = ("docs/README.md", "docs/KNOWN_DEBT.md", "docs/GLOSSARY.md")
+CURRENT_DOC_ROOT_FILES = ("README.md", "docs/README.md", "docs/KNOWN_DEBT.md", "docs/GLOSSARY.md")
 
 SKILL_NAMES = (
     "maintaining-project-knowledge",
@@ -117,16 +117,23 @@ def _current_docs() -> list[Path]:
 
 
 def check_documentation_index() -> CheckResult:
-    """Every current-state doc is reachable from docs/README.md via
-    relative markdown links (BFS, following links transitively through
-    docs/decisions/README.md and docs/validation/README.md)."""
+    """Every current-state doc is reachable from docs/README.md OR the
+    repository root README.md via relative markdown links (BFS, following
+    links transitively through docs/decisions/README.md and
+    docs/validation/README.md). The root README.md is treated as an
+    additional valid entry point in its own right, not something that
+    itself needs to be discovered from within docs/ -- it is the first
+    thing a newcomer sees, not a page nested under the docs/ index."""
     all_docs = {p.resolve() for p in _current_docs()}
-    readme = REPO / "docs/README.md"
-    if not readme.is_file():
+    docs_readme = REPO / "docs/README.md"
+    root_readme = REPO / "README.md"
+    if not docs_readme.is_file():
         return CheckResult("documentation index", False, ["docs/README.md missing"])
+    if not root_readme.is_file():
+        return CheckResult("documentation index", False, ["README.md missing"])
 
     visited: set[Path] = set()
-    frontier = [readme.resolve()]
+    frontier = [docs_readme.resolve(), root_readme.resolve()]
     while frontier:
         current = frontier.pop()
         if current in visited or not current.is_file():

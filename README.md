@@ -60,10 +60,14 @@ Then:
 4. Start training only after native actors, kills, map coordinates, and rewards
    are validated.
 
-See `foreground_vision_bot/RUNBOOK.md` for the complete operating procedure,
-`foreground_vision_bot/CONFIGURATION.md` for runtime settings, and
-`foreground_vision_bot/POINTER_RECOVERY_REFERENCE.md` before changing native
-pointer or authoritative actor discovery logic.
+See [`docs/README.md`](docs/README.md) for the current documentation index.
+`docs/RUNBOOK.md` covers the operating procedure, `docs/CONFIGURATION.md`
+covers runtime settings, and `docs/POINTER_RECOVERY_REFERENCE.md` covers
+native pointer/actor discovery mechanics — these three are prior-generation
+docs retained for real mechanism-level detail; prefer
+[`docs/architecture/SYSTEM_OVERVIEW.md`](docs/architecture/SYSTEM_OVERVIEW.md)
+for the current-state reference (see `docs/README.md`'s "Other top-level
+docs" note for why both exist).
 
 ## Training and models
 
@@ -73,19 +77,29 @@ spans +/-50 map cells. This map contract is intentionally incompatible with the
 older 482-value model, which is rejected rather than silently resumed with
 changed meanings.
 
-The current model and checkpoints are stored under `foreground_vision_bot/models`
-and are ignored by Git. Training logs, validation archives, screenshots, and
-other generated diagnostics are also local-only.
+The current model and checkpoints are stored under `models/` (repository
+root) and are ignored by Git, aside from one pinned frozen navigation
+checkpoint. Training logs (`training_logs/`), validation archives, screenshots,
+and other generated diagnostics are also local-only.
 
 ## Project layout
 
 ```text
-foreground_vision_bot/
-  farming/        Farming environment, rewards, observations, PPO lifecycle
-  position/       Native process access, pointer recovery, actor discovery
-  mapper/         Map creation, coordinate frames, and map assets
-  tests/          Contract, lifecycle, recovery, and regression tests
-  tools/          Pointer-recovery and diagnostic utilities
+apps/           Canonical entrypoints (python -m apps.<name>): dev_app, recorder_app, ...
+bot/            Dev-bot runtime glue: Bot.py, Gui.py, RuntimeController, recording_sink.py
+farming/        Farming environment, observation/action/reward/session contracts, PPO lifecycle
+simulator/      Curriculum, world model, milestone evaluator, canonical archive schema/reader
+position/       Native process access, pointer recovery, actor/monster discovery
+navigation/     Kinodynamic route planner and shared movement kernel
+mapper/         Map creation, coordinate frames, and map assets
+devtools/       Developer-only tooling: the standalone recorder, native diagnostics, archive tools
+runtime/        Shared runtime-core primitives (capture/worker/bus, recording_format.py)
+libs/           Small shared utilities and native input helpers
+docs/           Architecture, operations, validation, and decision documentation
+tests/          Contract, lifecycle, recovery, and regression tests
+tools/          Repository-level tooling (project-knowledge checks, future-runtime profile)
+models/         Model checkpoints (gitignored, one pinned exception)
+recordings/     Recording archives and their index
 ```
 
 ## Attribution

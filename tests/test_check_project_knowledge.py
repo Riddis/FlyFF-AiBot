@@ -29,6 +29,7 @@ def test_current_repository_passes_every_check() -> None:
 def test_catches_broken_documentation_index_reference(tmp_path, monkeypatch) -> None:
     docs = tmp_path / "docs"
     (docs / "architecture").mkdir(parents=True)
+    (tmp_path / "README.md").write_text("# root readme\nno links here\n", encoding="utf-8")
     (docs / "README.md").write_text("# index\nno links here\n", encoding="utf-8")
     (docs / "architecture" / "ORPHAN.md").write_text("# orphan\n", encoding="utf-8")
 
@@ -39,6 +40,34 @@ def test_catches_broken_documentation_index_reference(tmp_path, monkeypatch) -> 
     result = checker.check_documentation_index()
     assert not result.ok
     assert any("ORPHAN.md" in d for d in result.details)
+
+
+def test_root_readme_is_covered_by_referenced_current_paths() -> None:
+    """Regression test for the mistake this check exists to prevent
+    recurring: the repository root README.md used to be entirely
+    excluded from CURRENT_DOC_ROOT_FILES, so its own stale
+    foreground_vision_bot/... path references were invisible to this
+    gate. Proven against the REAL current checker/config (not a
+    synthetic tmp_path), since the point is that README.md is now
+    actually included in the real scan."""
+    assert "README.md" in checker.CURRENT_DOC_ROOT_FILES
+    docs = {p.resolve() for p in checker._current_docs()}
+    assert (checker.REPO / "README.md").resolve() in docs
+
+
+def test_catches_a_stale_path_reference_in_root_readme(tmp_path, monkeypatch) -> None:
+    (tmp_path / "README.md").write_text(
+        "See `foreground_vision_bot/RUNBOOK.md` which does not exist here.\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(checker, "REPO", tmp_path)
+    monkeypatch.setattr(checker, "CURRENT_DOC_ROOT_FILES", ("README.md",))
+    monkeypatch.setattr(checker, "CURRENT_DOC_DIRS", ())
+
+    result = checker.check_referenced_current_paths()
+    assert not result.ok
+    assert any("foreground_vision_bot/RUNBOOK.md" in d for d in result.details)
 
 
 def test_catches_inconsistent_g5_status(tmp_path, monkeypatch) -> None:
