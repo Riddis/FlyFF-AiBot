@@ -1338,3 +1338,138 @@ project's own no-silent-rewrite rule.
   needs isolating -- still not fully safe against side effects, but at
   least point-checkable one file at a time with an easy `git status`
   audit after each.
+
+**Follow-up [2026-08-22]: the underlying gap is now permanently closed,
+not just reverted this one time.** A later remediation pass audited
+every scratchpad/tool script the two independent audits flagged
+(`scratchpad_build_oracle_fresh_confirmation.py` -- the exact file that
+caused this incident -- plus five siblings and the four
+`RUN_CANONICAL_*.py` tools) and moved every risky top-level statement
+(curriculum generation, manifest writes, environment rollouts,
+`mkdir()`) behind `main()`/`if __name__ == "__main__":`. Added
+`tests/test_scratchpad_tool_import_safety.py`: pure AST-based static
+analysis (never imports/executes the target files) asserting no
+module-level statement outside a function or the `__main__` guard
+calls a name from a fixed denylist (`mkdir`, `write_text`, `subprocess`
+launches, `generate_curriculum_from_plan`, `step`, `PPO`, etc.). This
+is a structural, mechanically-checked guarantee going forward, not
+reliance on remembering to `git status` after every future import
+sweep.
+
+## Category: recording lifecycle / archive format
+
+### [2026-08-22] RecordingSink's writer and RecordingArchive's reader were never round-tripped against each other
+
+- What happened: `bot/recording_sink.py`'s `RecordingSink` (the dev
+  bot's canonical recording writer) wrote `schema_version: 1`,
+  dict-encoded frame/event records, and no `inputs.msgpack.gz` stream
+  at all. `simulator/schema.py`'s `RecordingArchive` (the one canonical
+  archive reader) only accepts `schema_version == 2`, requires all four
+  archive members including `inputs.msgpack.gz`, and decodes
+  frames/events as flat positional lists with a specific field order
+  (quantized integer positions, `keyframe`/delta actor-update
+  encoding), not dicts. An archive `RecordingSink` produced could not
+  be opened by `RecordingArchive` at all -- it would fail immediately
+  with "missing required files: inputs.msgpack.gz", and even patching
+  the manifest version alone would still decode zero frames/events
+  (the dict records don't match the list-decoder's shape checks, so
+  they're silently skipped rather than raising).
+- Root cause: both sides reused the same low-level writer primitive
+  (`runtime.recording_format.PackedStreamWriter`, which is
+  schema-agnostic -- it packs whatever Python object `.write()` is
+  given), which made it easy to believe the two writers were
+  compatible because they shared infrastructure. Nothing ever
+  constructed a real `RecordingSink` archive and opened it with the
+  real `RecordingArchive` in the same test -- `tests/test_recording_sink.py`
+  only inspected raw ZIP member names via `zipfile.ZipFile` directly,
+  and `tests/test_archive_schema_legacy_compat.py`/
+  `test_simulator_core.py` built synthetic schema-2 archives by hand
+  (their own local encoding helper) without ever going through
+  `RecordingSink`. Two independent, plausible-looking test suites
+  existed for "the writer" and "the reader" and neither one actually
+  proved they agreed with each other.
+- How caught: an independent two-agent (Claude + Codex) pre-merge
+  audit of the same commit, each investigating the recording
+  subsystem from scratch, both reproduced the exact same concrete
+  failure by constructing a `RecordingSink` and attempting to open its
+  output with `RecordingArchive`.
+- Fix: rewrote `RecordingSink` to emit the current schema-2 positional
+  encoding, manifest contract (`sampling.position_quantum_native`,
+  `policy_contract`, `map_contract`, `recording_provenance`), and all
+  four required archive members (an `inputs.msgpack.gz` stream is
+  always created, even though this passive sink has no keyboard hook
+  and so never writes an `"input"` record into it -- an empty-but-
+  present stream is the honest representation, not a fabricated one).
+  Added `tests/test_recording_sink_roundtrips_through_recording_archive.py`,
+  which constructs a real `RecordingSink` over fakes, stops it, and
+  opens the result with the real `RecordingArchive` -- proving the
+  actual writer and the actual reader agree, not just that each one
+  individually looks plausible in isolation.
+- Lesson: when two components share a low-level serialization
+  primitive but each owns its own higher-level encoding contract
+  (record shape, manifest fields, schema version), sharing the
+  primitive is not evidence they're compatible -- write one test that
+  constructs output with the real writer and consumes it with the real
+  reader, not two separate test suites that each assume the other
+  side's contract without checking it. This generalizes past
+  recording: any writer/reader pair for a persisted format needs at
+  least one genuine round-trip test, not just format-shape assertions
+  on each side independently.
+
+### [2026-08-22] RecordingSink.stop() had no single-owner finalization semantics
+
+- What happened: `RecordingSink.stop()` had no state machine or
+  reentrancy guard at all -- calling it from two threads at once (a
+  real possibility: `RuntimeController.stop_recording()` could be
+  called by a GUI click, by `start_rl()`'s own `finally` block, and by
+  `RuntimeController.shutdown()`, with no lock protecting the
+  check-then-act `if self.recording is None: ... self.recording = None`
+  sequence) let both threads run the *entire* finalize sequence
+  independently: close writers, write `manifest.json`, zip the staging
+  directory, then `shutil.rmtree()` it. The second caller's
+  `atomic_json()` would recreate the just-removed staging directory
+  (via its own `mkdir(parents=True, exist_ok=True)`) and write a fresh,
+  near-empty manifest into it, and `package_session()` would then
+  silently overwrite the first caller's valid, complete archive with a
+  manifest-only ZIP containing none of the real frame/event data --
+  with no exception raised anywhere, pure silent data loss. Separately,
+  `stop()` unconditionally proceeded to close writers and remove the
+  staging directory after a bounded `self._thread.join(timeout=5.0)`
+  even if the poll thread was still alive and could still be calling
+  `_write_frame()` on an about-to-be-closed writer.
+- Root cause: the lifecycle was designed around "only one caller will
+  ever call `stop()`" as an implicit assumption, but the actual call
+  graph (GUI button, `start_rl()`'s completion path, and
+  `RuntimeController.shutdown()`) always had more than one legitimate
+  path that could reach it, and shutdown's own ordering finalized the
+  recording *before* cancelling/joining the control worker that might
+  still be using it.
+- How caught: the same independent Claude + Codex pre-merge audit
+  (see the entry above) both identified this from static code reading
+  (reasoning through the concurrent-call interleaving), not from a
+  live failure.
+- Fix: `RecordingSink.stop()` is now an explicit single-flight,
+  idempotent state machine (`RUNNING -> FINALIZING -> FINALIZED`/
+  `FAILED`, guarded by a `threading.Condition`): only the first caller
+  runs the real finalize sequence; concurrent callers wait and receive
+  the same result or the same error; a caller after success gets the
+  cached path without re-running anything. A poll thread that doesn't
+  join within the timeout now aborts finalization with a raised error
+  instead of closing writers/removing staging data out from under it.
+  `RuntimeController.shutdown()` now cancels/joins every worker
+  (including CONTROL) *before* touching any recording, and
+  `stop_recording()` (external/manual) now rejects while a control
+  worker is active, with a separate internal finalize path for
+  `start_rl()`'s own completion and for `shutdown()`. Added a real
+  concurrent-`stop()` test (8 threads via a `threading.Barrier`,
+  asserting one consistent result and an uncorrupted archive) and a
+  stuck-poll-thread test, both deterministic (no timing-based sleeps
+  for the pass/fail condition itself).
+- Lesson: any resource with more than one plausible caller path to its
+  own cleanup/finalization method needs an explicit ownership/state
+  machine from the start, not an implicit "whoever gets there first, or
+  only one caller ever will" assumption -- enumerate every real call
+  site of a `stop`/`close`/`finalize` method before deciding a bare
+  `if self.thing is not None:` check is sufficient, especially when one
+  of those call sites is a GUI event handler running on a different
+  thread than a background worker.
