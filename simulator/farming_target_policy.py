@@ -215,6 +215,29 @@ class FarmingPolicyWrapper(gym.Wrapper):
         return np.asarray(obs, dtype=np.float32)[:RAW_OBSERVATION_SIZE], adjusted_reward, terminated, truncated, info
 
 
+class FarmingPolicySpaceProbe(gym.Env):
+    """Minimal probe env exposing the full-farming policy's real contract
+    (`MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])` over
+    `Box(RAW_OBSERVATION_SIZE,)`) -- used only to construct a fresh
+    `SplitFarmingTargetEventPolicy` with the right shapes (this policy
+    architecture is used unchanged across Basic/Beginner/Intermediate/
+    Advanced, so one probe class covers every stage's fresh-construction
+    need). Never stepped for real: no simulator state, no real episode."""
+
+    metadata: dict = {"render_modes": []}
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(RAW_OBSERVATION_SIZE,), dtype=np.float32)
+        self.action_space = spaces.MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])
+
+    def reset(self, *, seed: int | None = None, options: dict | None = None) -> tuple[np.ndarray, dict]:
+        return np.zeros(RAW_OBSERVATION_SIZE, dtype=np.float32), {}
+
+    def step(self, action: Any) -> tuple[np.ndarray, float, bool, bool, dict]:
+        return np.zeros(RAW_OBSERVATION_SIZE, dtype=np.float32), 0.0, True, False, {}
+
+
 def deterministic_target_teacher_action(base_env: Any) -> int:
     """Basic's target-selection TEACHER (docs/architecture/
     CURRICULUM_TRAINING_PIPELINE.md section 6/13 of the FINAL_PRE_TRAINING

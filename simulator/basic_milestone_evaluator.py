@@ -51,13 +51,13 @@ def _episode_record(
     steps = max(1, len(records))
     contacts = sum(1 for r in records if r.contact)
     # Reported separately, not combined into one "disagreement" flag: a
-    # single combined rate cannot tell an operator whether steering or
-    # event is the actual source of teacher disagreement, and this
+    # single combined rate cannot tell an operator whether target selection
+    # or event is the actual source of teacher disagreement, and this
     # project's own event-head collapse sat behind a flat ~76% combined
     # rate every round without anyone being able to attribute it to either
     # head specifically.
-    steering_disagreement = float(np.mean([
-        r.teacher_steering != r.policy_steering for r in records
+    target_disagreement = float(np.mean([
+        r.teacher_target != r.policy_target for r in records
     ])) if records else 0.0
     event_disagreement = float(np.mean([
         r.teacher_event != r.policy_event for r in records
@@ -68,7 +68,7 @@ def _episode_record(
         "intervention_count": summary["intervention_count"],
         "intervention_ticks_fraction": summary["intervention_ticks"] / steps,
         "contacts_per_step": contacts / steps,
-        "steering_disagreement": steering_disagreement,
+        "target_disagreement": target_disagreement,
         "event_disagreement": event_disagreement,
         "mean_displacement": mean_displacement,
         "final_state": summary["final_state"],
@@ -86,7 +86,7 @@ def _aggregate_records(layout_names: list[str], episode_records: list[dict[str, 
     per_layout: dict[str, Any] = {}
     all_intervention_counts = [float(r["intervention_count"]) for r in episode_records]
     all_intervention_ticks_fraction = [r["intervention_ticks_fraction"] for r in episode_records]
-    all_steering_disagreement_rates = [r["steering_disagreement"] for r in episode_records]
+    all_target_disagreement_rates = [r["target_disagreement"] for r in episode_records]
     all_event_disagreement_rates = [r["event_disagreement"] for r in episode_records]
     all_contacts_per_step = [r["contacts_per_step"] for r in episode_records]
     all_mean_displacement = [r["mean_displacement"] for r in episode_records]
@@ -98,7 +98,7 @@ def _aggregate_records(layout_names: list[str], episode_records: list[dict[str, 
             "n_episodes": len(layout_recs),
             "intervention_count": _stat([float(r["intervention_count"]) for r in layout_recs]),
             "contacts_per_step": _stat([r["contacts_per_step"] for r in layout_recs]),
-            "steering_disagreement_rate": _stat([r["steering_disagreement"] for r in layout_recs]),
+            "target_disagreement_rate": _stat([r["target_disagreement"] for r in layout_recs]),
             "event_disagreement_rate": _stat([r["event_disagreement"] for r in layout_recs]),
         }
 
@@ -113,7 +113,7 @@ def _aggregate_records(layout_names: list[str], episode_records: list[dict[str, 
         "per_layout": per_layout,
         "intervention_count": _stat([float(v) for v in all_intervention_counts]),
         "intervention_ticks_fraction": _stat(all_intervention_ticks_fraction),
-        "steering_disagreement_rate": _stat(all_steering_disagreement_rates),
+        "target_disagreement_rate": _stat(all_target_disagreement_rates),
         "event_disagreement_rate": _stat(all_event_disagreement_rates),
         "contacts_per_step": _stat(all_contacts_per_step),
         "mean_displacement_per_tick": _stat(all_mean_displacement),

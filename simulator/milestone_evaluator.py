@@ -415,7 +415,7 @@ def evaluate_heldout(
             from .navigation_subpolicy import run_composed_episode
             policy_results = [
                 run_composed_episode(
-                    manifest.curriculum_path, layout_name, event_policy=net, navigation_steering=navigation_steering,
+                    manifest.curriculum_path, layout_name, farming_policy=net, navigation_steering=navigation_steering,
                     seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage,
                 )
                 for seed in seeds
@@ -451,7 +451,7 @@ def evaluate_challenge(
         if navigation_steering is not None:
             from .navigation_subpolicy import run_composed_episode
             return run_composed_episode(
-                curriculum_path, layout_name, event_policy=net, navigation_steering=navigation_steering,
+                curriculum_path, layout_name, farming_policy=net, navigation_steering=navigation_steering,
                 seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage,
             )
         return run_episode(
@@ -521,7 +521,7 @@ def _heldout_episode_task(
     if _PARALLEL_EVAL_NAVIGATION_STEERING is not None:
         from .navigation_subpolicy import run_composed_episode
         policy = run_composed_episode(
-            curriculum_path, layout_name, event_policy=_PARALLEL_EVAL_NET, navigation_steering=_PARALLEL_EVAL_NAVIGATION_STEERING,
+            curriculum_path, layout_name, farming_policy=_PARALLEL_EVAL_NET, navigation_steering=_PARALLEL_EVAL_NAVIGATION_STEERING,
             seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=stage,
         )
     else:
@@ -587,7 +587,7 @@ def _challenge_fixed_task(
     if _PARALLEL_EVAL_NAVIGATION_STEERING is not None:
         from .navigation_subpolicy import run_composed_episode
         policy = run_composed_episode(
-            curriculum_path, layout, event_policy=_PARALLEL_EVAL_NET, navigation_steering=_PARALLEL_EVAL_NAVIGATION_STEERING,
+            curriculum_path, layout, farming_policy=_PARALLEL_EVAL_NET, navigation_steering=_PARALLEL_EVAL_NAVIGATION_STEERING,
             seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=stage,
         )
     else:

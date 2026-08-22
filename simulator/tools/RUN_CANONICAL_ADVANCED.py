@@ -1,15 +1,22 @@
-"""Canonical Advanced-stage run: recovery-off, event-only PPO continuation
-from the graduated Intermediate checkpoint (models/canonical_intermediate_
-graduated.zip) -- ALREADY event-only (Discrete(len(FarmingEvent))) as of the
-frozen-navigation-sub-policy recovery, so no checkpoint bridge/transfer is
-needed here: this script just continues that same lineage, same action
-space, same navigation ownership (docs/architecture/
-CURRICULUM_TRAINING_PIPELINE.md section 4/9). NOTE: any pre-recovery
-`canonical_advanced_ppo_*k.zip` checkpoints from an earlier run under the
-retired dual-head/direct-bearing architecture (see the round-history
-commentary below) are NOT compatible with this contract and must not be
-resumed from -- `_require_event_only_action_space` below refuses to
-continue one.
+"""Canonical Advanced-stage run: recovery-off PPO continuation from the
+graduated Intermediate checkpoint (models/canonical_intermediate_
+graduated.zip) -- ALREADY the full-farming SplitFarmingTargetEventPolicy
+architecture (MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])), so no
+checkpoint bridge/transfer is needed here: this script just continues that
+same lineage, same action space, same navigation ownership (docs/
+architecture/CURRICULUM_TRAINING_PIPELINE.md section 4/6/9). NOTE: any
+pre-recovery `canonical_advanced_ppo_*k.zip` checkpoints from an earlier run
+under the retired dual-head/direct-bearing or event-only architectures (see
+the round-history commentary below) are NOT compatible with this contract
+and must not be resumed from -- `_require_farming_policy_action_space`
+below refuses to continue one.
+
+ZERO COLLISIONS IS A HARD GATE (docs/PROJECT_GOALS.md section 2a) --
+`AUTO_GRADUATION_ENABLED`'s old rationale (contacts_per_100_distance <=15.0
+does not mean collision-free) is now moot: graduation is gated on
+`total_collision_events` (distinct_contact_events -- genuine collision
+EVENTS, see milestone_evaluator._contact_event_stats) being exactly zero on
+heldout, restoring real auto-graduation.
 
 Same shape as RUN_CANONICAL_BEGINNER.py (see that module's docstring for
 the full rationale on recovery being structurally impossible, the
@@ -73,23 +80,16 @@ EVAL_SEEDS = [0, 1]
 PPO_CHUNK_TIMESTEPS = 10_000
 N_EVAL_WORKERS = 6
 
-AUTO_GRADUATION_ENABLED = False
-# Disabled 2026-08-08 pending the collision-event-metric review: contacts_
-# per_100_distance <= 15.0 was confirmed (via the new _contact_event_stats
-# audit) to NOT mean collision-free -- frozen Beginner shows actual contact
-# in 93.8% of heldout episodes despite comfortably passing that bar, and
-# min_kills_per_hour_median>=500 has repeatedly failed rounds with otherwise-
-# clean navigation on lower-density layouts. advanced_heldout has also now
-# been checked 20+ times and used to directly motivate a curriculum change,
-# so it is development data, not a pristine exam. This flag keeps the round
-# loop running exactly as before (checkpoints, evaluations, rehearsal, the
-# existing bar's pass/fail bookkeeping) so nothing already in flight is
-# wasted, but any old-bar "PASSED" is logged as a CANDIDATE only -- the loop
-# will never freeze a graduated checkpoint or declare RUN COMPLETE while
-# this is False. Flip back to True only alongside the corrected collision-
-# event bar, a replacement for the flat kills/hour floor, and a confirmation
-# pass against the untouched advanced_unseen_profiles/advanced_challenge
-# pools -- not as a standalone edit.
+# AUTO_GRADUATION_ENABLED was disabled 2026-08-08 pending the collision-
+# event-metric review: contacts_per_100_distance <= 15.0 was confirmed (via
+# the new _contact_event_stats audit) to NOT mean collision-free -- frozen
+# Beginner showed actual contact in 93.8% of heldout episodes despite
+# comfortably passing that bar. That review's own request ("flip back to
+# True only alongside the corrected collision-event bar") is satisfied by
+# this task: graduation below is now gated on total_collision_events
+# (distinct_contact_events) == 0, a real per-episode collision-EVENT count,
+# not the old tick-rate proxy. Auto-graduation is restored; the flag itself
+# is removed (there is no more "old bar" to distinguish from).
 MAX_ROUNDS = 24
 # Extended 8 -> 16 -> 24 (2026-08-08). Rounds 1-16 ran on the original
 # 12-variant curriculum: round 6 fully passed the absolute bar but rounds
@@ -121,12 +121,14 @@ MAX_ROUNDS = 24
 # round-16 checkpoint, now training against the 16-variant curriculum.
 CONSECUTIVE_PASSES_REQUIRED = 2
 
-REHEARSAL_EPOCHS = 2
+REHEARSAL_MAX_EPOCHS = 20
 REHEARSAL_LEARNING_RATE = 1e-5
 
 # Same absolute bar as Beginner -- same competency standard at every
 # stage; only the maps get harder, per explicit instruction. Not
-# recalibrated down for this harder stage.
+# recalibrated down for this harder stage. ZERO COLLISIONS IS A HARD GATE
+# (docs/PROJECT_GOALS.md section 2a).
+GRADUATION_MAX_COLLISION_EVENTS = 0
 GRADUATION_MAX_CONTACTS_PER_100 = 15.0
 GRADUATION_MIN_UNIQUE_CELLS_MEDIAN = 400
 GRADUATION_MIN_KILLS_PER_HOUR_MEDIAN = 500
@@ -157,9 +159,14 @@ def _aggregate(report: dict) -> dict:
     stagnation = sum(l["physical_stagnation_episodes"] for l in layouts)
     zero_kill = sum(l["zero_kill_episodes"] for l in layouts)
     n_episodes = sum(l["n_episodes"] for l in layouts)
+    total_collision_events = sum(
+        int(round(l["distinct_contact_events"]["median"] * l["n_episodes"]))
+        for l in layouts if l.get("distinct_contact_events")
+    )
     return {
         "mean_teacher_ratio_median": float(np.mean(teacher_ratios)) if teacher_ratios else None,
         "max_layout_contacts_per_100_distance": float(max(contacts_medians)) if contacts_medians else None,
+        "total_collision_events": total_collision_events,
         "min_unique_cells_median": float(min(unique_cells_medians)) if unique_cells_medians else None,
         "min_kills_per_hour_median": float(min(kph_medians)) if kph_medians else None,
         "total_physical_stagnation_episodes": stagnation,
@@ -178,12 +185,15 @@ def _log_aggregate(label: str, agg: dict) -> None:
     kph = agg["min_kills_per_hour_median"]
     kph_str = f"{kph:.0f}" if kph is not None else "n/a"
     log(f"  {label}: teacher_ratio(context only)={tr_str} max_contacts/100={mc_str} "
+        f"collision_events={agg['total_collision_events']} "
         f"min_unique_cells={uc_str} min_kills/hr={kph_str} "
         f"stagnation={agg['total_physical_stagnation_episodes']} zero_kill={agg['total_zero_kill_episodes']}/{agg['total_episodes']}")
 
 
 def check_round_passes_absolute_bar(heldout_agg: dict) -> tuple[bool, list[str]]:
     reasons = []
+    if heldout_agg["total_collision_events"] > GRADUATION_MAX_COLLISION_EVENTS:
+        reasons.append(f"total_collision_events={heldout_agg['total_collision_events']} exceeds hard gate {GRADUATION_MAX_COLLISION_EVENTS}")
     if heldout_agg["total_physical_stagnation_episodes"] > GRADUATION_MAX_STAGNATION:
         reasons.append(f"physical_stagnation_episodes={heldout_agg['total_physical_stagnation_episodes']} exceeds {GRADUATION_MAX_STAGNATION}")
     if heldout_agg["total_zero_kill_episodes"] > GRADUATION_MAX_ZERO_KILL_EPISODES:
@@ -214,16 +224,18 @@ def run_heldout_evaluation(checkpoint_path, heldout_manifest, *, label: str) -> 
     return heldout
 
 
-def _require_event_only_action_space(model, *, where: str) -> None:
+def _require_farming_policy_action_space(model, *, where: str) -> None:
     from gymnasium import spaces
 
     from farming.actions import FarmingEvent
+    from simulator.farming_target_policy import TARGET_ACTION_SIZE
 
-    if not isinstance(model.action_space, spaces.Discrete) or model.action_space.n != len(FarmingEvent):
+    expected = [TARGET_ACTION_SIZE, len(FarmingEvent)]
+    if not isinstance(model.action_space, spaces.MultiDiscrete) or list(model.action_space.nvec) != expected:
         raise RuntimeError(
             f"{where}: checkpoint has action_space={model.action_space}, expected "
-            f"Discrete({len(FarmingEvent)}) -- the event-only contract must never drift back to MultiDiscrete "
-            "(this is exactly what a pre-recovery dual-head checkpoint would trip)."
+            f"MultiDiscrete({expected}) -- the full-farming action contract must never drift "
+            "(this is exactly what a pre-recovery dual-head/direct-bearing or event-only checkpoint would trip)."
         )
 
 
@@ -235,15 +247,15 @@ def main() -> None:
 
     from simulator.basic_training import canonical_checkpoint_name
     from simulator.beginner_transition import (
-        continue_event_only_ppo_chunk,
-        rehearse_event_only_on_basic_data,
+        continue_farming_policy_ppo_chunk,
+        rehearse_farming_policy_on_basic_data,
     )
     from simulator.curriculum_manifests import load_heldout_manifest
 
     if not GRADUATED_INTERMEDIATE_CHECKPOINT.exists():
         raise FileNotFoundError(f"{GRADUATED_INTERMEDIATE_CHECKPOINT} not found -- graduate an Intermediate checkpoint to this path first.")
     log(f"Graduated Intermediate checkpoint: {GRADUATED_INTERMEDIATE_CHECKPOINT}")
-    _require_event_only_action_space(
+    _require_farming_policy_action_space(
         PPO.load(str(GRADUATED_INTERMEDIATE_CHECKPOINT), device="cpu"), where="graduated Intermediate checkpoint",
     )
 
@@ -307,7 +319,7 @@ def main() -> None:
         if ppo_output.exists() and round_idx in existing_rounds:
             log(f"Reusing existing PPO chunk checkpoint: {ppo_output}")
         else:
-            ppo_result = continue_event_only_ppo_chunk(
+            ppo_result = continue_farming_policy_ppo_chunk(
                 current_checkpoint, ppo_output, curriculum=ADVANCED_CURRICULUM, timesteps=PPO_CHUNK_TIMESTEPS,
                 stage=ADVANCED_STAGE, seed=round_seed, episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS,
                 device="cpu", progress_every_seconds=20.0, canonical_stage="advanced",
@@ -317,7 +329,7 @@ def main() -> None:
             log(f"Saved: {ppo_result['checkpoint_out']} (+ provenance)")
         pre_rehearsal_checkpoint = ppo_output
         model = PPO.load(str(pre_rehearsal_checkpoint), device="cpu")
-        _require_event_only_action_space(model, where=f"round {round_idx} PPO chunk checkpoint")
+        _require_farming_policy_action_space(model, where=f"round {round_idx} PPO chunk checkpoint")
         check_no_nan(model, f"round {round_idx} after PPO chunk")
 
         # ---------------------------------------------------------------
@@ -344,9 +356,9 @@ def main() -> None:
             log("Reusing existing rehearsed checkpoint + evaluation.")
             post_heldout = json.loads(post_heldout_path.read_text(encoding="utf-8"))
         else:
-            rehearsal_result = rehearse_event_only_on_basic_data(
+            rehearsal_result = rehearse_farming_policy_on_basic_data(
                 pre_rehearsal_checkpoint, rehearsed_output, basic_dataset_paths=event_dataset_paths,
-                epochs=REHEARSAL_EPOCHS, learning_rate=REHEARSAL_LEARNING_RATE, batch_size=128, seed=round_seed,
+                max_epochs=REHEARSAL_MAX_EPOCHS, learning_rate=REHEARSAL_LEARNING_RATE, batch_size=128, seed=round_seed,
                 canonical_stage="advanced",
             )
             log(f"Rehearsal done. train_samples={rehearsal_result['train_samples']}")
@@ -371,6 +383,8 @@ def main() -> None:
             damage_reasons.append(f"heldout: min unique_cells dropped {(1.0-post_u/pre_u):.1%} after rehearsal ({pre_u:.0f} -> {post_u:.0f})")
         if post_agg["total_physical_stagnation_episodes"] > pre_agg["total_physical_stagnation_episodes"]:
             damage_reasons.append(f"heldout: physical_stagnation_episodes increased from {pre_agg['total_physical_stagnation_episodes']} to {post_agg['total_physical_stagnation_episodes']} after rehearsal")
+        if post_agg["total_collision_events"] > pre_agg["total_collision_events"]:
+            damage_reasons.append(f"heldout: total_collision_events increased from {pre_agg['total_collision_events']} to {post_agg['total_collision_events']} after rehearsal")
 
         if damage_reasons:
             log(f"!!! REHEARSAL DAMAGE DETECTED, discarding rehearsed checkpoint, carrying pre-rehearsal forward: {damage_reasons}")
@@ -406,14 +420,8 @@ def main() -> None:
         summary_path.write_text(json.dumps(round_reports, indent=2, default=str), encoding="utf-8")
         current_checkpoint = carried_forward_checkpoint
 
-        if consecutive_passes >= CONSECUTIVE_PASSES_REQUIRED and not AUTO_GRADUATION_ENABLED:
-            log(f"=== CANDIDATE PASS: {consecutive_passes} consecutive rounds passed the OLD absolute bar "
-                f"(contacts/100<=15, kills/hr>=500) -- AUTO_GRADUATION_ENABLED=False, NOT freezing. "
-                f"This bar is known to not mean collision-free (see 2026-08-08 collision-event audit) and "
-                f"is pending replacement. Checkpoint {current_checkpoint.name} is a candidate only. "
-                f"Continuing the round loop to keep collecting data. ===")
-        elif consecutive_passes >= CONSECUTIVE_PASSES_REQUIRED:
-            log(f"=== GRADUATION: {consecutive_passes} consecutive rounds passed the absolute bar ===")
+        if consecutive_passes >= CONSECUTIVE_PASSES_REQUIRED:
+            log(f"=== GRADUATION: {consecutive_passes} consecutive rounds passed the absolute bar (zero-collision hard gate included) ===")
             graduated_checkpoint = MODELS_DIR / "canonical_advanced_graduated.zip"
             graduated_provenance = MODELS_DIR / "canonical_advanced_graduated.provenance.json"
             import shutil
@@ -428,6 +436,7 @@ def main() -> None:
                 "source_checkpoint": str(current_checkpoint.resolve()),
                 "scope_note": "Gated on advanced_heldout only (12 layouts, all 6 templates, profile combos disjoint from training) -- no Advanced challenge manifest exists yet (see module docstring).",
                 "graduation_bar": {
+                    "max_collision_events": GRADUATION_MAX_COLLISION_EVENTS,
                     "max_contacts_per_100_distance": GRADUATION_MAX_CONTACTS_PER_100,
                     "min_unique_cells_median": GRADUATION_MIN_UNIQUE_CELLS_MEDIAN,
                     "min_kills_per_hour_median": GRADUATION_MIN_KILLS_PER_HOUR_MEDIAN,

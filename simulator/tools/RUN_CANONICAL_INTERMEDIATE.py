@@ -1,11 +1,12 @@
-"""Canonical Intermediate-stage run: recovery-off, event-only PPO
-continuation from the graduated Beginner checkpoint
-(models/canonical_beginner_graduated.zip) -- ALREADY event-only
-(Discrete(len(FarmingEvent))) as of the frozen-navigation-sub-policy
-recovery, so no checkpoint bridge/transfer is needed here (unlike Basic ->
-Beginner): this script just continues that same lineage, same action space,
-same navigation ownership (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md
-section 4/9).
+"""Canonical Intermediate-stage run: recovery-off PPO continuation from the
+graduated Beginner checkpoint (models/canonical_beginner_graduated.zip) --
+ALREADY the full-farming SplitFarmingTargetEventPolicy architecture
+(MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])), so no checkpoint
+bridge/transfer is needed here: this script just continues that same
+lineage, same action space, same navigation ownership (docs/architecture/
+CURRICULUM_TRAINING_PIPELINE.md section 4/6/9). ZERO COLLISIONS IS A HARD
+GATE (docs/PROJECT_GOALS.md section 2a) -- see RUN_CANONICAL_BEGINNER.py's
+module docstring for the collision-event metric this is graded on.
 
 Same shape as RUN_CANONICAL_BEGINNER.py (see that module's docstring for
 the full rationale on recovery being structurally impossible, the
@@ -77,12 +78,16 @@ N_EVAL_WORKERS = 6
 MAX_ROUNDS = 8
 CONSECUTIVE_PASSES_REQUIRED = 2
 
-REHEARSAL_EPOCHS = 2
+REHEARSAL_MAX_EPOCHS = 20
 REHEARSAL_LEARNING_RATE = 1e-5
 
 # Same absolute bar as Beginner -- same competency standard at every
 # stage; only the maps get harder, per explicit instruction. Not
-# recalibrated down for this harder stage.
+# recalibrated down for this harder stage. ZERO COLLISIONS IS A HARD GATE
+# (docs/PROJECT_GOALS.md section 2a) -- graded via total_collision_events
+# (distinct_contact_events, genuine collision EVENTS, not the raw
+# contacts_per_100_distance tick-rate metric).
+GRADUATION_MAX_COLLISION_EVENTS = 0
 GRADUATION_MAX_CONTACTS_PER_100 = 15.0
 GRADUATION_MIN_UNIQUE_CELLS_MEDIAN = 400
 GRADUATION_MIN_KILLS_PER_HOUR_MEDIAN = 500
@@ -113,9 +118,14 @@ def _aggregate(report: dict) -> dict:
     stagnation = sum(l["physical_stagnation_episodes"] for l in layouts)
     zero_kill = sum(l["zero_kill_episodes"] for l in layouts)
     n_episodes = sum(l["n_episodes"] for l in layouts)
+    total_collision_events = sum(
+        int(round(l["distinct_contact_events"]["median"] * l["n_episodes"]))
+        for l in layouts if l.get("distinct_contact_events")
+    )
     return {
         "mean_teacher_ratio_median": float(np.mean(teacher_ratios)) if teacher_ratios else None,
         "max_layout_contacts_per_100_distance": float(max(contacts_medians)) if contacts_medians else None,
+        "total_collision_events": total_collision_events,
         "min_unique_cells_median": float(min(unique_cells_medians)) if unique_cells_medians else None,
         "min_kills_per_hour_median": float(min(kph_medians)) if kph_medians else None,
         "total_physical_stagnation_episodes": stagnation,
@@ -134,12 +144,15 @@ def _log_aggregate(label: str, agg: dict) -> None:
     kph = agg["min_kills_per_hour_median"]
     kph_str = f"{kph:.0f}" if kph is not None else "n/a"
     log(f"  {label}: teacher_ratio(context only)={tr_str} max_contacts/100={mc_str} "
+        f"collision_events={agg['total_collision_events']} "
         f"min_unique_cells={uc_str} min_kills/hr={kph_str} "
         f"stagnation={agg['total_physical_stagnation_episodes']} zero_kill={agg['total_zero_kill_episodes']}/{agg['total_episodes']}")
 
 
 def check_round_passes_absolute_bar(heldout_agg: dict) -> tuple[bool, list[str]]:
     reasons = []
+    if heldout_agg["total_collision_events"] > GRADUATION_MAX_COLLISION_EVENTS:
+        reasons.append(f"total_collision_events={heldout_agg['total_collision_events']} exceeds hard gate {GRADUATION_MAX_COLLISION_EVENTS}")
     if heldout_agg["total_physical_stagnation_episodes"] > GRADUATION_MAX_STAGNATION:
         reasons.append(f"physical_stagnation_episodes={heldout_agg['total_physical_stagnation_episodes']} exceeds {GRADUATION_MAX_STAGNATION}")
     if heldout_agg["total_zero_kill_episodes"] > GRADUATION_MAX_ZERO_KILL_EPISODES:
@@ -170,7 +183,7 @@ def run_heldout_evaluation(checkpoint_path, heldout_manifest, *, label: str) -> 
     return heldout
 
 
-def _require_event_only_action_space(model, *, where: str) -> None:
+def _require_farming_policy_action_space(model, *, where: str) -> None:
     from gymnasium import spaces
 
     from farming.actions import FarmingEvent
@@ -190,15 +203,15 @@ def main() -> None:
 
     from simulator.basic_training import canonical_checkpoint_name
     from simulator.beginner_transition import (
-        continue_event_only_ppo_chunk,
-        rehearse_event_only_on_basic_data,
+        continue_farming_policy_ppo_chunk,
+        rehearse_farming_policy_on_basic_data,
     )
     from simulator.curriculum_manifests import load_heldout_manifest
 
     if not GRADUATED_BEGINNER_CHECKPOINT.exists():
         raise FileNotFoundError(f"{GRADUATED_BEGINNER_CHECKPOINT} not found -- graduate a Beginner checkpoint to this path first.")
     log(f"Graduated Beginner checkpoint: {GRADUATED_BEGINNER_CHECKPOINT}")
-    _require_event_only_action_space(
+    _require_farming_policy_action_space(
         PPO.load(str(GRADUATED_BEGINNER_CHECKPOINT), device="cpu"), where="graduated Beginner checkpoint",
     )
 
@@ -263,7 +276,7 @@ def main() -> None:
         if ppo_output.exists() and round_idx in existing_rounds:
             log(f"Reusing existing PPO chunk checkpoint: {ppo_output}")
         else:
-            ppo_result = continue_event_only_ppo_chunk(
+            ppo_result = continue_farming_policy_ppo_chunk(
                 current_checkpoint, ppo_output, curriculum=INTERMEDIATE_CURRICULUM, timesteps=PPO_CHUNK_TIMESTEPS,
                 stage=INTERMEDIATE_STAGE, seed=round_seed, episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS,
                 device="cpu", progress_every_seconds=20.0, canonical_stage="intermediate",
@@ -273,7 +286,7 @@ def main() -> None:
             log(f"Saved: {ppo_result['checkpoint_out']} (+ provenance)")
         pre_rehearsal_checkpoint = ppo_output
         model = PPO.load(str(pre_rehearsal_checkpoint), device="cpu")
-        _require_event_only_action_space(model, where=f"round {round_idx} PPO chunk checkpoint")
+        _require_farming_policy_action_space(model, where=f"round {round_idx} PPO chunk checkpoint")
         check_no_nan(model, f"round {round_idx} after PPO chunk")
 
         # ---------------------------------------------------------------
@@ -300,9 +313,9 @@ def main() -> None:
             log("Reusing existing rehearsed checkpoint + evaluation.")
             post_heldout = json.loads(post_heldout_path.read_text(encoding="utf-8"))
         else:
-            rehearsal_result = rehearse_event_only_on_basic_data(
+            rehearsal_result = rehearse_farming_policy_on_basic_data(
                 pre_rehearsal_checkpoint, rehearsed_output, basic_dataset_paths=event_dataset_paths,
-                epochs=REHEARSAL_EPOCHS, learning_rate=REHEARSAL_LEARNING_RATE, batch_size=128, seed=round_seed,
+                max_epochs=REHEARSAL_MAX_EPOCHS, learning_rate=REHEARSAL_LEARNING_RATE, batch_size=128, seed=round_seed,
                 canonical_stage="intermediate",
             )
             log(f"Rehearsal done. train_samples={rehearsal_result['train_samples']}")
@@ -327,6 +340,8 @@ def main() -> None:
             damage_reasons.append(f"heldout: min unique_cells dropped {(1.0-post_u/pre_u):.1%} after rehearsal ({pre_u:.0f} -> {post_u:.0f})")
         if post_agg["total_physical_stagnation_episodes"] > pre_agg["total_physical_stagnation_episodes"]:
             damage_reasons.append(f"heldout: physical_stagnation_episodes increased from {pre_agg['total_physical_stagnation_episodes']} to {post_agg['total_physical_stagnation_episodes']} after rehearsal")
+        if post_agg["total_collision_events"] > pre_agg["total_collision_events"]:
+            damage_reasons.append(f"heldout: total_collision_events increased from {pre_agg['total_collision_events']} to {post_agg['total_collision_events']} after rehearsal")
 
         if damage_reasons:
             log(f"!!! REHEARSAL DAMAGE DETECTED, discarding rehearsed checkpoint, carrying pre-rehearsal forward: {damage_reasons}")
@@ -378,6 +393,7 @@ def main() -> None:
                 "source_checkpoint": str(current_checkpoint.resolve()),
                 "scope_note": "Gated on intermediate_heldout only -- no unseen-template or challenge manifest exists yet for this stage (see module docstring).",
                 "graduation_bar": {
+                    "max_collision_events": GRADUATION_MAX_COLLISION_EVENTS,
                     "max_contacts_per_100_distance": GRADUATION_MAX_CONTACTS_PER_100,
                     "min_unique_cells_median": GRADUATION_MIN_UNIQUE_CELLS_MEDIAN,
                     "min_kills_per_hour_median": GRADUATION_MIN_KILLS_PER_HOUR_MEDIAN,

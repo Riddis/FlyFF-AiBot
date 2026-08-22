@@ -4,9 +4,10 @@ THE CENTRAL DESIGN DECISION, stated precisely: Basic NEVER runs PPO. There
 is no rollout buffer, no advantage estimation, no stored log-prob, anywhere
 in this module. Recovery-assisted trajectories are used ONLY to produce
 supervised (observation, teacher-or-policy label) pairs for BC/DAgger
-training (simulator.basic_training.bootstrap_policy_from_human_recordings
-and this module's collect_basic_dagger_dataset), mined and trained the same
-way simulator.navigation_dataset/factorized_v193_training already do.
+training (simulator.basic_training.bootstrap_farming_event_head/
+bootstrap_target_from_teacher and this module's collect_basic_dagger_dataset),
+mined and trained the same way simulator.navigation_dataset/
+factorized_v193_training already do.
 
 Why not PPO-with-recovery: PPO's clipped surrogate objective is built on
 ratio = exp(log pi_theta_new(a|s) - log pi_theta_old(a|s)), where a is the
@@ -81,8 +82,9 @@ from .navigation_dataset import (
     _group_into_events,
 )
 from navigation.movement_kernel import SteeringDirection
-from navigation.navigation_evidence import POLICY_INPUT_SIZE
+from navigation.navigation_evidence import RAW_OBSERVATION_SIZE
 
+from .farming_target_policy import deterministic_target_teacher_action
 from .navigation_history import NavigationHistoryWrapper
 from .navigation_subpolicy import FrozenNavigationSteering
 from .progress_reporting import ProgressPrinter
@@ -94,29 +96,36 @@ from .synthetic import iter_variant_environments
 @dataclass
 class _BasicTickRecord:
     tick: int
-    observation_925: np.ndarray
+    observation_raw: np.ndarray
     contact: bool
     min_clearance: float
     displacement: float
-    policy_steering: int
+    policy_target: int
     policy_event: int
-    teacher_steering: int
+    teacher_target: int
     teacher_event: int
     recovering: bool
 
 
-def _policy_forward(net: Any, observation_925: np.ndarray) -> tuple[int, int]:
-    # Unlike navigation_dataset._policy_forward (which drives rollout with
-    # the OLD 923-input 15k policy even inside a 925-wrapped env, purely to
-    # RECORD 925-dim data for a later fine-tune of a different policy), this
-    # module's `net` IS the 925-input SplitSteeringNavigationPolicy under
-    # training -- it must see its own sidecar values, never sliced to 923.
+def _policy_forward(net: Any, observation_raw: np.ndarray) -> tuple[int, int]:
+    # `net` is SplitFarmingTargetEventPolicy: MultiDiscrete([TARGET_ACTION_
+    # SIZE, len(FarmingEvent)]) over the plain RAW_OBSERVATION_SIZE-value
+    # observation -- no navigation sidecar (that sidecar was steering's own
+    # concern, and steering is not this policy's output at all; see
+    # farming_target_policy.py's module docstring). Slicing to the raw
+    # RAW_OBSERVATION_SIZE values here is defensive (the caller already
+    # passes a raw-sized array in every current call site), matching this
+    # project's established "slice at the boundary, never trust the caller
+    # blindly" convention.
     with torch.no_grad():
-        obs_t = torch.as_tensor(observation_925[None, :], dtype=torch.float32, device=net.device)
+        obs_t = torch.as_tensor(
+            np.asarray(observation_raw, dtype=np.float32)[None, :RAW_OBSERVATION_SIZE],
+            dtype=torch.float32, device=net.device,
+        )
         dist = net.get_distribution(obs_t).distribution
-        s = dist[0].probs[0].cpu().numpy()
+        t = dist[0].probs[0].cpu().numpy()
         e = dist[1].probs[0].cpu().numpy()
-    return int(s.argmax()), int(e.argmax())
+    return int(t.argmax()), int(e.argmax())
 
 
 def _roll_basic_episode(
@@ -127,19 +136,25 @@ def _roll_basic_episode(
     """One recovery-assisted episode. Returns per-tick records (for DAgger
     mining) and a small intervention summary (for the Basic milestone
     evaluator) -- recovery's chosen action is applied to the environment
-    when active, but every record's label still comes from the teacher, and
-    nothing here is a PPO transition.
+    when active, but every record's label still comes from the teacher (or,
+    for `safe_proximity` ticks, the policy's own proposed action -- see
+    `collect_basic_dagger_dataset`), and nothing here is a PPO transition.
 
-    `navigation_steering` (a `simulator.navigation_subpolicy.
-    FrozenNavigationSteering` instance) supplies `policy_steering`: under
-    the recovered frozen-navigation-sub-policy architecture (docs/
-    architecture/CURRICULUM_TRAINING_PIPELINE.md section 4), steering
-    execution belongs to the frozen navigation checkpoint driven by the
-    production router, never to `model`'s own (deliberately untrained,
-    see simulator/basic_training.py build_fresh_basic_policy's docstring)
-    steering head. `model`'s own forward pass still supplies
-    `policy_event` -- the event/EVA branch is exactly what this curriculum
-    trains."""
+    Full-farming responsibility split (docs/architecture/
+    CURRICULUM_TRAINING_PIPELINE.md section 4/6): `model`'s own forward
+    pass supplies BOTH `policy_target` (WHICH actor/group to pursue -- the
+    learned farming-target-selection action, `simulator.
+    farming_target_policy`) and `policy_event` (EVA/JUMP timing). Steering
+    execution belongs entirely to the frozen navigation checkpoint driven
+    by the production router (`navigation_steering`), steered toward
+    whatever `policy_target` resolves to -- never toward the environment's
+    own deterministic best-group/nearest-reachable hysteresis, which is
+    available only as a candidate/reachability source and (during the
+    teacher-only bootstrap rollout, see `simulator.basic_training.
+    collect_target_teacher_dataset`) a TEACHER, never the runtime
+    decision-maker once a policy exists."""
+
+    from .farming_target_policy import PersistentFarmingTarget
 
     net = model.policy
     entry, base_env = next(iter(iter_variant_environments(
@@ -151,6 +166,7 @@ def _roll_basic_episode(
     )
     observation, _info = env.reset(seed=seed)
     navigation_steering.reset()
+    target_tracker = PersistentFarmingTarget()
     recovery = RecoveryController()
 
     records: list[_BasicTickRecord] = []
@@ -159,25 +175,29 @@ def _roll_basic_episode(
     previous_contacts = 0
     intervention_ticks = 0
     for tick in range(int(max_actions)):
-        raw = np.asarray(observation, dtype=np.float32)[:923]
+        raw = np.asarray(observation, dtype=np.float32)[:RAW_OBSERVATION_SIZE]
+        teacher_target_action = deterministic_target_teacher_action(base_env)
         teacher_command = scripted_command("obstacle_aware", base_env)
-        # policy_steering/policy_event are the PROPOSED action for the
+        # policy_target/policy_event are the PROPOSED action for the
         # CURRENT observation -- this, not whatever recovery decides to
         # actually execute, is what gets DAgger-labeled below. Recovery
         # only changes what physically happens next (which affects the NEXT
         # observation), never what this tick's supervised example is.
-        target_id = base_env._nearest_reachable_actor_id
-        if target_id is None:
+        policy_target, policy_event = _policy_forward(net, raw)
+        resolved_target_id, _invalid = target_tracker.apply_action(base_env, policy_target)
+        if resolved_target_id is None:
             policy_steering = int(SteeringDirection.NONE)
         else:
-            policy_steering = navigation_steering.steering_action(env, target_actor_id=target_id).steering
-        _unused_net_steering, policy_event = _policy_forward(net, np.asarray(observation, dtype=np.float32))
+            policy_steering = navigation_steering.steering_action(env, target_actor_id=resolved_target_id).steering
         clearance = derive_physical_clearance_features(raw)
 
         # Exact call contract/order as milestone_evaluator.run_episode:
         # recovery.step() is queried BEFORE env.step(), using evidence from
         # the PREVIOUS env.step() (captured in `info`, empty on tick 0), to
-        # decide whether to override this tick's applied action.
+        # decide whether to override this tick's applied action. Recovery
+        # operates on steering/event only (an escape maneuver, unrelated to
+        # WHICH actor is being pursued) -- target selection is upstream and
+        # untouched by it, same as it always has been.
         applied_steering, applied_event = recovery.step(
             tick=tick, player_x=base_env.player_x, player_z=base_env.player_z, heading=base_env.heading,
             displacement_this_tick=info.get("total_distance_cells", 0.0) - previous_distance if info else 0.0,
@@ -200,10 +220,10 @@ def _roll_basic_episode(
         contact_this_tick = total_contacts > previous_contacts
 
         records.append(_BasicTickRecord(
-            tick=tick, observation_925=np.asarray(observation, dtype=np.float32),
+            tick=tick, observation_raw=raw.copy(),
             contact=contact_this_tick, min_clearance=float(np.min(clearance)),
-            displacement=displacement_this_tick, policy_steering=policy_steering, policy_event=policy_event,
-            teacher_steering=int(teacher_command.steering), teacher_event=int(teacher_command.event),
+            displacement=displacement_this_tick, policy_target=policy_target, policy_event=policy_event,
+            teacher_target=teacher_target_action, teacher_event=int(teacher_command.event),
             recovering=recovering_now,
         ))
 
@@ -356,16 +376,16 @@ def collect_basic_dagger_dataset(
                 for i in sample_indices:
                     record = records[i]
                     if category in ("persistent_wedge", "collision_onset", "ordinary"):
-                        label = (record.teacher_steering, record.teacher_event)
-                        agrees = (record.teacher_steering, record.teacher_event) == (
-                            record.policy_steering, record.policy_event,
+                        label = (record.teacher_target, record.teacher_event)
+                        agrees = (record.teacher_target, record.teacher_event) == (
+                            record.policy_target, record.policy_event,
                         )
                     else:  # safe_proximity
-                        label = (record.policy_steering, record.policy_event)
-                        agrees = (record.teacher_steering, record.teacher_event) == (
-                            record.policy_steering, record.policy_event,
+                        label = (record.policy_target, record.policy_event)
+                        agrees = (record.teacher_target, record.teacher_event) == (
+                            record.policy_target, record.policy_event,
                         )
-                    observations.append(record.observation_925)
+                    observations.append(record.observation_raw)
                     actions.append(label)
                     categories.append(category)
                     layout_ids.append(layout_id)
@@ -378,7 +398,7 @@ def collect_basic_dagger_dataset(
     progress.finish()
 
     return {
-        "observations": np.asarray(observations, dtype=np.float32) if observations else np.zeros((0, POLICY_INPUT_SIZE), dtype=np.float32),
+        "observations": np.asarray(observations, dtype=np.float32) if observations else np.zeros((0, RAW_OBSERVATION_SIZE), dtype=np.float32),
         "actions": np.asarray(actions, dtype=np.int64) if actions else np.zeros((0, 2), dtype=np.int64),
         "categories": categories,
         "layout_index": np.asarray(layout_ids, dtype=np.int64),
@@ -391,15 +411,20 @@ def collect_basic_dagger_dataset(
 
 
 def save_basic_dagger_dataset(mined: dict[str, Any], output_path: str) -> str:
-    """Persist collect_basic_dagger_dataset's return value in the same
-    schema basic_training.bootstrap_policy_from_human_recordings /
-    beginner_transition._concatenate_basic_datasets expect (steering_label_
-    valid, session_index), so Basic-stage human and simulator data can be
-    trained on and rehearsed with the same function. Every mined sample has
-    a fully-determined steering label (unlike human click-to-move sessions),
-    so steering_label_valid is all-True; episode_index doubles as
-    session_index (same "do not split temporally-adjacent samples across
-    train/val" semantic)."""
+    """Persist collect_basic_dagger_dataset's return value in the same npz
+    schema `basic_training._load_event_training_pool`/
+    `beginner_transition._concatenate_basic_datasets` expect
+    (`steering_label_valid`, `session_index`). The `steering_label_valid`
+    field name is a retained legacy key from the pre-target-selection
+    architecture -- `actions[:, 0]` is now the target-selection label, not
+    steering, but the STORAGE FORMAT is unchanged and no current consumer
+    reads column 0 from this file for anything but target training (see
+    `basic_training.bootstrap_target_from_teacher`), so renaming the key
+    would only cost compatibility for no behavioral gain. Every mined
+    sample has a fully-determined target label (unlike human click-to-move
+    sessions, which have none at all), so this field is all-True;
+    episode_index doubles as session_index (same "do not split temporally-
+    adjacent samples across train/val" semantic)."""
 
     from pathlib import Path
 

@@ -66,25 +66,29 @@ FROZEN_NAVIGATION_CHECKPOINT_PATH = ROOT / "models" / "generalized_waypoint_both
 FROZEN_NAVIGATION_CHECKPOINT_SHA256 = "87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50"
 
 
-def event_only_architecture_contract() -> dict[str, Any]:
-    """Provenance fragment for every event-only curriculum checkpoint
-    (Beginner onward) -- docs/architecture/CURRICULUM_TRAINING_PIPELINE.md
-    section 19: an event-only farming checkpoint is not reproducible or
-    even executable by itself without knowing WHICH frozen navigation
-    checkpoint it was paired with (steering ownership, per section 4, lives
-    entirely outside this checkpoint). Callers pass this as `simulator.
-    run_provenance.build_run_manifest`'s `architecture_contract=` so it
-    overrides that function's own `SplitSteeringNavigationPolicy`-shaped
-    default. The navigation checkpoint's own implementation version is
-    already covered by the manifest's top-level `git.commit` field (router/
-    frozen-navigation code and this checkpoint's own training code are
-    versioned together in the same repository state), so it is not
-    duplicated here."""
+def farming_policy_architecture_contract() -> dict[str, Any]:
+    """Provenance fragment for every `SplitFarmingTargetEventPolicy`
+    checkpoint (Basic through Advanced -- one shared architecture, docs/
+    architecture/CURRICULUM_TRAINING_PIPELINE.md section 19): a full-farming
+    checkpoint is not reproducible or even executable by itself without
+    knowing WHICH frozen navigation checkpoint it was paired with (steering
+    ownership, per section 4/6, lives entirely outside this checkpoint).
+    Callers pass this as `simulator.run_provenance.build_run_manifest`'s
+    `architecture_contract=` so it overrides that function's own
+    `SplitSteeringNavigationPolicy`-shaped default. The navigation
+    checkpoint's own implementation version is already covered by the
+    manifest's top-level `git.commit` field (router/frozen-navigation code
+    and this checkpoint's own training code are versioned together in the
+    same repository state), so it is not duplicated here."""
     from farming.actions import FarmingEvent
+    from farming.observation import DIRECT_ACTOR_SLOTS
 
     return {
-        "policy_class": "ActorCriticPolicy (event-only, plain MlpPolicy)",
-        "action_contract": f"Discrete({len(FarmingEvent)}) event-only -- FarmingEvent, no steering action",
+        "policy_class": "SplitFarmingTargetEventPolicy",
+        "action_contract": (
+            f"MultiDiscrete([{DIRECT_ACTOR_SLOTS + 1}, {len(FarmingEvent)}]) -- "
+            "[target_selection (0=KEEP, 1..12=direct-actor slot), FarmingEvent]; no steering action"
+        ),
         "raw_observation_size": RAW_OBSERVATION_SIZE,
         "policy_input_schema_id": "923-value raw production observation contract (no navigation sidecar)",
         "navigation_checkpoint_path": str(FROZEN_NAVIGATION_CHECKPOINT_PATH),
@@ -329,12 +333,11 @@ class FrozenNavigationWrapper(gym.Wrapper):
         return np.asarray(obs, dtype=np.float32)[:RAW_OBSERVATION_SIZE], event_only_reward, terminated, truncated, info
 
 
-def _event_only_policy_forward(net: Any, observation_raw: np.ndarray) -> int:
-    """Forward pass for a plain (non-split) ActorCriticPolicy with a
-    Discrete(len(FarmingEvent)) action space -- `net.get_distribution`
-    returns ONE Categorical distribution here, unlike SplitSteeringNavigation
-    Policy's two-head list (`simulator.milestone_evaluator._policy_forward`),
-    so this cannot reuse that helper directly."""
+def _farming_policy_forward(net: Any, observation_raw: np.ndarray) -> tuple[int, int]:
+    """Forward pass for `SplitFarmingTargetEventPolicy`
+    (`simulator.split_branch_policy`): `MultiDiscrete([TARGET_ACTION_SIZE,
+    len(FarmingEvent)])` over the plain raw observation -- two categorical
+    heads, target first."""
     import torch
 
     with torch.no_grad():
@@ -342,55 +345,53 @@ def _event_only_policy_forward(net: Any, observation_raw: np.ndarray) -> int:
             np.asarray(observation_raw, dtype=np.float32)[None, :RAW_OBSERVATION_SIZE],
             dtype=torch.float32, device=net.device,
         )
-        probs = net.get_distribution(obs_t).distribution.probs[0].cpu().numpy()
-    return int(probs.argmax())
+        dist = net.get_distribution(obs_t).distribution
+        target_probs = dist[0].probs[0].cpu().numpy()
+        event_probs = dist[1].probs[0].cpu().numpy()
+    return int(target_probs.argmax()), int(event_probs.argmax())
 
 
 def run_composed_episode(
-    curriculum_path: str, layout_name: str, *, event_policy: Any, navigation_steering: FrozenNavigationSteering,
+    curriculum_path: str, layout_name: str, *, farming_policy: Any, navigation_steering: FrozenNavigationSteering,
     seed: int, episode_seconds: float, max_actions: int, stage: str = "early",
-    event_forward: Any = None,
 ) -> dict[str, Any]:
-    """THE canonical composed-episode rollout for the event-only curriculum
-    stages (Beginner/Intermediate/Advanced) and every evaluator that grades
-    them (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md section 4/12):
-    steering every tick comes from `navigation_steering` (production router +
-    frozen 0051200, driven by the environment's own native target hysteresis
-    -- see FrozenNavigationSteering's docstring), event comes from
-    `event_policy`'s own forward pass. Composed exactly like
-    FrozenNavigationWrapper.step, but as a plain function returning the same
-    rich per-episode result dict `milestone_evaluator.run_episode`/
-    `beginner_transition.run_episode_925` do (so `milestone_evaluator.
-    _summarize_episodes` and the density-binned EVA report work completely
-    unchanged) -- this is what lets `milestone_evaluator.py`, `basic_
-    milestone_evaluator.py` (already frozen-nav via `_roll_basic_episode`),
-    and `beginner_transition.py` share ONE composition implementation
-    instead of four.
+    """THE canonical composed-episode rollout for every curriculum stage
+    (Basic through Advanced -- all four now share one `SplitFarmingTarget
+    EventPolicy` architecture, docs/architecture/CURRICULUM_TRAINING_
+    PIPELINE.md section 4/6/12) and every evaluator that grades them:
+    target selection AND event come from `farming_policy`'s own forward
+    pass; steering comes from `navigation_steering` (production router +
+    frozen 0051200), driven toward whatever the policy's OWN target action
+    resolves to via a `PersistentFarmingTarget` -- never the environment's
+    own deterministic best-group/nearest-reachable hysteresis, which is
+    available only as a candidate/reachability source, never the runtime
+    decision-maker. Composed exactly like `farming_target_policy.
+    FarmingPolicyWrapper.step`, but as a plain function returning the same
+    rich per-episode result dict `milestone_evaluator.run_episode` does (so
+    `milestone_evaluator._summarize_episodes` and the density-binned EVA
+    report work unchanged) -- this is what lets `milestone_evaluator.py`,
+    `basic_milestone_evaluator.py`, and `beginner_transition.py`'s
+    diagnostics share ONE composition implementation instead of four.
 
-    `event_forward`, if given, is `(event_policy, full_observation) -> int`
-    and overrides the default event-only forward pass (`_event_only_policy_
-    forward`, which slices the observation to the raw 923 values a plain
-    ActorCriticPolicy expects). Pass this to reuse this same composition for
-    a DIFFERENT policy shape that also needs frozen-navigation steering --
-    e.g. Basic's own dual-head `SplitSteeringNavigationPolicy` evaluated
-    zero-shot/raw (its event branch reads the full observation, its
-    steering branch is ignored entirely, matching section 4's ownership
-    split) -- without a second composition implementation.
+    No recovery -- matches training exactly: PPO training (Beginner onward)
+    has no recovery in its loop by construction, and Basic's own evaluation
+    already uses `_roll_basic_episode` (a separate, recovery-AWARE function)
+    for its assisted-mode metrics; this function is for raw/unassisted
+    evaluation only (see `simulator/basic_environment.py`'s module
+    docstring for the full recovery/PPO rationale).
 
-    No recovery -- matches training exactly: Beginner/Intermediate/Advanced
-    PPO training has no recovery in its loop by construction (see
-    `simulator/basic_environment.py`'s module docstring), so evaluation
-    exercising recovery here would grade a different architecture than the
-    one actually trained.
-
-    Steering-probability diagnostics (`corr_angle_p_left`/`corr_angle_p_right`)
-    are always None here: steering is FrozenNavigationSteering's deterministic
+    `steering_agreement`/`event_agreement`/`target_agreement` compare the
+    executed steering/event/target against the scripted teacher's own
+    direct-bearing suggestion and `deterministic_target_teacher_action` --
+    informational only (the frozen navigator's route-following steering and
+    the deterministic target heuristic are DIFFERENT mechanisms from the
+    teacher's direct-bearing suggestion by design, so some disagreement is
+    expected, not a defect). `corr_angle_p_left`/`corr_angle_p_right` are
+    always None: steering is FrozenNavigationSteering's deterministic
     output, not a learned probability distribution to correlate against
-    target angle -- that diagnostic is meaningful only for a policy that
-    still owns steering (Basic's dual-head net, still checked by `basic_
-    milestone_evaluator.py`'s own reporting)."""
-    event_forward = event_forward or _event_only_policy_forward
+    target angle."""
 
+    from .farming_target_policy import PersistentFarmingTarget, deterministic_target_teacher_action
     from .milestone_evaluator import _contact_event_stats
     from .movement_classification import classify_episode_movement
     from .navigation_history import NavigationHistoryWrapper
@@ -404,6 +405,7 @@ def run_composed_episode(
     env = NavigationHistoryWrapper(base_env)
     observation, _info = env.reset(seed=seed)
     navigation_steering.reset()
+    target_tracker = PersistentFarmingTarget()
 
     steering_choices: list[int] = []
     unique_cells_trace: list[int] = []
@@ -411,6 +413,8 @@ def run_composed_episode(
     contacts_trace: list[int] = []
     steering_matches: list[bool] = []
     event_matches: list[bool] = []
+    target_matches: list[bool] = []
+    invalid_target_selections = 0
     eva_target_counts: list[int] = []
     teacher_events: list[int] = []
     policy_events: list[int] = []
@@ -420,6 +424,7 @@ def run_composed_episode(
 
     for _ in range(int(max_actions)):
         teacher_command = scripted_command("obstacle_aware", base_env)
+        teacher_target_action = deterministic_target_teacher_action(base_env)
         candidates = base_env._visible_candidates()
         if candidates:
             player_cell = base_env.map.native_to_layout_cell(base_env.player_x, base_env.player_z)
@@ -430,16 +435,19 @@ def run_composed_episode(
                 if candidates[0][1].actor_id != best_actor_id:
                     geodesic_euclidean_disagreements += 1
 
-        target_id = base_env._nearest_reachable_actor_id
-        if target_id is None:
+        policy_target_action, event = _farming_policy_forward(farming_policy, np.asarray(observation, dtype=np.float32))
+        resolved_target_id, invalid_selection = target_tracker.apply_action(base_env, policy_target_action)
+        if invalid_selection:
+            invalid_target_selections += 1
+        if resolved_target_id is None:
             steering = int(SteeringDirection.NONE)
         else:
-            steering = navigation_steering.steering_action(env, target_actor_id=target_id).steering
-        event = event_forward(event_policy, np.asarray(observation, dtype=np.float32))
+            steering = navigation_steering.steering_action(env, target_actor_id=resolved_target_id).steering
 
         steering_choices.append(steering)
         steering_matches.append(steering == int(teacher_command.steering))
         event_matches.append(event == int(teacher_command.event))
+        target_matches.append(policy_target_action == teacher_target_action)
         eva_target_counts.append(int(base_env.eva_target_count()))
         teacher_events.append(int(teacher_command.event))
         policy_events.append(event)
@@ -471,6 +479,8 @@ def run_composed_episode(
         "path_efficiency": float(info.get("path_efficiency", 0.0)),
         "steering_agreement": float(np.mean(steering_matches)) if steering_matches else None,
         "event_agreement": float(np.mean(event_matches)) if event_matches else None,
+        "target_agreement": float(np.mean(target_matches)) if target_matches else None,
+        "invalid_target_selection_rate": float(invalid_target_selections) / max(1, len(steering_choices)),
         "corr_angle_p_left": None,
         "corr_angle_p_right": None,
         "geodesic_euclidean_disagreement_rate": (

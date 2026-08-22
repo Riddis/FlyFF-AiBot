@@ -94,6 +94,89 @@ Entry template:
   Also: when told a bug might be "harmless," don't just accept that framing
   -- trace what actually consumes the corrupted value before agreeing.
 
+### [2026-08-22] `_observation_without_side_effects` omitted the new actor-slot sidecar from its save/restore set
+- What happened: while wiring learned farming-target selection (the
+  `Discrete(13)` action reusing the observation's own `DIRECT_ACTOR_SLOTS`
+  ordering), added `Environment._direct_actor_slot_ids` as new per-tick
+  state populated inside `_observation()`. The frozen navigator's synthetic-
+  waypoint observation call goes through
+  `navigation_subpolicy._observation_without_side_effects`, which snapshots
+  and restores a fixed list of attributes around that call so the real env
+  state isn't corrupted by the synthetic probe -- the new attribute was not
+  added to that list.
+- Root cause: adding a new piece of tick-scoped environment state and
+  forgetting that any function performing a save/probe/restore cycle over
+  "the env's mutable state" needs to be updated in lockstep -- the save/
+  restore list is not automatically complete just because the new field
+  lives on the same object.
+- How caught: self-caught on review, before any test was run against it --
+  traced what the frozen-navigator's synthetic observation call could
+  corrupt and noticed `_direct_actor_slot_ids` would be silently left set
+  to whatever the synthetic probe computed (including a bogus `actor_id=-1`
+  entry) instead of being restored to the real tick's slot mapping.
+- Fix: added `_direct_actor_slot_ids` to the explicit save/restore set in
+  `_observation_without_side_effects`, with a docstring note on why it must
+  stay there.
+- Lesson: whenever a new field is added to environment/observation state,
+  grep for every function that snapshots-and-restores "all mutable env
+  state" around a side-effecting probe call, and check whether the new
+  field belongs in that set -- don't assume an existing save/restore
+  helper is complete just because it compiles and the shape is right.
+
+### [2026-08-22] `build_fresh_basic_policy`'s optional `env` parameter silently built a policy with the wrong input width
+- What happened: `simulator/basic_training.py::build_fresh_basic_policy` took
+  an optional `env` argument that, when passed a `NavigationHistoryWrapper`-
+  wrapped (928-dim) environment (as several existing test fixtures did),
+  used that env's observation space to size the policy's input layer instead
+  of the canonical 923-dim raw farming observation. The resulting policy
+  loaded and trained without error until its first real forward pass against
+  a genuine 923-dim observation, which crashed
+  (`RuntimeError: mat1 and mat2 shapes cannot be multiplied (1x923 and
+  928x64)`).
+- Root cause: an optional constructor parameter whose presence changes the
+  model's architecture (input width) rather than just its runtime behavior
+  is a footgun -- any caller with a plausible-looking but differently-shaped
+  env silently produces an incompatible policy, with no error until a much
+  later, harder-to-attribute forward pass.
+- How caught: test failures during the Task 2 target/event policy rewrite --
+  multiple test fixtures passed a wrapped env and crashed on first real
+  forward pass, not at construction time.
+- Fix: removed the `env` parameter from `build_fresh_basic_policy` entirely
+  -- it always constructs from `FarmingPolicySpaceProbe()`'s canonical raw
+  observation/action space now, and every call site was updated to drop the
+  argument. Documented the failure mode directly in the function's
+  docstring so a future reintroduction attempt has to read past it.
+- Lesson: a constructor parameter that can silently change a model's
+  architecture based on which object happens to be passed in is worth
+  removing (or making impossible to get wrong) rather than trusting every
+  call site to pass the "right kind" of argument -- prefer a single
+  canonical source of truth for observation/action space shape over letting
+  callers each supply their own.
+
+### [2026-08-22] `basic_milestone_evaluator.py` kept computing `steering_disagreement` from renamed `_BasicTickRecord` fields
+- What happened: `_BasicTickRecord`'s fields were renamed from
+  `teacher_steering`/`policy_steering` to `teacher_target`/`policy_target`
+  as part of moving Basic from a steering head to a target-selection head,
+  but `basic_milestone_evaluator.py::_episode_record` (and its two
+  downstream consumers computing/reporting the disagreement rate) were not
+  updated in the same pass, leaving a reference to the old attribute names.
+- Root cause: the rename was made at the dataclass definition site and at
+  its most obvious/nearby consumers, but a downstream evaluator module in a
+  different file, reached only via the milestone-evaluation path rather
+  than the main training loop, was missed.
+- How caught: test failure (`AttributeError: '_BasicTickRecord' object has
+  no attribute 'teacher_steering'`) when running the milestone-evaluator
+  test file, not by code review.
+- Fix: renamed the field references and the `steering_disagreement`->
+  `target_disagreement` concept throughout `basic_milestone_evaluator.py`
+  and its log-line consumer in `simulator/tools/_basic_round_eval_worker.py`.
+- Lesson: after renaming a dataclass field, grep the whole repo for the old
+  name (not just the call sites reached by the module you're actively
+  editing) before considering the rename complete -- a module reached only
+  through a less-common code path (milestone evaluation vs. the main
+  training loop) is exactly the kind of consumer a local/nearby-only search
+  misses.
+
 ## Category: statistics / counting / accounting
 
 ### [2026-08-14] imprecise claim that planner failures are "excluded from accounting" in `summarize_general_router`

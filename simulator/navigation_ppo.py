@@ -31,7 +31,7 @@ from .navigation_history import NavigationHistoryWrapper
 from .synthetic import iter_variant_environments
 
 
-def balanced_training_vec_env_event_only(
+def balanced_training_vec_env_farming_policy(
     curriculum: str | Path,
     *,
     stage: str,
@@ -39,24 +39,27 @@ def balanced_training_vec_env_event_only(
     episode_seconds: float,
     max_actions: int,
 ) -> tuple[DummyVecEnv, list[str]]:
-    """Beginner/Intermediate/Advanced PPO training env under the recovered
-    frozen-navigation-sub-policy architecture (docs/architecture/
-    CURRICULUM_TRAINING_PIPELINE.md section 4): each variant is
-    NavigationHistoryWrapper-wrapped then FrozenNavigationWrapper-wrapped
-    (`simulator.navigation_subpolicy`), exposing `Discrete(len(FarmingEvent))`
-    over `Box(RAW_OBSERVATION_SIZE,)` to the trainable event-only policy --
+    """Beginner/Intermediate/Advanced PPO training env under the completed
+    frozen-navigation-sub-policy + learned-target-selection architecture
+    (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md section 4/6): each
+    variant is NavigationHistoryWrapper-wrapped then FarmingPolicyWrapper-
+    wrapped (`simulator.farming_target_policy`), exposing
+    `MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])` over
+    `Box(RAW_OBSERVATION_SIZE,)` to the trainable full-farming policy --
     steering every tick comes from a per-sub-environment
     `FrozenNavigationSteering` instance (production router + frozen
-    0051200), never sampled by or logged from the trainable policy itself,
-    so the PPO rollout buffer this env feeds only ever contains the event
-    action. Each of the pooled sub-environments gets its OWN
+    0051200), driven by the policy's OWN resolved target action, never
+    sampled by or logged from the trainable policy itself, so the PPO
+    rollout buffer this env feeds only ever contains the (target, event)
+    action pair. Each of the pooled sub-environments gets its OWN
     `FrozenNavigationSteering` (and therefore its own loaded copy of the
     frozen checkpoint) since the oracle carries per-episode target/route
     state that cannot be shared across parallel envs -- mirrors
     `simulator.basic_environment._init_dagger_roll_worker`'s identical
     per-process-copy reasoning, here per-sub-environment instead."""
 
-    from .navigation_subpolicy import FrozenNavigationSteering, FrozenNavigationWrapper
+    from .farming_target_policy import FarmingPolicyWrapper
+    from .navigation_subpolicy import FrozenNavigationSteering
 
     pairs = list(
         iter_variant_environments(
@@ -73,7 +76,7 @@ def balanced_training_vec_env_event_only(
         def make_env(raw_env=env, variant_name=name):
             history_wrapped = NavigationHistoryWrapper(raw_env)
             steering = FrozenNavigationSteering.load_frozen(device="cpu")
-            composed = FrozenNavigationWrapper(history_wrapped, steering)
+            composed = FarmingPolicyWrapper(history_wrapped, steering)
             monitored = Monitor(composed)
             setattr(monitored, "synthetic_variant", variant_name)
             return monitored
@@ -211,7 +214,7 @@ def resume_ppo_chunk_phase2(
     }
 
 
-def resume_ppo_chunk_event_only(
+def resume_ppo_chunk_farming_policy(
     *,
     checkpoint: str | Path,
     curriculum: str | Path,
@@ -233,23 +236,23 @@ def resume_ppo_chunk_event_only(
     ent_coef: float = 0.015,
     callback: Any = None,
 ) -> dict[str, Any]:
-    """Beginner/Intermediate/Advanced PPO continuation under the recovered
-    frozen-navigation-sub-policy architecture -- the event-only counterpart
-    of `resume_ppo_chunk_phase2`. Loads an already-built event-only
-    checkpoint (`Discrete(len(FarmingEvent))` action space, plain
-    `ActorCriticPolicy`, produced by Basic's `canonical_checkpoint_name`
-    lineage via `simulator.factorized_v193_training.
-    transfer_event_head_to_event_only_policy`) unchanged, trains one bounded
-    PPO chunk against `balanced_training_vec_env_event_only` (steering
-    externally driven by `FrozenNavigationWrapper`, never sampled by this
-    policy), saves the result. Never loops on its own -- call again for
-    another chunk. Same conservative hyperparameter defaults as
-    `resume_ppo_chunk_phase2`, for the same reason (see that function's
-    docstring)."""
+    """Beginner/Intermediate/Advanced PPO continuation under the completed
+    frozen-navigation-sub-policy + learned-target-selection architecture --
+    the full-farming counterpart of `resume_ppo_chunk_phase2`. Loads an
+    already-built `SplitFarmingTargetEventPolicy` checkpoint (`MultiDiscrete(
+    [TARGET_ACTION_SIZE, len(FarmingEvent)])` action space -- Basic's own
+    graduated checkpoint, or a prior round's own output; no cross-
+    architecture bridge needed, since Basic already trains this same
+    architecture) unchanged, trains one bounded PPO chunk against
+    `balanced_training_vec_env_farming_policy` (steering externally driven
+    by `FarmingPolicyWrapper`, never sampled by this policy), saves the
+    result. Never loops on its own -- call again for another chunk. Same
+    conservative hyperparameter defaults as `resume_ppo_chunk_phase2`, for
+    the same reason (see that function's docstring)."""
 
     from stable_baselines3 import PPO
 
-    env, training_layouts = balanced_training_vec_env_event_only(
+    env, training_layouts = balanced_training_vec_env_farming_policy(
         curriculum, stage=stage, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions,
     )
     try:
@@ -260,9 +263,9 @@ def resume_ppo_chunk_event_only(
         )
         if not isinstance(policy.action_space, type(env.action_space)) or policy.action_space != env.action_space:
             raise ValueError(
-                f"Checkpoint action space {policy.action_space} does not match the event-only "
+                f"Checkpoint action space {policy.action_space} does not match the full-farming "
                 f"training env's {env.action_space} -- refusing to train with a mismatch "
-                "(a MultiDiscrete checkpoint would silently log a steering action that never executes)"
+                "(a mismatched checkpoint would silently log a target/steering action that never executes as sampled)"
             )
         before_obs_shape = tuple(policy.observation_space.shape)
         wrapped_obs_shape = tuple(env.observation_space.shape)

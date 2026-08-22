@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from navigation.navigation_evidence import POLICY_INPUT_SIZE
+from navigation.navigation_evidence import RAW_OBSERVATION_SIZE
 from simulator.basic_environment import collect_basic_dagger_dataset, save_basic_dagger_dataset
 from simulator.basic_training import build_fresh_basic_policy
 from simulator.navigation_dataset import CATEGORY_PRECEDENCE, MiningConfig
@@ -32,7 +32,7 @@ def _fresh_model(curriculum_path: Path):
         str(curriculum_path), stage="early", seed=0, episode_steps=5, episode_seconds=3.0,
     )))
     env = NavigationHistoryWrapper(base_env)
-    model = build_fresh_basic_policy(env, seed=0, device="cpu")
+    model = build_fresh_basic_policy(seed=0, device="cpu")
     env.close()
     return model
 
@@ -48,7 +48,7 @@ def test_collect_basic_dagger_dataset_produces_valid_shapes_and_categories(tmp_p
         episode_seconds=8.0, max_actions=40, config=config,
     )
 
-    assert mined["observations"].shape[1] == POLICY_INPUT_SIZE
+    assert mined["observations"].shape[1] == RAW_OBSERVATION_SIZE
     assert mined["actions"].shape == (mined["observations"].shape[0], 2)
     assert set(mined["categories"]) <= set(CATEGORY_PRECEDENCE)
     assert len(mined["episode_summaries"]) == 4
