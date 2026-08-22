@@ -17,7 +17,7 @@ from runtime.project_paths import resolve_app_path
 from stable_baselines3.common.callbacks import BaseCallback
 from runtime.worker_manager import CancellationToken, WorkerCancelled
 
-from .actions import FarmingAction
+from .actions import FarmingAction, FarmingEvent
 from .config import CONFIG_VERSION, FarmingRuntimeConfig
 from .control import DirectFarmingControl, FarmingKeyMap, WindowFocusService
 from .debug_validation import TrainingDataValidationRecorder
@@ -1239,12 +1239,24 @@ def run_native_farming_agent(
             )
         while bot.rl_enabled and not token.cancelled:
             action, _state = model.predict(observation, deterministic=deterministic)
+            factorized_action = np.asarray(action, dtype=np.int64).reshape(-1)
+            if factorized_action.shape != (2,):
+                raise ValueError(
+                    f"Factorized farming policy returned {factorized_action.shape}, expected (2,)"
+                )
+            # Publish the control action BEFORE gym.step() executes it, not
+            # after: gym.step() is the call that actually presses/releases
+            # the input (steering held for the whole step; EVA/jump tapped
+            # inside it), so any frame the recording poll thread samples
+            # WHILE this step is executing must already see this action, not
+            # the previous one. See docs/architecture/
+            # RECORDING_TELEMETRY_AND_ARCHIVES.md section 1d.
+            if on_runtime_event is not None:
+                on_runtime_event(
+                    "action",
+                    action=factorized_action.tolist(),
+                )
             try:
-                factorized_action = np.asarray(action, dtype=np.int64).reshape(-1)
-                if factorized_action.shape != (2,):
-                    raise ValueError(
-                        f"Factorized farming policy returned {factorized_action.shape}, expected (2,)"
-                    )
                 observation, reward, terminated, _truncated, info = runtime.gym.step(
                     factorized_action
                 )
@@ -1257,13 +1269,26 @@ def run_native_farming_agent(
             stats.observe(info, reward)
             if on_runtime_event is not None:
                 on_runtime_event(
-                    "action",
+                    "action_result",
                     action=factorized_action.tolist(),
                     reward=float(reward),
                     terminated=bool(terminated),
                     steps=int(stats.steps),
                     kills=int(stats.kills),
                 )
+                if int(factorized_action[1]) != int(FarmingEvent.NONE):
+                    # EVA/jump are momentary taps that complete inside the
+                    # gym.step() call that just returned (FarmingCommand:
+                    # "W/Z is always held while farming control is active";
+                    # steering/movement persists across step boundaries
+                    # until the next command changes it). Revert the
+                    # recorded action to that still-held steering-only
+                    # movement instead of leaving EVA/jump marked active
+                    # into the next inference/idle gap.
+                    on_runtime_event(
+                        "action",
+                        action=[int(factorized_action[0]), int(FarmingEvent.NONE)],
+                    )
             penya_reader = getattr(bot, "read_penya_count", None)
             if callable(penya_reader):
                 try:

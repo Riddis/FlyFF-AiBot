@@ -1473,3 +1473,68 @@ sweep.
   `if self.thing is not None:` check is sufficient, especially when one
   of those call sites is a GUI event handler running on a different
   thread than a background worker.
+
+### [2026-08-22] RecordingSink's "action" event was published after gym.step() already executed it, not before
+
+- What happened: `farming.trainer.run_native_farming_agent` called
+  `on_runtime_event("action", ...)` only AFTER `runtime.gym.step(...)`
+  returned. `gym.step()` is the call that actually presses/holds/
+  releases the client input, so `RecordingSink`'s poll thread could
+  sample frames WHILE a step was executing with `RecordingSink`'s
+  `_current_action` still holding the *previous* step's action --
+  `RecordedFrame.action` was systematically one control interval late.
+  For momentary EVA/jump commands (tapped and released entirely inside
+  one `gym.step()` call, per `FarmingCommand`: "W/Z is always held
+  while farming control is active", only the event component is a
+  tap) this meant frames sampled during that step never saw EVA/jump
+  at all -- they carried the prior movement action -- and a following
+  movement step's frames could instead carry the stale EVA/jump label.
+  A final action issued immediately before session end could disappear
+  entirely if no frame was sampled before `episode_end` reset the state
+  to `-1`.
+- Root cause: the event was placed to read naturally alongside the
+  `reward`/`terminated`/`steps`/`kills` values, all of which genuinely
+  are only known after `gym.step()` returns -- but the *action* value
+  itself is already fully known before the call, and is exactly the
+  value whose timing `RecordingSink` treats as authoritative for
+  labeling concurrently-sampled frames. Bundling a "what will happen"
+  fact (the action) into the same event as "what just happened" facts
+  (the outcome) forced the whole event to wait for the outcome.
+  `tests/test_recording_action_presence_provenance.py`'s existing
+  action test called `RecordingSink.add_runtime_event("action", ...)`
+  directly, bypassing `run_native_farming_agent` entirely, so it could
+  never see this ordering bug in the real control loop.
+- How caught: Codex traced the actual production ordering in
+  `farming/trainer.py` and reproduced the shifted-label sequence
+  independently of any test in this repo.
+- Fix: split the single post-step `"action"` event into two: `"action"`
+  (just the `[steering, event]` pair) is now published immediately
+  BEFORE `runtime.gym.step(...)` is called, so `RecordingSink`'s
+  `_current_action` is correct for the entire duration of that call;
+  a new `"action_result"` event (reward/terminated/steps/kills) is
+  published after the step returns and never touches `_current_action`.
+  When the step's `event` component was momentary (`CAST_EVA`/`JUMP`),
+  a third `"action"` event immediately reverts the label to that same
+  step's steering component alone (`[steering, NONE]`), matching the
+  real client state (steering/movement persists across the step
+  boundary; the tap does not) instead of leaving the momentary action
+  stamped into the next inference gap. Added
+  `tests/test_agent_action_timing_production_path.py`, which drives the
+  REAL `run_native_farming_agent` (not a direct `add_runtime_event`
+  call) against a fake `gym.step()` that blocks until it can prove --
+  via `RecordingSink`'s own real frame counter increasing, not a fixed
+  sleep -- that a frame was actually sampled while that specific call
+  was executing; confirmed the new test fails against the pre-fix
+  ordering (reverted `farming/trainer.py` via `git stash` and reran)
+  before restoring the fix.
+- Lesson: when one runtime event bundles a "committing to do X" fact
+  together with "X's outcome" facts, and a downstream consumer treats
+  the event's arrival time as authoritative for concurrent/in-progress
+  state (not just as a historical log entry), check whether the
+  "committing" fact is actually known earlier than the bundled outcome
+  data -- if so, the event is firing too late for that consumer even
+  though it looks perfectly ordered relative to the surrounding code.
+  A test that injects the event directly into the consumer can never
+  catch this class of bug; only a test that drives the real emitting
+  call site (here, the real control loop calling the real `gym.step()`)
+  can.

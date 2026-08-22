@@ -112,7 +112,8 @@ same session's `events.msgpack.gz` stream alongside the native frame
 polling thread's output — one session identity links both streams.
 Currently wired for the live-agent path (`farming.trainer.
 run_native_farming_agent`'s `on_runtime_event` parameter, called with
-`policy_loaded`, `action`, and `episode_end` events); SB3's `train`-mode
+`policy_loaded`, `action`, `action_result`, and `episode_end` events);
+SB3's `train`-mode
 loop is not yet instrumented per-step (native frames are still recorded
 continuously for both modes regardless, via the sink's own polling
 thread) — its active-checkpoint provenance (section 1c) is therefore
@@ -199,16 +200,42 @@ recently issued action as the CURRENTLY ACTIVE action for every
 subsequently sampled frame, and resets it back to "no action observed"
 (`-1`) on an `"episode_end"` event, so a stale action is never stamped
 onto frames sampled after the control loop that issued it has ended.
-Before this pass, `RecordedFrame.action` was unconditionally `-1` for
-every automatic recording even while real runtime `"action"` events
-were being written to `events.msgpack.gz` in parallel — meaning
-`simulator/world_model.py`'s `fit_world_model()` (which builds
+
+**Timing (fixed in this pass — see MISTAKES.md):** the `"action"` event
+is published immediately **before** `runtime.gym.step(factorized_action)`
+executes the command, not after it returns. `gym.step()` is the call
+that actually presses/holds/releases the client input — for a movement
+step, steering is held for the whole step interval; for an EVA/jump
+step, the tap happens *inside* the call and the call returns almost
+immediately — so any frame the sink's own poll thread samples **while**
+that `gym.step()` call is executing must already see the action it is
+executing, never the previous one. A separate `"action_result"` event,
+written *after* `gym.step()` returns, carries that step's outcome
+(`reward`/`terminated`/`steps`/`kills`) as supplemental timeline
+evidence only; it never touches the current action. When the step's
+`event` component was momentary (`CAST_EVA`/`JUMP`), the control loop
+immediately follows `"action_result"` with one more `"action"` event
+reverting the label to that step's steering component alone
+(`FarmingCommand`: "W/Z is always held while farming control is
+active" — movement persists across step boundaries even though the
+EVA/jump tap itself does not) — this prevents a momentary action from
+staying stamped on frames sampled during the next step's model-inference
+gap, before the next real action is decided.
+
+Before this pass, the `"action"` event was published *after*
+`gym.step()` returned, and always carried the previous step's frames —
+`fit_world_model()` (`simulator/world_model.py`, which builds
 `human_action_probabilities` from `frame.action`, not from the events
-stream) silently saw no action signal at all for these recordings. The
-runtime `"action"`/`"policy_loaded"`/`"episode_end"` events remain in
-`events.msgpack.gz` as supplemental timeline/debug evidence; they are
-never the *only* place a policy action exists once a downstream
-consumer reads frames through the canonical `frame.action` field.
+stream) therefore learned a systematically shifted action distribution:
+EVA/jump frames were labeled with the preceding movement action, the
+following movement was labeled EVA/jump, and a final action issued
+immediately before `episode_end` could disappear entirely if no frame
+was sampled before the sink's next `"episode_end"` reset. The runtime
+`"action"`/`"action_result"`/`"policy_loaded"`/`"episode_end"` events
+remain in `events.msgpack.gz` as supplemental timeline/debug evidence;
+they are never the *only* place a policy action exists once a
+downstream consumer reads frames through the canonical `frame.action`
+field.
 
 ## 1e. `RecordingSink.stop()`'s recoverable stopping state, and the shutdown ownership barrier
 

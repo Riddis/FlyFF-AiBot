@@ -116,15 +116,27 @@ _UNKNOWN_UNREADABLE_SLOTS = 0
 def _legacy_action_from_factorized(raw: Any, *, current: int) -> int:
     """Canonical control-action timing boundary (recording semantics
     section 1B): the live control loop's runtime "action" event carries
-    the factorized ``[steering, event]`` pair the policy actually issued
-    (see ``farming.trainer.run_native_farming_agent``'s ``on_runtime_
-    event("action", action=..., ...)`` call). RecordingSink converts it
-    to the legacy 0-4 ``RecordedFrame.action`` label via the same
+    the factorized ``[steering, event]`` pair the policy is ABOUT TO
+    issue (see ``farming.trainer.run_native_farming_agent``'s
+    ``on_runtime_event("action", action=...)`` call, published
+    immediately BEFORE ``gym.step(...)`` executes it -- not after it
+    returns). RecordingSink converts it to the legacy 0-4
+    ``RecordedFrame.action`` label via the same
     ``FarmingCommand.legacy_action`` mapping the rest of the runtime
     uses, and holds it as the CURRENTLY ACTIVE action for every
-    subsequently sampled frame until the next "action" event or an
-    "episode_end" reset (``_UNOBSERVED_ACTION``) -- never invented, never
-    left stuck across a session/episode boundary.
+    subsequently sampled frame -- including frames sampled while that
+    same ``gym.step()`` call is still executing -- until the next
+    "action" event or an "episode_end" reset (``_UNOBSERVED_ACTION``) --
+    never invented, never left stuck across a session/episode boundary.
+
+    A momentary EVA/jump ``event`` component completes as a single tap
+    inside its ``gym.step()`` call (steering/movement itself persists
+    across step boundaries -- "W/Z is always held while farming control
+    is active", ``farming.actions.FarmingCommand``). The control loop
+    emits a second "action" event immediately after such a step returns,
+    reverting the label to that step's still-held steering-only movement
+    rather than leaving CAST_EVA/RUN_FORWARD_JUMP marked active into the
+    next inference/idle gap.
 
     Malformed or absent payloads (e.g. a caller emitting an "action"
     event with a different field shape, as some existing tests do) leave
@@ -577,7 +589,15 @@ class RecordingSink:
           action for every subsequently sampled frame
           (``RecordedFrame.action``), via the same canonical
           ``FarmingCommand.legacy_action`` mapping the rest of the
-          runtime uses.
+          runtime uses. The control loop publishes this event
+          immediately BEFORE ``gym.step()`` executes the command (not
+          after), and again immediately after a step whose ``event``
+          component was momentary (EVA/jump) to revert the label back
+          to that step's still-held steering-only movement -- see
+          ``_legacy_action_from_factorized`` above. A supplemental
+          ``"action_result"`` event (reward/terminated/steps/kills,
+          written after ``gym.step()`` returns) carries execution
+          outcome only and never touches the current action.
         - ``"policy_loaded"``: the actual artifact path/SHA-256/contract
           hash the control loop just loaded becomes this session's
           ACTIVE checkpoint identity -- distinct from
