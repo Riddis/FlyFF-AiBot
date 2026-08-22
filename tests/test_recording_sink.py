@@ -25,7 +25,7 @@ from position.NativeFlyffMonsterProvider import (
     NativeActor,
 )
 from position.PositionProvider import PlayerPose
-from bot.recording_sink import RecordingOwnership, RecordingSink
+from bot.recording_sink import RecordingOwnership, RecordingSink, RecordingStopIncomplete
 
 
 class _FakeService:
@@ -230,13 +230,17 @@ def test_concurrent_stop_calls_are_single_flight_and_never_corrupt_the_archive(
         assert manifest["frame_count"] > 0
 
 
-def test_poll_thread_that_will_not_stop_raises_and_preserves_staging_data(
+def test_poll_thread_that_will_not_stop_is_recoverable_not_terminally_failed(
     tmp_path: Path,
 ) -> None:
     """If the poll thread cannot be joined within the finalize timeout,
     stop() must refuse to close writers or remove the staging directory
-    (write-after-close / lost data), and must surface a clear error --
-    not silently proceed as if finalization succeeded."""
+    (write-after-close / lost data), and must surface a clear,
+    RECOVERABLE "incomplete" signal -- not a terminal failure. Once the
+    poll thread actually exits, a later stop() call must still finalize
+    successfully from the preserved staging state (section 2's
+    STOPPING/recoverable state machine, replacing the old permanently-
+    FAILED behavior)."""
 
     release_poll_thread = threading.Event()
 
@@ -257,15 +261,44 @@ def test_poll_thread_that_will_not_stop_raises_and_preserves_staging_data(
         finalize_join_timeout_seconds=0.05,
     )
     session_directory = sink.session_directory
-    try:
-        with pytest.raises(RuntimeError, match="did not stop"):
-            sink.stop()
-        assert session_directory.is_dir()
-        assert (session_directory / "frames.msgpack.gz").is_file()
-        # A repeated stop() call must consistently report the same
-        # failure rather than silently succeeding or hanging again.
-        with pytest.raises(RuntimeError, match="previously failed"):
-            sink.stop()
-    finally:
-        release_poll_thread.set()
-        sink._thread.join(timeout=5.0)
+
+    # First stop() call: the poll thread is blocked inside the stuck
+    # provider and cannot confirm termination within the bounded
+    # finalize-join timeout. This must be reported as incomplete/
+    # recoverable, not as a permanent failure -- writers stay open and
+    # staging data is untouched.
+    with pytest.raises(RecordingStopIncomplete, match="not yet stopped"):
+        sink.stop()
+    assert session_directory.is_dir()
+    assert (session_directory / "frames.msgpack.gz").is_file()
+
+    # A second call while the poller is STILL stuck must report the same
+    # recoverable incomplete state again -- never "previously failed".
+    with pytest.raises(RecordingStopIncomplete, match="not yet stopped"):
+        sink.stop()
+    assert session_directory.is_dir()
+
+    # Release the stuck provider so the poll thread can actually exit.
+    release_poll_thread.set()
+    assert sink._thread.join(timeout=5.0) is None
+    assert not sink._thread.is_alive()
+
+    # A LATER stop() call, now that the poller has genuinely exited,
+    # must finalize successfully from the preserved staging state --
+    # writers close exactly once, the archive is real and readable, and
+    # staging is cleaned up normally.
+    output_zip = sink.stop()
+    assert output_zip.is_file()
+    assert not session_directory.exists()
+
+    with zipfile.ZipFile(output_zip) as archive:
+        names = set(archive.namelist())
+        assert {"manifest.json", "frames.msgpack.gz", "events.msgpack.gz", "inputs.msgpack.gz"} <= names
+        import json
+
+        manifest = json.loads(archive.read("manifest.json"))
+        assert manifest["frame_count"] > 0
+
+    # Idempotent afterward: repeated stop() calls return the same cached
+    # path without re-running finalization.
+    assert sink.stop() == output_zip

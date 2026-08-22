@@ -54,7 +54,12 @@ from pathlib import Path
 from time import monotonic
 from typing import Any
 
-from farming.actions import ACTION_NAMES
+from farming.actions import (
+    ACTION_NAMES,
+    FarmingCommand,
+    FarmingEvent,
+    SteeringAction,
+)
 from farming.model_contract import MODEL_CONTRACT_HASH, sha256_file
 from farming.native_world import NativeWorldReader, NativeWorldUnavailable
 from farming.observation_contract import (
@@ -97,10 +102,44 @@ BOT_MOVEMENT_CONTROL_SCHEME = "bot_policy_direct_api"
 # simulator/world_model.py, simulator/cli.py, simulator/demonstrations.py,
 # so these frames are correctly excluded from action-distribution stats
 # and can never be mistaken for a recognized direct-keyboard label.
+# ``_UNOBSERVED_ACTION`` is also the correct "no control action currently
+# active" state -- both before the first "action" runtime event of a
+# session and after an "episode_end" reset (see ``_legacy_action_from_
+# factorized`` below) -- so it must never be silently reinterpreted as
+# real action index 0 (RUN_FORWARD).
 _UNOBSERVED_PLAYER_HP = -1
 _UNOBSERVED_KEY_MASK = 0
 _UNOBSERVED_ACTION = -1
 _UNKNOWN_UNREADABLE_SLOTS = 0
+
+
+def _legacy_action_from_factorized(raw: Any, *, current: int) -> int:
+    """Canonical control-action timing boundary (recording semantics
+    section 1B): the live control loop's runtime "action" event carries
+    the factorized ``[steering, event]`` pair the policy actually issued
+    (see ``farming.trainer.run_native_farming_agent``'s ``on_runtime_
+    event("action", action=..., ...)`` call). RecordingSink converts it
+    to the legacy 0-4 ``RecordedFrame.action`` label via the same
+    ``FarmingCommand.legacy_action`` mapping the rest of the runtime
+    uses, and holds it as the CURRENTLY ACTIVE action for every
+    subsequently sampled frame until the next "action" event or an
+    "episode_end" reset (``_UNOBSERVED_ACTION``) -- never invented, never
+    left stuck across a session/episode boundary.
+
+    Malformed or absent payloads (e.g. a caller emitting an "action"
+    event with a different field shape, as some existing tests do) leave
+    the current action unchanged rather than raising -- this is a
+    best-effort provenance capture, not a hard runtime contract on every
+    caller of ``add_runtime_event``."""
+
+    if not isinstance(raw, (list, tuple)) or len(raw) != 2:
+        return current
+    try:
+        steering = SteeringAction(int(raw[0]))
+        event = FarmingEvent(int(raw[1]))
+    except (TypeError, ValueError):
+        return current
+    return int(FarmingCommand(steering=steering, event=event).legacy_action)
 
 
 def _run_git(args: list[str]) -> str | None:
@@ -226,10 +265,21 @@ class _RuntimeMetadata:
     map_name: str | None = None
     map_content_hash: str | None = None
     map_contract: dict[str, float] | None = None
-    checkpoint_path: str | None = None
-    checkpoint_sha256: str | None = None
+    # The candidate artifact CURRENT REPOSITORY CONFIGURATION points at --
+    # a real, verifiable fact about on-disk config, but never a claim
+    # that this specific session actually loaded/used it (section 9/10:
+    # a USER/manual recording has no active policy at all, and even an
+    # automatic Agent-mode recording must describe the artifact it
+    # actually loaded, not merely what config currently names). See
+    # RecordingSink._active_checkpoint_path/_active_checkpoint_sha256/
+    # _active_model_contract_hash for the corresponding ACTIVE fields,
+    # populated only from a real "policy_loaded" runtime event.
+    configured_checkpoint_path: str | None = None
+    configured_checkpoint_sha256: str | None = None
     farming_config_hash: str | None = None
     presence_validation_source: str | None = None
+    presence_species_validated: bool = False
+    presence_species_offset: int | None = None
     attach_policy_name: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -239,32 +289,74 @@ def build_runtime_metadata(
     *,
     attach_policy_name: str | None,
     presence_validation_source: str | None,
+    presence_species_validated: bool = False,
+    presence_species_offset: int | None = None,
 ) -> _RuntimeMetadata:
     """Real, best-effort session-start provenance for every new
     recording (docs/PROJECT_GOALS.md / this pass's section 9): every
     field is either a verified fact about current repository/
-    configuration/checkpoint state, or explicitly left ``None`` when
-    genuinely unknown (e.g. no map selected yet) -- never invented."""
+    configuration/checkpoint state, or explicitly left ``None``/``False``
+    when genuinely unknown or unvalidated (e.g. no map selected yet, or
+    presence was never dynamically proven for this attachment) -- never
+    invented. ``presence_species_validated``/``presence_species_offset``
+    are the ACTUAL current native-runtime presence-sampling truth (see
+    ``position.native_process_service.NativeProcessService``'s properties
+    of the same name), not a duplicated/hardcoded constant -- callers
+    should pass the attached ``native_process_service``'s own current
+    values (or its honest unproven defaults) rather than inventing them."""
 
     map_name, map_content_hash, map_contract = _best_effort_map_provenance(bot)
-    checkpoint_path, checkpoint_sha256 = _best_effort_configured_model_artifact()
+    configured_checkpoint_path, configured_checkpoint_sha256 = (
+        _best_effort_configured_model_artifact()
+    )
     return _RuntimeMetadata(
         map_name=map_name,
         map_content_hash=map_content_hash,
         map_contract=map_contract,
-        checkpoint_path=checkpoint_path,
-        checkpoint_sha256=checkpoint_sha256,
+        configured_checkpoint_path=configured_checkpoint_path,
+        configured_checkpoint_sha256=configured_checkpoint_sha256,
         farming_config_hash=_best_effort_farming_config_hash(),
         presence_validation_source=presence_validation_source,
+        presence_species_validated=bool(presence_species_validated),
+        presence_species_offset=presence_species_offset,
         attach_policy_name=attach_policy_name,
     )
 
 
 class _SinkState(Enum):
     RUNNING = "running"
+    # stop() requested; the poll thread has not yet been CONFIRMED
+    # stopped. Recoverable -- not a terminal failure (section 2): a
+    # caller whose own bounded wait expires here raises
+    # RecordingStopIncomplete and the sink simply stays STOPPING; a
+    # later stop() call can retry the join and proceed normally once
+    # the poller has actually exited.
+    STOPPING = "stopping"
+    # The poll thread was confirmed stopped and exactly one caller is
+    # running the real (writer-close/manifest/zip) finalize body.
     FINALIZING = "finalizing"
     FINALIZED = "finalized"
+    # A genuine error during the real finalize body -- this only ever
+    # runs after the poll thread is confirmed stopped, so FAILED never
+    # means "a caller merely timed out waiting"; it means finalization
+    # itself (writer close, manifest write, zip packaging) raised.
+    # Terminal: unlike STOPPING, there is no safe retry path from here.
     FAILED = "failed"
+
+
+class RecordingStopIncomplete(RuntimeError):
+    """Raised by ``RecordingSink.stop()`` when the poll thread has not
+    yet confirmed termination within this call's finalize-join timeout.
+
+    NOT a terminal failure (see ``_SinkState.STOPPING``): writers stay
+    open, staging data is untouched, and the sink remains recoverable --
+    a later ``stop()`` call can complete finalization once the poller
+    actually exits. Callers that must never release a resource the
+    poller might still be touching (e.g.
+    ``RuntimeController.shutdown()``'s native process/position/monster
+    providers) must treat this specific exception as an ownership
+    barrier, never as a generic failure to log/swallow and continue
+    past."""
 
 
 class RecordingSink:
@@ -325,6 +417,26 @@ class RecordingSink:
         self._frame_count = 0
         self._event_count = 0
         self._error: str | None = None
+
+        # Currently active control action (section 1B): starts "no
+        # action observed yet", updated by add_runtime_event("action",
+        # ...) as real control-loop events arrive, reset to the same
+        # sentinel by "episode_end" -- never left stuck across a
+        # session/episode boundary. Guarded by ``self._lock`` alongside
+        # the writers so a frame is never sampled mid-update.
+        self._current_action = _UNOBSERVED_ACTION
+
+        # Active (actually loaded) policy/checkpoint identity (section
+        # 9/10): distinct from ``self.metadata.configured_checkpoint_*``
+        # (what config currently names, regardless of whether anything
+        # loaded it). Populated only by a real "policy_loaded" runtime
+        # event from the control loop that actually loaded a checkpoint --
+        # stays ``None`` for USER/manual recordings and for any session
+        # where no policy was ever loaded, rather than defaulting to a
+        # configured-but-unused candidate.
+        self._active_checkpoint_path: str | None = None
+        self._active_checkpoint_sha256: str | None = None
+        self._active_model_contract_hash: str | None = None
 
         # Finalization state machine (single-flight, idempotent stop()).
         self._state_condition = threading.Condition()
@@ -424,26 +536,27 @@ class RecordingSink:
                     1 if living else 0,
                 ]
             )
-        record = [
-            "frame",
-            self._frame_count,
-            elapsed_ms,
-            PHASE_FARMING,
-            _UNOBSERVED_PLAYER_HP,
-            player_x_q,
-            player_y_q,
-            player_z_q,
-            heading_milliradians,
-            _is_window_focused(self._window_handle),
-            _UNOBSERVED_KEY_MASK,
-            _UNOBSERVED_ACTION,
-            True,  # keyframe: every RecordingSink frame is a full actor snapshot.
-            updates,
-            int(getattr(refresh_result, "slot_count", 0)),
-            living_monsters,
-            _UNKNOWN_UNREADABLE_SLOTS,
-        ]
         with self._lock:
+            current_action = self._current_action
+            record = [
+                "frame",
+                self._frame_count,
+                elapsed_ms,
+                PHASE_FARMING,
+                _UNOBSERVED_PLAYER_HP,
+                player_x_q,
+                player_y_q,
+                player_z_q,
+                heading_milliradians,
+                _is_window_focused(self._window_handle),
+                _UNOBSERVED_KEY_MASK,
+                current_action,
+                True,  # keyframe: every RecordingSink frame is a full actor snapshot.
+                updates,
+                int(getattr(refresh_result, "slot_count", 0)),
+                living_monsters,
+                _UNKNOWN_UNREADABLE_SLOTS,
+            ]
             self._frames_writer.write(record)
             self._frame_count += 1
 
@@ -452,22 +565,116 @@ class RecordingSink:
         cancellation) share this same session -- see
         docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md section
         1a. Reuses whatever farming/environment diagnostic fields the
-        caller already computed; does not read native state itself."""
+        caller already computed; does not read native state itself.
+
+        Two event kinds additionally update this session's real-time
+        provenance state (sections 1B/9-10), on top of always being
+        written verbatim to the events stream as supplemental timeline
+        evidence:
+
+        - ``"action"``: the control loop's actual factorized
+          ``[steering, event]`` command becomes the CURRENTLY ACTIVE
+          action for every subsequently sampled frame
+          (``RecordedFrame.action``), via the same canonical
+          ``FarmingCommand.legacy_action`` mapping the rest of the
+          runtime uses.
+        - ``"policy_loaded"``: the actual artifact path/SHA-256/contract
+          hash the control loop just loaded becomes this session's
+          ACTIVE checkpoint identity -- distinct from
+          ``self.metadata.configured_checkpoint_*`` (what config merely
+          names). A recording with no such event (e.g. a USER/manual
+          recording, or a control path that never loads a policy)
+          correctly reports no active checkpoint at all.
+        - ``"episode_end"``: resets the currently active action back to
+          "no action observed" -- a control action must never remain
+          stamped on frames sampled after the control loop that issued
+          it has ended."""
         elapsed_ms = int(round((monotonic() - self._started_at_monotonic) * 1000.0))
         with self._lock:
             self._events_writer.write([event_type, elapsed_ms, dict(fields)])
             self._event_count += 1
+            if event_type == "action":
+                self._current_action = _legacy_action_from_factorized(
+                    fields.get("action"), current=self._current_action
+                )
+            elif event_type == "episode_end":
+                self._current_action = _UNOBSERVED_ACTION
+            elif event_type == "policy_loaded":
+                model_path = fields.get("model_path")
+                if model_path:
+                    self._active_checkpoint_path = str(model_path)
+                    self._active_checkpoint_sha256 = fields.get("artifact_sha256")
+                    self._active_model_contract_hash = fields.get("contract_hash")
 
     def stop(self) -> Path:
-        """Finalize the session exactly once: stop polling, write
-        manifest.json, package the zip, remove the staging directory.
-        Returns the output zip path.
+        """Finalize the session, stopping polling and writing the
+        archive exactly once. Returns the output zip path.
 
-        Single-flight/idempotent: only the first caller runs the actual
-        finalization; a concurrent caller waits for it and returns/
-        raises the same outcome; a caller after success gets the same
-        cached path without re-running anything."""
+        Recoverable timeout semantics (section 2): if the poll thread
+        has not confirmed termination within this call's finalize-join
+        timeout, this raises ``RecordingStopIncomplete`` -- NOT a
+        terminal failure. The sink stays in the recoverable STOPPING
+        state, writers remain open, and staging data is untouched, so a
+        LATER ``stop()`` call (once the poller has actually exited) can
+        still finalize normally. Only a genuine error from the real
+        finalize body itself (writer close, manifest write, zip
+        packaging) -- which only ever runs after the poller is confirmed
+        stopped -- is terminal (FAILED).
 
+        Single-flight/idempotent across concurrent callers: only one
+        caller ever runs the real finalize body; concurrent callers wait
+        for it and return/raise the same outcome; a caller after success
+        gets the same cached path without re-running anything."""
+
+        with self._state_condition:
+            while True:
+                if self._state is _SinkState.FINALIZED:
+                    assert self._finalize_result is not None
+                    return self._finalize_result
+                if self._state is _SinkState.FAILED:
+                    raise RuntimeError(
+                        "Recording finalization previously failed: "
+                        f"{self._finalize_error_message}"
+                    )
+                if self._state is _SinkState.FINALIZING:
+                    self._state_condition.wait_for(
+                        lambda: self._state
+                        in (_SinkState.FINALIZED, _SinkState.FAILED)
+                    )
+                    continue
+                # RUNNING or STOPPING: request the stop (idempotent) and
+                # fall through to attempt the poll-thread join below,
+                # outside the lock. Every concurrent/retrying caller
+                # does this -- Thread.join() supports concurrent callers
+                # safely, so this never races.
+                if self._state is _SinkState.RUNNING:
+                    self._state = _SinkState.STOPPING
+                self._stop_event.set()
+                break
+
+        self._thread.join(timeout=self._finalize_join_timeout_seconds)
+        if self._thread.is_alive():
+            # The poll thread may still be inside _write_frame; closing
+            # the writers or removing the staging directory underneath
+            # it would corrupt or crash a live write. Refuse instead of
+            # proceeding -- and, critically, do NOT transition to a
+            # terminal FAILED state merely because THIS CALL's bounded
+            # wait expired. The staging directory (with whatever frames/
+            # events were already durably written) is left in place, not
+            # deleted, so the raw data remains recoverable, and a later
+            # stop() call can retry the join and finalize normally once
+            # the poller has actually exited.
+            raise RecordingStopIncomplete(
+                "Recording poll thread has not yet stopped; finalization "
+                "is incomplete but recoverable -- writers remain open and "
+                "staging data is untouched. Staging directory preserved "
+                f"at: {self._session_directory}. Call stop() again once "
+                "the poll thread has exited."
+            )
+
+        # The poll thread is confirmed stopped: become the sole
+        # finalizer, unless a concurrent caller already reached here
+        # first (mirrors the single-flight check above).
         with self._state_condition:
             if self._state is _SinkState.FINALIZED:
                 assert self._finalize_result is not None
@@ -488,6 +695,7 @@ class RecordingSink:
                     "Recording finalization previously failed: "
                     f"{self._finalize_error_message}"
                 )
+            assert self._state is _SinkState.STOPPING
             self._state = _SinkState.FINALIZING
 
         try:
@@ -505,21 +713,10 @@ class RecordingSink:
         return result
 
     def _finalize(self) -> Path:
-        self._stop_event.set()
-        self._thread.join(timeout=self._finalize_join_timeout_seconds)
-        if self._thread.is_alive():
-            # The poll thread may still be inside _write_frame; closing
-            # the writers or removing the staging directory underneath
-            # it would corrupt or crash a live write. Refuse instead of
-            # proceeding -- the staging directory (with whatever frames/
-            # events were already durably written) is left in place, not
-            # deleted, so the raw data remains recoverable.
-            raise RuntimeError(
-                "Recording poll thread did not stop within the finalize "
-                "timeout; refusing to close writers or remove staging "
-                "data while it may still be writing. Staging directory "
-                f"preserved at: {self._session_directory}"
-            )
+        """The real, single-owner finalize body: close writers, write
+        the manifest, package the zip, remove staging. Only ever called
+        by ``stop()`` after the poll thread has been CONFIRMED stopped
+        -- never races a live poller."""
         with self._lock:
             self._frames_writer.close()
             self._events_writer.close()
@@ -539,15 +736,42 @@ class RecordingSink:
                 "error": self._error,
                 "map_name": self.metadata.map_name,
                 "map_content_hash": self.metadata.map_content_hash,
-                "checkpoint_path": self.metadata.checkpoint_path,
-                "checkpoint_sha256": self.metadata.checkpoint_sha256,
+                # Configured candidate (repo config), never a claim about
+                # what THIS session actually used -- see the ACTIVE
+                # fields below for that (section 9/10).
+                "configured_checkpoint_path": self.metadata.configured_checkpoint_path,
+                "configured_checkpoint_sha256": self.metadata.configured_checkpoint_sha256,
+                # Actual artifact this session loaded and used, if any --
+                # populated only from a real "policy_loaded" runtime
+                # event (see add_runtime_event above). Stays None for a
+                # USER/manual recording and for any control path that
+                # never loads a policy (e.g. the current stale Train
+                # integration -- section 11).
+                "active_checkpoint_path": self._active_checkpoint_path,
+                "active_checkpoint_sha256": self._active_checkpoint_sha256,
+                "active_model_contract_hash": self._active_model_contract_hash,
                 "model_contract_hash": MODEL_CONTRACT_HASH,
                 "farming_config_hash": self.metadata.farming_config_hash,
                 "presence_validation_source": self.metadata.presence_validation_source,
                 "attach_policy": self.metadata.attach_policy_name,
                 "observation_schema_id": OBSERVATION_SCHEMA_ID,
                 "observation_schema_hash": OBSERVATION_SCHEMA_HASH,
-                "sampling": {"position_quantum_native": POSITION_QUANTUM_NATIVE},
+                "sampling": {
+                    "position_quantum_native": POSITION_QUANTUM_NATIVE,
+                    # Authoritative presence-sampling provenance (section
+                    # 1A): the ACTUAL current native-runtime truth at
+                    # session start, from NativeProcessService's own
+                    # presence_species_validated/recovered_presence_
+                    # species_offset properties -- never a hardcoded
+                    # constant. discover_world_model_eligible()/
+                    # fit_world_model() (simulator/schema.py's
+                    # has_validated_presence) gate on exactly these two
+                    # fields; an unvalidated attachment correctly leaves
+                    # this recording ineligible rather than falsely
+                    # claiming authoritative presence.
+                    "presence_species_validated": self.metadata.presence_species_validated,
+                    "presence_species_offset": self.metadata.presence_species_offset,
+                },
                 "policy_contract": {
                     "action_names": list(ACTION_NAMES),
                     "observation_schema_id": OBSERVATION_SCHEMA_ID,

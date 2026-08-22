@@ -115,7 +115,136 @@ run_native_farming_agent`'s `on_runtime_event` parameter, called with
 `policy_loaded`, `action`, and `episode_end` events); SB3's `train`-mode
 loop is not yet instrumented per-step (native frames are still recorded
 continuously for both modes regardless, via the sink's own polling
-thread).
+thread) — its active-checkpoint provenance (section 1c) is therefore
+always `None`; this is a documented limitation of the current stale
+Train integration, not a bug, and re-instrumenting it is out of scope
+until Train is productively re-integrated with live control.
+
+## 1b. Authoritative presence-sampling provenance decides world-model eligibility
+
+**Confidence: VERIFIED_CONTRACT.** `simulator/schema.py`'s
+`has_validated_presence(manifest)` — the single gate both
+`simulator/recording_discovery.py`'s `discover_world_model_eligible()`
+and `simulator/world_model.py`'s `fit_world_model()` use — requires the
+manifest's `sampling.presence_species_validated` to be `True` and
+`sampling.presence_species_offset` to be a non-negative multiple of 4.
+`RecordingSink` populates both fields at session-start from the
+attached `native_process_service`'s own real, current
+`presence_species_validated`/`recovered_presence_species_offset`
+properties (`position/native_process_service.py`) — the same
+dynamically-recovered truth the standalone historical recorder
+(`devtools/recorder/session.py`) has always embedded, now also reaching
+the dev bot's automatic recordings rather than being silently omitted.
+An attachment whose presence was never dynamically validated
+(`presence_species_validated=False`, `presence_species_offset=None`)
+correctly produces a structurally valid but world-model-**ineligible**
+archive — never a falsely-authoritative one.
+
+## 1c. Configured checkpoint vs. active checkpoint — distinct concepts, never conflated
+
+**Confidence: VERIFIED_CONTRACT.** A recording manifest distinguishes:
+
+- **Configured candidate** (`configured_checkpoint_path`/
+  `configured_checkpoint_sha256`): the artifact current repository
+  configuration (`farming/native_farming.json`'s `model_path`) currently
+  names, read directly from on-disk config at session start. This is a
+  real, verifiable fact about *configuration*, never a claim that this
+  session actually loaded or used it.
+- **Active checkpoint** (`active_checkpoint_path`/
+  `active_checkpoint_sha256`/`active_model_contract_hash`): the artifact
+  this specific session's control loop actually loaded and validated,
+  populated only from a real `"policy_loaded"` runtime event
+  (`farming.trainer.run_native_farming_agent`, sourced from
+  `load_and_validate_model`'s own computed digest/contract hash — never
+  re-derived or re-hashed by `RecordingSink`). Stays `None` whenever no
+  policy was ever loaded for the session:
+  - **USER/manual recordings** never have an active policy at all — the
+    configured candidate must never masquerade as "the model used by
+    this recording" (this was a real, reproduced bug: a manual recording
+    with no policy running still carried a non-null `checkpoint_path`
+    pointing at a file that was never loaded for that session).
+  - **Train-mode recordings** currently have no active-checkpoint source
+    either, since `train_native_farming` is not yet wired to
+    `on_runtime_event` (section 1a) — a documented limitation, not
+    invented data.
+  - **Agent-mode recordings** with a real loaded policy correctly carry
+    that artifact's real identity in the active fields.
+
+  The top-level `model_contract_hash` field is a separate, always-present
+  fact about the *current runtime code's* semantic contract version
+  (`farming.model_contract.MODEL_CONTRACT_HASH`) — true regardless of
+  whether any checkpoint was loaded this session — and must not be read
+  as "a model matching this contract was active"; `active_model_contract_hash`
+  is the field that answers that question.
+
+## 1d. Keyboard inputs vs. policy actions are different data concepts
+
+**Confidence: VERIFIED_CONTRACT.** `inputs.msgpack.gz` represents
+**physical keyboard input** (a real keyboard hook's keydown/keyup
+stream) — `RecordingSink` has no such hook (it drives movement through
+the bot's own control API, never synthesized WASD keypresses), so this
+stream is legitimately always empty for every dev-bot recording. An
+empty `inputs.msgpack.gz` is the honest representation of "no physical-
+input hook exists here," never a bug to paper over by inventing
+keyboard events.
+
+`RecordedFrame.action` is the separate, canonical **per-frame
+policy/control action** label (the legacy 0–4 `FarmingAction` index).
+For an automatic control recording, it is populated from the control
+loop's own runtime `"action"` events (`farming.trainer.
+run_native_farming_agent`'s factorized `[steering, event]` command,
+converted via the same `FarmingCommand.legacy_action` mapping the rest
+of the runtime uses) — `RecordingSink.add_runtime_event` holds the most
+recently issued action as the CURRENTLY ACTIVE action for every
+subsequently sampled frame, and resets it back to "no action observed"
+(`-1`) on an `"episode_end"` event, so a stale action is never stamped
+onto frames sampled after the control loop that issued it has ended.
+Before this pass, `RecordedFrame.action` was unconditionally `-1` for
+every automatic recording even while real runtime `"action"` events
+were being written to `events.msgpack.gz` in parallel — meaning
+`simulator/world_model.py`'s `fit_world_model()` (which builds
+`human_action_probabilities` from `frame.action`, not from the events
+stream) silently saw no action signal at all for these recordings. The
+runtime `"action"`/`"policy_loaded"`/`"episode_end"` events remain in
+`events.msgpack.gz` as supplemental timeline/debug evidence; they are
+never the *only* place a policy action exists once a downstream
+consumer reads frames through the canonical `frame.action` field.
+
+## 1e. `RecordingSink.stop()`'s recoverable stopping state, and the shutdown ownership barrier
+
+**Confidence: VERIFIED_CONTRACT.** `RecordingSink` has a five-state
+finalize state machine: `RUNNING` → `STOPPING` → `FINALIZING` →
+`FINALIZED`/`FAILED`. `STOPPING` means "stop requested, poll thread not
+yet confirmed terminated" — reaching it does **not** close writers,
+remove staging data, or transition to a terminal state on its own. A
+`stop()` call whose bounded wait for the poll thread expires raises
+`RecordingStopIncomplete` (a `RuntimeError` subclass) and leaves the
+sink in `STOPPING`: writers stay open, staging data is untouched, and a
+**later** `stop()` call can retry the join and finalize normally once
+the poller has actually exited — concurrent/repeated callers share one
+single-flight finalize via the same state machine either way. `FAILED`
+is reserved for a genuine error from the real finalize body itself
+(writer close, manifest write, zip packaging) — which only ever runs
+after the poller is confirmed stopped — and is the only truly terminal
+state (no retry path).
+
+This distinction matters because `RuntimeController.shutdown()` treats
+a live recording poller as an **ownership barrier** over the bot's
+native providers: `Bot.release_input()` closes
+`native_process_service` (and the position/monster providers), and the
+recording poll thread reads through exactly those same objects (section
+1a). `shutdown()` specifically catches `RecordingStopIncomplete` —
+distinct from any other finalize exception — and, only for that case,
+does **not** call `bot.stop()`/`bot.release_input()`, does **not**
+close the `RuntimeBus`, and does **not** mark itself finalized; it
+reports the incomplete state (`RuntimeController.
+recording_shutdown_incomplete`) and returns, leaving `self.recording`
+set so a later `shutdown()` call can retry and complete safely once the
+poller exits. This was a real, reproduced bug before this pass:
+`shutdown()` logged-and-swallowed *any* recording finalize exception
+(including a poll-thread timeout) and proceeded to release native
+providers anyway, while the poller could still be alive and reading
+them — releasing a resource out from under a still-running reader.
 
 ## 2. Why `RecordedFrame`/`RecordedActor`/`RecordedEvent` module identity matters
 

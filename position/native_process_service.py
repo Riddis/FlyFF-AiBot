@@ -333,6 +333,31 @@ class NativeProcessService:
         return "unproven" if reader is None else reader.presence_validation_source
 
     @property
+    def presence_species_validated(self) -> bool:
+        """Whether dormant-slot presence sampling was DYNAMICALLY
+        VALIDATED for the currently attached process (not merely
+        configured/requested) -- see ``presence_validation_source`` for
+        how. Read-only diagnostic surface, added so a consumer needing
+        authoritative presence provenance (e.g. RecordingSink's manifest
+        ``sampling`` block) can read the runtime's actual current truth
+        directly instead of duplicating IndependentNativeReader's own
+        discovery/validation logic."""
+        with self._lock:
+            reader = self._independent_reader
+        return False if reader is None else bool(reader.presence_species_validated)
+
+    @property
+    def recovered_presence_species_offset(self) -> int | None:
+        """The dynamically recovered presence-field byte offset, if any
+        (position/IndependentNativeReader.py) -- ``None`` when presence
+        has not been validated for the currently attached process. Read-
+        only diagnostic surface, same rationale as
+        ``presence_species_validated`` above."""
+        with self._lock:
+            reader = self._independent_reader
+        return None if reader is None else reader.recovered_presence_species_offset
+
+    @property
     def memory(self) -> NativeProcessMemory:
         return self._memory
 

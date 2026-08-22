@@ -1198,9 +1198,19 @@ def run_native_farming_agent(
     )
     model = cast(SessionAwarePPO, validated.model)
     if on_runtime_event is not None:
+        # RecordingSink captures artifact_path/artifact_sha256/
+        # contract_hash as this session's ACTIVE checkpoint identity
+        # (recording-provenance section 9/10) -- the artifact this
+        # control loop actually loaded and validated, not merely the
+        # candidate current config names. Reusing load_and_validate_
+        # model's own already-computed digest/contract hash here means
+        # RecordingSink never re-hashes the file or re-derives the
+        # contract itself.
         on_runtime_event(
             "policy_loaded",
-            model_path=str(model_path),
+            model_path=str(validated.artifact_path),
+            artifact_sha256=validated.validation.artifact_sha256,
+            contract_hash=validated.validation.contract_hash,
             deterministic=bool(deterministic),
         )
     runtime = build_live_farming_runtime(

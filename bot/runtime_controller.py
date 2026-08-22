@@ -23,7 +23,12 @@ from position import (
     run_native_diagnostic,
 )
 from .preview_service import PreviewService
-from .recording_sink import RecordingOwnership, RecordingSink, build_runtime_metadata
+from .recording_sink import (
+    RecordingOwnership,
+    RecordingSink,
+    RecordingStopIncomplete,
+    build_runtime_metadata,
+)
 from runtime.runtime_bus import FarmingSessionSnapshot, RuntimeBus
 from runtime.worker_manager import (
     CancellationToken,
@@ -112,6 +117,12 @@ class RuntimeController:
         self._shutdown_finalized = False
         self._shutdown_results = {kind: True for kind in WorkerKind}
         self._shutdown_timed_out: tuple[WorkerKind, ...] = ()
+        # True only while shutdown() has bailed out specifically because
+        # the active recording's poll thread has not yet confirmed
+        # termination (RecordingStopIncomplete) -- native providers were
+        # NOT released in that case, so this is the caller-visible signal
+        # that a retry is both necessary and safe (section 5/8).
+        self._recording_shutdown_incomplete = False
         self.recording: RecordingSink | None = None
         # _start_recording_now can now take real time (ensure_native_
         # ready's full-discovery fallback), so it has two possible
@@ -161,6 +172,14 @@ class RuntimeController:
     @property
     def shutdown_timed_out(self) -> tuple[WorkerKind, ...]:
         return self._shutdown_timed_out
+
+    @property
+    def recording_shutdown_incomplete(self) -> bool:
+        """True only immediately after a ``shutdown()`` call that bailed
+        out because the active recording's poll thread had not yet
+        confirmed termination -- native providers were NOT released.
+        Retry ``shutdown()`` once the recording finishes stopping."""
+        return self._recording_shutdown_incomplete
 
     def attach(self, window_handle: int, title: str | None = None) -> int:
         if self.control_active:
@@ -400,6 +419,12 @@ class RuntimeController:
                 attach_policy_name=getattr(attach_policy, "name", None),
                 presence_validation_source=getattr(
                     service, "presence_validation_source", None
+                ),
+                presence_species_validated=bool(
+                    getattr(service, "presence_species_validated", False)
+                ),
+                presence_species_offset=getattr(
+                    service, "recovered_presence_species_offset", None
                 ),
             )
             self.recording = RecordingSink(
@@ -1163,16 +1188,40 @@ class RuntimeController:
                 # finalizing underneath it.
                 return dict(results)
 
-            # Every worker has fully stopped: finalize any recording that
-            # is still open exactly once, via the internal path (the
-            # public stop_recording() would itself no-op here since
-            # control_active is now false, but this is explicit about
-            # which path owns shutdown-time finalization).
+            # Every WorkerManager-tracked worker has fully stopped. A
+            # still-open recording's own poll thread is NOT tracked by
+            # WorkerManager (it's a plain thread owned by RecordingSink),
+            # so it must be finalized here -- and CONFIRMED stopped --
+            # before any native provider is released below. This is an
+            # ownership barrier (section 5): RecordingStopIncomplete
+            # specifically means the poller may still be reading the
+            # bot's native_process_service/position_provider/
+            # monster_provider, so shutdown must not proceed past this
+            # point in that case -- it must not release providers, close
+            # the bus, or claim finalized; it must leave enough state
+            # (self.recording stays set) for a retry to finish safely.
+            # A genuine finalize error AFTER the poller is confirmed
+            # stopped (any other exception) is safe to log and continue
+            # past: the poller is no longer touching native state even
+            # though the archive itself failed to write.
             if self.recording is not None:
                 try:
                     self._finalize_recording_internal()
+                except RecordingStopIncomplete as error:
+                    self._recording_shutdown_incomplete = True
+                    message = (
+                        "Shutdown incomplete: the active recording's poll "
+                        "thread has not yet stopped, so native providers "
+                        f"cannot be safely released yet ({error}). Native "
+                        "resources remain open; retry shutdown once the "
+                        "recording finishes stopping."
+                    )
+                    self.bus.publish_status("runtime_status", message)
+                    self.bus.log(message, "msg_red")
+                    return dict(results)
                 except Exception:  # noqa: BLE001 - shutdown must not hang on this.
                     pass
+            self._recording_shutdown_incomplete = False
 
             try:
                 self.bot.stop()

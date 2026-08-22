@@ -17,6 +17,7 @@ from position.NativePointerRecovery import (
 )
 import bot.runtime_controller as runtime_controller_module
 from runtime.runtime_bus import RuntimeBus
+from bot.recording_sink import RecordingStopIncomplete
 from bot.runtime_controller import RuntimeController
 from runtime.worker_manager import CancellationToken, WorkerKind
 
@@ -274,6 +275,64 @@ def test_shutdown_finalizes_recording_only_after_the_control_worker_stops() -> N
     assert all(results.values())
     assert events == ["control-worker-observed-cancel", "recording-finalized"]
     assert controller.recording is None
+
+
+def test_shutdown_cannot_release_provider_under_a_live_recording_poller_and_can_retry() -> None:
+    """Blocker 2 (recording poller/shutdown lifecycle): shutdown() must
+    treat RecordingSink.stop() raising RecordingStopIncomplete as an
+    ownership barrier over native providers, never as a generic
+    exception to log-and-swallow. Reproduces the real bug this pass
+    fixes: shutdown() used to swallow ANY recording finalize exception
+    (including a poll-thread timeout) and release native providers/close
+    the bus/mark itself finalized anyway, even though the poller could
+    still be alive and reading through those exact providers."""
+
+    bot = FakeBot()
+    bus = RuntimeBus()
+    controller = RuntimeController(bot, bus)
+
+    class _BlockedPollerSink:
+        def __init__(self) -> None:
+            self._running = True
+            self.release = Event()
+            self.stop_calls = 0
+
+        @property
+        def is_running(self) -> bool:
+            return self._running
+
+        def stop(self):
+            self.stop_calls += 1
+            if not self.release.is_set():
+                raise RecordingStopIncomplete(
+                    "fake poll thread has not yet stopped"
+                )
+            self._running = False
+            return "/fake/output.zip"
+
+    sink = _BlockedPollerSink()
+    controller.recording = sink  # type: ignore[assignment]
+
+    first = controller.shutdown(1.0)
+
+    assert all(first.values())
+    assert controller.recording_shutdown_incomplete is True
+    assert controller.recording is sink
+    assert sink.is_running  # the fake poller is still "alive" -- not torn down
+    assert bot.release_calls == 0
+    assert bot.stop_calls == 0
+    assert not bus.closed
+    assert not controller.shutdown_finalized
+
+    sink.release.set()
+    second = controller.shutdown(1.0)
+
+    assert all(second.values())
+    assert controller.recording_shutdown_incomplete is False
+    assert controller.recording is None
+    assert bot.release_calls == 1
+    assert bus.closed
+    assert controller.shutdown_finalized
 
 
 def test_rl_startup_enablement_belongs_to_preflighted_farming(
