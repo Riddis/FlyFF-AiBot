@@ -76,7 +76,6 @@ def main() -> None:
     from simulator.basic_environment import collect_basic_dagger_dataset, save_basic_dagger_dataset
     from simulator.basic_training import (
         bootstrap_event_head,
-        bootstrap_policy_from_human_recordings,
         build_fresh_basic_policy,
         build_human_bootstrap_dataset,
         canonical_checkpoint_name,
@@ -301,12 +300,19 @@ def main() -> None:
             f"mean_ticks_fraction={float(np.mean(intervention_ticks_fractions)):.3f} "
             f"gave_up_episodes={sum(gave_up)}/{len(gave_up)}")
 
-        log("Steering-only supervised update on newly mined DAgger data (DAgger labels are simulator-teacher-labeled, well-correlated with the geometry representation, unlike human recordings)...")
-        steering_round_result = bootstrap_policy_from_human_recordings(
-            model, dagger_path, train_heads=("steering",), epochs=4, learning_rate=1e-4, batch_size=64,
-            validation_fraction=0.2, seed=SEED + round_idx, progress_every_seconds=20.0,
-        )
-        check_no_nan(model, f"after round {round_idx} steering DAgger update")
+        # No steering update here -- under the recovered frozen-navigation-
+        # sub-policy architecture (docs/architecture/
+        # CURRICULUM_TRAINING_PIPELINE.md section 4), steering execution
+        # belongs entirely to FrozenNavigationSteering; the trainable
+        # policy's own steering head must never receive a gradient step,
+        # here or anywhere else in this script (see build_fresh_basic_
+        # policy's docstring and the removed Stage 3a above). A prior
+        # version of this loop still ran a steering-only supervised update
+        # against teacher/policy steering labels every round -- vestigial
+        # from before the recovery, never removed when Stage 3a was cut.
+        # See MISTAKES.md, 2026-08-22 entry, "Basic round loop still
+        # trained the vestigial steering head after the frozen-navigation
+        # recovery."
 
         # Event update trains on the FULL accumulated pool (human bootstrap
         # + every DAgger round mined so far, this one included), not just
@@ -336,7 +342,8 @@ def main() -> None:
         save_checkpoint_with_provenance(
             model, milestone_checkpoint, stage="basic", milestone=f"milestone_{round_idx:03d}", seeds=round_seeds,
             config={
-                "round": round_idx, "steering_dagger_epochs": 4, "mining_config": mining_config.__dict__,
+                "round": round_idx, "steering_source": "frozen_navigation_subpolicy",
+                "mining_config": mining_config.__dict__,
                 "event_pool_sources": len(event_dataset_paths), "event_epochs_run": event_round_result["epochs_run"],
                 "event_optimizer_steps": event_round_result["total_optimizer_steps"],
             },
@@ -347,24 +354,19 @@ def main() -> None:
         log(f"Saved: {milestone_checkpoint} (+ provenance)")
         previous_checkpoint = milestone_checkpoint
 
-        # --- cheap, synchronous stop conditions: both are known immediately
-        # (no extra compute) and are worth stopping for before even
-        # dispatching an evaluation of a possibly-broken model. Event uses
-        # its own head-scoped, support-aware collapse gate; steering keeps
-        # the simple accuracy floor (it has shown no sign of this failure
-        # mode, and the round's steering update never touches event, so
-        # there is no cross-head contamination risk to guard against here). ---
+        # --- cheap, synchronous stop condition: known immediately (no extra
+        # compute) and worth stopping for before even dispatching an
+        # evaluation of a possibly-broken model. Event-only: steering has no
+        # trainable-loss stop condition because it receives no supervised
+        # update in this loop (see the note above -- steering execution and
+        # its correctness belong entirely to FrozenNavigationSteering, never
+        # to this policy's own untrained steering head). ---
         alarms = []
         if not event_round_result["gate_passed"]:
             alarms.append(f"event update failed its collapse gate: {event_round_result['reasons']}")
-        if steering_round_result["after"]["gate"]["heads"]["steering"]["accuracy"] < 0.3:
-            alarms.append(f"steering-head accuracy collapsed to {steering_round_result['after']['gate']['heads']['steering']['accuracy']:.3f} on DAgger validation")
 
         all_round_reports.append({
             "round": round_idx, "checkpoint": str(milestone_checkpoint),
-            "steering_result_summary": {
-                "accuracy_after": steering_round_result["after"]["gate"]["heads"]["steering"]["accuracy"],
-            },
             "event_result_summary": {
                 "accuracy_after": after_event_gate["accuracy"], "macro_f1": event_round_result["macro_f1"],
                 "gate_passed": event_round_result["gate_passed"], "epochs_run": event_round_result["epochs_run"],

@@ -299,6 +299,53 @@ Entry template:
   prefer directly rigging/monkeypatching only the single input/output
   actually being checked, or swap only that one component in isolation.
 
+### [2026-08-22] Basic round loop still trained the vestigial steering head after the frozen-navigation recovery
+- What happened: the frozen-navigation-sub-policy recovery (this same
+  2026-08-22 investigation, see the "task premise assumed..." entry below)
+  reported "Basic keeps its existing dual-head checkpoint shape with the
+  steering head simply never trained" as an accomplished fact. It wasn't:
+  `simulator/tools/RUN_CANONICAL_BASIC.py`'s per-round loop still called
+  `bootstrap_policy_from_human_recordings(model, dagger_path,
+  train_heads=("steering",), ...)` on every mined DAgger dataset, running a
+  real cross-entropy update against `teacher_steering`/`policy_steering`
+  labels and gating a stop condition on the resulting accuracy -- a genuine
+  gradient step into `mlp_extractor.steering_net`/`action_net.steering_out`
+  every single round, unconditionally contradicting the "never trained"
+  claim.
+- Root cause: the recovery work removed Stage 3a (the scripted-teacher
+  steering BC bootstrap) and added `FrozenNavigationSteering` to the
+  rollout loop, but only checked "does steering execute correctly" (the
+  rollout/mining path, covered by
+  `tests/test_basic_stage_frozen_navigation_integration.py`'s existing
+  sentinel-injection tests) -- not "does anything still optimize the
+  now-vestigial head." The per-round steering BC call predates the
+  recovery, was never PPO (so the recovery's own "no PPO touches steering"
+  reasoning didn't apply to it), and nothing in the existing test suite
+  exercised the supervised-loss call path at all.
+- How caught: a follow-up task explicitly required proving, not assuming,
+  the "steering head simply never trained" claim by tracing the full
+  `collect_basic_dagger_dataset -> saved dataset -> supervised training ->
+  loss computation -> optimizer parameters` path from source, per-question,
+  before treating the prior report as settled.
+- Fix: deleted the steering-only `bootstrap_policy_from_human_recordings`
+  call and its accuracy-based stop condition/report field from
+  `RUN_CANONICAL_BASIC.py`'s round loop entirely; the only remaining
+  per-round supervised call is `bootstrap_event_head`, which already
+  restricted its own trainable parameters to the event head. Added two
+  regression tests (`test_dagger_sample_selection_is_independent_of_the_
+  nets_steering_head`, `test_basic_round_supervised_update_never_touches_
+  steering_head` in the same test file) that corrupt the steering head's
+  weights and prove neither DAgger sample selection nor the round's
+  supervised loss changes as a result, while confirming the event head
+  does still update.
+- Lesson: a completion report's prose claim ("X is never trained/executed")
+  is not verified just because the *new* code proves the *new* mechanism
+  works -- it must be checked against every *pre-existing* call path that
+  could still reach the thing being retired, especially orchestration
+  scripts that predate the recovery and were never touched by it. "We
+  added the fix" is not the same claim as "we removed everything the fix
+  was supposed to make obsolete."
+
 ## Category: verification that doesn't verify
 
 ### [2026-08-14] "sampler code unchanged" claim based on an invalid git check
