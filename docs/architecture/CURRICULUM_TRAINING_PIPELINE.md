@@ -307,13 +307,20 @@ navigator it composes with.
 Beginner, Intermediate, and Advanced all gate graduation on
 `total_collision_events` (`distinct_contact_events` — genuine collision
 EVENTS from `milestone_evaluator._contact_event_stats`, not the older
-`contacts_per_100_distance` tick-rate proxy) being exactly zero on their
-main heldout bar (Beginner also allows exactly 1 on its separate,
-explicitly looser challenge-manifest bar; Intermediate/Advanced have no
-challenge manifest yet, so heldout is their only bar). Advanced's
-`AUTO_GRADUATION_ENABLED=False` bypass flag (disabled 2026-08-08 pending
-this exact fix) has been removed entirely, restoring real, unattended
-auto-graduation for Advanced on the same standard as the other stages.
+`contacts_per_100_distance` tick-rate proxy) being exactly zero across
+EVERY raw evaluation role — heldout, unseen_templates, and (Beginner
+only; Intermediate/Advanced have no challenge manifest yet, so heldout is
+their only bar) challenge. Zero collisions is a binary admission
+requirement (`docs/PROJECT_GOALS.md` §2a), not a metric traded off
+against a role's difficulty — challenge's own deliberately-stressful
+framing governs its other, genuinely looser thresholds (contacts-per-
+distance, stagnation) only, never collisions; an earlier revision of
+Beginner's own script briefly allowed exactly 1 collision event on
+challenge specifically, which was a contract violation, corrected
+2026-08-23. Advanced's `AUTO_GRADUATION_ENABLED=False` bypass flag
+(disabled 2026-08-08 pending this exact fix) has been removed entirely,
+restoring real, unattended auto-graduation for Advanced on the same
+standard as the other stages.
 
 ## Evidence / Sources
 

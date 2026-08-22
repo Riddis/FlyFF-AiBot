@@ -34,9 +34,12 @@ Graduation is an ABSOLUTE bar, not "better than this stage's own zero-shot
 baseline". ZERO COLLISIONS IS A HARD GATE (docs/PROJECT_GOALS.md section
 2a) -- graded via distinct_contact_events (genuine collision EVENTS, not
 raw contact-tick counts; see milestone_evaluator._contact_event_stats),
-required to be exactly zero across heldout/unseen_templates, with a small
-documented allowance on challenge (deliberately stressful scenarios).
-Within the zero-collision feasible set, kills/hour is the primary
+required to be exactly zero across EVERY raw evaluation role: heldout,
+unseen_templates, AND challenge -- no per-role exception. Challenge's own
+"deliberately stressful, not a clean-navigation exam" framing still
+governs its other, genuinely looser thresholds (contacts-per-distance,
+stagnation), never collisions. Within the zero-collision feasible set,
+kills/hour is the primary
 optimization metric; the remaining floors (coverage, kills/hour, physical
 stagnation) exist so a policy cannot "solve" collision-avoidance by doing
 nothing. teacher_ratio_median is reported for context only, never a gate --
@@ -113,11 +116,15 @@ REHEARSAL_LEARNING_RATE = 1e-5
 # distinct_contact_events (genuine collision EVENTS -- see milestone_
 # evaluator._contact_event_stats -- not the raw contacts_per_100_distance
 # tick-rate metric, which does NOT mean collision-free even at a low
-# value) must be exactly zero on heldout/unseen_templates. A small
-# allowance is kept on challenge only, per its own manifest's documented
-# "deliberately stressful, not a clean-navigation exam" guidance.
+# value) must be exactly zero across EVERY raw graduation evaluation role
+# -- heldout, unseen_templates, AND challenge. The gate is binary
+# admission (docs/PROJECT_GOALS.md section 2a: "a candidate that collides
+# does not pass acceptance, regardless of its kills/hour"), not a metric
+# to trade off against a role's difficulty -- challenge's own "deliberately
+# stressful, not a clean-navigation exam" framing governs its OTHER
+# thresholds (contacts-per-distance, stagnation) only, never collisions.
 GRADUATION_MAX_COLLISION_EVENTS_MAIN = 0  # heldout + unseen_templates: hard zero
-GRADUATION_MAX_COLLISION_EVENTS_CHALLENGE = 1  # per manifest's own looser bar
+GRADUATION_MAX_COLLISION_EVENTS_CHALLENGE = 0  # challenge: also hard zero -- zero collisions has no per-role exception
 GRADUATION_MAX_CONTACTS_PER_100_MAIN = 15.0  # heldout + unseen_templates -- secondary/reported, zero-collision is now binding
 GRADUATION_MAX_CONTACTS_PER_100_CHALLENGE = 25.0  # looser, per manifest's own guidance
 GRADUATION_MIN_UNIQUE_CELLS_MEDIAN = 400  # coverage floor -- well below the ~550-660 observed range

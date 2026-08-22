@@ -2,16 +2,27 @@
 (docs/PROJECT_GOALS.md section 2a) at Beginner/Intermediate/Advanced:
 `total_collision_events` (`distinct_contact_events` -- genuine collision
 EVENTS, not the raw `contacts_per_100_distance` tick-rate proxy) must be
-exactly zero on the main/heldout bar for a round to pass, full stop,
-regardless of every other metric. Exercises each script's own
-`check_round_passes_absolute_bar`/`_check_bar` directly against synthetic
-aggregate dicts -- no real rollout needed, since these are pure functions
-of already-aggregated numbers.
+exactly zero across EVERY raw graduation evaluation role -- heldout,
+unseen_templates, AND (Beginner only) challenge -- for a round to pass,
+full stop, regardless of every other metric or role. Exercises each
+script's own `check_round_passes_absolute_bar`/`_check_bar` directly
+against synthetic aggregate dicts -- no real rollout needed, since these
+are pure functions of already-aggregated numbers.
 
 Advanced in particular had this gate disabled entirely
 (`AUTO_GRADUATION_ENABLED=False`) until this same change removed the
 bypass -- these tests are the direct proof the restored gate actually
-rejects a single collision, not just that the bypass flag is gone."""
+rejects a single collision, not just that the bypass flag is gone.
+
+Beginner's challenge role previously allowed exactly one collision event
+(`GRADUATION_MAX_COLLISION_EVENTS_CHALLENGE=1`) as a documented exception
+for its deliberately stressful scenarios. This was a genuine contract
+violation of "zero collisions is a hard gate" (docs/PROJECT_GOALS.md
+section 2a: a binary admission requirement, not a metric traded off
+against a role's difficulty) and has been corrected to 0 -- challenge's
+own looser thresholds for contacts-per-distance/stagnation are untouched
+and remain legitimately looser, but collisions are never tolerated on any
+role, on any stage."""
 from __future__ import annotations
 
 import importlib
@@ -62,23 +73,24 @@ def test_beginner_gate_fails_at_exactly_one_collision_event_on_unseen_templates(
     assert any("unseen_templates" in r and "total_collision_events=1" in r for r in reasons), reasons
 
 
-def test_beginner_gate_allows_exactly_one_collision_event_on_challenge_only():
-    """The challenge manifest's own explicitly looser bar
-    (GRADUATION_MAX_COLLISION_EVENTS_CHALLENGE=1) is a real, documented
-    exception to the otherwise-zero standard -- confirm it actually
-    behaves looser, not just that the constant is set to 1."""
+def test_beginner_gate_passes_at_zero_collision_events_on_challenge():
     ok, reasons = BEGINNER.check_round_passes_absolute_bar(
-        _passing_agg(total_collision_events=0), _passing_agg(total_collision_events=0), _passing_agg(total_collision_events=1),
+        _passing_agg(total_collision_events=0), _passing_agg(total_collision_events=0), _passing_agg(total_collision_events=0),
     )
     assert ok, reasons
 
 
-def test_beginner_gate_fails_at_two_collision_events_on_challenge():
+def test_beginner_gate_fails_at_exactly_one_collision_event_on_challenge():
+    """Challenge's deliberately-stressful framing governs its OTHER
+    thresholds (contacts-per-distance, stagnation) only -- it grants no
+    exception for collisions. GRADUATION_MAX_COLLISION_EVENTS_CHALLENGE
+    must equal 0, the same as every other role, not a looser value."""
+    assert BEGINNER.GRADUATION_MAX_COLLISION_EVENTS_CHALLENGE == 0
     ok, reasons = BEGINNER.check_round_passes_absolute_bar(
-        _passing_agg(total_collision_events=0), _passing_agg(total_collision_events=0), _passing_agg(total_collision_events=2),
+        _passing_agg(total_collision_events=0), _passing_agg(total_collision_events=0), _passing_agg(total_collision_events=1),
     )
     assert not ok
-    assert any("challenge" in r and "total_collision_events=2" in r for r in reasons), reasons
+    assert any("challenge" in r and "total_collision_events=1" in r for r in reasons), reasons
 
 
 @pytest.mark.parametrize("module", [INTERMEDIATE, ADVANCED])
