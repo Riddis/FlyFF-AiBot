@@ -178,76 +178,142 @@ docstring explains at length for why recovery-override and PPO cannot
 mix. There is no way to avoid this within stock SB3 PPO other than
 genuinely shrinking the trainable action space so it never includes
 steering. This was confirmed with the user (2026-08-22) rather than
-decided unilaterally: **the PPO stages' trainable policy has a
-`Discrete(len(FarmingEvent))` action space, not `MultiDiscrete([3,3])`.**
-Basic (pure BC/DAgger, no rollout buffer, no log-prob) has no such
-constraint — its checkpoint keeps `SplitSteeringNavigationPolicy`'s
-existing dual-head architecture unchanged (for BC/DAgger tooling
-compatibility), with the steering head simply never trained and never
-executed (vestigial by design, not by neglect).
+decided unilaterally.
 
-## 5. Frozen-navigation reconnection: current integration status (COMPLETE, 2026-08-22)
+**Superseded by the completing piece (2026-08-22, same day): learned
+farming-target selection.** The trainable policy initially landed with a
+`Discrete(len(FarmingEvent))` action space (event only) — but WHICH
+actor/group to pursue was still being decided by the environment's own
+deterministic `_nearest_reachable_actor_id`/`_best_group_actor_id`
+hysteresis, not learned. `docs/PROJECT_GOALS.md` §1 lists "target
+selection" as part of the full-farming behavior 0051200 explicitly does
+NOT provide, so an event-only trainable policy left target selection with
+no real owner at all. `simulator/farming_target_policy.py` closes this:
+the trainable policy's action space is now
+**`MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])` =
+`MultiDiscrete([13, len(FarmingEvent)])`** — `0` = `KEEP_CURRENT_TARGET_
+ACTION` (persistence, not a fresh pick), `1..12` = select the actor
+occupying that `farming.observation.DIRECT_ACTOR_SLOTS` slot in the
+*same* observation the policy already reads (no new indexing scheme). The
+deterministic heuristic remains a candidate/reachability source and, for
+Basic only, a BC teacher (`deterministic_target_teacher_action`) — it is
+never again the runtime decision-maker for what to farm once a policy
+exists to make that decision. This is a genuinely narrower, one-time
+extension of the same on-policy-consistency rule above: a *target*
+action that got silently overridden before execution would reproduce the
+identical PPO log-prob inconsistency the steering exclusion was built to
+avoid, so the same "the trainable action space must be exactly what
+executes" discipline now covers target selection too, not just steering.
 
-Canonical shared component (`simulator/navigation_subpolicy.py`,
-`tests/test_navigation_subpolicy.py`, 12 tests): `FrozenNavigationSteering`
-(the per-tick oracle: production router + frozen 0051200, target-id-driven
-replanning), `FrozenNavigationWrapper` (a `gym.Wrapper` exposing
-`Discrete(len(FarmingEvent))` and `Box(RAW_OBSERVATION_SIZE,)` to a
-trainable policy, driving steering automatically), and `run_composed_episode`
-(the one composed-episode rollout function every evaluator dispatches
-through — see section 12). All are a faithful extraction of the
-already-validated 2026-08-15 850M mechanism
+Basic (pure BC/DAgger, no rollout buffer, no log-prob) never had a
+different constraint here in the first place — but building Basic
+directly against the same target+event action space (rather than keeping
+its historical `SplitSteeringNavigationPolicy` dual-head shape and
+bridging it later) turned out to eliminate the Basic→Beginner checkpoint
+bridge entirely: see section 5.
+
+## 5. Frozen-navigation + learned-target-selection reconnection: current integration status (COMPLETE, 2026-08-22)
+
+Canonical shared components (`simulator/navigation_subpolicy.py`,
+`tests/test_navigation_subpolicy.py`, 12 tests; `simulator/
+farming_target_policy.py`, `tests/test_farming_target_policy.py`, 13
+tests): `FrozenNavigationSteering` (the per-tick steering oracle:
+production router + frozen 0051200, target-id-driven replanning),
+`PersistentFarmingTarget` (the learned counterpart of the environment's
+own target hysteresis — folds persistence and death/invalidation into one
+tick's resolved target id), `FarmingPolicyWrapper` (the `gym.Wrapper`
+every stage now trains/evaluates through — exposes
+`MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])` over
+`Box(RAW_OBSERVATION_SIZE,)`, resolves the sampled target action, drives
+steering automatically, composes `[steering, event]` into the underlying
+env's native step), and `run_composed_episode` (the one composed-episode
+rollout function every evaluator dispatches through — see section 12).
+`FrozenNavigationSteering`'s own mechanics are a faithful extraction of
+the already-validated 2026-08-15 850M mechanism
 (`simulator/scratchpad/scratchpad_monster_approach_baseline_eval.py`:
 `_synthetic_candidate`, `_observation_without_side_effects`,
-`previous_steering` threading) — ported, not reimplemented.
+`previous_steering` threading) — ported, not reimplemented; target
+selection (`farming_target_policy.py`) is a from-scratch design (no prior
+implementation existed anywhere in this repository's history — confirmed
+by `git log -S`/`-G` archaeology before designing it), reusing the
+observation's own existing `DIRECT_ACTOR_SLOTS` ordering rather than
+inventing a second actor-indexing scheme.
 
-Basic -> Beginner checkpoint bridge (`simulator/factorized_v193_training.
-py::transfer_event_head_to_event_only_policy`, wrapped by `simulator.
-beginner_transition.build_event_only_ppo_from_basic_checkpoint`,
-`tests/test_event_head_transplant.py`, 2 tests): copies a
-`SplitSteeringNavigationPolicy`'s `event_net`/`vf_net`/`event_out`/
-`value_net` weights into a fresh plain `ActorCriticPolicy`
-(`net_arch=dict(pi=event_net_arch, vf=vf_net_arch)`, `Discrete` action
-space) — proven via `torch.testing.assert_close` that the transferred
-policy's event-action distribution and value estimate are **bit-for-bit
-identical** to the source's own event branch on real observations, not
-merely "runs without error." The steering branch is discarded entirely,
-per section 4 (nothing in it was ever meaningfully trained).
+`FrozenNavigationWrapper` (event-only, `Discrete(len(FarmingEvent))`) and
+the Basic→Beginner checkpoint bridge (`simulator/factorized_v193_training.
+py::transfer_event_head_to_event_only_policy`, `simulator.
+beginner_transition.build_event_only_ppo_from_basic_checkpoint`) both
+still exist in the repository (with their own passing tests,
+`tests/test_navigation_subpolicy.py`/`tests/test_event_head_transplant.py`)
+but are **superseded and no longer used by the training/evaluation
+pipeline** — nothing under `simulator/tools/RUN_CANONICAL_*.py` or the
+current `simulator/beginner_transition.py`/`simulator/navigation_ppo.py`
+calls either one. Building Basic directly in the target+event action
+shape (rather than keeping its historical `SplitSteeringNavigationPolicy`
+dual-head shape and bridging it to event-only afterward) made the bridge
+itself unnecessary: there is no cross-architecture boundary left to
+bridge at Basic → Beginner, since all four stages now share one policy
+architecture (`simulator.split_branch_policy.SplitFarmingTargetEventPolicy`)
+end to end. Retained only as tested legacy, not deleted, since deleting
+working, still-passing code that documents the immediately-prior design is
+not required by this task and the two are cheap to keep side by side.
 
-| Stage | Steering source | Status |
-|---|---|---|
-| Basic (`simulator/basic_environment.py::_roll_basic_episode`, `simulator/tools/RUN_CANONICAL_BASIC.py`) | `FrozenNavigationSteering` (target-id from the environment's own native hysteresis) | **DONE, tested** (`tests/test_basic_stage_frozen_navigation_integration.py`, 5 tests — sentinel-injection proof the net's own steering head can never reach the executed action, plus two tests proving neither DAgger mining nor the round's supervised loss can be moved by that head). Stage 3a (scripted-teacher steering BC) removed from `RUN_CANONICAL_BASIC.py`; a later residue (a per-round steering-only BC update that survived that removal) found and removed too — see `MISTAKES.md`, "Basic round loop still trained the vestigial steering head after the frozen-navigation recovery." |
-| Beginner PPO training (`simulator/navigation_ppo.py::balanced_training_vec_env_event_only`/`resume_ppo_chunk_event_only`, `simulator/beginner_transition.py::build_event_only_ppo_from_basic_checkpoint`/`continue_event_only_ppo_chunk`/`rehearse_event_only_on_basic_data`, `simulator/tools/RUN_CANONICAL_BEGINNER.py`) | `FrozenNavigationWrapper` + the transferred event-only policy | **DONE, tested** (`tests/test_beginner_event_only_ppo_integration.py`, 7 tests: env action-space contract, event-distribution-preserving transfer, frozen-checkpoint-bytes-untouched, on-policy steering/event composition, rehearsal + composed evaluation, a dual-head-checkpoint rejection, navigator-SHA provenance). Verified end to end with a real (tiny-curriculum) PPO chunk + evaluation run, not tests alone. |
-| Intermediate / Advanced PPO training (`RUN_CANONICAL_INTERMEDIATE.py`/`RUN_CANONICAL_ADVANCED.py`) | Same `continue_event_only_ppo_chunk`/`rehearse_event_only_on_basic_data` — no checkpoint bridge needed, the Beginner-graduated checkpoint is already event-only | **DONE, tested** (`tests/test_intermediate_advanced_event_only_continuation.py`, parametrized over both internal stage ids). Both scripts guard every checkpoint load with `_require_event_only_action_space`, so a pre-recovery dual-head checkpoint (Advanced's own historical round checkpoints, none of which remain on disk) can never be silently resumed. |
-| Evaluation — `simulator/milestone_evaluator.py::evaluate_heldout`/`evaluate_challenge` (+ `_parallel`) (heldout/challenge, Beginner/Intermediate/Advanced) | `navigation_steering=`/`use_frozen_navigation=True` dispatches through `navigation_subpolicy.run_composed_episode` instead of the direct-bearing `run_episode` | **DONE, tested.** `RUN_CANONICAL_BEGINNER.py`, `RUN_CANONICAL_INTERMEDIATE.py`, and `RUN_CANONICAL_ADVANCED.py` all pass `use_frozen_navigation=True`. |
-| Evaluation — `simulator/basic_milestone_evaluator.py` (Basic's own per-round assisted-mode metrics) | `FrozenNavigationSteering` via `_roll_basic_episode` (shared with training) | **CONFIRMED already correct** — audited directly, no fix needed (see section 11 of the audit this table summarizes). |
-| Evaluation — `simulator/beginner_transition.py::zero_shot_raw_diagnostic`/`_parallel` | `FrozenNavigationSteering` via `run_composed_episode(..., event_forward=_dual_head_event_forward)` (reads only Basic's dual-head net's event branch) | **DONE, fixed.** Previously direct-bearing (`_raw_policy_forward` read the net's own steering head); now reuses the same composed-episode function the event-only stages use, with a small `event_forward` override so it works against Basic's still-dual-head-shaped checkpoint. |
+| Stage | Steering source | Target-selection source | Status |
+|---|---|---|---|
+| Basic (`simulator/basic_environment.py::_roll_basic_episode`, `simulator/tools/RUN_CANONICAL_BASIC.py`) | `FrozenNavigationSteering` | `SplitFarmingTargetEventPolicy`'s own target head, BC/DAgger-trained against `deterministic_target_teacher_action` (the environment's `_best_group_actor_id` heuristic, used ONLY as a label source) | **DONE, tested** (`tests/test_basic_stage_frozen_navigation_integration.py`, 4 tests — proves the frozen navigator is actually called, proves the net has no steering-named parameters at all, proves DAgger mining and the event-only supervised update never touch the target head). Stage 3a (scripted-teacher steering BC) and a later steering-BC residue were removed earlier (`MISTAKES.md`, "Basic round loop still trained the vestigial steering head..."); Basic's target-teacher bootstrap stage was added in this pass. |
+| Beginner / Intermediate / Advanced PPO training (`simulator/navigation_ppo.py::balanced_training_vec_env_farming_policy`/`resume_ppo_chunk_farming_policy`, `simulator/beginner_transition.py::continue_farming_policy_ppo_chunk`/`rehearse_farming_policy_on_basic_data`, `simulator/tools/RUN_CANONICAL_BEGINNER.py`/`RUN_CANONICAL_INTERMEDIATE.py`/`RUN_CANONICAL_ADVANCED.py`) | `FarmingPolicyWrapper` (drives `FrozenNavigationSteering` toward the resolved target) | `FarmingPolicyWrapper` resolves the policy's own sampled target action via `PersistentFarmingTarget`; the deterministic heuristic plays no runtime role from Beginner onward | **DONE, tested.** One shared `continue_farming_policy_ppo_chunk` function used identically by all three stages (`tests/test_beginner_transition.py`, 5 tests; `tests/test_intermediate_advanced_event_only_continuation.py`, parametrized over `intermediate`/`advanced`). Each script guards every checkpoint load with its own `_require_farming_policy_action_space` (`tests/test_canonical_script_action_space_guards.py`, 6 cases across all three scripts), so a stale event-only or dual-head checkpoint can never be silently resumed. |
+| Evaluation — `simulator/milestone_evaluator.py::evaluate_heldout`/`evaluate_challenge` (+ `_parallel`) (heldout/challenge, Beginner/Intermediate/Advanced) | `navigation_steering=`/`use_frozen_navigation=True` dispatches through `navigation_subpolicy.run_composed_episode` instead of the direct-bearing `run_episode` | Resolved inside `run_composed_episode` from the loaded `farming_policy`'s own target head | **DONE, tested.** All three `RUN_CANONICAL_*.py` scripts pass `use_frozen_navigation=True`. |
+| Evaluation — `simulator/basic_milestone_evaluator.py` (Basic's own per-round assisted-mode metrics) | `FrozenNavigationSteering` via `_roll_basic_episode` (shared with training) | Basic's own trained target head, via the same `_roll_basic_episode` | **DONE, tested** (`tests/test_basic_milestone_evaluator.py`). Reports `target_disagreement_rate`/`event_disagreement_rate` as two separate numbers, not one combined figure — see this module's own docstring for why (the project's own event-head-collapse history hid behind a combined rate previously). |
+| Evaluation — `simulator/beginner_transition.py::zero_shot_raw_diagnostic`/`_parallel` | `FrozenNavigationSteering` via `run_composed_episode` | The just-graduated Basic checkpoint's own target head (same composition every other stage's evaluator uses — no `event_forward` override needed now that Basic shares the one policy architecture) | **DONE, tested.** Purely a Beginner-starting-point diagnostic, never a Basic graduation gate — see `simulator/basic_milestone_evaluator.py`'s module docstring. |
 
-**Reward ownership** (section 15 of the recovery task): `FrozenNavigationWrapper.step()`
-excludes the "approach" reward component (`simulator.reward_model` —
-movement progress toward the target, purely a function of the executed
-steering action) from the reward it returns, i.e. from what actually enters
-the PPO rollout buffer — that component's whole purpose was to shape a
-steering skill this policy no longer owns. Every other reward term (kill,
-EVA penalties/bonuses, contact/obstacle/teleport penalties, jump flair)
-is left untouched: they are either event-controllable, a shared outcome, or
-a navigation-caused-but-not-steering-shaping outcome signal uncorrelated
-with (not biasing) this policy's own action.
+**Reward ownership**: `FarmingPolicyWrapper.step()` excludes the
+"approach" reward component (`simulator.reward_model` — movement progress
+toward the resolved target, purely a function of the executed steering
+action) from the reward it returns, i.e. from what actually enters the
+PPO rollout buffer, for the same reason the retired `FrozenNavigation
+Wrapper` did — plus subtracts `INVALID_TARGET_SELECTION_PENALTY` on a
+tick where the sampled target action selected an empty observation slot
+(a real, well-defined outcome to discourage, analogous to the reward
+model's existing small invalid-EVA-attempt penalties, not catastrophic).
+**Revisited, not changed, for target selection specifically**: excluding
+"approach" is still correct even though target selection now legitimately
+affects travel cost (a bad target choice costs real time/distance) —
+that cost is not lost, it is realized entirely through every OTHER reward
+term (fewer kills per unit time, more exposure to contact/obstacle
+penalties, less kill-rate reward) rather than through a component whose
+formula is purely a function of the executed steering action the policy
+does not own. Rewarding target choice through the same "approach"
+component that would also reward the frozen navigator's own steering
+quality would re-couple the two responsibilities this whole architecture
+exists to keep separate.
 
-**Checkpoint/provenance contracts** (sections 17–19): event-only checkpoints
-(`Discrete(len(FarmingEvent))`, plain `ActorCriticPolicy`, `Box(RAW_OBSERVATION_SIZE,)`)
-are a distinct, explicit contract from 0051200's own frozen navigation ABI —
-see `DATA_AND_MODEL_CONTRACTS.md` section 1f. They never go through
-`farming.model_contract.validate_model_contract` (that gate is the LIVE/
-production runtime's own, and this whole curriculum has always been
-simulator-only and out of its scope — same as the pre-recovery `SplitSteering
-NavigationPolicy`/Phase-2 checkpoints before it; that gate still correctly
-rejects a stale scalar `Discrete(5)` checkpoint, untouched). Every event-only
-checkpoint's own provenance manifest (`simulator/run_provenance.py`) records
-`navigation_subpolicy.event_only_architecture_contract()` — the paired
-frozen navigation checkpoint's path and SHA-256 — because an event-only
-checkpoint is not reproducible, or even executable, by itself without
-knowing which navigator it composes with.
+**Checkpoint/provenance contracts**: `SplitFarmingTargetEventPolicy`
+checkpoints (`MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])`,
+`Box(RAW_OBSERVATION_SIZE,)`) are a distinct, explicit contract from
+0051200's own frozen navigation ABI — see `DATA_AND_MODEL_CONTRACTS.md`
+section 1f. They never go through `farming.model_contract.
+validate_model_contract` (that gate is the LIVE/production runtime's own,
+and this whole curriculum has always been simulator-only and out of its
+scope — same as every checkpoint lineage before it; that gate still
+correctly rejects a stale scalar `Discrete(5)` checkpoint, confirmed
+untouched). Every checkpoint's own provenance manifest
+(`simulator/run_provenance.py`) records `navigation_subpolicy.
+farming_policy_architecture_contract()` — the paired frozen navigation
+checkpoint's path and SHA-256 — because a full-farming checkpoint is not
+reproducible, or even executable, by itself without knowing which
+navigator it composes with.
+
+**Zero-collision hard graduation gate** (`docs/PROJECT_GOALS.md` §2a):
+Beginner, Intermediate, and Advanced all gate graduation on
+`total_collision_events` (`distinct_contact_events` — genuine collision
+EVENTS from `milestone_evaluator._contact_event_stats`, not the older
+`contacts_per_100_distance` tick-rate proxy) being exactly zero on their
+main heldout bar (Beginner also allows exactly 1 on its separate,
+explicitly looser challenge-manifest bar; Intermediate/Advanced have no
+challenge manifest yet, so heldout is their only bar). Advanced's
+`AUTO_GRADUATION_ENABLED=False` bypass flag (disabled 2026-08-08 pending
+this exact fix) has been removed entirely, restoring real, unattended
+auto-graduation for Advanced on the same standard as the other stages.
 
 ## Evidence / Sources
 
@@ -270,25 +336,41 @@ knowing which navigator it composes with.
   frozen 0051200 checkpoint is and is not)
 - [`DATA_AND_MODEL_CONTRACTS.md`](DATA_AND_MODEL_CONTRACTS.md) section 1
   (0051200's frozen ABI)
-- `MISTAKES.md`, 2026-08-22 entry (the incident this document was
-  written from)
-- `simulator/navigation_subpolicy.py`, `tests/test_navigation_subpolicy.py`,
-  `simulator/factorized_v193_training.py::transfer_event_head_to_event_only_policy`,
-  `tests/test_event_head_transplant.py`,
-  `tests/test_basic_stage_frozen_navigation_integration.py` (section 4/5
-  reconnection work — direct source reads and passing tests, 2026-08-22)
-- `simulator/navigation_ppo.py::balanced_training_vec_env_event_only`/
-  `resume_ppo_chunk_event_only`, `simulator/beginner_transition.py::
-  build_event_only_ppo_from_basic_checkpoint`/`continue_event_only_ppo_chunk`/
-  `rehearse_event_only_on_basic_data`/`save_event_only_checkpoint_with_
-  provenance`, `simulator/milestone_evaluator.py::evaluate_heldout`/
-  `evaluate_challenge` (`navigation_steering=`/`use_frozen_navigation=`),
-  `RUN_CANONICAL_BEGINNER.py`/`RUN_CANONICAL_INTERMEDIATE.py`/
-  `RUN_CANONICAL_ADVANCED.py` (Beginner/Intermediate/Advanced training +
-  evaluation reconnection — direct source reads, a real tiny-curriculum PPO
-  chunk + evaluation smoke run, and `tests/test_beginner_event_only_ppo_
-  integration.py`/`tests/test_intermediate_advanced_event_only_
-  continuation.py`, 13 tests total, 2026-08-22)
-- `simulator/reward_model.py` (reward-component classification — section 15),
-  `farming/model_contract.py` (confirmed untouched, confirmed the curriculum
-  pipeline has never gone through it — section 18)
+- `MISTAKES.md`, 2026-08-22 entries (the incidents this document, and its
+  subsequent target-selection extension, were written from)
+- `simulator/navigation_subpolicy.py`, `tests/test_navigation_subpolicy.py`
+  (frozen-steering oracle + retired event-only wrapper, still tested as
+  legacy), `simulator/factorized_v193_training.py::
+  transfer_event_head_to_event_only_policy`, `tests/
+  test_event_head_transplant.py` (retired Basic→Beginner checkpoint
+  bridge, still tested as legacy but unused by the current pipeline — see
+  section 5)
+- `simulator/farming_target_policy.py`, `tests/test_farming_target_policy.py`
+  (learned target selection: `PersistentFarmingTarget`, `FarmingPolicy
+  Wrapper`, `deterministic_target_teacher_action` — direct source reads
+  and 13 passing tests, 2026-08-22)
+- `simulator/split_branch_policy.py::SplitFarmingTargetEventPolicy`,
+  `tests/test_split_branch_policy.py` (the one trainable policy
+  architecture shared by all four stages)
+- `simulator/basic_environment.py`, `simulator/basic_training.py`,
+  `simulator/basic_milestone_evaluator.py`, `tests/
+  test_basic_stage_frozen_navigation_integration.py`, `tests/
+  test_basic_training_pipeline.py`, `tests/test_basic_environment.py`,
+  `tests/test_basic_milestone_evaluator.py` (Basic rebuilt directly
+  against the target+event action space — direct source reads and passing
+  tests, 2026-08-22)
+- `simulator/navigation_ppo.py::balanced_training_vec_env_farming_policy`/
+  `resume_ppo_chunk_farming_policy`, `simulator/beginner_transition.py::
+  continue_farming_policy_ppo_chunk`/`rehearse_farming_policy_on_basic_data`,
+  `simulator/milestone_evaluator.py::evaluate_heldout`/`evaluate_challenge`
+  (`navigation_steering=`/`use_frozen_navigation=`), `RUN_CANONICAL_
+  BEGINNER.py`/`RUN_CANONICAL_INTERMEDIATE.py`/`RUN_CANONICAL_ADVANCED.py`
+  (Beginner/Intermediate/Advanced training + evaluation, all sharing one
+  policy lineage — direct source reads, and `tests/
+  test_beginner_transition.py`/`tests/
+  test_intermediate_advanced_event_only_continuation.py`/`tests/
+  test_canonical_script_action_space_guards.py`, 2026-08-22)
+- `simulator/reward_model.py` (reward-component classification, including
+  the target-selection re-examination of the approach-exclusion decision),
+  `farming/model_contract.py` (confirmed untouched, confirmed the
+  curriculum pipeline has never gone through it)
