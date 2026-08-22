@@ -200,6 +200,53 @@ def test_frozen_navigation_wrapper_step_combines_steering_and_event(frozen_steer
     wrapped.close()
 
 
+def test_frozen_navigation_wrapper_returns_real_farming_observation_not_the_synthetic_waypoint(
+    frozen_steering_model, monkeypatch,
+):
+    """Section 6/16 of the frozen-navigation-sub-policy audit: the event-only
+    policy must keep seeing REAL actor/farming state even though the
+    navigator sees a synthetic single-candidate waypoint observation.
+    Spies on RecordedFarmingEnv._observation (the one call site both paths
+    share) to prove the tick makes TWO distinct calls -- one with the
+    synthetic actor_id=-1 candidate (feeding FrozenNavigationSteering's own
+    model.predict), and a separate one with the environment's own real
+    candidates (RecordedFarmingEnv.step()'s own natural observation call) --
+    and that only the REAL one becomes the obs this wrapper returns."""
+    env = _make_env()
+    steering = copy.copy(frozen_steering_model)
+    wrapped = FrozenNavigationWrapper(env, steering)
+    wrapped.reset(seed=8)
+    _place_single_target(env, position=env.unwrapped.map.layout_to_native(45, 20))
+
+    base_env = env.unwrapped
+    real_observation = type(base_env)._observation
+    calls: list[list | None] = []
+
+    def _spy(self, *, geodesic_field=None, candidates=None):
+        calls.append(candidates)
+        return real_observation(self, geodesic_field=geodesic_field, candidates=candidates)
+
+    monkeypatch.setattr(type(base_env), "_observation", _spy)
+
+    obs, _reward, _term, _trunc, _info = wrapped.step(int(FarmingEvent.NONE))
+
+    synthetic_calls = [c for c in calls if c is not None and len(c) == 1 and c[0][1].actor_id == -1]
+    real_calls = [c for c in calls if not (c is not None and len(c) == 1 and c[0][1].actor_id == -1)]
+    assert synthetic_calls, "FrozenNavigationSteering never fed the synthetic single-candidate waypoint observation"
+    assert real_calls, "RecordedFarmingEnv.step()'s own real-candidate observation call was never made this tick"
+    assert all(actor.actor_id != -1 for candidates in real_calls if candidates for _d, actor, _dx, _dz in candidates), (
+        "the synthetic actor_id=-1 waypoint leaked into the environment's own real-candidate observation call"
+    )
+
+    # The obs this wrapper returns must be the REAL env.step() observation,
+    # not derived from the synthetic waypoint call -- confirmed by directly
+    # comparing against a second real (candidates=None) call from the exact
+    # same post-step state.
+    real_obs_now = base_env._observation()
+    np.testing.assert_array_equal(obs, np.asarray(real_obs_now, dtype=np.float32)[:RAW_OBSERVATION_SIZE])
+    wrapped.close()
+
+
 def test_frozen_navigation_wrapper_excludes_approach_reward_from_training_signal(frozen_steering_model):
     """The "approach" reward component (simulator.reward_model) rewards
     movement progress toward the target -- purely a function of the
