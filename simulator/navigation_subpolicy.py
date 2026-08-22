@@ -122,17 +122,27 @@ def _synthetic_candidate(base_env: RecordedFarmingEnv, waypoint: tuple[float, fl
 def _observation_without_side_effects(base_env: RecordedFarmingEnv, candidates: list) -> np.ndarray:
     """Computes an observation against a synthetic candidate list without
     perturbing the environment's own native target-selection hysteresis
-    bookkeeping. Ported unchanged from scratchpad_monster_approach_baseline_
-    eval.py's `_observation_without_side_effects` (verified byte-identical
-    before/after in that already-validated mechanism)."""
+    bookkeeping. Ported from scratchpad_monster_approach_baseline_eval.py's
+    `_observation_without_side_effects` (verified byte-identical before/
+    after in that already-validated mechanism); extended to also save/
+    restore `_direct_actor_slot_ids` (added to `_observation()` for the
+    learned farming-target-selection action, docs/architecture/
+    CURRICULUM_TRAINING_PIPELINE.md section 4/6) -- without this, the
+    synthetic single-candidate waypoint call here would overwrite the real
+    slot->actor_id mapping with a bogus one built from the synthetic
+    actor_id=-1 candidate, exactly the kind of navigation-only-state leak
+    into farming-target selection this function exists to prevent for
+    every other piece of hysteresis bookkeeping."""
     saved_best = base_env._best_group_actor_id
     saved_nearest = base_env._nearest_reachable_actor_id
     saved_potential = base_env._approach_potential_cells
+    saved_slot_ids = base_env._direct_actor_slot_ids
     saved_history = deque(base_env._clearance_history, maxlen=base_env._clearance_history.maxlen)
     obs = base_env._observation(candidates=candidates)
     base_env._best_group_actor_id = saved_best
     base_env._nearest_reachable_actor_id = saved_nearest
     base_env._approach_potential_cells = saved_potential
+    base_env._direct_actor_slot_ids = saved_slot_ids
     base_env._clearance_history = saved_history
     return obs
 
