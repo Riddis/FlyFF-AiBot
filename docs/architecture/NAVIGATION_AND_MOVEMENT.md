@@ -147,6 +147,14 @@ controller.** Do not interpret its event-branch output as combat intent,
 and do not assume it encodes any monster-approach or engagement
 behavior beyond pure waypoint navigation, without separate evidence.
 
+This checkpoint's own qualification evaluation lives in a deliberately
+separate stack (`tests/helpers/router_qualification_harness.py`, the
+850M monster-approach baseline) from the canonical Basic->Advanced
+curriculum training pipeline — the latter does not exercise this router
+at all. See
+[`CURRICULUM_TRAINING_PIPELINE.md`](CURRICULUM_TRAINING_PIPELINE.md)
+section 2 before assuming otherwise.
+
 ## Evidence / Sources
 
 - `navigation/kinodynamic_route_planner.py`, `navigation/

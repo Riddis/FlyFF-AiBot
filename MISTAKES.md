@@ -748,6 +748,69 @@ Entry template:
   the probe terminates before any unsafe initialization -- a
   conventional CLI flag is not evidence of safety on its own.
 
+### [2026-08-22] task premise assumed the canonical Basic->Advanced curriculum was an evaluation-only harness for an externally-supplied frozen checkpoint
+- What happened: a task ("validate the promoted production router against
+  the canonical farming curriculum") assumed `simulator/tools/RUN_CANONICAL_
+  BASIC.py`/`RUN_CANONICAL_BEGINNER.py`/`RUN_CANONICAL_INTERMEDIATE.py`/
+  `RUN_CANONICAL_ADVANCED.py` were pure evaluation runners that could take
+  the frozen navigation checkpoint (`models/generalized_waypoint_both_
+  seed2_0051200.zip`) plus the promoted production router
+  (`navigation.kinodynamic_route_planner.select_persistent_waypoint`) as
+  input and score them against the curriculum's heldout/challenge
+  manifests, offline and training-free. Investigated before running
+  anything (per this file's own standing rule) and found two things that
+  falsify that premise: (1) all four `RUN_CANONICAL_*.py` scripts are
+  TRAINING pipelines (BC+DAgger for Basic, PPO for Beginner/Intermediate/
+  Advanced) that build their own independent policy lineage
+  (`canonical_basic_graduated.zip` -> `canonical_beginner_graduated.zip` ->
+  ... ), never load 0051200 or any externally-supplied checkpoint; (2) the
+  shared evaluator both training and grading use,
+  `simulator/milestone_evaluator.py::run_episode`, steers directly off the
+  environment's own native target-bearing geometry (`env.
+  best_group_relative_angle()`, `env._visible_candidates()`, `env.
+  _group_approach_potential()`) and never calls `plan_route`/
+  `select_persistent_waypoint`/`TargetPersistenceController` anywhere --
+  the production router is not exercised by this curriculum at all, by
+  design, for a different model lineage than 0051200. The frozen
+  checkpoint's own qualification evaluation is a deliberately SEPARATE,
+  decoupled harness (`tests/helpers/router_qualification_harness.py`'s
+  `run_episode_general_router`, and the 850M `monster_approach_baseline`
+  pool in `simulator/run_logs/OVERNIGHT_20260815_MONSTER_APPROACH_
+  BASELINE.md`, whose own header says "decoupled from the canonical
+  curriculum_manifests system" and whose conclusion already closed that
+  phase of work ("do not retrain steering", next work flagged as Tower
+  digital-twin reconstruction, not further synthetic navigation
+  evaluation).
+- Root cause: the task's own framing (external to this repo) named real
+  file paths (`RUN_CANONICAL_BASIC.py` etc.) and asserted a specific
+  behavior (evaluation-only, checkpoint-agnostic) without that behavior
+  being independently verified against current source first; the
+  existence of correctly-named files was mistaken for confirmation of
+  their described behavior.
+- How caught: self-caught, by reading `RUN_CANONICAL_BASIC.py`'s full
+  source (training-stage docstring, BC/DAgger/PPO calls, no checkpoint
+  parameter) and `milestone_evaluator.py::run_episode`'s full body (no
+  router import or call) before running anything, per the STOP-conditions
+  rule in `docs/agent/PROJECT_RULES.md` section 12 ("the entry state for
+  an authorized task doesn't match what was specified").
+- Fix: did not build a new router-driven evaluation harness against
+  `curriculum_manifests` (that would be new integration work never
+  previously validated, not "the existing canonical curriculum," and
+  contrary to the task's own "do not invent a new router architecture"
+  constraint) or run any of the training pipelines. Instead documented
+  this architecture gap in `docs/architecture/CURRICULUM_TRAINING_
+  PIPELINE.md` and stopped to report the mismatch back to the requester
+  rather than silently substituting a different, larger task.
+- Lesson: before running anything against a named "canonical curriculum"/
+  "canonical runner" entrypoint on a request from outside this
+  conversation, read its actual current source (not just its file name or
+  a historical description) to confirm it does what the request assumes
+  -- training pipelines and evaluation-only harnesses can share a
+  directory and a naming convention while being fundamentally different
+  things, and two subsystems with adjacent-sounding names (a router
+  qualification harness vs. a full-farming curriculum trainer) can be
+  deliberately decoupled by design, not merely undocumented.
+
 ## Category: GUI / live application lifecycle
 
 ### [2026-08-20] no Windows DPI-awareness declaration before the dev app's first Tk window

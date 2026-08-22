@@ -36,12 +36,14 @@
 | [`RECORDING_TELEMETRY_AND_ARCHIVES.md`](architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md) | Recorder/reader ownership, G7, raw-first telemetry, historical-recording scientific limitations |
 | [`MAPS_AND_COORDINATE_FRAMES.md`](architecture/MAPS_AND_COORDINATE_FRAMES.md) | Authoritative Tower map bytes, `LIVE_TOWER_PROFILE`/`SIM_TOWER_PROFILE`, MAP6 |
 | [`NAVIGATION_AND_MOVEMENT.md`](architecture/NAVIGATION_AND_MOVEMENT.md) | Kinodynamic route planner, movement kernel, previous-steering statefulness |
+| [`CURRICULUM_TRAINING_PIPELINE.md`](architecture/CURRICULUM_TRAINING_PIPELINE.md) | Canonical Basic->Beginner->Intermediate->Advanced curriculum (the generic full-farming baseline's training pipeline), its shared evaluator, and why it does NOT exercise the production router |
 
 ## Task-oriented guidance
 
 | If you're working on... | Read |
 |---|---|
 | Navigation / routing / movement | [`NAVIGATION_AND_MOVEMENT.md`](architecture/NAVIGATION_AND_MOVEMENT.md) + `MISTAKES.md` (coordinate-systems, observation/reward-wiring categories) |
+| Canonical Basic/Beginner/Intermediate/Advanced curriculum, generic full-farming baseline training | [`CURRICULUM_TRAINING_PIPELINE.md`](architecture/CURRICULUM_TRAINING_PIPELINE.md) — **read this before assuming the curriculum evaluates the router or an externally-supplied checkpoint; it does not** |
 | Native position / pointer recovery | [`POSITION_AND_POINTER_RECOVERY.md`](architecture/POSITION_AND_POINTER_RECOVERY.md) + relevant `MISTAKES.md` entries |
 | Preparing G5 (or any live validation) | [`validation/G5_REAL_CLIENT_VALIDATION.md`](validation/G5_REAL_CLIENT_VALIDATION.md) + `POSITION_AND_POINTER_RECOVERY.md` + the `preparing-controlled-validation` skill |
 | Archive / recorder / telemetry | [`RECORDING_TELEMETRY_AND_ARCHIVES.md`](architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md) |
