@@ -80,9 +80,11 @@ from .navigation_dataset import (
     _classify_tick,
     _group_into_events,
 )
+from navigation.movement_kernel import SteeringDirection
 from navigation.navigation_evidence import POLICY_INPUT_SIZE
 
 from .navigation_history import NavigationHistoryWrapper
+from .navigation_subpolicy import FrozenNavigationSteering
 from .progress_reporting import ProgressPrinter
 from .recovery_controller import RecoveryController
 from .scripted_policies import scripted_command
@@ -118,14 +120,26 @@ def _policy_forward(net: Any, observation_925: np.ndarray) -> tuple[int, int]:
 
 
 def _roll_basic_episode(
-    curriculum_path: str, layout_name: str, *, seed: int, model: Any, episode_seconds: float, max_actions: int,
+    curriculum_path: str, layout_name: str, *, seed: int, model: Any, navigation_steering: Any,
+    episode_seconds: float, max_actions: int,
     history_window: int, expected_clear_path_displacement: float,
 ) -> tuple[list[_BasicTickRecord], dict[str, Any]]:
     """One recovery-assisted episode. Returns per-tick records (for DAgger
     mining) and a small intervention summary (for the Basic milestone
     evaluator) -- recovery's chosen action is applied to the environment
     when active, but every record's label still comes from the teacher, and
-    nothing here is a PPO transition."""
+    nothing here is a PPO transition.
+
+    `navigation_steering` (a `simulator.navigation_subpolicy.
+    FrozenNavigationSteering` instance) supplies `policy_steering`: under
+    the recovered frozen-navigation-sub-policy architecture (docs/
+    architecture/CURRICULUM_TRAINING_PIPELINE.md section 4), steering
+    execution belongs to the frozen navigation checkpoint driven by the
+    production router, never to `model`'s own (deliberately untrained,
+    see simulator/basic_training.py build_fresh_basic_policy's docstring)
+    steering head. `model`'s own forward pass still supplies
+    `policy_event` -- the event/EVA branch is exactly what this curriculum
+    trains."""
 
     net = model.policy
     entry, base_env = next(iter(iter_variant_environments(
@@ -136,6 +150,7 @@ def _roll_basic_episode(
         base_env, window=history_window, expected_clear_path_displacement=expected_clear_path_displacement,
     )
     observation, _info = env.reset(seed=seed)
+    navigation_steering.reset()
     recovery = RecoveryController()
 
     records: list[_BasicTickRecord] = []
@@ -146,12 +161,17 @@ def _roll_basic_episode(
     for tick in range(int(max_actions)):
         raw = np.asarray(observation, dtype=np.float32)[:923]
         teacher_command = scripted_command("obstacle_aware", base_env)
-        # policy_steering/policy_event are the policy's OWN proposed action
-        # for the CURRENT observation -- this, not whatever recovery decides
-        # to actually execute, is what gets DAgger-labeled below. Recovery
+        # policy_steering/policy_event are the PROPOSED action for the
+        # CURRENT observation -- this, not whatever recovery decides to
+        # actually execute, is what gets DAgger-labeled below. Recovery
         # only changes what physically happens next (which affects the NEXT
         # observation), never what this tick's supervised example is.
-        policy_steering, policy_event = _policy_forward(net, np.asarray(observation, dtype=np.float32))
+        target_id = base_env._nearest_reachable_actor_id
+        if target_id is None:
+            policy_steering = int(SteeringDirection.NONE)
+        else:
+            policy_steering = navigation_steering.steering_action(env, target_actor_id=target_id).steering
+        _unused_net_steering, policy_event = _policy_forward(net, np.asarray(observation, dtype=np.float32))
         clearance = derive_physical_clearance_features(raw)
 
         # Exact call contract/order as milestone_evaluator.run_episode:
@@ -202,12 +222,16 @@ def _roll_basic_episode(
 
 
 _DAGGER_PARALLEL_WORKER_MODEL: Any = None
+_DAGGER_PARALLEL_WORKER_NAVIGATION_STEERING: Any = None
 
 
 def _init_dagger_roll_worker(checkpoint_path: str) -> None:
-    global _DAGGER_PARALLEL_WORKER_MODEL
+    global _DAGGER_PARALLEL_WORKER_MODEL, _DAGGER_PARALLEL_WORKER_NAVIGATION_STEERING
     from stable_baselines3 import PPO
     _DAGGER_PARALLEL_WORKER_MODEL = PPO.load(checkpoint_path, device="cpu")
+    # Each worker process loads its own frozen-navigation steering oracle --
+    # it cannot be shared across a process boundary.
+    _DAGGER_PARALLEL_WORKER_NAVIGATION_STEERING = FrozenNavigationSteering.load_frozen(device="cpu")
 
 
 def _dagger_roll_worker_task(
@@ -216,6 +240,7 @@ def _dagger_roll_worker_task(
 ) -> tuple[str, int, list, dict[str, Any]]:
     records, summary = _roll_basic_episode(
         curriculum_path, layout_name, seed=seed, model=_DAGGER_PARALLEL_WORKER_MODEL,
+        navigation_steering=_DAGGER_PARALLEL_WORKER_NAVIGATION_STEERING,
         episode_seconds=episode_seconds, max_actions=max_actions,
         history_window=history_window, expected_clear_path_displacement=expected_clear_path_displacement,
     )
@@ -228,6 +253,7 @@ def collect_basic_dagger_dataset(
     *,
     seeds: list[int],
     model: Any,
+    navigation_steering: Any,
     episode_seconds: float,
     max_actions: int,
     config: MiningConfig = MiningConfig(),
@@ -245,18 +271,25 @@ def collect_basic_dagger_dataset(
     enters a PPO buffer. `layout_names`/`curriculum_path` must be
     TRAINING-side, matching mine_navigation_dataset's own requirement.
 
+    `navigation_steering` (a `simulator.navigation_subpolicy.
+    FrozenNavigationSteering`, caller-owned so the frozen checkpoint is
+    loaded once and reused across rounds/calls, not per call) supplies the
+    executed steering action for every rolled episode -- see
+    `_roll_basic_episode`'s docstring.
+
     If `checkpoint_path` is given and `n_workers` > 1, every (layout, seed)
     episode is rolled up front across `n_workers` OS processes (each
-    loading its own copy of the checkpoint) instead of one sequential loop,
-    and the mining/capping logic below then runs unchanged over the
-    results. This deliberately rolls some episodes that the sequential
-    per-layout event cap (`max_events_per_layout_seed`) would otherwise
-    have skipped -- wasted compute traded for wall-clock time, per the
-    project's "prefer wasting compute over wallclock time" preference --
-    but produces byte-for-byte the same mined dataset as the sequential
-    path, since the capping/sampling decisions themselves are untouched and
-    still applied in the same layout/seed order over `model`'s (or the
-    loaded checkpoint's, which must match `model`) policy outputs."""
+    loading its own copy of the checkpoint AND its own frozen-navigation
+    steering oracle) instead of one sequential loop, and the mining/capping
+    logic below then runs unchanged over the results. This deliberately
+    rolls some episodes that the sequential per-layout event cap
+    (`max_events_per_layout_seed`) would otherwise have skipped -- wasted
+    compute traded for wall-clock time, per the project's "prefer wasting
+    compute over wallclock time" preference -- but produces byte-for-byte
+    the same mined dataset as the sequential path, since the capping/
+    sampling decisions themselves are untouched and still applied in the
+    same layout/seed order over `model`'s (or the loaded checkpoint's,
+    which must match `model`) policy outputs."""
 
     precomputed_episodes: dict[tuple[str, int], tuple[list, dict[str, Any]]] = {}
     if checkpoint_path is not None and n_workers > 1:
@@ -298,7 +331,7 @@ def collect_basic_dagger_dataset(
                 records, summary = precomputed_episodes[(layout_name, seed)]
             else:
                 records, summary = _roll_basic_episode(
-                    curriculum_path, layout_name, seed=seed, model=model,
+                    curriculum_path, layout_name, seed=seed, model=model, navigation_steering=navigation_steering,
                     episode_seconds=episode_seconds, max_actions=max_actions,
                     history_window=config.history_window,
                     expected_clear_path_displacement=config.expected_clear_path_displacement,

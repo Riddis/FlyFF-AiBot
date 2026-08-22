@@ -77,22 +77,30 @@ def main() -> None:
     from simulator.basic_training import (
         bootstrap_event_head,
         bootstrap_policy_from_human_recordings,
-        bootstrap_steering_from_teacher,
         build_fresh_basic_policy,
         build_human_bootstrap_dataset,
         canonical_checkpoint_name,
-        collect_simulator_teacher_dataset,
         save_checkpoint_with_provenance,
     )
     from simulator.demonstrations import export_demonstrations
     from simulator.map_model import MapModel
     from simulator.navigation_dataset import MiningConfig
     from simulator.navigation_history import NavigationHistoryWrapper
+    from simulator.navigation_subpolicy import (
+        FROZEN_NAVIGATION_CHECKPOINT_PATH,
+        FROZEN_NAVIGATION_CHECKPOINT_SHA256,
+        FrozenNavigationSteering,
+    )
     from simulator.synthetic import iter_variant_environments
 
     training_recordings = sorted(glob.glob(str(ROOT / "recordings" / "training" / "*.zip")))
     eva_only_recordings = sorted(glob.glob(str(ROOT / "recordings" / "eva_only" / "*.zip")))
     log(f"Human recordings: {len(training_recordings)} direct_keyboard, {len(eva_only_recordings)} eva_only")
+
+    log("Loading frozen navigation checkpoint (steering owner under the recovered architecture)...")
+    navigation_steering = FrozenNavigationSteering.load_frozen(device="cpu")
+    log(f"Frozen navigation checkpoint verified and loaded: {FROZEN_NAVIGATION_CHECKPOINT_PATH.name} "
+        f"sha256={FROZEN_NAVIGATION_CHECKPOINT_SHA256[:12]}...")
 
     # ---------------------------------------------------------------
     log("=== Stage 1: export human demonstrations ===")
@@ -178,45 +186,19 @@ def main() -> None:
         log(f"Fresh policy built. observation_space={model.observation_space}. starting_checkpoint=NONE (verified fresh).")
 
         # ---------------------------------------------------------------
-        log("=== Stage 3a: steering bootstrap from the scripted simulator teacher ===")
-        # ---------------------------------------------------------------
-        # Human recordings do NOT bootstrap steering -- see basic_training.py's
-        # module docstring. Known project precedent: when steering was
-        # restricted to the compact target-geometry representation, human
-        # steering-label accuracy fell to ~31.6% while scripted-teacher
-        # steering/target-angle correlations/simulated farming stayed healthy.
-        # Re-confirmed directly on the real canonical human dataset before this
-        # run: all 6 geometry features correlate <=0.05 with recorded human
-        # steering across 2684 valid samples, loss stuck flat across 60 epochs
-        # regardless of class-balanced weighting -- a real, already-known
-        # property of the representation, not a bug to chase further here.
-        teacher_dataset_path = EVAL_DIR / "canonical_basic_teacher_dataset.npz"
-        teacher_dataset = collect_simulator_teacher_dataset(
-            DAGGER_CURRICULUM, DAGGER_LAYOUTS, samples=6000, episode_seconds=DAGGER_EPISODE_SECONDS,
-            max_actions=DAGGER_MAX_ACTIONS, seed=SEED, output_path=teacher_dataset_path,
-        )
-        log(f"Teacher dataset: {teacher_dataset['observations'].shape[0]} samples, "
-            f"steering_counts={teacher_dataset['steering_counts']}, event_counts={teacher_dataset['event_counts']}")
-
-        steering_result = bootstrap_steering_from_teacher(
-            model, teacher_dataset, epochs=20, learning_rate=3e-4, batch_size=128, seed=SEED, progress_every_seconds=20.0,
-        )
-        check_no_nan(model, "after teacher steering bootstrap")
-        log(f"Teacher steering BC done. train={steering_result['train_samples']} val={steering_result['validation_samples']}")
-        log(f"  final epoch loss: {steering_result['history'][-1]}")
-        log(f"  steering accuracy before/after: "
-            f"{steering_result['before']['gate']['heads']['steering']['accuracy']:.3f} -> "
-            f"{steering_result['after']['gate']['heads']['steering']['accuracy']:.3f}")
-        log(f"  angle correlation (expect positive vs LEFT, negative vs RIGHT): {steering_result['angle_correlation']}")
-        corr = steering_result["angle_correlation"]
-        if not (corr["corr_sin_angle_vs_is_left"] and corr["corr_sin_angle_vs_is_left"] > 0
-                and corr["corr_sin_angle_vs_is_right"] and corr["corr_sin_angle_vs_is_right"] < 0):
-            raise RuntimeError(
-                f"Teacher steering bootstrap did not produce sign-correct target-angle correlations: {corr} "
-                "-- stopping. This is the same scripted-teacher path that worked historically; a failure here "
-                "is a real regression, not the known human-steering mismatch, and needs its own diagnosis."
-            )
-
+        # Stage 3a (scripted-teacher steering bootstrap) is INTENTIONALLY
+        # SKIPPED as of the 2026-08-22 frozen-navigation-sub-policy
+        # integration (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md
+        # section 4): steering execution belongs entirely to the frozen
+        # navigation checkpoint driven by the production router
+        # (simulator.navigation_subpolicy.FrozenNavigationSteering), never
+        # to this policy's own steering head. Training that head would
+        # spend real compute on a component whose output is never executed
+        # -- see build_fresh_basic_policy's docstring. The steering head
+        # remains present in the checkpoint architecture (unchanged shape,
+        # for BC/DAgger tooling compatibility) but stays at its random
+        # initialization forever; do not resurrect this stage without first
+        # re-litigating that architecture decision.
         # ---------------------------------------------------------------
         log("=== Stage 3b: event/EVA bootstrap from human recordings ===")
         # ---------------------------------------------------------------
@@ -258,16 +240,14 @@ def main() -> None:
         save_checkpoint_with_provenance(
             model, bootstrap_checkpoint, stage="basic", milestone="bootstrap", seeds=SEED,
             config={
-                "steering_source": "scripted_teacher", "steering_epochs": 20, "steering_samples": teacher_dataset["observations"].shape[0],
+                "steering_source": "frozen_navigation_subpolicy", "steering_checkpoint": str(FROZEN_NAVIGATION_CHECKPOINT_PATH),
+                "steering_checkpoint_sha256": FROZEN_NAVIGATION_CHECKPOINT_SHA256,
                 "event_source": "human_recordings", "event_epochs_run": event_result["epochs_run"],
                 "event_optimizer_steps": event_result["total_optimizer_steps"],
             },
             curriculum_path=DAGGER_CURRICULUM, recording_paths=training_recordings + eva_only_recordings,
             starting_checkpoint=None,
             extra={
-                "steering_result_summary": {
-                    "train_samples": steering_result["train_samples"], "angle_correlation": steering_result["angle_correlation"],
-                },
                 "event_result_summary": {
                     "train_samples": event_result["train_samples"], "gate_passed": event_result["gate_passed"],
                     "macro_f1": event_result["macro_f1"], "underdetermined_classes": event_result["underdetermined_classes"],
@@ -304,7 +284,7 @@ def main() -> None:
         log(f"Collecting recovery-assisted DAgger data (layouts={len(DAGGER_LAYOUTS)}, seeds={round_seeds})...")
         mining_config = MiningConfig(max_events_per_layout_seed=15, max_events_per_episode=6, max_samples_per_event=1)
         mined = collect_basic_dagger_dataset(
-            DAGGER_CURRICULUM, DAGGER_LAYOUTS, seeds=round_seeds, model=model,
+            DAGGER_CURRICULUM, DAGGER_LAYOUTS, seeds=round_seeds, model=model, navigation_steering=navigation_steering,
             episode_seconds=DAGGER_EPISODE_SECONDS, max_actions=DAGGER_MAX_ACTIONS, config=mining_config,
             progress_every_seconds=20.0,
         )

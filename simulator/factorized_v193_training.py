@@ -266,6 +266,58 @@ def expand_steering_input_from_checkpoint(old_policy: Any, new_policy: Any) -> N
     _copy_linear(old_policy.value_net, new_policy.value_net)
 
 
+def transfer_event_head_to_event_only_policy(split_policy: Any, plain_policy: Any) -> None:
+    """Transplant a SplitSteeringNavigationPolicy/SplitSteeringEventPolicy's
+    event_net/vf_net + event_out/value_net weights into a freshly
+    constructed plain `ActorCriticPolicy` (SB3 "MlpPolicy") built with
+    `net_arch=dict(pi=[...], vf=[...])` matching event_net_arch/vf_net_arch
+    exactly, and a `Discrete(len(FarmingEvent))` action space over the same
+    RAW_OBSERVATION_SIZE-value observation `event_net` has always consumed
+    (`simulator.navigation_subpolicy.FrozenNavigationWrapper`'s observation
+    contract). The steering branch is discarded entirely -- not copied, not
+    zero-padded -- per the recovered architecture (docs/architecture/
+    CURRICULUM_TRAINING_PIPELINE.md section 4): steering execution belongs
+    to the frozen navigation checkpoint, never to a checkpoint this
+    curriculum trains, so there is nothing meaningful in the source
+    checkpoint's steering_net to preserve.
+
+    This is the Basic -> Beginner continuation point: Basic's own trainable
+    policy keeps SplitSteeringNavigationPolicy's architecture (steering_net
+    present but deliberately never trained, see simulator/basic_training.py
+    build_fresh_basic_policy's docstring) so its BC/DAgger tooling needs no
+    changes; Beginner's PPO training needs a genuinely event-only action
+    space (no steering action may be sampled/logged if it will never
+    execute -- see simulator/basic_environment.py's module docstring for
+    why that breaks PPO's on-policy consistency), so this function bridges
+    the two checkpoint architectures at the one point they meet.
+
+    `plain_policy.mlp_extractor.policy_net`/`value_net` must have IDENTICAL
+    shapes to `split_policy.mlp_extractor.event_net`/`vf_net` -- construct
+    `plain_policy` with the same net_arch and RAW_OBSERVATION_SIZE input
+    dimension as the source, or this raises via a plain shape-mismatch
+    RuntimeError from the underlying tensor copy.
+    """
+
+    import torch
+
+    def _copy_linear(old_layer: Any, new_layer: Any) -> None:
+        with torch.no_grad():
+            new_layer.weight.copy_(old_layer.weight)
+            new_layer.bias.copy_(old_layer.bias)
+
+    def _copy_sequential(old_seq: Any, new_seq: Any) -> None:
+        for old_layer, new_layer in zip(old_seq, new_seq):
+            if isinstance(old_layer, torch.nn.Linear):
+                _copy_linear(old_layer, new_layer)
+
+    old_mlp = split_policy.mlp_extractor
+    new_mlp = plain_policy.mlp_extractor
+    _copy_sequential(old_mlp.event_net, new_mlp.policy_net)
+    _copy_sequential(old_mlp.vf_net, new_mlp.value_net)
+    _copy_linear(split_policy.action_net.event_out, plain_policy.action_net)
+    _copy_linear(split_policy.value_net, plain_policy.value_net)
+
+
 def _train_natural_prior_epoch(
     policy: Any,
     optimizer: Any,

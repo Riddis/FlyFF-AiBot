@@ -32,15 +32,19 @@ def _stat(values: list[float]) -> dict[str, float] | None:
 
 
 def _episode_record(
-    model: Any, curriculum_path: str, layout_name: str, seed: int, *,
+    model: Any, navigation_steering: Any, curriculum_path: str, layout_name: str, seed: int, *,
     episode_seconds: float, max_actions: int, history_window: int, expected_clear_path_displacement: float,
 ) -> dict[str, Any]:
     """One episode's contribution to the milestone report -- the unit of
     work `evaluate_basic_milestone`'s sequential loop and its parallel
     ProcessPoolExecutor counterpart both reduce to, so the two paths can
-    never silently diverge in what they compute per episode."""
+    never silently diverge in what they compute per episode.
+
+    `navigation_steering` (a `simulator.navigation_subpolicy.
+    FrozenNavigationSteering`) supplies executed steering, matching Basic's
+    training-time rollout exactly -- see `_roll_basic_episode`'s docstring."""
     records, summary = _roll_basic_episode(
-        curriculum_path, layout_name, seed=seed, model=model,
+        curriculum_path, layout_name, seed=seed, model=model, navigation_steering=navigation_steering,
         episode_seconds=episode_seconds, max_actions=max_actions,
         history_window=history_window, expected_clear_path_displacement=expected_clear_path_displacement,
     )
@@ -150,6 +154,9 @@ def evaluate_basic_milestone(
     `evaluate_basic_milestone_parallel` for a multi-process equivalent that
     trades CPU for wall-clock time against a saved checkpoint."""
 
+    from .navigation_subpolicy import FrozenNavigationSteering
+    navigation_steering = FrozenNavigationSteering.load_frozen(device="cpu")
+
     total = len(layout_names) * len(seeds)
     progress = ProgressPrinter(total, label="basic_milestone_eval", min_interval_seconds=progress_every_seconds)
     done = 0
@@ -157,7 +164,7 @@ def evaluate_basic_milestone(
     for layout_name in layout_names:
         for seed in seeds:
             episode_records.append(_episode_record(
-                model, curriculum_path, layout_name, seed,
+                model, navigation_steering, curriculum_path, layout_name, seed,
                 episode_seconds=episode_seconds, max_actions=max_actions,
                 history_window=history_window, expected_clear_path_displacement=expected_clear_path_displacement,
             ))
@@ -168,12 +175,15 @@ def evaluate_basic_milestone(
 
 
 _PARALLEL_WORKER_MODEL: Any = None
+_PARALLEL_WORKER_NAVIGATION_STEERING: Any = None
 
 
 def _init_parallel_worker(checkpoint_path: str) -> None:
-    global _PARALLEL_WORKER_MODEL
+    global _PARALLEL_WORKER_MODEL, _PARALLEL_WORKER_NAVIGATION_STEERING
     from stable_baselines3 import PPO
+    from .navigation_subpolicy import FrozenNavigationSteering
     _PARALLEL_WORKER_MODEL = PPO.load(checkpoint_path, device="cpu")
+    _PARALLEL_WORKER_NAVIGATION_STEERING = FrozenNavigationSteering.load_frozen(device="cpu")
 
 
 def _parallel_worker_task(
@@ -181,7 +191,7 @@ def _parallel_worker_task(
     history_window: int, expected_clear_path_displacement: float,
 ) -> dict[str, Any]:
     return _episode_record(
-        _PARALLEL_WORKER_MODEL, curriculum_path, layout_name, seed,
+        _PARALLEL_WORKER_MODEL, _PARALLEL_WORKER_NAVIGATION_STEERING, curriculum_path, layout_name, seed,
         episode_seconds=episode_seconds, max_actions=max_actions,
         history_window=history_window, expected_clear_path_displacement=expected_clear_path_displacement,
     )

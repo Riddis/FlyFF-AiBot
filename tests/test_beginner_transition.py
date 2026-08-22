@@ -19,6 +19,7 @@ from simulator.map_model import MapModel
 from simulator.navigation_dataset import MiningConfig
 from simulator.navigation_history import NavigationHistoryWrapper
 from simulator.navigation_ppo import balanced_training_vec_env_phase2
+from simulator.navigation_subpolicy import FrozenNavigationSteering
 from simulator.synthetic import generate_curriculum_from_plan, iter_variant_environments
 from tests.test_simulator_core import _synthetic_recording
 
@@ -131,6 +132,7 @@ def test_rehearse_beginner_on_basic_data_combines_human_and_dagger_data(tmp_path
     config = MiningConfig(max_events_per_layout_seed=4, max_events_per_episode=2, max_samples_per_event=1)
     mined = collect_basic_dagger_dataset(
         str(curriculum_path), ["01_early_open_field_typical_fast"], seeds=[0], model=model,
+        navigation_steering=FrozenNavigationSteering.load_frozen(device="cpu"),
         episode_seconds=8.0, max_actions=40, config=config,
     )
     dagger_path = save_basic_dagger_dataset(mined, str(tmp_path / "dagger.npz"))
