@@ -1482,6 +1482,69 @@ project's own no-silent-rewrite rule.
   via `git log -- <file>` on the implicated files), record it here and
   move on rather than expanding scope to fix it immediately.
 
+### [2026-08-22] the R7c re-export ratchet gate had 5 pre-existing violations on `main`, plus this task added 12 more without registering them
+- What happened: running the full offline `tests/` suite for the first
+  time in this task (Task 1's frozen-navigation-sub-policy recovery had
+  not run it to completion either) surfaced 3 failures:
+  `docs/migration/tests/test_migration_integrity.py`'s two repository-
+  integrity-gate tests, and `tests/test_path_bootstrap_registry.py::
+  test_no_new_unregistered_sys_path_bootstrap`. The path-bootstrap one was
+  simple (a new scratchpad smoke script's `sys.path.insert` needed
+  registering, same as its sibling scripts). The migration-integrity ones
+  were more significant: this task's new files (`simulator/
+  farming_target_policy.py`, `simulator/navigation_subpolicy.py`, their
+  test files, `simulator/basic_environment.py`'s rewired steering import,
+  the event-head-transplant legacy test) legitimately import canonical
+  symbols (`FarmingEvent`, `SteeringAction`, `SteeringDirection`,
+  `select_persistent_waypoint`, `SplitSteeringNavigationPolicy`) in ways
+  the R7c ratchet (`docs/migration/tools/migration_integrity.py`) flags as
+  "new" until registered in a `POST_*_R7C_SUPPLEMENT.tsv` file -- 12 such
+  new, genuinely-this-task entries. But the failing assertion listed 17
+  entries, not 12: checking a clean `main` worktree directly (not just
+  assuming) showed 5 of them (`bot/recording_sink.py`, `farming/
+  trainer.py`, `tests/test_agent_action_timing_production_path.py`, each
+  for `FarmingEvent`/`SteeringAction`) were ALREADY unregistered
+  violations on `main`, entirely unrelated to this task, that nobody had
+  caught because nobody had run this exact gate against `main` recently.
+- Root cause (two, compounding): (1) a repository-wide gate whose
+  violation set only grows when NEW files are added, but which nothing
+  forces a contributor to run before adding those files -- Task 1 added
+  `simulator/navigation_subpolicy.py` (also flagged) without ever running
+  this gate to completion, so the debt had already started accumulating
+  before this task began. (2) A pre-existing, unrelated 5-entry gap on
+  `main` that had gone undetected because the full suite (or at least this
+  specific test file) apparently was not run to green after whatever
+  change introduced `bot/recording_sink.py`'s/`farming/trainer.py`'s/
+  `tests/test_agent_action_timing_production_path.py`'s imports.
+- How caught: running the full offline test suite as required by this
+  task's own validation section, then verifying the surprising "5 items
+  I don't recognize" finding by checking out a clean `main` worktree
+  (`git worktree add`) and running `migration_integrity.check()` against
+  it directly, rather than assuming those 5 were also this task's doing
+  just because they appeared in the same failure list.
+- Fix: added `docs/migration/POST_TARGET_SELECTION_R7C_SUPPLEMENT.tsv`
+  (registered in `migration_integrity.py`'s `DEFAULT_SUPPLEMENTS`)
+  covering all 17 entries, with each row's `reason` column explicitly
+  stating whether it is genuinely new to this task or pre-existing-and-
+  unrelated (verified against `main`, not assumed) -- so the distinction
+  survives in the record even though both categories needed registering
+  for this branch's own suite to run green. Updated the hardcoded R7c
+  baseline-count assertion (200 -> 217) with an explanatory comment
+  matching the file's own precedent for prior count changes. Registered
+  the new scratchpad script in `docs/migration/tools/
+  phase11_path_bootstrap_registry.py`.
+- Lesson: run the full offline test suite (not just a focused subset)
+  before considering ANY task in this repository complete, even when the
+  focused subset is thorough -- repository-wide ratchets like R7c only
+  fail when exercised directly, and a prior task's own gap (Task 1 adding
+  files without running this gate) compounds silently until someone does.
+  When a failure list contains more entries than the current diff
+  explains, verify the unexplained ones against a clean baseline
+  checkout (`git worktree add` + run the same check) rather than assuming
+  they're all attributable to the current work -- the same "verified vs
+  inferred" discipline as the "claimed 66 full-suite test errors were
+  pre-existing... without checking" entry above.
+
 ## Category: repository hygiene / gitattributes-path drift
 
 ### [2026-08-21] `.gitattributes` byte-preservation rules silently stopped applying after path collapses
