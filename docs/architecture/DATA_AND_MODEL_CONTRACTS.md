@@ -106,28 +106,42 @@ corpus member every current ABI test exercises — not a shipping
 decision. Recorded as an `unresolved_future_choices` entry in
 `tools/future_runtime_profile/dependency_profiles.toml`.
 
-### 1f. Event-only curriculum checkpoints (2026-08-22, in progress)
+### 1f. Event-only curriculum checkpoints (2026-08-22, COMPLETE)
 
 Under the recovered frozen-navigation-sub-policy architecture
 (`docs/architecture/CURRICULUM_TRAINING_PIPELINE.md` section 4), the
-canonical Basic->Advanced curriculum's own trainable checkpoint is
-transitioning to an **event-only** contract for the PPO stages (Beginner
-onward): observation `Box(RAW_OBSERVATION_SIZE,)` (923, not the
-928-value navigation-sidecar-augmented observation — that sidecar is
-`FrozenNavigationSteering`'s own internal concern, never the trainable
-policy's input), action `Discrete(len(FarmingEvent))` (3), a plain SB3
-`ActorCriticPolicy` ("MlpPolicy") — no split-branch architecture, no
-steering action at all. This is **distinct from and not a replacement
-for** 0051200's own frozen `MultiDiscrete([3,3])`/928-value ABI (section
-1), which is untouched. Basic's own checkpoint keeps
-`SplitSteeringNavigationPolicy`'s existing dual-head/928-value shape
-unchanged for BC/DAgger tooling compatibility, with its steering head
-never trained; `simulator/factorized_v193_training.py::
-transfer_event_head_to_event_only_policy` bridges a Basic checkpoint's
+canonical Basic->Advanced curriculum's own trainable checkpoint uses an
+**event-only** contract for the PPO stages (Beginner onward): observation
+`Box(RAW_OBSERVATION_SIZE,)` (923, not the 928-value navigation-sidecar-
+augmented observation — that sidecar is `FrozenNavigationSteering`'s own
+internal concern, never the trainable policy's input), action
+`Discrete(len(FarmingEvent))` (3), a plain SB3 `ActorCriticPolicy`
+("MlpPolicy") — no split-branch architecture, no steering action at all.
+This is **distinct from and not a replacement for** 0051200's own frozen
+`MultiDiscrete([3,3])`/928-value ABI (section 1), which is untouched (never
+loaded through `farming.model_contract.validate_model_contract` either —
+that gate is scoped to the LIVE/production runtime, and this whole
+curriculum has always been out of its scope, so it still correctly rejects
+a stale scalar `Discrete(5)` checkpoint without any change here). Basic's
+own checkpoint keeps `SplitSteeringNavigationPolicy`'s existing
+dual-head/928-value shape unchanged for BC/DAgger tooling compatibility,
+with its steering head never trained (verified, not merely unexercised —
+see `MISTAKES.md`'s "Basic round loop still trained the vestigial steering
+head..." entry for a residue this project actually found and fixed);
+`simulator/beginner_transition.py::build_event_only_ppo_from_basic_
+checkpoint` (wrapping `simulator/factorized_v193_training.py::
+transfer_event_head_to_event_only_policy`) bridges a Basic checkpoint's
 event branch into the event-only shape at the Basic -> Beginner boundary.
-See `CURRICULUM_TRAINING_PIPELINE.md` section 5 for which stages have
-actually been reconnected to this contract as of this writing (Basic:
-yes; Beginner/Intermediate/Advanced: not yet).
+Intermediate and Advanced continue that SAME event-only checkpoint lineage
+unchanged (`simulator/beginner_transition.py::continue_event_only_ppo_chunk`)
+— no further bridge/conversion. Every event-only checkpoint's provenance
+manifest records the paired frozen navigation checkpoint's path and
+SHA-256 (`simulator/navigation_subpolicy.py::event_only_architecture_
+contract`) — see `CURRICULUM_TRAINING_PIPELINE.md` section 5/19 for the
+full reconnection status (Basic through Advanced, training and evaluation
+both: DONE, tested) and section 17 for the exact checkpoint-contract
+taxonomy (navigation / Basic dual-head / Beginner+ event-only / future
+composed full-farming bundle).
 
 ## 2. Observation/action/reward contract (farming package)
 
