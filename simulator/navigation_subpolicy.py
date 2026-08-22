@@ -226,7 +226,16 @@ class FrozenNavigationWrapper(gym.Wrapper):
     rollout loop does) where a propose-then-possibly-override step is
     needed; PPO training (Beginner onward) has no recovery in its loop by
     construction (see this package's basic_environment.py module
-    docstring), so there is nothing to intercept here."""
+    docstring), so there is nothing to intercept here.
+
+    Reward: the underlying environment's "approach" reward component
+    (`simulator.reward_model`, movement progress toward the target -- purely
+    a function of the executed steering action) is excluded from the reward
+    this wrapper returns (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md
+    section 15): it would otherwise reward/penalize this policy for a
+    physical outcome only FrozenNavigationSteering's action determines. The
+    full reward and its component breakdown remain available in `info` for
+    diagnostics -- only what PPO actually optimizes against is adjusted."""
 
     def __init__(self, env: Any, steering: FrozenNavigationSteering) -> None:
         super().__init__(env)
@@ -257,10 +266,30 @@ class FrozenNavigationWrapper(gym.Wrapper):
         command = np.array([steering, int(event_action)], dtype=np.int64)
         obs, reward, terminated, truncated, info = self.env.step(command)
         info = dict(info)
+        # The "approach" reward component (simulator.reward_model.
+        # SimulatorRewardConfig.approach_reward_scale) rewards movement
+        # progress toward the target -- a quantity determined entirely by
+        # the executed STEERING action (FarmingEvent never moves the
+        # player), which this wrapped policy never samples or influences.
+        # Left in the training signal, it would reward/penalize the
+        # event-only policy for a physical outcome its own action cannot
+        # change -- exactly the "navigation-specific auxiliary reward that
+        # exists solely to teach steering" docs/architecture/
+        # CURRICULUM_TRAINING_PIPELINE.md section 4 already established must
+        # not remain trainable. Excluded here only (this wrapper's own
+        # returned reward, i.e. what enters the PPO rollout buffer) -- the
+        # underlying environment reward/reward_components in `info` are
+        # untouched, so every other consumer (Basic training/evaluation,
+        # milestone_evaluator, teacher rollouts) still sees the full reward.
+        reward_components = info.get("reward_components") or {}
+        approach_component = float(reward_components.get("approach", 0.0))
+        event_only_reward = float(reward) - approach_component
+        info["raw_reward_before_navigation_exclusion"] = float(reward)
+        info["navigation_reward_excluded"] = approach_component
         info["steering_replanned"] = tick_result.replanned if tick_result else False
         info["steering_planner_failure"] = tick_result.planner_failure if tick_result else False
         info["steering_waypoint"] = tick_result.waypoint if tick_result else None
-        return np.asarray(obs, dtype=np.float32)[:RAW_OBSERVATION_SIZE], reward, terminated, truncated, info
+        return np.asarray(obs, dtype=np.float32)[:RAW_OBSERVATION_SIZE], event_only_reward, terminated, truncated, info
 
 
 def _event_only_policy_forward(net: Any, observation_raw: np.ndarray) -> int:

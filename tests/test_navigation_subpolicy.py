@@ -200,6 +200,30 @@ def test_frozen_navigation_wrapper_step_combines_steering_and_event(frozen_steer
     wrapped.close()
 
 
+def test_frozen_navigation_wrapper_excludes_approach_reward_from_training_signal(frozen_steering_model):
+    """The "approach" reward component (simulator.reward_model) rewards
+    movement progress toward the target -- purely a function of the
+    executed STEERING action, which this wrapper's own policy never
+    samples. It must not enter the reward this wrapper returns (docs/
+    architecture/CURRICULUM_TRAINING_PIPELINE.md section 15), even though
+    the full reward/breakdown must still be visible in `info` for
+    diagnostics."""
+    env = _make_env()
+    steering = copy.copy(frozen_steering_model)
+    wrapped = FrozenNavigationWrapper(env, steering)
+    wrapped.reset(seed=7)
+    # Far enough away that approaching it produces real approach_progress_cells.
+    _place_single_target(env, position=env.unwrapped.map.layout_to_native(45, 20))
+
+    obs, reward, terminated, truncated, info = wrapped.step(int(FarmingEvent.NONE))
+
+    assert "reward_components" in info
+    approach_component = float(info["reward_components"]["approach"])
+    assert info["navigation_reward_excluded"] == pytest.approx(approach_component)
+    assert reward == pytest.approx(info["raw_reward_before_navigation_exclusion"] - approach_component)
+    wrapped.close()
+
+
 def test_frozen_navigation_wrapper_handles_no_reachable_target_without_crashing(frozen_steering_model):
     """`_nearest_reachable_actor_id` is hysteresis state, not recomputed
     until the environment's own step() runs -- killing every actor just
