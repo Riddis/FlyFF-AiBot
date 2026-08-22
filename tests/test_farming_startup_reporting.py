@@ -1,0 +1,163 @@
+from __future__ import annotations
+
+import json
+import zipfile
+from pathlib import Path
+from types import SimpleNamespace
+
+import gymnasium as gym
+import numpy as np
+import pytest
+from farming.model_contract import ModelContractError, ModelContractMetadata
+from farming.reporting import (
+    atomic_copy_artifact,
+    atomic_save_model,
+    atomic_write_json,
+    save_session_artifacts,
+)
+from farming.startup import load_and_validate_model, resolve_model_artifact
+
+
+class FakeModel:
+    def __init__(self) -> None:
+        self.farming_contract_metadata: dict[str, object] | None = None
+
+    def save(self, path: str) -> None:
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("policy.txt", "validated")
+
+
+def test_model_preflight_loads_without_live_env_and_validates_metadata(
+    tmp_path: Path,
+) -> None:
+    artifact = tmp_path / "policy.zip"
+    artifact.write_bytes(b"model")
+    captured: list[str] = []
+
+    def loader(path: str):
+        captured.append(path)
+        return SimpleNamespace(
+            observation_space=gym.spaces.Box(
+                -1.0,
+                1.0,
+                shape=(923,),
+                dtype=np.float32,
+            ),
+            action_space=gym.spaces.MultiDiscrete(np.asarray([3, 3], dtype=np.int64)),
+            farming_contract_metadata=ModelContractMetadata.current().as_dict(),
+        )
+
+    validated = load_and_validate_model(artifact, loader)
+
+    assert captured == [str(artifact)]
+    assert validated.validation.contract_hash == (
+        ModelContractMetadata.current().contract_hash
+    )
+
+
+def test_model_preflight_rejects_space_mismatch_before_caller_can_start_input(
+    tmp_path: Path,
+) -> None:
+    artifact = tmp_path / "policy.zip"
+    artifact.write_bytes(b"model")
+
+    def loader(_path: str):
+        return SimpleNamespace(
+            observation_space=gym.spaces.Box(
+                -1.0,
+                1.0,
+                shape=(923,),
+                dtype=np.float32,
+            ),
+            action_space=gym.spaces.Discrete(5, start=0),
+            farming_contract_metadata=ModelContractMetadata.current().as_dict(),
+        )
+
+    with pytest.raises(ModelContractError, match="scalar Discrete"):
+        load_and_validate_model(artifact, loader)
+
+
+def test_atomic_json_replace_failure_preserves_previous_file_and_cleans_temp(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "report.json"
+    destination.write_text('{"old": true}\n', encoding="utf-8")
+
+    def fail_replace(_source, _destination) -> None:
+        raise PermissionError("locked")
+
+    with pytest.raises(PermissionError, match="locked"):
+        atomic_write_json(destination, {"new": True}, replace=fail_replace)
+
+    assert json.loads(destination.read_text(encoding="utf-8")) == {"old": True}
+    assert list(tmp_path.glob(".*.tmp.json")) == []
+
+
+def test_resolve_model_artifact_appends_zip_without_a_suffix(tmp_path: Path) -> None:
+    assert resolve_model_artifact(tmp_path / "policy") == tmp_path / "policy.zip"
+
+
+def test_resolve_model_artifact_is_unchanged_when_already_zip(tmp_path: Path) -> None:
+    assert resolve_model_artifact(tmp_path / "policy.zip") == tmp_path / "policy.zip"
+
+
+def test_resolve_model_artifact_preserves_a_dotted_stem(tmp_path: Path) -> None:
+    """Path.with_suffix(".zip") would truncate at the LAST dot,
+    silently turning policy.final into policy.zip instead of
+    policy.final.zip -- this is the exact double-.zip.zip-adjacent bug
+    this test guards against."""
+    assert (
+        resolve_model_artifact(tmp_path / "policy.final")
+        == tmp_path / "policy.final.zip"
+    )
+
+
+def test_resolve_model_artifact_preserves_dots_in_parent_directories(
+    tmp_path: Path,
+) -> None:
+    parent = tmp_path / "run.v2.3"
+    assert resolve_model_artifact(parent / "policy.final") == parent / "policy.final.zip"
+
+
+def test_atomic_save_model_preserves_a_dotted_stem(tmp_path: Path) -> None:
+    model = FakeModel()
+    record = atomic_save_model(model, tmp_path / "policy.final")
+    assert Path(record.path) == tmp_path / "policy.final.zip"
+    assert Path(record.path).is_file()
+
+
+def test_atomic_model_save_embeds_contract_and_validates_zip(tmp_path: Path) -> None:
+    model = FakeModel()
+
+    record = atomic_save_model(model, tmp_path / "policy")
+
+    assert Path(record.path).is_file()
+    assert len(record.sha256) == 64
+    assert model.farming_contract_metadata == ModelContractMetadata.current().as_dict()
+
+
+def test_session_manifest_points_to_validated_model_and_report(tmp_path: Path) -> None:
+    artifacts = save_session_artifacts(
+        FakeModel(),
+        model_path=tmp_path / "policy.zip",
+        report_path=tmp_path / "session.json",
+        manifest_path=tmp_path / "latest.json",
+        report={"status": "external_end", "reward": 0.0},
+    )
+
+    manifest = json.loads(Path(artifacts.manifest.path).read_text(encoding="utf-8"))
+    assert manifest["model"]["sha256"] == artifacts.model.sha256
+    assert manifest["report"]["sha256"] == artifacts.report.sha256
+
+
+def test_atomic_checkpoint_copy_is_byte_exact_and_creates_parent(tmp_path: Path) -> None:
+    source = tmp_path / "model.zip"
+    source.write_bytes(b"MODEL-CHECKPOINT")
+    destination = tmp_path / "checkpoints" / "model_000050000.zip"
+
+    record = atomic_copy_artifact(source, destination)
+
+    assert destination.read_bytes() == source.read_bytes()
+    assert record.path == str(destination)
+    assert record.size_bytes == len(b"MODEL-CHECKPOINT")
+    assert len(record.sha256) == 64

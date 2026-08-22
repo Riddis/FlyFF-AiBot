@@ -1,0 +1,324 @@
+{
+  "aggregate": {
+    "forward": {
+      "tp": 4532,
+      "tn": 24,
+      "false_clear": 0,
+      "false_blocked": 244
+    },
+    "left": {
+      "tp": 4521,
+      "tn": 0,
+      "false_clear": 0,
+      "false_blocked": 279
+    },
+    "right": {
+      "tp": 4531,
+      "tn": 0,
+      "false_clear": 0,
+      "false_blocked": 269
+    }
+  },
+  "per_layout": [
+    {
+      "stage": "early",
+      "layout": "01_early_open_field_typical_fast",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "left": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "right": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        }
+      }
+    },
+    {
+      "stage": "early",
+      "layout": "02_early_wide_neck_high_typical",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 268,
+          "tn": 12,
+          "false_clear": 0,
+          "false_blocked": 120
+        },
+        "left": {
+          "tp": 255,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 145
+        },
+        "right": {
+          "tp": 280,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 120
+        }
+      }
+    },
+    {
+      "stage": "early",
+      "layout": "03_early_open_field_low_fast",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "left": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "right": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        }
+      }
+    },
+    {
+      "stage": "early",
+      "layout": "04_early_wide_neck_typical_bursty",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 264,
+          "tn": 12,
+          "false_clear": 0,
+          "false_blocked": 124
+        },
+        "left": {
+          "tp": 266,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 134
+        },
+        "right": {
+          "tp": 251,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 149
+        }
+      }
+    },
+    {
+      "stage": "intermediate",
+      "layout": "05_intermediate_irregular_plain_uneven_typical",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "left": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "right": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        }
+      }
+    },
+    {
+      "stage": "intermediate",
+      "layout": "06_intermediate_split_field_typical_variable",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "left": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "right": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        }
+      }
+    },
+    {
+      "stage": "intermediate",
+      "layout": "07_intermediate_irregular_plain_high_bursty",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "left": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "right": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        }
+      }
+    },
+    {
+      "stage": "intermediate",
+      "layout": "08_intermediate_split_field_shifting_typical",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "left": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "right": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        }
+      }
+    },
+    {
+      "stage": "advanced",
+      "layout": "09_advanced_broad_lobes_shifting_variable",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "left": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "right": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        }
+      }
+    },
+    {
+      "stage": "advanced",
+      "layout": "10_advanced_open_center_uneven_slow",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "left": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "right": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        }
+      }
+    },
+    {
+      "stage": "advanced",
+      "layout": "11_advanced_broad_lobes_low_variable",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "left": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "right": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        }
+      }
+    },
+    {
+      "stage": "advanced",
+      "layout": "12_advanced_open_center_high_slow",
+      "samples": 400,
+      "confusion": {
+        "forward": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "left": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        },
+        "right": {
+          "tp": 400,
+          "tn": 0,
+          "false_clear": 0,
+          "false_blocked": 0
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "size": 220,
+  "shape": [
+    220,
+    220
+  ],
+  "free_cells": 24065,
+  "forbidden_cells": 0,
+  "template": "open_field",
+  "free_fraction": 0.49721074380165287,
+  "safe_fraction_of_free": 0.9371701641387907,
+  "spawn_cell": [
+    109,
+    153
+  ],
+  "design": "large_open_farming_area",
+  "corridor_generation": false,
+  "escapability_validated": true,
+  "escapability_stage_budget_ticks": 8,
+  "escapability_attempts": 1,
+  "variant": "13_early_open_field_low_bursty",
+  "stage": "early",
+  "density_profile": "low",
+  "respawn_profile": "bursty",
+  "seed": 20364147
+}

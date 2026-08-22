@@ -1,0 +1,207 @@
+# Phase-11 machine-readable dependency/package-boundary profile.
+#
+# Forward-owned, NOT frozen historical evidence -- update this file as the
+# canonical source evolves (unlike docs/migration/BASELINE_VIOLATIONS.json,
+# nothing here is a migration-integrity ratchet baseline). Consumed by
+# future_runtime_profile/derive_runtime_manifest.py (a dry-run,
+# non-building resolver) and tests/test_future_derivation_profile.py.
+#
+# Deliberately not named packaging/ -- that name collides with the
+# well-known PyPI "packaging" library (a pip/setuptools/pytest
+# dependency, confirmed installed in this venv); see
+# derive_runtime_manifest.py's module docstring for the empirical proof.
+#
+# See docs/migration/PHASE11_DEPENDENCY_BOUNDARY_ANALYSIS.md for the full
+# evidence trail behind every classification below.
+
+schema_version = 1
+
+[profiles.development]
+description = "The canonical development application -- everything a developer needs, in one source tree."
+first_party_packages = [
+  "apps", "bot", "runtime",
+  "farming", "position", "navigation", "mapper", "libs", "assets",
+  "devtools", "simulator",
+]
+third_party = [
+  "numpy", "cv2", "PySimpleGUI", "win32api", "win32gui", "win32con", "pywintypes",
+  "pytesseract", "pyautogui", "keyboard", "pynput", "pyttsx3", "pytweening", "pyfiglet",
+  "gymnasium", "stable_baselines3", "torch", "tensorboard", "rich", "msgpack",
+]
+
+[profiles.recorder]
+description = "Recorder specialist application, launched as an independent subprocess by the dev app."
+first_party_packages = ["devtools.recorder", "position", "farming"]
+third_party = ["numpy", "msgpack", "win32api", "win32gui", "win32con", "pywintypes", "tkinter"]
+entrypoint = "apps.recorder_app"
+
+[profiles.simulator]
+description = "Simulator/training specialist CLI, launched as an independent subprocess by the dev app."
+first_party_packages = ["simulator", "navigation", "farming"]
+third_party = ["numpy", "gymnasium", "stable_baselines3", "torch", "msgpack"]
+entrypoint = "apps.simulator_cli"
+
+[profiles.training]
+description = "Offline training (simulator training loop + mapper offline training)."
+first_party_packages = ["simulator", "navigation", "farming", "mapper"]
+third_party = ["numpy", "gymnasium", "stable_baselines3", "torch", "tensorboard", "rich"]
+
+[profiles.testing]
+description = "Test suites and migration tooling."
+first_party_packages = ["tests", "docs.migration.tools"]
+third_party = ["pytest", "numpy"]
+
+[profiles.future_runtime_candidate]
+description = """
+Static candidate closure for a future deployment/live derivative. Built
+from the SAME canonical source tree as [profiles.development] -- never a
+copied fork. This profile is architectural/static only: it names what a
+future derivative's import closure WOULD legitimately need, it does not
+build, select a final model, or launch anything.
+"""
+source_strategy = "canonical_source"
+copied_fork = false
+
+# Packages a future runtime candidate may legitimately depend on -- traced
+# by actual import edges (PHASE11_DEPENDENCY_BOUNDARY_ANALYSIS.md section 1),
+# not directory-name assumption.
+shared_runtime_packages = [
+  "farming", "position", "navigation", "mapper", "libs", "assets",
+]
+
+# Individual SHARED_RUNTIME_CORE files that live inside an otherwise
+# non-shared package (PHASE11_DEPENDENCY_BOUNDARY_ANALYSIS.md section 1:
+# simulator/schema.py is the canonical archive/recording reader,
+# simulator/legacy_manifest_compat.py is the compat logic behind it --
+# folded here from a former separate top-level legacy/ package once an
+# audit found it held no G7 frozen dataclasses and simulator/schema.py
+# was already its only importer -- neither file is a devtool or
+# simulator training/environment algorithm). Walked as entry points
+# alongside shared_runtime_packages so the resolver vouches for their
+# closure too, rather than merely not-forbidding them by omission.
+additional_shared_entry_files = [
+  "simulator/schema.py",
+  "simulator/legacy_manifest_compat.py",
+]
+
+# TRAINING_ONLY files that live inside an otherwise-shared package
+# (PHASE11_DEPENDENCY_BOUNDARY_ANALYSIS.md section 1, rows for
+# farming/sb3_adapter.py+sb3_training.py+trainer.py and
+# mapper/rl/FeatureExtractor.py+GymEnv.py+OfflineTraining.py). These are
+# the ONLY files under a shared_runtime_packages directory that directly
+# import torch/gymnasium/stable_baselines3. Excluded from the entry-file
+# walk below so the candidate closure reflects what the shared surface
+# itself needs, not what a training-only file bundled in the same
+# directory happens to import. farming.trainer remains reachable ONLY
+# through the one registered known_exact_exceptions edge from
+# bot/runtime_controller.py -- it is not otherwise part of this candidate.
+#
+# mapper/tools/train_mapper_offline.py joined this list in the
+# 2026-08-21 repository cleanup, when it moved from the repository root
+# into mapper/tools/ (a simulator/training workflow script, not a
+# shared-runtime file) -- entirely off Phase 11's original analysis,
+# whose file set predates that move. Being physically inside mapper/
+# now puts it in the shared_runtime_packages rglob unless excluded here
+# too; it directly imports mapper.rl.OfflineTraining/GymEnv/
+# FeatureExtractor to run offline training, exactly the training-only
+# import pattern this list exists to keep out of the candidate closure.
+excluded_from_shared_entry_walk = [
+  "farming/sb3_adapter.py",
+  "farming/sb3_training.py",
+  "farming/trainer.py",
+  "mapper/rl/FeatureExtractor.py",
+  "mapper/rl/GymEnv.py",
+  "mapper/rl/OfflineTraining.py",
+  "mapper/tools/train_mapper_offline.py",
+]
+
+# Checkpoint-ABI/pickle-compatibility surface -- NOT a simulator algorithm
+# to drag in wholesale. This module exists solely so the frozen checkpoint
+# corpus keeps deserializing (its policy class's pinned __module__).
+#
+# simulator.kinodynamic_route_planner/simulator.movement_kernel were
+# removed from this list in the post-migration compatibility purge: their
+# __module__ pins on navigation.kinodynamic_route_planner's KinoState/
+# RouteEdgeInfo and navigation.movement_kernel's AdvanceResult existed
+# solely for tests/fixtures/migration/router_kernel.json (a Phase-3 G8c
+# migration-continuity fixture nothing in the current product/test suite
+# actually reads or validates), not for models/generalized_waypoint_
+# both_seed2_0051200.zip -- a static pickle disassembly of every embedded
+# blob in that checkpoint's data/policy.pth/policy.optimizer.pth/
+# pytorch_variables.pth confirmed zero references to either module or to
+# KinoState/RouteEdgeInfo/AdvanceResult. Canonical algorithm ownership
+# stays under navigation/*, now with its natural module identity.
+runtime_abi_compatibility_modules = [
+  "simulator.split_branch_policy",
+]
+
+# Third-party packages a future runtime candidate may need -- DUAL_ROLE
+# packages (needed for inference, not just training) are included here
+# deliberately; see PHASE11_DEPENDENCY_BOUNDARY_ANALYSIS.md section 2 for
+# why torch/gymnasium/stable_baselines3 are not excluded merely because
+# training also imports them.
+candidate_third_party = [
+  "numpy", "gymnasium", "stable_baselines3", "torch",
+  "win32api", "win32gui", "win32con", "pywintypes",
+]
+
+# Non-code resources a future runtime candidate may need. This is an
+# audit list (PHASE11_RUNTIME_RESOURCE_MANIFEST.tsv is authoritative and
+# more detailed), not a copy/deployment plan.
+candidate_runtime_resources = [
+  "farming/native_farming.json",
+  "position/native_monsters.json",
+  "position/native_position.json",
+]
+
+# First-party module prefixes that must NEVER appear in a future runtime
+# candidate's resolved closure, absent an explicitly registered exception
+# below. Dotted prefixes match the module itself and everything under it.
+forbidden_first_party_prefixes = [
+  "devtools",
+  "simulator.environment",
+  "simulator.router_waypoint_env",
+  "simulator.static_waypoint_env",
+  "simulator.single_obstacle_env",
+  "simulator.synthetic",
+  "simulator.basic_training",
+  "simulator.navigation_dataset",
+  "simulator.navigation_history",
+  "simulator.cli",
+  "simulator.fair_time_cli",
+  "simulator.scratchpad",
+  "tests",
+]
+# Not forbidden: simulator.schema / simulator.legacy_manifest_compat --
+# corrected SHARED_RUNTIME_CORE per section 1 above, walked explicitly
+# via additional_shared_entry_files instead of blocked here.
+
+# Deliberately unresolved -- explicit, not silently deferred. None of
+# these are decided in Phase 11 and none require deciding to satisfy the
+# future-derivability gate (Section 10 of the authorization). Placed here,
+# before the [[known_exact_exceptions]] array-of-tables section below,
+# because TOML would otherwise fold a later plain key into that array's
+# most recent entry rather than back onto this table.
+unresolved_future_choices = [
+  "final shipped checkpoint has not been selected (models/generalized_waypoint_both_seed2_0051200.zip is the frozen R10-tracked corpus member every ABI test exercises, not a shipping decision)",
+  "whether cv2-vision-based OCR/UI-detection/minimap-heading template matching is retained or replaced by pure-native reading in a future derivative",
+  "whether bot/runtime_controller.py's farming.trainer coupling is omitted or redesigned for a future derivative (explicitly not assigned to any phase yet)",
+  "final entrypoint name/location for any future derivative (explicitly not apps/live_bot.py, per this phase's own prohibition)",
+  "whether requirements/base.txt/requirements/training.txt's existing split changes to reflect torch/gymnasium/stable_baselines3's DUAL_ROLE classification",
+]
+
+# Exact (never prefix-based) registered exceptions to the forbidden list
+# above -- currently exactly one, carried forward from Phase 10's R1b
+# boundary. This does NOT make the coupling part of the future derivation
+# contract; it is recorded so the resolver can classify it correctly
+# rather than silently ignoring or silently forbidding it.
+[[profiles.future_runtime_candidate.known_exact_exceptions]]
+importer = "bot/runtime_controller.py"
+dependency = "farming.trainer"
+symbols = [
+  "dry_run_native_farming", "run_native_farming_agent",
+  "train_native_farming", "validate_native_farming_data",
+]
+status = "KNOWN_DEV_RUNTIME_COUPLING_NOT_PART_OF_FUTURE_DERIVATION_CONTRACT"
+introduced_by_phase10 = false
+reason = "All four functions require the live, already-attached bot:FarmingBot object as their first parameter; cannot cross a subprocess boundary without a real attachment/farming-runtime redesign or an explicitly-forbidden IPC bridge (Phase-10 finding, unchanged)."

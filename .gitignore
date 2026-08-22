@@ -3,11 +3,17 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .pytest_tmp/
+.pytest-temp/
+.pytest-temp-*/
+.pytest-recorder-*/
 .ruff_cache/
 .mypy_cache/
 .coverage
 coverage.xml
 htmlcov/
+
+# Local build/review scratch state
+.build_temp/
 
 # Local Python environments
 .venv/
@@ -31,20 +37,35 @@ desktop.ini
 *.pstats
 debug/
 training_logs/
-mapper/mapping_runs/
+**/mapper/mapping_runs/
+
+# PySimpleGUI local settings file -- derived from the running
+# entrypoint's own filename by PySimpleGUI itself (see
+# docs/architecture/SYSTEM_OVERVIEW.md section 3a); user-machine-
+# specific runtime state, not source.
+/dev_app.json
+
+# Local live-validation evidence staging (screenshots, crash logs,
+# human findings from a user-run live acceptance session); referenced
+# by path from docs/validation/, not committed as binary evidence.
+live_validation/
 
 # Generated support/debug packages and other archives
 *.zip
+*.zip.orig
 *.bundle
 *.patch
+
+# Generated repository review snapshots (tools/create_clean_repo_snapshot.py)
+exports/
 
 # Local RL models and checkpoints
 models/
 
 # Generated map and adaptive runtime state
-mapper/maps/
-mapper/adaptive_motion.json
-mapper/adaptive_motion.invalid_*.json
+**/mapper/maps/
+**/mapper/adaptive_motion.json
+**/mapper/adaptive_motion.invalid_*.json
 
 # Build and packaging output
 build/
@@ -58,5 +79,15 @@ migration_backups/
 *.tmp
 *.temp
 
-# Generated Git comparison reports
-CURRENT_VS_KNOWN_GOOD_*.txt
+# Single targeted exception: this one checkpoint is required by
+# scratchpad_historical_reproduction_guard.py REQUIRED_FILES, so the historical
+# router qualification has a git-addressable reproduction point.
+# NOTE: git will not descend into an excluded directory, so the models/ exclusion
+# must be reopened for this path and then re-applied to everything except the file.
+# Corrected 2026-08-21: this used to carve out flyff_farming_simulator/
+# models/ (the pre-Phase-7 location); "Phase 7: mechanically collapse
+# project roots" moved the checkpoint to root models/ and that
+# directory no longer exists at all.
+!models/
+models/*
+!models/generalized_waypoint_both_seed2_0051200.zip

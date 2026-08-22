@@ -1,0 +1,42 @@
+{
+  "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\datasets\\split_branch_teacher.npz",
+  "samples": 12000,
+  "episodes": 55,
+  "layouts": [
+    "01_early_open_field_typical_fast",
+    "02_early_wide_neck_high_typical",
+    "03_early_open_field_low_fast",
+    "04_early_wide_neck_typical_bursty"
+  ],
+  "layout_sample_counts": {
+    "01_early_open_field_typical_fast": 3031,
+    "02_early_wide_neck_high_typical": 3082,
+    "03_early_open_field_low_fast": 3020,
+    "04_early_wide_neck_typical_bursty": 2867
+  },
+  "validation_episodes": [
+    4,
+    8,
+    15,
+    16,
+    28,
+    30,
+    33,
+    43,
+    44,
+    50,
+    54
+  ],
+  "training_samples": 9673,
+  "validation_samples": 2327,
+  "steering_counts": [
+    2676,
+    4402,
+    4922
+  ],
+  "event_counts": [
+    10490,
+    1482,
+    28
+  ]
+}

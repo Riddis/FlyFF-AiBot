@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "stage": "early",
+  "role": "challenge",
+  "fixed_regression_scenarios": [
+    {
+      "id": "irregular_low_bursty_unseen_seed1",
+      "curriculum_path": "curricula/synthetic_curriculum_unseen_templates/curriculum.json",
+      "layout": "02_early_irregular_plain_low_bursty",
+      "seed": 1,
+      "episode_seconds": 150.0,
+      "max_actions": 1000,
+      "expected_failure_signature": "Moderate lock-in: max_consecutive_steering_run=187, stuck onset ~step 475, final unique_cells=460 (vs ~600 for a healthy episode on this layout family), policy/teacher ratio degraded in the original single-episode test.",
+      "discovered": "2026-08-06"
+    },
+    {
+      "id": "irregular_low_bursty_factorial_sibling1_seed0",
+      "curriculum_path": "curricula/synthetic_curriculum_factorial_probe/curriculum.json",
+      "layout": "01_early_irregular_plain_low_bursty",
+      "seed": 0,
+      "episode_seconds": 150.0,
+      "max_actions": 1000,
+      "expected_failure_signature": "Severe lock-in: max_consecutive_steering_run=401, stuck onset ~step 197, final unique_cells=187 -- the most severe known lock-in case found so far, on a layout whose own siblings score well in aggregate (median ratio 0.761).",
+      "discovered": "2026-08-06"
+    }
+  ],
+  "challenge_family_curriculum_path": "curricula/synthetic_curriculum_factorial_probe/curriculum.json",
+  "challenge_family_layouts": [
+    "01_early_irregular_plain_low_bursty",
+    "02_early_irregular_plain_low_bursty",
+    "03_early_irregular_plain_low_bursty",
+    "04_early_irregular_plain_low_typical",
+    "05_early_irregular_plain_low_typical",
+    "06_early_irregular_plain_low_typical",
+    "07_early_irregular_plain_typical_bursty",
+    "08_early_irregular_plain_typical_bursty",
+    "09_early_irregular_plain_typical_bursty",
+    "10_early_irregular_plain_typical_typical",
+    "11_early_irregular_plain_typical_typical",
+    "12_early_irregular_plain_typical_typical",
+    "13_early_open_field_low_bursty",
+    "14_early_open_field_low_bursty",
+    "15_early_open_field_low_bursty",
+    "16_early_broad_lobes_low_bursty",
+    "17_early_broad_lobes_low_bursty",
+    "18_early_broad_lobes_low_bursty"
+  ],
+  "notes": "Deliberately stresses sparse/irregular geometry, low density, and bursty respawn (long inter-group travel). obstacle_level=0 throughout -- these are valid easy-stage layouts (escapability_validated, in-range population), not intermediate content; failures here reflect policy robustness, not a missing obstruction-recovery skill. Use a lower performance floor than easy_heldout, but still require no zero-kill episodes, no unrecoverable physical stagnation, and sane EVA behavior."
+}

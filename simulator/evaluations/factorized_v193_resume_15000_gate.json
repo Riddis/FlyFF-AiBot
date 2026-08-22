@@ -1,0 +1,1009 @@
+{
+  "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\split_branch_pilot_15000.zip",
+  "action_contract": "latched-forward-factorized-steering-event-v1",
+  "action_nvec": [
+    3,
+    3
+  ],
+  "observation_size": 923,
+  "stage": "early",
+  "episode_seconds": 120.0,
+  "episodes_per_layout": 3,
+  "layouts": [
+    {
+      "variant": "01_early_open_field_typical_fast",
+      "random": {
+        "episodes": 3,
+        "mean_reward": -25.790790264351767,
+        "mean_kills": 47.333333333333336,
+        "kills_per_simulated_hour": 1260.0,
+        "pooled_kills_per_simulated_hour": 1420.0,
+        "kills_per_simulated_hour_min": 570.0,
+        "kills_per_simulated_hour_max": 2430.0,
+        "kills_per_simulated_hour_p25": 915.0,
+        "kills_per_simulated_hour_p75": 1845.0,
+        "episode_kills_per_simulated_hour": [
+          570.0,
+          2430.0,
+          1260.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 6.333333333333333,
+        "mean_invalid_eva_attempts": 185.33333333333334,
+        "kills_per_valid_eva": 7.473684210526316,
+        "mean_contacts": 283.3333333333333,
+        "mean_total_distance_cells": 477.29300774477207,
+        "mean_path_efficiency": 0.1636192169123868,
+        "steering_counts": {
+          "0": 562,
+          "1": 586,
+          "2": 595
+        },
+        "steering_probabilities": {
+          "0": 0.32243258749282844,
+          "1": 0.336201950659782,
+          "2": 0.3413654618473896
+        },
+        "event_counts": {
+          "0": 564,
+          "1": 575,
+          "2": 604
+        },
+        "event_probabilities": {
+          "0": 0.32358003442340794,
+          "1": 0.32989099254159493,
+          "2": 0.34652897303499713
+        },
+        "command_counts": {
+          "0,0": 179,
+          "0,1": 180,
+          "0,2": 203,
+          "1,0": 165,
+          "1,1": 210,
+          "1,2": 211,
+          "2,0": 220,
+          "2,1": 185,
+          "2,2": 190
+        },
+        "mean_reward_components": {
+          "approach": -1.455220779386421,
+          "contact": -9.916666666666696,
+          "eva_miss": -0.08333333333333333,
+          "invalid_eva": -18.533333333333328,
+          "jump_flair": 0.05033333333333337,
+          "kill": 13.799097181701292,
+          "missed_eva_opportunity": -0.36000000000000004,
+          "obstacle_buffer": -9.291666666666732,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          -35.582908642079,
+          -17.58246842471063,
+          -24.206993726265672
+        ],
+        "episode_kills": [
+          19,
+          81,
+          42
+        ]
+      },
+      "teacher": {
+        "episodes": 3,
+        "mean_reward": 187.4626112891831,
+        "mean_kills": 638.6666666666666,
+        "kills_per_simulated_hour": 18780.0,
+        "pooled_kills_per_simulated_hour": 19160.0,
+        "kills_per_simulated_hour_min": 17670.0,
+        "kills_per_simulated_hour_max": 21030.0,
+        "kills_per_simulated_hour_p25": 18225.0,
+        "kills_per_simulated_hour_p75": 19905.0,
+        "episode_kills_per_simulated_hour": [
+          17670.0,
+          21030.0,
+          18780.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 58.0,
+        "mean_invalid_eva_attempts": 0.0,
+        "kills_per_valid_eva": 11.011494252873563,
+        "mean_contacts": 0.0,
+        "mean_total_distance_cells": 577.8063082168753,
+        "mean_path_efficiency": 0.08373240958990256,
+        "steering_counts": {
+          "0": 267,
+          "1": 455,
+          "2": 559
+        },
+        "steering_probabilities": {
+          "0": 0.20843091334894615,
+          "1": 0.3551912568306011,
+          "2": 0.43637782982045276
+        },
+        "event_counts": {
+          "0": 1103,
+          "1": 174,
+          "2": 4
+        },
+        "event_probabilities": {
+          "0": 0.8610460577673692,
+          "1": 0.1358313817330211,
+          "2": 0.00312256049960968
+        },
+        "command_counts": {
+          "0,0": 234,
+          "0,1": 32,
+          "0,2": 1,
+          "1,0": 388,
+          "1,1": 66,
+          "1,2": 1,
+          "2,0": 481,
+          "2,1": 76,
+          "2,2": 2
+        },
+        "mean_reward_components": {
+          "approach": 9.222638520739844,
+          "contact": 0.0,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0013333333333333333,
+          "kill": 178.41363943511018,
+          "missed_eva_opportunity": 0.0,
+          "obstacle_buffer": -0.17500000000000002,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          178.12418367214832,
+          195.16950435768752,
+          189.09414583771346
+        ],
+        "episode_kills": [
+          589,
+          701,
+          626
+        ]
+      },
+      "policy": {
+        "episodes": 3,
+        "mean_reward": 129.0986776263263,
+        "mean_kills": 486.3333333333333,
+        "kills_per_simulated_hour": 16470.0,
+        "pooled_kills_per_simulated_hour": 14590.0,
+        "kills_per_simulated_hour_min": 9570.0,
+        "kills_per_simulated_hour_max": 17730.0,
+        "kills_per_simulated_hour_p25": 13020.0,
+        "kills_per_simulated_hour_p75": 17100.0,
+        "episode_kills_per_simulated_hour": [
+          17730.0,
+          16470.0,
+          9570.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 38.666666666666664,
+        "mean_invalid_eva_attempts": 7.0,
+        "kills_per_valid_eva": 12.577586206896552,
+        "mean_contacts": 13.333333333333334,
+        "mean_total_distance_cells": 634.3485644853146,
+        "mean_path_efficiency": 0.11549426005773344,
+        "steering_counts": {
+          "0": 307,
+          "1": 480,
+          "2": 665
+        },
+        "steering_probabilities": {
+          "0": 0.21143250688705234,
+          "1": 0.3305785123966942,
+          "2": 0.45798898071625344
+        },
+        "event_counts": {
+          "0": 1315,
+          "1": 137,
+          "2": 0
+        },
+        "event_probabilities": {
+          "0": 0.9056473829201102,
+          "1": 0.0943526170798898,
+          "2": 0.0
+        },
+        "command_counts": {
+          "0,0": 285,
+          "0,1": 22,
+          "0,2": 0,
+          "1,0": 434,
+          "1,1": 46,
+          "1,2": 0,
+          "2,0": 596,
+          "2,1": 69,
+          "2,2": 0
+        },
+        "mean_reward_components": {
+          "approach": 7.0373232278140785,
+          "contact": -0.46666666666666695,
+          "eva_miss": 0.0,
+          "invalid_eva": -0.6999999999999998,
+          "jump_flair": 0.0,
+          "kill": 128.26802106517906,
+          "missed_eva_opportunity": -4.1733333333333364,
+          "obstacle_buffer": -0.8666666666666666,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          137.36270315413122,
+          147.3070625587883,
+          102.62626716605934
+        ],
+        "episode_kills": [
+          591,
+          549,
+          319
+        ]
+      },
+      "gate": {
+        "passed": true,
+        "reasons": []
+      }
+    },
+    {
+      "variant": "02_early_wide_neck_high_typical",
+      "random": {
+        "episodes": 3,
+        "mean_reward": -28.025778668242367,
+        "mean_kills": 29.333333333333332,
+        "kills_per_simulated_hour": 810.0,
+        "pooled_kills_per_simulated_hour": 880.0,
+        "kills_per_simulated_hour_min": 330.0,
+        "kills_per_simulated_hour_max": 1500.0,
+        "kills_per_simulated_hour_p25": 570.0,
+        "kills_per_simulated_hour_p75": 1155.0,
+        "episode_kills_per_simulated_hour": [
+          810.0,
+          330.0,
+          1500.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 5.666666666666667,
+        "mean_invalid_eva_attempts": 187.66666666666666,
+        "kills_per_valid_eva": 5.176470588235294,
+        "mean_contacts": 239.66666666666666,
+        "mean_total_distance_cells": 550.07449081188,
+        "mean_path_efficiency": 0.10998415693878388,
+        "steering_counts": {
+          "0": 561,
+          "1": 590,
+          "2": 598
+        },
+        "steering_probabilities": {
+          "0": 0.32075471698113206,
+          "1": 0.3373356203544883,
+          "2": 0.34190966266437967
+        },
+        "event_counts": {
+          "0": 586,
+          "1": 580,
+          "2": 583
+        },
+        "event_probabilities": {
+          "0": 0.3350485991995426,
+          "1": 0.3316180674671241,
+          "2": 0.3333333333333333
+        },
+        "command_counts": {
+          "0,0": 184,
+          "0,1": 184,
+          "0,2": 193,
+          "1,0": 169,
+          "1,1": 206,
+          "1,2": 215,
+          "2,0": 233,
+          "2,1": 190,
+          "2,2": 175
+        },
+        "mean_reward_components": {
+          "approach": -1.3164213562373097,
+          "contact": -8.388333333333357,
+          "eva_miss": -0.09999999999999999,
+          "invalid_eva": -18.766666666666662,
+          "jump_flair": 0.0476666666666667,
+          "kill": 8.96964268799488,
+          "missed_eva_opportunity": -0.41333333333333333,
+          "obstacle_buffer": -8.058333333333382,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          -29.73376149635548,
+          -33.918762314447655,
+          -20.424812193923966
+        ],
+        "episode_kills": [
+          27,
+          11,
+          50
+        ]
+      },
+      "teacher": {
+        "episodes": 3,
+        "mean_reward": 153.7860113656191,
+        "mean_kills": 480.0,
+        "kills_per_simulated_hour": 15180.0,
+        "pooled_kills_per_simulated_hour": 14400.0,
+        "kills_per_simulated_hour_min": 12090.0,
+        "kills_per_simulated_hour_max": 15930.0,
+        "kills_per_simulated_hour_p25": 13635.0,
+        "kills_per_simulated_hour_p75": 15555.0,
+        "episode_kills_per_simulated_hour": [
+          12090.0,
+          15180.0,
+          15930.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 56.0,
+        "mean_invalid_eva_attempts": 0.0,
+        "kills_per_valid_eva": 8.571428571428571,
+        "mean_contacts": 3.3333333333333335,
+        "mean_total_distance_cells": 586.092079900383,
+        "mean_path_efficiency": 0.11730310404987264,
+        "steering_counts": {
+          "0": 310,
+          "1": 447,
+          "2": 543
+        },
+        "steering_probabilities": {
+          "0": 0.23846153846153847,
+          "1": 0.34384615384615386,
+          "2": 0.4176923076923077
+        },
+        "event_counts": {
+          "0": 1131,
+          "1": 168,
+          "2": 1
+        },
+        "event_probabilities": {
+          "0": 0.87,
+          "1": 0.12923076923076923,
+          "2": 0.0007692307692307692
+        },
+        "command_counts": {
+          "0,0": 277,
+          "0,1": 33,
+          "0,2": 0,
+          "1,0": 390,
+          "1,1": 57,
+          "1,2": 0,
+          "2,0": 464,
+          "2,1": 78,
+          "2,2": 1
+        },
+        "mean_reward_components": {
+          "approach": 9.385237367038064,
+          "contact": -0.11666666666666668,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0003333333333333333,
+          "kill": 144.75877399858112,
+          "missed_eva_opportunity": 0.0,
+          "obstacle_buffer": -0.2416666666666667,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          139.80536474838527,
+          158.5071251565058,
+          163.04554419196617
+        ],
+        "episode_kills": [
+          403,
+          506,
+          531
+        ]
+      },
+      "policy": {
+        "episodes": 3,
+        "mean_reward": 128.93303020964086,
+        "mean_kills": 489.3333333333333,
+        "kills_per_simulated_hour": 14340.0,
+        "pooled_kills_per_simulated_hour": 14680.0,
+        "kills_per_simulated_hour_min": 13830.0,
+        "kills_per_simulated_hour_max": 15870.0,
+        "kills_per_simulated_hour_p25": 14085.0,
+        "kills_per_simulated_hour_p75": 15105.0,
+        "episode_kills_per_simulated_hour": [
+          14340.0,
+          13830.0,
+          15870.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 38.333333333333336,
+        "mean_invalid_eva_attempts": 6.0,
+        "kills_per_valid_eva": 12.765217391304347,
+        "mean_contacts": 1.0,
+        "mean_total_distance_cells": 662.0323092548969,
+        "mean_path_efficiency": 0.09522525172550413,
+        "steering_counts": {
+          "0": 282,
+          "1": 591,
+          "2": 582
+        },
+        "steering_probabilities": {
+          "0": 0.19381443298969073,
+          "1": 0.4061855670103093,
+          "2": 0.4
+        },
+        "event_counts": {
+          "0": 1322,
+          "1": 133,
+          "2": 0
+        },
+        "event_probabilities": {
+          "0": 0.9085910652920962,
+          "1": 0.09140893470790377,
+          "2": 0.0
+        },
+        "command_counts": {
+          "0,0": 260,
+          "0,1": 22,
+          "0,2": 0,
+          "1,0": 536,
+          "1,1": 55,
+          "1,2": 0,
+          "2,0": 526,
+          "2,1": 56,
+          "2,2": 0
+        },
+        "mean_reward_components": {
+          "approach": 8.318401871576773,
+          "contact": -0.035,
+          "eva_miss": 0.0,
+          "invalid_eva": -0.6,
+          "jump_flair": 0.0,
+          "kill": 125.58629500473087,
+          "missed_eva_opportunity": -4.186666666666669,
+          "obstacle_buffer": -0.15000000000000002,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          124.89190301009718,
+          126.57752914784047,
+          135.32965847098498
+        ],
+        "episode_kills": [
+          478,
+          461,
+          529
+        ]
+      },
+      "gate": {
+        "passed": true,
+        "reasons": []
+      }
+    },
+    {
+      "variant": "03_early_open_field_low_fast",
+      "random": {
+        "episodes": 3,
+        "mean_reward": -35.93534480289565,
+        "mean_kills": 9.0,
+        "kills_per_simulated_hour": 240.0,
+        "pooled_kills_per_simulated_hour": 270.0,
+        "kills_per_simulated_hour_min": 90.0,
+        "kills_per_simulated_hour_max": 480.0,
+        "kills_per_simulated_hour_p25": 165.0,
+        "kills_per_simulated_hour_p75": 360.0,
+        "episode_kills_per_simulated_hour": [
+          240.0,
+          90.0,
+          480.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 5.333333333333333,
+        "mean_invalid_eva_attempts": 188.0,
+        "kills_per_valid_eva": 1.6875,
+        "mean_contacts": 326.0,
+        "mean_total_distance_cells": 439.8603073731156,
+        "mean_path_efficiency": 0.1366723230366932,
+        "steering_counts": {
+          "0": 583,
+          "1": 572,
+          "2": 597
+        },
+        "steering_probabilities": {
+          "0": 0.3327625570776256,
+          "1": 0.3264840182648402,
+          "2": 0.3407534246575342
+        },
+        "event_counts": {
+          "0": 552,
+          "1": 580,
+          "2": 620
+        },
+        "event_probabilities": {
+          "0": 0.3150684931506849,
+          "1": 0.3310502283105023,
+          "2": 0.3538812785388128
+        },
+        "command_counts": {
+          "0,0": 184,
+          "0,1": 168,
+          "0,2": 231,
+          "1,0": 175,
+          "1,1": 197,
+          "1,2": 200,
+          "2,0": 193,
+          "2,1": 215,
+          "2,2": 189
+        },
+        "mean_reward_components": {
+          "approach": 1.5758578643762686,
+          "contact": -11.410000000000034,
+          "eva_miss": -0.18333333333333335,
+          "invalid_eva": -18.799999999999997,
+          "jump_flair": 0.04933333333333337,
+          "kill": 3.6294639993946256,
+          "missed_eva_opportunity": -0.08,
+          "obstacle_buffer": -10.716666666666752,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          -41.696646468382504,
+          -34.44421284449798,
+          -31.66517509580646
+        ],
+        "episode_kills": [
+          8,
+          3,
+          16
+        ]
+      },
+      "teacher": {
+        "episodes": 3,
+        "mean_reward": 108.28402778962834,
+        "mean_kills": 226.66666666666666,
+        "kills_per_simulated_hour": 6690.0,
+        "pooled_kills_per_simulated_hour": 6800.0,
+        "kills_per_simulated_hour_min": 6390.0,
+        "kills_per_simulated_hour_max": 7320.0,
+        "kills_per_simulated_hour_p25": 6540.0,
+        "kills_per_simulated_hour_p75": 7005.0,
+        "episode_kills_per_simulated_hour": [
+          7320.0,
+          6690.0,
+          6390.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 52.666666666666664,
+        "mean_invalid_eva_attempts": 0.0,
+        "kills_per_valid_eva": 4.30379746835443,
+        "mean_contacts": 3.3333333333333335,
+        "mean_total_distance_cells": 623.6094759567128,
+        "mean_path_efficiency": 0.09558468510600403,
+        "steering_counts": {
+          "0": 302,
+          "1": 546,
+          "2": 478
+        },
+        "steering_probabilities": {
+          "0": 0.2277526395173454,
+          "1": 0.4117647058823529,
+          "2": 0.36048265460030166
+        },
+        "event_counts": {
+          "0": 1167,
+          "1": 158,
+          "2": 1
+        },
+        "event_probabilities": {
+          "0": 0.8800904977375565,
+          "1": 0.1191553544494721,
+          "2": 0.0007541478129713424
+        },
+        "command_counts": {
+          "0,0": 260,
+          "0,1": 42,
+          "0,2": 0,
+          "1,0": 489,
+          "1,1": 57,
+          "1,2": 0,
+          "2,0": 418,
+          "2,1": 59,
+          "2,2": 1
+        },
+        "mean_reward_components": {
+          "approach": 10.610407640085658,
+          "contact": -0.1166666666666667,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0003333333333333333,
+          "kill": 98.03995348287604,
+          "missed_eva_opportunity": 0.0,
+          "obstacle_buffer": -0.25000000000000006,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          113.92255288522813,
+          109.07931425183718,
+          101.85021623181972
+        ],
+        "episode_kills": [
+          244,
+          223,
+          213
+        ]
+      },
+      "policy": {
+        "episodes": 3,
+        "mean_reward": 77.89218098253218,
+        "mean_kills": 182.66666666666666,
+        "kills_per_simulated_hour": 5820.0,
+        "pooled_kills_per_simulated_hour": 5480.0,
+        "kills_per_simulated_hour_min": 4710.0,
+        "kills_per_simulated_hour_max": 5910.0,
+        "kills_per_simulated_hour_p25": 5265.0,
+        "kills_per_simulated_hour_p75": 5865.0,
+        "episode_kills_per_simulated_hour": [
+          5820.0,
+          5910.0,
+          4710.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 35.333333333333336,
+        "mean_invalid_eva_attempts": 8.666666666666666,
+        "kills_per_valid_eva": 5.169811320754717,
+        "mean_contacts": 10.0,
+        "mean_total_distance_cells": 678.358520974038,
+        "mean_path_efficiency": 0.1407700376446097,
+        "steering_counts": {
+          "0": 349,
+          "1": 514,
+          "2": 619
+        },
+        "steering_probabilities": {
+          "0": 0.23549257759784076,
+          "1": 0.3468286099865047,
+          "2": 0.4176788124156545
+        },
+        "event_counts": {
+          "0": 1350,
+          "1": 132,
+          "2": 0
+        },
+        "event_probabilities": {
+          "0": 0.9109311740890689,
+          "1": 0.08906882591093117,
+          "2": 0.0
+        },
+        "command_counts": {
+          "0,0": 320,
+          "0,1": 29,
+          "0,2": 0,
+          "1,0": 472,
+          "1,1": 42,
+          "1,2": 0,
+          "2,0": 558,
+          "2,1": 61,
+          "2,2": 0
+        },
+        "mean_reward_components": {
+          "approach": 8.225630585851517,
+          "contact": -0.35000000000000014,
+          "eva_miss": 0.0,
+          "invalid_eva": -0.8666666666666668,
+          "jump_flair": 0.0,
+          "kill": 73.71321706334726,
+          "missed_eva_opportunity": -2.4133333333333344,
+          "obstacle_buffer": -0.4166666666666667,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          71.5801762938099,
+          91.62982859536932,
+          70.46653805841733
+        ],
+        "episode_kills": [
+          194,
+          197,
+          157
+        ]
+      },
+      "gate": {
+        "passed": true,
+        "reasons": []
+      }
+    },
+    {
+      "variant": "04_early_wide_neck_typical_bursty",
+      "random": {
+        "episodes": 3,
+        "mean_reward": -33.79302434373417,
+        "mean_kills": 5.333333333333333,
+        "kills_per_simulated_hour": 240.0,
+        "pooled_kills_per_simulated_hour": 160.0,
+        "kills_per_simulated_hour_min": 0.0,
+        "kills_per_simulated_hour_max": 240.0,
+        "kills_per_simulated_hour_p25": 120.0,
+        "kills_per_simulated_hour_p75": 240.0,
+        "episode_kills_per_simulated_hour": [
+          0.0,
+          240.0,
+          240.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 7.666666666666667,
+        "mean_invalid_eva_attempts": 184.0,
+        "kills_per_valid_eva": 0.6956521739130435,
+        "mean_contacts": 276.6666666666667,
+        "mean_total_distance_cells": 542.9227259726752,
+        "mean_path_efficiency": 0.1377808384884317,
+        "steering_counts": {
+          "0": 610,
+          "1": 558,
+          "2": 563
+        },
+        "steering_probabilities": {
+          "0": 0.35239745811669554,
+          "1": 0.3223570190641248,
+          "2": 0.3252455228191797
+        },
+        "event_counts": {
+          "0": 575,
+          "1": 575,
+          "2": 581
+        },
+        "event_probabilities": {
+          "0": 0.3321779318313114,
+          "1": 0.3321779318313114,
+          "2": 0.3356441363373772
+        },
+        "command_counts": {
+          "0,0": 185,
+          "0,1": 206,
+          "0,2": 219,
+          "1,0": 198,
+          "1,1": 182,
+          "1,2": 178,
+          "2,0": 192,
+          "2,1": 187,
+          "2,2": 184
+        },
+        "mean_reward_components": {
+          "approach": 1.2325988462982245,
+          "contact": -9.683333333333362,
+          "eva_miss": -0.3333333333333333,
+          "invalid_eva": -18.39999999999999,
+          "jump_flair": 0.0486666666666667,
+          "kill": 2.2307101433008207,
+          "missed_eva_opportunity": -0.08,
+          "obstacle_buffer": -8.808333333333392,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          -28.620584412271462,
+          -35.07473825361644,
+          -37.683750365314594
+        ],
+        "episode_kills": [
+          0,
+          8,
+          8
+        ]
+      },
+      "teacher": {
+        "episodes": 3,
+        "mean_reward": 109.41337395952898,
+        "mean_kills": 319.6666666666667,
+        "kills_per_simulated_hour": 9810.0,
+        "pooled_kills_per_simulated_hour": 9590.0,
+        "kills_per_simulated_hour_min": 8340.0,
+        "kills_per_simulated_hour_max": 10620.0,
+        "kills_per_simulated_hour_p25": 9075.0,
+        "kills_per_simulated_hour_p75": 10215.0,
+        "episode_kills_per_simulated_hour": [
+          8340.0,
+          9810.0,
+          10620.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 45.333333333333336,
+        "mean_invalid_eva_attempts": 0.0,
+        "kills_per_valid_eva": 7.051470588235294,
+        "mean_contacts": 94.0,
+        "mean_total_distance_cells": 509.8099006715347,
+        "mean_path_efficiency": 0.1891407509428992,
+        "steering_counts": {
+          "0": 510,
+          "1": 451,
+          "2": 432
+        },
+        "steering_probabilities": {
+          "0": 0.36611629576453697,
+          "1": 0.3237616654702082,
+          "2": 0.31012203876525485
+        },
+        "event_counts": {
+          "0": 1253,
+          "1": 136,
+          "2": 4
+        },
+        "event_probabilities": {
+          "0": 0.8994974874371859,
+          "1": 0.09763101220387653,
+          "2": 0.002871500358937545
+        },
+        "command_counts": {
+          "0,0": 475,
+          "0,1": 33,
+          "0,2": 2,
+          "1,0": 395,
+          "1,1": 56,
+          "1,2": 0,
+          "2,0": 383,
+          "2,1": 47,
+          "2,2": 2
+        },
+        "mean_reward_components": {
+          "approach": 8.324945160902276,
+          "contact": -3.2900000000000094,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0013333333333333333,
+          "kill": 106.9937621319603,
+          "missed_eva_opportunity": 0.0,
+          "obstacle_buffer": -2.6166666666666782,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          71.46943353921485,
+          124.39012316155278,
+          132.38056517781928
+        ],
+        "episode_kills": [
+          278,
+          327,
+          354
+        ]
+      },
+      "policy": {
+        "episodes": 3,
+        "mean_reward": 104.56338802699237,
+        "mean_kills": 354.3333333333333,
+        "kills_per_simulated_hour": 10740.0,
+        "pooled_kills_per_simulated_hour": 10630.0,
+        "kills_per_simulated_hour_min": 9900.0,
+        "kills_per_simulated_hour_max": 11250.0,
+        "kills_per_simulated_hour_p25": 10320.0,
+        "kills_per_simulated_hour_p75": 10995.0,
+        "episode_kills_per_simulated_hour": [
+          11250.0,
+          9900.0,
+          10740.0
+        ],
+        "mean_simulated_seconds": 120.0,
+        "mean_valid_eva_casts": 38.0,
+        "mean_invalid_eva_attempts": 7.333333333333333,
+        "kills_per_valid_eva": 9.324561403508772,
+        "mean_contacts": 25.666666666666668,
+        "mean_total_distance_cells": 644.2854366215789,
+        "mean_path_efficiency": 0.09127363152869344,
+        "steering_counts": {
+          "0": 370,
+          "1": 558,
+          "2": 530
+        },
+        "steering_probabilities": {
+          "0": 0.25377229080932784,
+          "1": 0.38271604938271603,
+          "2": 0.3635116598079561
+        },
+        "event_counts": {
+          "0": 1322,
+          "1": 136,
+          "2": 0
+        },
+        "event_probabilities": {
+          "0": 0.906721536351166,
+          "1": 0.09327846364883402,
+          "2": 0.0
+        },
+        "command_counts": {
+          "0,0": 339,
+          "0,1": 31,
+          "0,2": 0,
+          "1,0": 508,
+          "1,1": 50,
+          "1,2": 0,
+          "2,0": 475,
+          "2,1": 55,
+          "2,2": 0
+        },
+        "mean_reward_components": {
+          "approach": 5.991587296526013,
+          "contact": -0.8983333333333329,
+          "eva_miss": -0.016666666666666666,
+          "invalid_eva": -0.7333333333333334,
+          "jump_flair": 0.0,
+          "kill": 104.52680073046649,
+          "missed_eva_opportunity": -3.1733333333333356,
+          "obstacle_buffer": -1.1333333333333324,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "episode_rewards": [
+          100.34760300287931,
+          102.55009866229214,
+          110.79246241580569
+        ],
+        "episode_kills": [
+          375,
+          330,
+          358
+        ]
+      },
+      "gate": {
+        "passed": true,
+        "reasons": []
+      }
+    }
+  ],
+  "aggregate": {
+    "random_kills_per_simulated_hour": 637.5,
+    "teacher_kills_per_simulated_hour": 12615.0,
+    "policy_kills_per_simulated_hour": 11842.5,
+    "policy_to_random_kill_rate_ratio": 18.576470588235296,
+    "policy_to_teacher_kill_rate_ratio": 0.9387633769322236,
+    "teacher_steering_probabilities": {
+      "0": 0.2601903467730917,
+      "1": 0.358640945507329,
+      "2": 0.3811687077195792
+    },
+    "policy_steering_probabilities": {
+      "0": 0.2236279520709779,
+      "1": 0.36657718469405604,
+      "2": 0.40979486323496606
+    },
+    "teacher_event_probabilities": {
+      "0": 0.8776585107355279,
+      "1": 0.12046212940428475,
+      "2": 0.0018793598601873343
+    },
+    "policy_event_probabilities": {
+      "0": 0.9079727896631105,
+      "1": 0.0920272103368897,
+      "2": 0.0
+    }
+  },
+  "stage_gate": {
+    "passed": true,
+    "reasons": []
+  }
+}

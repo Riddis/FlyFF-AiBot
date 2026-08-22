@@ -1,0 +1,47 @@
+{
+  "role": "beginner_starting_point_diagnostic",
+  "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_basic_graduated.zip",
+  "per_layout": {
+    "01_early_open_field_typical_fast": {
+      "n_episodes": 2,
+      "physical_stagnation_episodes": 0,
+      "mean_contacts_per_100_distance": 5.901156122883205
+    },
+    "02_early_wide_neck_high_typical": {
+      "n_episodes": 2,
+      "physical_stagnation_episodes": 0,
+      "mean_contacts_per_100_distance": 7.418128541653715
+    },
+    "03_early_open_field_low_fast": {
+      "n_episodes": 2,
+      "physical_stagnation_episodes": 0,
+      "mean_contacts_per_100_distance": 6.736485194215879
+    },
+    "04_early_wide_neck_typical_bursty": {
+      "n_episodes": 2,
+      "physical_stagnation_episodes": 0,
+      "mean_contacts_per_100_distance": 8.698737125258056
+    },
+    "05_early_open_field_typical_fast": {
+      "n_episodes": 2,
+      "physical_stagnation_episodes": 0,
+      "mean_contacts_per_100_distance": 4.2296553349983075
+    },
+    "06_early_wide_neck_high_typical": {
+      "n_episodes": 2,
+      "physical_stagnation_episodes": 0,
+      "mean_contacts_per_100_distance": 4.502375639636037
+    },
+    "07_early_open_field_low_fast": {
+      "n_episodes": 2,
+      "physical_stagnation_episodes": 0,
+      "mean_contacts_per_100_distance": 4.374448700129208
+    },
+    "08_early_wide_neck_typical_bursty": {
+      "n_episodes": 2,
+      "physical_stagnation_episodes": 0,
+      "mean_contacts_per_100_distance": 3.842869863720276
+    }
+  },
+  "notes": "Diagnostic only -- not a Basic graduation requirement, not a Beginner graduation result."
+}

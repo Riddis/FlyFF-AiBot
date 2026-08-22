@@ -1,0 +1,3296 @@
+[
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 6,
+    "contact_ticks": 71,
+    "steps": 594,
+    "onset_records": [
+      {
+        "onset_tick": 55,
+        "fallback_entered_at": 50,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 50,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 158,
+        "fallback_entered_at": 153,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 85,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 207,
+        "fallback_entered_at": 202,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 27,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 1,
+            "terminal_clearance": {
+              "left": 0.6666666666666666,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 290,
+        "fallback_entered_at": 285,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 70,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 399,
+        "fallback_entered_at": 394,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 91,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 488,
+        "fallback_entered_at": 483,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 76,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 4,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 7,
+    "contact_ticks": 86,
+    "steps": 594,
+    "onset_records": []
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 1,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 5,
+    "contact_ticks": 49,
+    "steps": 588,
+    "onset_records": [
+      {
+        "onset_tick": 20,
+        "fallback_entered_at": 15,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 15,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 59,
+        "fallback_entered_at": 57,
+        "fallback_streak_ticks_before_onset": 2,
+        "normal_decisions_since_fallback": 25,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 2,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 3,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 0.0
+            }
+          },
+          "3": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 4,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 0.3333333333333333
+            }
+          },
+          "4": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 4,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 0.3333333333333333
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 159,
+        "fallback_entered_at": 153,
+        "fallback_streak_ticks_before_onset": 6,
+        "normal_decisions_since_fallback": 85,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 170,
+        "fallback_entered_at": 153,
+        "fallback_streak_ticks_before_onset": 17,
+        "normal_decisions_since_fallback": 85,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 361,
+        "fallback_entered_at": 358,
+        "fallback_streak_ticks_before_onset": 3,
+        "normal_decisions_since_fallback": 181,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 9,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 1,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 14,
+    "contact_ticks": 59,
+    "steps": 603,
+    "onset_records": []
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 0,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 4,
+    "contact_ticks": 50,
+    "steps": 579,
+    "onset_records": [
+      {
+        "onset_tick": 57,
+        "fallback_entered_at": 52,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 52,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 141,
+        "fallback_entered_at": 137,
+        "fallback_streak_ticks_before_onset": 4,
+        "normal_decisions_since_fallback": 68,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 311,
+        "fallback_entered_at": 306,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 157,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 560,
+        "fallback_entered_at": 555,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 229,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 1,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 0.6666666666666666
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 0,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 6,
+    "contact_ticks": 77,
+    "steps": 606,
+    "onset_records": []
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 1,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 1,
+    "contact_ticks": 19,
+    "steps": 579,
+    "onset_records": [
+      {
+        "onset_tick": 250,
+        "fallback_entered_at": 245,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 245,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 1,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 9,
+    "contact_ticks": 46,
+    "steps": 582,
+    "onset_records": []
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 11,
+    "contact_ticks": 73,
+    "steps": 627,
+    "onset_records": [
+      {
+        "onset_tick": 56,
+        "fallback_entered_at": 51,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 51,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 206,
+        "fallback_entered_at": 202,
+        "fallback_streak_ticks_before_onset": 4,
+        "normal_decisions_since_fallback": 128,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 216,
+        "fallback_entered_at": 202,
+        "fallback_streak_ticks_before_onset": 14,
+        "normal_decisions_since_fallback": 128,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 219,
+        "fallback_entered_at": 202,
+        "fallback_streak_ticks_before_onset": 17,
+        "normal_decisions_since_fallback": 128,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 223,
+        "fallback_entered_at": 202,
+        "fallback_streak_ticks_before_onset": 21,
+        "normal_decisions_since_fallback": 128,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 283,
+        "fallback_entered_at": 279,
+        "fallback_streak_ticks_before_onset": 4,
+        "normal_decisions_since_fallback": 54,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 335,
+        "fallback_entered_at": 330,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 40,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 2,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 348,
+        "fallback_entered_at": 330,
+        "fallback_streak_ticks_before_onset": 18,
+        "normal_decisions_since_fallback": 40,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 355,
+        "fallback_entered_at": 330,
+        "fallback_streak_ticks_before_onset": 25,
+        "normal_decisions_since_fallback": 40,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 510,
+        "fallback_entered_at": 506,
+        "fallback_streak_ticks_before_onset": 4,
+        "normal_decisions_since_fallback": 145,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 2,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 1,
+            "terminal_clearance": {
+              "left": 0.3333333333333333,
+              "forward": 0.6666666666666666,
+              "right": 0.0
+            }
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 4,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 0.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 522,
+        "fallback_entered_at": 522,
+        "fallback_streak_ticks_before_onset": 0,
+        "normal_decisions_since_fallback": 1,
+        "category": "B_immediate_fallback",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 9,
+            "terminal_clearance": {
+              "left": 0.3333333333333333,
+              "forward": 1.0,
+              "right": 0.6666666666666666
+            }
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 3,
+    "contact_ticks": 31,
+    "steps": 594,
+    "onset_records": []
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 1,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 5,
+    "contact_ticks": 26,
+    "steps": 594,
+    "onset_records": [
+      {
+        "onset_tick": 154,
+        "fallback_entered_at": 152,
+        "fallback_streak_ticks_before_onset": 2,
+        "normal_decisions_since_fallback": 152,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 4,
+            "terminal_clearance": {
+              "left": 0.3333333333333333,
+              "forward": 1.0,
+              "right": 0.3333333333333333
+            }
+          },
+          "3": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 7,
+            "terminal_clearance": {
+              "left": 0.6666666666666666,
+              "forward": 1.0,
+              "right": 0.3333333333333333
+            }
+          },
+          "4": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 0,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 9,
+            "terminal_clearance": {
+              "left": 0.6666666666666666,
+              "forward": 1.0,
+              "right": 0.3333333333333333
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 157,
+        "fallback_entered_at": 152,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 152,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 159,
+        "fallback_entered_at": 152,
+        "fallback_streak_ticks_before_onset": 7,
+        "normal_decisions_since_fallback": 152,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 322,
+        "fallback_entered_at": 319,
+        "fallback_streak_ticks_before_onset": 3,
+        "normal_decisions_since_fallback": 159,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 4,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 0.6666666666666666
+            }
+          },
+          "4": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 0,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 9,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 452,
+        "fallback_entered_at": 447,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 115,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 1,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 8,
+    "contact_ticks": 29,
+    "steps": 612,
+    "onset_records": []
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 0,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 0,
+    "contact_ticks": 0,
+    "steps": 574,
+    "onset_records": []
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 0,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 6,
+    "contact_ticks": 52,
+    "steps": 564,
+    "onset_records": []
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 1,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 2,
+    "contact_ticks": 9,
+    "steps": 570,
+    "onset_records": [
+      {
+        "onset_tick": 41,
+        "fallback_entered_at": 38,
+        "fallback_streak_ticks_before_onset": 3,
+        "normal_decisions_since_fallback": 38,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 0,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 6,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 46,
+        "fallback_entered_at": 38,
+        "fallback_streak_ticks_before_onset": 8,
+        "normal_decisions_since_fallback": 38,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 1,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 3,
+    "contact_ticks": 32,
+    "steps": 561,
+    "onset_records": []
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 0,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 3,
+    "contact_ticks": 35,
+    "steps": 618,
+    "onset_records": [
+      {
+        "onset_tick": 402,
+        "fallback_entered_at": 397,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 397,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 0,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 1,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 540,
+        "fallback_entered_at": 536,
+        "fallback_streak_ticks_before_onset": 4,
+        "normal_decisions_since_fallback": 117,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 0,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 5,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 556,
+        "fallback_entered_at": 536,
+        "fallback_streak_ticks_before_onset": 20,
+        "normal_decisions_since_fallback": 117,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 0,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 5,
+    "contact_ticks": 33,
+    "steps": 606,
+    "onset_records": []
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 1,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 8,
+    "contact_ticks": 69,
+    "steps": 597,
+    "onset_records": [
+      {
+        "onset_tick": 43,
+        "fallback_entered_at": 38,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 38,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 60,
+        "fallback_entered_at": 38,
+        "fallback_streak_ticks_before_onset": 22,
+        "normal_decisions_since_fallback": 38,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 136,
+        "fallback_entered_at": 130,
+        "fallback_streak_ticks_before_onset": 6,
+        "normal_decisions_since_fallback": 68,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 255,
+        "fallback_entered_at": 252,
+        "fallback_streak_ticks_before_onset": 3,
+        "normal_decisions_since_fallback": 99,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 1,
+            "terminal_clearance": {
+              "left": 0.3333333333333333,
+              "forward": 0.6666666666666666,
+              "right": 1.0
+            }
+          },
+          "4": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 0,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 9,
+            "terminal_clearance": {
+              "left": 0.6666666666666666,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 448,
+        "fallback_entered_at": 444,
+        "fallback_streak_ticks_before_onset": 4,
+        "normal_decisions_since_fallback": 181,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 7,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 460,
+        "fallback_entered_at": 444,
+        "fallback_streak_ticks_before_onset": 16,
+        "normal_decisions_since_fallback": 181,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 533,
+        "fallback_entered_at": 531,
+        "fallback_streak_ticks_before_onset": 2,
+        "normal_decisions_since_fallback": 2,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 2,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 3,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 0.3333333333333333
+            }
+          },
+          "3": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 3,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 0.3333333333333333
+            }
+          },
+          "4": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 7,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 0.6666666666666666
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 540,
+        "fallback_entered_at": 531,
+        "fallback_streak_ticks_before_onset": 9,
+        "normal_decisions_since_fallback": 2,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 1,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 8,
+    "contact_ticks": 43,
+    "steps": 600,
+    "onset_records": []
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 0,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 13,
+    "contact_ticks": 72,
+    "steps": 633,
+    "onset_records": [
+      {
+        "onset_tick": 245,
+        "fallback_entered_at": 240,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 240,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 258,
+        "fallback_entered_at": 240,
+        "fallback_streak_ticks_before_onset": 18,
+        "normal_decisions_since_fallback": 240,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 267,
+        "fallback_entered_at": 240,
+        "fallback_streak_ticks_before_onset": 27,
+        "normal_decisions_since_fallback": 240,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 274,
+        "fallback_entered_at": 240,
+        "fallback_streak_ticks_before_onset": 34,
+        "normal_decisions_since_fallback": 240,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 279,
+        "fallback_entered_at": 240,
+        "fallback_streak_ticks_before_onset": 39,
+        "normal_decisions_since_fallback": 240,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 282,
+        "fallback_entered_at": 240,
+        "fallback_streak_ticks_before_onset": 42,
+        "normal_decisions_since_fallback": 240,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 286,
+        "fallback_entered_at": 240,
+        "fallback_streak_ticks_before_onset": 46,
+        "normal_decisions_since_fallback": 240,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 477,
+        "fallback_entered_at": 471,
+        "fallback_streak_ticks_before_onset": 6,
+        "normal_decisions_since_fallback": 178,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 491,
+        "fallback_entered_at": 471,
+        "fallback_streak_ticks_before_onset": 20,
+        "normal_decisions_since_fallback": 178,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 494,
+        "fallback_entered_at": 471,
+        "fallback_streak_ticks_before_onset": 23,
+        "normal_decisions_since_fallback": 178,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 615,
+        "fallback_entered_at": 610,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 114,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 629,
+        "fallback_entered_at": 610,
+        "fallback_streak_ticks_before_onset": 19,
+        "normal_decisions_since_fallback": 114,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 631,
+        "fallback_entered_at": 610,
+        "fallback_streak_ticks_before_onset": 21,
+        "normal_decisions_since_fallback": 114,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 0,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 2,
+    "contact_ticks": 29,
+    "steps": 627,
+    "onset_records": []
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 1,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 11,
+    "contact_ticks": 66,
+    "steps": 609,
+    "onset_records": [
+      {
+        "onset_tick": 30,
+        "fallback_entered_at": 27,
+        "fallback_streak_ticks_before_onset": 3,
+        "normal_decisions_since_fallback": 27,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 0,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 9,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 41,
+        "fallback_entered_at": 27,
+        "fallback_streak_ticks_before_onset": 14,
+        "normal_decisions_since_fallback": 27,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 171,
+        "fallback_entered_at": 167,
+        "fallback_streak_ticks_before_onset": 4,
+        "normal_decisions_since_fallback": 124,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 8,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 272,
+        "fallback_entered_at": 267,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 79,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 282,
+        "fallback_entered_at": 267,
+        "fallback_streak_ticks_before_onset": 15,
+        "normal_decisions_since_fallback": 79,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 284,
+        "fallback_entered_at": 267,
+        "fallback_streak_ticks_before_onset": 17,
+        "normal_decisions_since_fallback": 79,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 287,
+        "fallback_entered_at": 267,
+        "fallback_streak_ticks_before_onset": 20,
+        "normal_decisions_since_fallback": 79,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 290,
+        "fallback_entered_at": 267,
+        "fallback_streak_ticks_before_onset": 23,
+        "normal_decisions_since_fallback": 79,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 496,
+        "fallback_entered_at": 491,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 199,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 506,
+        "fallback_entered_at": 491,
+        "fallback_streak_ticks_before_onset": 15,
+        "normal_decisions_since_fallback": 199,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 581,
+        "fallback_entered_at": 576,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 68,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 1,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 12,
+    "contact_ticks": 46,
+    "steps": 630,
+    "onset_records": []
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 7,
+    "contact_ticks": 48,
+    "steps": 600,
+    "onset_records": [
+      {
+        "onset_tick": 132,
+        "fallback_entered_at": 128,
+        "fallback_streak_ticks_before_onset": 4,
+        "normal_decisions_since_fallback": 128,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 1,
+            "terminal_clearance": {
+              "left": 0.3333333333333333,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 2,
+            "terminal_clearance": {
+              "left": 0.6666666666666666,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 313,
+        "fallback_entered_at": 308,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 164,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 2,
+            "terminal_clearance": {
+              "left": 0.6666666666666666,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 2,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 2,
+            "terminal_clearance": {
+              "left": 0.3333333333333333,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 320,
+        "fallback_entered_at": 308,
+        "fallback_streak_ticks_before_onset": 12,
+        "normal_decisions_since_fallback": 164,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 323,
+        "fallback_entered_at": 308,
+        "fallback_streak_ticks_before_onset": 15,
+        "normal_decisions_since_fallback": 164,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 326,
+        "fallback_entered_at": 308,
+        "fallback_streak_ticks_before_onset": 18,
+        "normal_decisions_since_fallback": 164,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          }
+        }
+      },
+      {
+        "onset_tick": 390,
+        "fallback_entered_at": 387,
+        "fallback_streak_ticks_before_onset": 3,
+        "normal_decisions_since_fallback": 60,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 2,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 0.3333333333333333
+            }
+          },
+          "4": {
+            "recorded_used_fallback": false,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 9,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 565,
+        "fallback_entered_at": 560,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 162,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 7,
+    "contact_ticks": 40,
+    "steps": 600,
+    "onset_records": []
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 1,
+    "oracle_kind": "terminal_gate",
+    "n_onsets": 3,
+    "contact_ticks": 47,
+    "steps": 594,
+    "onset_records": [
+      {
+        "onset_tick": 59,
+        "fallback_entered_at": 54,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 54,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth3_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 0,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 2,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 1.0,
+              "right": 1.0
+            }
+          }
+        }
+      },
+      {
+        "onset_tick": 260,
+        "fallback_entered_at": 255,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 176,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          }
+        }
+      },
+      {
+        "onset_tick": 444,
+        "fallback_entered_at": 439,
+        "fallback_streak_ticks_before_onset": 5,
+        "normal_decisions_since_fallback": 159,
+        "category": "C_fallback_persistence",
+        "lookback": {
+          "0": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth1_empty"
+          },
+          "1": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth2_empty"
+          },
+          "2": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "main_loop_depth4_empty"
+          },
+          "3": {
+            "recorded_used_fallback": true,
+            "used_fallback": true,
+            "reason": "all_terminal_continuation_failed"
+          },
+          "4": {
+            "recorded_used_fallback": true,
+            "used_fallback": false,
+            "chosen_action": 1,
+            "terminal_immediate_count": 3,
+            "terminal_continuation_depth1": true,
+            "terminal_continuation_depth2": true,
+            "terminal_branch_count_depth2": 1,
+            "terminal_clearance": {
+              "left": 1.0,
+              "forward": 0.6666666666666666,
+              "right": 0.6666666666666666
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 1,
+    "oracle_kind": "plain_v3",
+    "n_onsets": 3,
+    "contact_ticks": 33,
+    "steps": 567,
+    "onset_records": []
+  }
+]

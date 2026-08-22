@@ -1,0 +1,345 @@
+{
+  "passed": true,
+  "dataset": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\datasets\\split_branch_teacher.npz",
+  "before": {
+    "gate": {
+      "passed": true,
+      "samples": 2327,
+      "exact_command_accuracy": 0.5870219166308551,
+      "heads": {
+        "steering": {
+          "accuracy": 0.6574989256553503,
+          "maximum_prediction_fraction": 0.36269875376020627,
+          "predicted_counts": [
+            844,
+            762,
+            721
+          ],
+          "confusion_matrix_true_rows": [
+            [
+              375,
+              67,
+              61
+            ],
+            [
+              241,
+              600,
+              105
+            ],
+            [
+              228,
+              95,
+              555
+            ]
+          ],
+          "per_class": [
+            {
+              "value": 0,
+              "support": 503,
+              "predicted": 844,
+              "precision": 0.4443127962085308,
+              "recall": 0.7455268389662028
+            },
+            {
+              "value": 1,
+              "support": 946,
+              "predicted": 762,
+              "precision": 0.7874015748031497,
+              "recall": 0.6342494714587738
+            },
+            {
+              "value": 2,
+              "support": 878,
+              "predicted": 721,
+              "precision": 0.7697642163661581,
+              "recall": 0.6321184510250569
+            }
+          ],
+          "samples": 2327
+        },
+        "event": {
+          "accuracy": 0.8912763214439192,
+          "maximum_prediction_fraction": 0.9406961753330468,
+          "predicted_counts": [
+            2189,
+            138,
+            0
+          ],
+          "confusion_matrix_true_rows": [
+            [
+              1978,
+              42,
+              0
+            ],
+            [
+              206,
+              96,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ]
+          ],
+          "per_class": [
+            {
+              "value": 0,
+              "support": 2020,
+              "predicted": 2189,
+              "precision": 0.9036089538602101,
+              "recall": 0.9792079207920792
+            },
+            {
+              "value": 1,
+              "support": 302,
+              "predicted": 138,
+              "precision": 0.6956521739130435,
+              "recall": 0.31788079470198677
+            },
+            {
+              "value": 2,
+              "support": 5,
+              "predicted": 0,
+              "precision": 0.0,
+              "recall": 0.0
+            }
+          ],
+          "samples": 2327
+        }
+      },
+      "reasons": []
+    },
+    "steering": {
+      "mean_probabilities": [
+        0.3429098427295685,
+        0.33282962441444397,
+        0.324260413646698
+      ],
+      "deterministic_priors": [
+        0.36269875376020627,
+        0.32746024924795875,
+        0.309840996991835
+      ],
+      "true_priors": [
+        0.2161581435324452,
+        0.40653201547056295,
+        0.37730984099699183
+      ],
+      "mean_margin": 0.31242987513542175,
+      "p10_margin": 0.07188622653484344,
+      "p50_margin": 0.2983647882938385,
+      "p90_margin": 0.5422781705856323,
+      "prior_l1": 0.2930812204555221,
+      "samples": 2327
+    },
+    "event": {
+      "mean_probabilities": [
+        0.9073441624641418,
+        0.09161200374364853,
+        0.0010440524201840162
+      ],
+      "deterministic_priors": [
+        0.9406961753330468,
+        0.05930382466695316,
+        0.0
+      ],
+      "true_priors": [
+        0.8680704770090245,
+        0.12978083369144822,
+        0.0021486892995272885
+      ],
+      "mean_margin": 0.8487551212310791,
+      "p10_margin": 0.36751824617385864,
+      "p50_margin": 0.9915200471878052,
+      "p90_margin": 0.9992682337760925,
+      "prior_l1": 0.14525139664804468,
+      "samples": 2327
+    }
+  },
+  "recognition": {
+    "mean_loss": 1.0800303916136424,
+    "updates": 48,
+    "steering_updates": 48,
+    "event_updates": 45,
+    "event_sample_counts_last_epoch": {
+      "0": 8470,
+      "1": 2598,
+      "2": 226
+    },
+    "event_sample_fractions_last_epoch": {
+      "0": 0.7499557287055073,
+      "1": 0.23003364618381442,
+      "2": 0.020010625110678235
+    }
+  },
+  "calibration": [
+    {
+      "epoch": 1,
+      "updates": 38,
+      "mean_loss": 0.9898828942524759
+    },
+    {
+      "epoch": 2,
+      "updates": 38,
+      "mean_loss": 0.9828075045033505
+    }
+  ],
+  "validation": {
+    "gate": {
+      "passed": true,
+      "samples": 2327,
+      "exact_command_accuracy": 0.5986248388483025,
+      "heads": {
+        "steering": {
+          "accuracy": 0.6669531585732703,
+          "maximum_prediction_fraction": 0.34593897722389344,
+          "predicted_counts": [
+            805,
+            780,
+            742
+          ],
+          "confusion_matrix_true_rows": [
+            [
+              372,
+              69,
+              62
+            ],
+            [
+              226,
+              610,
+              110
+            ],
+            [
+              207,
+              101,
+              570
+            ]
+          ],
+          "per_class": [
+            {
+              "value": 0,
+              "support": 503,
+              "predicted": 805,
+              "precision": 0.462111801242236,
+              "recall": 0.7395626242544732
+            },
+            {
+              "value": 1,
+              "support": 946,
+              "predicted": 780,
+              "precision": 0.782051282051282,
+              "recall": 0.6448202959830867
+            },
+            {
+              "value": 2,
+              "support": 878,
+              "predicted": 742,
+              "precision": 0.7681940700808625,
+              "recall": 0.6492027334851936
+            }
+          ],
+          "samples": 2327
+        },
+        "event": {
+          "accuracy": 0.898581865062312,
+          "maximum_prediction_fraction": 0.9187795444778685,
+          "predicted_counts": [
+            2138,
+            189,
+            0
+          ],
+          "confusion_matrix_true_rows": [
+            [
+              1961,
+              59,
+              0
+            ],
+            [
+              172,
+              130,
+              0
+            ],
+            [
+              5,
+              0,
+              0
+            ]
+          ],
+          "per_class": [
+            {
+              "value": 0,
+              "support": 2020,
+              "predicted": 2138,
+              "precision": 0.9172123479887746,
+              "recall": 0.9707920792079208
+            },
+            {
+              "value": 1,
+              "support": 302,
+              "predicted": 189,
+              "precision": 0.6878306878306878,
+              "recall": 0.4304635761589404
+            },
+            {
+              "value": 2,
+              "support": 5,
+              "predicted": 0,
+              "precision": 0.0,
+              "recall": 0.0
+            }
+          ],
+          "samples": 2327
+        }
+      },
+      "reasons": []
+    },
+    "steering": {
+      "mean_probabilities": [
+        0.33317309617996216,
+        0.3383236825466156,
+        0.3285025358200073
+      ],
+      "deterministic_priors": [
+        0.34593897722389344,
+        0.33519553072625696,
+        0.3188654920498496
+      ],
+      "true_priors": [
+        0.2161581435324452,
+        0.40653201547056295,
+        0.37730984099699183
+      ],
+      "mean_margin": 0.32088425755500793,
+      "p10_margin": 0.07115991413593292,
+      "p50_margin": 0.3005881905555725,
+      "p90_margin": 0.5614005327224731,
+      "prior_l1": 0.25956166738289643,
+      "samples": 2327
+    },
+    "event": {
+      "mean_probabilities": [
+        0.8892149329185486,
+        0.10832101106643677,
+        0.002464008517563343
+      ],
+      "deterministic_priors": [
+        0.9187795444778685,
+        0.0812204555221315,
+        0.0
+      ],
+      "true_priors": [
+        0.8680704770090245,
+        0.12978083369144822,
+        0.0021486892995272885
+      ],
+      "mean_margin": 0.8324404358863831,
+      "p10_margin": 0.3241712152957916,
+      "p50_margin": 0.9877813458442688,
+      "p90_margin": 0.9992532730102539,
+      "prior_l1": 0.10141813493768796,
+      "samples": 2327
+    }
+  },
+  "reasons": []
+}

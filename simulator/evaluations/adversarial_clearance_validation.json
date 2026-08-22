@@ -1,0 +1,85 @@
+{
+  "confusion": {
+    "obstacle": {
+      "forward": {
+        "tp": 67,
+        "tn": 584,
+        "false_clear": 0,
+        "false_blocked": 285
+      },
+      "left": {
+        "tp": 112,
+        "tn": 350,
+        "false_clear": 0,
+        "false_blocked": 474
+      },
+      "right": {
+        "tp": 127,
+        "tn": 346,
+        "false_clear": 0,
+        "false_blocked": 463
+      }
+    },
+    "obstacle_buffer": {
+      "forward": {
+        "tp": 1000,
+        "tn": 285,
+        "false_clear": 0,
+        "false_blocked": 875
+      },
+      "left": {
+        "tp": 1144,
+        "tn": 114,
+        "false_clear": 0,
+        "false_blocked": 902
+      },
+      "right": {
+        "tp": 1051,
+        "tn": 106,
+        "false_clear": 0,
+        "false_blocked": 1003
+      }
+    },
+    "map_edge_outside": {
+      "forward": {
+        "tp": 0,
+        "tn": 32,
+        "false_clear": 0,
+        "false_blocked": 24
+      },
+      "left": {
+        "tp": 0,
+        "tn": 0,
+        "false_clear": 0,
+        "false_blocked": 56
+      },
+      "right": {
+        "tp": 0,
+        "tn": 0,
+        "false_clear": 0,
+        "false_blocked": 56
+      }
+    },
+    "narrow_neck_template": {
+      "forward": {
+        "tp": 115,
+        "tn": 0,
+        "false_clear": 0,
+        "false_blocked": 5
+      },
+      "left": {
+        "tp": 116,
+        "tn": 0,
+        "false_clear": 0,
+        "false_blocked": 4
+      },
+      "right": {
+        "tp": 117,
+        "tn": 0,
+        "false_clear": 0,
+        "false_blocked": 3
+      }
+    }
+  },
+  "false_clear_samples": []
+}

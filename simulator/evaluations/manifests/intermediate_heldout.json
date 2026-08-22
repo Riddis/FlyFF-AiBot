@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "stage": "intermediate",
+  "role": "heldout",
+  "curriculum_path": "curricula/synthetic_curriculum_intermediate_heldout/curriculum.json",
+  "layouts": [
+    "01_intermediate_irregular_plain_uneven_typical",
+    "02_intermediate_irregular_plain_high_bursty",
+    "03_intermediate_split_field_typical_variable",
+    "04_intermediate_split_field_shifting_typical",
+    "05_intermediate_irregular_plain_typical_fast",
+    "06_intermediate_split_field_high_bursty"
+  ],
+  "notes": "Intermediate-stage held-out pool, fresh siblings (seed base 20262000) of the training curriculum intermediate templates (irregular_plain, split_field). Disjoint from training."
+}

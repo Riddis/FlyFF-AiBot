@@ -1,0 +1,255 @@
+{
+  "components": {
+    "flyff_farming_recorder": {
+      "import_root": "flyff_farming_recorder",
+      "monster_config": {
+        "class": "position.MonsterConfig.NativeMonsterConfig",
+        "effective": {
+          "active_species_offset": 7612,
+          "actor_stride": 8200,
+          "discovery_chunk_bytes": 1048576,
+          "discovery_interval_seconds": 20.0,
+          "enabled": true,
+          "hp_offset": 2068,
+          "maximum_absolute_coordinate": 100000.0,
+          "maximum_scan_address": 2147483647,
+          "module_name": "Neuz.exe",
+          "player_pointer_chain_offsets": [],
+          "player_pointer_offset": 5788344,
+          "private_memory_only": true,
+          "selected_actor_offset": 32,
+          "self_pointer_offset": 7904,
+          "species_offset": 372,
+          "vision_radius_native": 80.0,
+          "world_identity_kind": "vtable",
+          "world_offset": 364,
+          "world_pointer_chain_offsets": [],
+          "world_pointer_offset": 5860460,
+          "world_vtable_field_offset": 0,
+          "world_vtable_offset": null,
+          "x_offset": 352,
+          "y_offset": 356,
+          "z_offset": 360
+        },
+        "loader_module": {
+          "exists": true,
+          "path": "flyff_farming_recorder/position/MonsterConfig.py",
+          "sha256": "058f45214120c9048e3e1cbf83959b158374e08fe64b8effe0e64bfaa48a5d0e"
+        },
+        "source": {
+          "exists": true,
+          "path": "flyff_farming_recorder/position/native_monsters.json",
+          "sha256": "2b0e58d642702da7c917ebad202a9e7281a27b4ba05de37c1178a3a58da40e4e"
+        }
+      },
+      "position_config": {
+        "class": "position.PositionConfig.NativePositionConfig",
+        "effective": {
+          "consensus_tolerance": 0.05,
+          "enabled": true,
+          "heading_offset": null,
+          "heading_unit": "degrees",
+          "maximum_absolute_coordinate": 100000000.0,
+          "minimum_consensus_sources": 1,
+          "module_name": "Neuz.exe",
+          "pointer_chain_offsets": [],
+          "pointer_offset": 5788344,
+          "resolver": "module_pointer",
+          "transform_address": null,
+          "transform_offsets": [],
+          "x_offset": 352,
+          "y_offset": 356,
+          "z_offset": 360
+        },
+        "loader_module": {
+          "exists": true,
+          "path": "flyff_farming_recorder/position/PositionConfig.py",
+          "sha256": "431034c982e2e76703965958666d880e48a9bbf06cf424c47d7455eb5e67a8e2"
+        },
+        "source": {
+          "exists": true,
+          "path": "flyff_farming_recorder/position/native_position.json",
+          "sha256": "6f073278103a2ec04276767b59642a80c3f4328b2a353d2095f42cd8c2a73242"
+        }
+      },
+      "recorder_config": {
+        "class": "recorder.config.RecorderConfig",
+        "effective": {
+          "active_profile_dormant_after_near_seconds": 2.0,
+          "active_profile_dormant_radius_native": 160.0,
+          "active_profile_dormant_stable_seconds": 3.0,
+          "active_profile_interval_seconds": 0.5,
+          "active_profile_live_radius_native": 80.0,
+          "active_profile_samples_per_interval": 8,
+          "discovery_timeout_seconds": 1200.0,
+          "farming_rediscovery_interval_seconds": 0.0,
+          "frame_interval_seconds": 0.2,
+          "full_keyframe_seconds": 5.0,
+          "kill_event_radius_native": 14.0,
+          "lifecycle_poll_seconds": 0.025,
+          "map_exit_confirmation_samples": 2,
+          "map_exit_jump_native": 250.0,
+          "map_exit_max_distance_from_spawn_native": 1500.0,
+          "map_name": "Tower AoE",
+          "map_stable_seconds": 20.0,
+          "maximum_scan_mib": 1536,
+          "minimum_completed_rediscoveries": 1,
+          "minimum_discovery_seconds": 30.0,
+          "monster_hp_by_species": [
+            [
+              944,
+              400236
+            ]
+          ],
+          "native_units_per_cell": 1.6,
+          "object_span": 16384,
+          "output_directory_name": "FlyffFarmingRecorder",
+          "position_quantum_native": 0.05,
+          "presence_clear_confirmation_samples": 3,
+          "presence_cold_poll_batch_size": 1024,
+          "presence_cold_verification_batch_size": 256,
+          "presence_dead_read_grace_seconds": 2.0,
+          "rediscovery_chunk_mib": 4,
+          "rediscovery_interval_seconds": 3.0,
+          "rediscovery_movement_trigger_native": 12.0,
+          "rediscovery_stable_scan_count": 3,
+          "rediscovery_stable_scan_interval_seconds": 2.0,
+          "rediscovery_timeout_seconds": 45.0,
+          "selected_species_ids": [
+            944,
+            948
+          ],
+          "slots_each_direction": 31,
+          "spawn_x": 253.0,
+          "spawn_z": 86.0,
+          "window_title_prefix": "Spirit Of Madrigal - "
+        },
+        "loader_module": {
+          "exists": true,
+          "path": "flyff_farming_recorder/recorder/config.py",
+          "sha256": "aa6dd33b605d9f5f57c7c66880d56c7843d8e099706f663943db73ab6630c346"
+        },
+        "source": {
+          "exists": true,
+          "path": "flyff_farming_recorder/recorder_config.json",
+          "sha256": "953edb77da6361cbefbe6c6145b929756b5495eb09811d52aa95ee83bf99714b"
+        }
+      }
+    },
+    "foreground_vision_bot": {
+      "import_root": "foreground_vision_bot",
+      "monster_config": {
+        "class": "position.MonsterConfig.NativeMonsterConfig",
+        "effective": {
+          "active_species_offset": 7612,
+          "actor_stride": 8200,
+          "discovery_chunk_bytes": 1048576,
+          "discovery_interval_seconds": 20.0,
+          "enabled": true,
+          "hp_offset": 2068,
+          "maximum_absolute_coordinate": 100000.0,
+          "maximum_scan_address": 2147483647,
+          "module_name": "Neuz.exe",
+          "player_pointer_chain_offsets": [],
+          "player_pointer_offset": 5788344,
+          "presence_clear_confirmation_samples": 3,
+          "presence_cold_poll_batch_size": 1024,
+          "presence_cold_verification_batch_size": 256,
+          "presence_dead_read_grace_seconds": 2.0,
+          "private_memory_only": true,
+          "selected_actor_offset": 32,
+          "self_pointer_offset": 7904,
+          "species_offset": 372,
+          "vision_radius_native": 80.0,
+          "world_identity_kind": "vtable",
+          "world_offset": 364,
+          "world_pointer_chain_offsets": [],
+          "world_pointer_offset": 5860460,
+          "world_vtable_field_offset": 0,
+          "world_vtable_offset": null,
+          "x_offset": 352,
+          "y_offset": 356,
+          "z_offset": 360
+        },
+        "loader_module": {
+          "exists": true,
+          "path": "foreground_vision_bot/position/MonsterConfig.py",
+          "sha256": "1721310dca9f1f8c94a48cc6b372adb8606d264de47b0639174fa715f57b9ceb"
+        },
+        "source": {
+          "exists": true,
+          "path": "foreground_vision_bot/position/native_monsters.json",
+          "sha256": "b3ba52758526bc4c1f86636b38b64c832439e4cae0671acb50311b0489553785"
+        }
+      },
+      "position_config": {
+        "class": "position.PositionConfig.NativePositionConfig",
+        "effective": {
+          "consensus_tolerance": 0.05,
+          "enabled": true,
+          "heading_offset": null,
+          "heading_unit": "degrees",
+          "maximum_absolute_coordinate": 100000000.0,
+          "minimum_consensus_sources": 1,
+          "module_name": "Neuz.exe",
+          "pointer_chain_offsets": [],
+          "pointer_offset": 5788344,
+          "resolver": "module_pointer",
+          "transform_address": null,
+          "transform_offsets": [],
+          "x_offset": 352,
+          "y_offset": 356,
+          "z_offset": 360
+        },
+        "loader_module": {
+          "exists": true,
+          "path": "foreground_vision_bot/position/PositionConfig.py",
+          "sha256": "431034c982e2e76703965958666d880e48a9bbf06cf424c47d7455eb5e67a8e2"
+        },
+        "source": {
+          "exists": true,
+          "path": "foreground_vision_bot/position/native_position.json",
+          "sha256": "6f073278103a2ec04276767b59642a80c3f4328b2a353d2095f42cd8c2a73242"
+        }
+      }
+    }
+  },
+  "loading_isolation": {
+    "cross_root_import_contamination": false,
+    "flyff_farming_recorder_import_root": "flyff_farming_recorder",
+    "foreground_vision_bot_import_root": "foreground_vision_bot",
+    "method": "separate python -I subprocesses"
+  },
+  "phase": "Phase 0",
+  "presence_field_ownership": {
+    "equal_effective_values": {
+      "presence_clear_confirmation_samples": 3,
+      "presence_cold_poll_batch_size": 1024,
+      "presence_cold_verification_batch_size": 256,
+      "presence_dead_read_grace_seconds": 2.0
+    },
+    "flyff_farming_recorder": {
+      "config_layer": "recorder.config.RecorderConfig",
+      "owner": "flyff_farming_recorder/recorder_config.json",
+      "recorder_position_monster_config_contains_presence_fields": false,
+      "values": {
+        "presence_clear_confirmation_samples": 3,
+        "presence_cold_poll_batch_size": 1024,
+        "presence_cold_verification_batch_size": 256,
+        "presence_dead_read_grace_seconds": 2.0
+      }
+    },
+    "foreground_vision_bot": {
+      "config_layer": "position.MonsterConfig.NativeMonsterConfig",
+      "owner": "foreground_vision_bot/position/native_monsters.json",
+      "values": {
+        "presence_clear_confirmation_samples": 3,
+        "presence_cold_poll_batch_size": 1024,
+        "presence_cold_verification_batch_size": 256,
+        "presence_dead_read_grace_seconds": 2.0
+      }
+    },
+    "ownership_conclusion": "Values are equal, but ownership is intentionally different; Phase 0 does not unify them."
+  },
+  "purpose": "Effective resolved config baseline for the future position/ merge; preservation evidence only, not a unification."
+}

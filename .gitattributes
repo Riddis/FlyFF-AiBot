@@ -1,0 +1,78 @@
+* text=auto eol=lf
+
+# =============================================================================
+# BYTE-PRESERVATION RULES (narrow, deliberate exception)
+# =============================================================================
+# These two evaluation-pool manifests carry frozen hashes recorded in
+# evaluations/router_v2_historical_reproduction_snapshot_20260815.json (a
+# frozen artifact of the 2026-08-14/15 router-selector historical
+# investigation). The scripts and fail-closed guard that originally hashed
+# and enforced these bytes at runtime (scratchpad_historical_reproduction_
+# guard.py and the ~20-file scratchpad family it protected) were retired in
+# the 2026-08-21 post-migration compatibility purge -- see git tag
+# router-selector-historical-scratchpad-pre-removal-20260821 to reproduce
+# that investigation, or docs/decisions/0002-preserve-abi-compatibility-
+# shims.md and simulator/scratchpad/README.md for the full account. These
+# two manifest files remain as inert historical evidence; `-text` is kept
+# so a future checkout does not silently rewrite their line endings away
+# from the bytes the frozen snapshot's hashes describe.
+#
+# The repository has core.autocrlf=true, which rewrites line endings on
+# checkout; `-text` disables ALL line-ending conversion in both directions
+# for these files specifically. This is NOT a general normalization policy,
+# and `git add --renormalize` was NOT run.
+# -----------------------------------------------------------------------------
+
+simulator/evaluations/router_mix_final_pool_820000000_manifest.json          -text
+simulator/evaluations/router_mix_qualification_pool_840000000_manifest.json  -text
+
+# Binary already, but stated explicitly so the hash contract does not depend on
+# git's binary auto-detection.
+models/generalized_waypoint_both_seed2_0051200.zip -text
+
+# =============================================================================
+# Phase-2 preservation repair: exact Phase-0 artifact bytes; do not EOL-normalize
+# =============================================================================
+# Discovered by the Phase-2 G11 map-fingerprint gate. The Phase-0 preservation
+# checkpoint froze raw SHA-256 bytes for 27 tracked artifacts in
+# docs/migration/ARTIFACT_MANIFEST.tsv. In the ORIGINAL reference worktree and in
+# the external Phase-0 snapshot all 348 manifest entries still reproduce exactly.
+# In a FRESH worktree created after the `* text=auto eol=lf` rule above, 12 of
+# those 27 materialized with LF where the frozen bytes are CRLF, so their raw
+# SHA-256 no longer matched the manifest.
+#
+# This is the same defect class already handled for the historical-reproduction
+# guard set above (D7/D8) -- a checkout-time portability defect, NOT artifact
+# drift. Every one of the 12 was mechanically proven to differ from the frozen
+# Phase-0 bytes by line-ending representation ONLY (identical parsed JSON
+# structure / identical CSV rows); see
+# docs/migration/PHASE0_ARTIFACT_PORTABILITY_REPAIR.tsv. The exact frozen bytes
+# were restored from the verified external Phase-0 snapshot -- no content was
+# regenerated, reparsed, resaved, or converted.
+#
+# Scope is exactly the 12 demonstrated mismatches, derived mechanically from the
+# manifest rather than by directory. Note that of the six Tower map artifacts
+# only the two map.json copies were affected; occupancy.npy and
+# coordinate_frame.json already reproduced their frozen hashes and are
+# deliberately NOT listed here. The global `* text=auto eol=lf` policy above
+# remains in force for ordinary future text. `git add --renormalize` was NOT run.
+# -----------------------------------------------------------------------------
+
+simulator/map_assets/map.json                                      -text
+mapper/maps/tower_aoe/map.json                                    -text
+
+recordings/INDEX.json                                              -text
+recordings/INDEX.md                                                -text
+
+# 2026-08-21: calibration evidence moved root -> run_logs/calibration_evidence/
+# as part of root-cleanliness cleanup, then run_logs/ moved under
+# simulator/ in the final-structure repository cleanup; repathed here
+# each time in the same batch.
+simulator/run_logs/calibration_evidence/calibration_holdout_ramp_results.csv -text
+simulator/run_logs/calibration_evidence/calibration_holdout_step_results.csv -text
+simulator/run_logs/calibration_evidence/calibration_steering_pulses.csv      -text
+simulator/run_logs/calibration_evidence/calibration_tick_extraction.csv      -text
+simulator/run_logs/calibration_evidence/calibration_tick_extraction_v2.csv   -text
+simulator/run_logs/calibration_evidence/calibration_trials.csv               -text
+simulator/run_logs/calibration_evidence/movement_calibration.csv             -text
+simulator/run_logs/calibration_evidence/movement_calibration_steering.csv    -text

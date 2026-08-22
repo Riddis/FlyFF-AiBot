@@ -1,0 +1,258 @@
+[
+  {
+    "layout": "01_early_open_field_typical_fast",
+    "seed": 0,
+    "intervened": true,
+    "divergence_tick": 429,
+    "raw_recovers_on_own_within_window": false,
+    "raw_recovery_tick_offset": null,
+    "assisted_recovery_tick_offset": 14,
+    "raw_final_kills": 256,
+    "assisted_final_kills": 380,
+    "raw_final_unique_cells": 373,
+    "assisted_final_unique_cells": 563,
+    "classification": "necessary_recovery"
+  },
+  {
+    "layout": "01_early_open_field_typical_fast",
+    "seed": 1,
+    "intervened": true,
+    "divergence_tick": 348,
+    "raw_recovers_on_own_within_window": false,
+    "raw_recovery_tick_offset": 114,
+    "assisted_recovery_tick_offset": 41,
+    "raw_final_kills": 253,
+    "assisted_final_kills": 399,
+    "raw_final_unique_cells": 446,
+    "assisted_final_unique_cells": 530,
+    "classification": "necessary_recovery"
+  },
+  {
+    "layout": "01_early_open_field_typical_fast",
+    "seed": 2,
+    "intervened": false,
+    "classification": "no_intervention"
+  },
+  {
+    "layout": "02_early_wide_neck_high_typical",
+    "seed": 0,
+    "intervened": true,
+    "divergence_tick": 313,
+    "raw_recovers_on_own_within_window": true,
+    "raw_recovery_tick_offset": 10,
+    "assisted_recovery_tick_offset": 10,
+    "raw_final_kills": 577,
+    "assisted_final_kills": 372,
+    "raw_final_unique_cells": 573,
+    "assisted_final_unique_cells": 598,
+    "classification": "harmful_intervention"
+  },
+  {
+    "layout": "02_early_wide_neck_high_typical",
+    "seed": 1,
+    "intervened": true,
+    "divergence_tick": 384,
+    "raw_recovers_on_own_within_window": true,
+    "raw_recovery_tick_offset": 10,
+    "assisted_recovery_tick_offset": 10,
+    "raw_final_kills": 640,
+    "assisted_final_kills": 616,
+    "raw_final_unique_cells": 595,
+    "assisted_final_unique_cells": 614,
+    "classification": "harmful_intervention"
+  },
+  {
+    "layout": "02_early_wide_neck_high_typical",
+    "seed": 2,
+    "intervened": true,
+    "divergence_tick": 31,
+    "raw_recovers_on_own_within_window": false,
+    "raw_recovery_tick_offset": null,
+    "assisted_recovery_tick_offset": 12,
+    "raw_final_kills": 74,
+    "assisted_final_kills": 539,
+    "raw_final_unique_cells": 96,
+    "assisted_final_unique_cells": 577,
+    "classification": "necessary_recovery"
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "seed": 0,
+    "intervened": false,
+    "classification": "no_intervention"
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "seed": 1,
+    "intervened": true,
+    "divergence_tick": 346,
+    "raw_recovers_on_own_within_window": false,
+    "raw_recovery_tick_offset": null,
+    "assisted_recovery_tick_offset": 10,
+    "raw_final_kills": 190,
+    "assisted_final_kills": 335,
+    "raw_final_unique_cells": 314,
+    "assisted_final_unique_cells": 557,
+    "classification": "necessary_recovery"
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "seed": 2,
+    "intervened": true,
+    "divergence_tick": 312,
+    "raw_recovers_on_own_within_window": false,
+    "raw_recovery_tick_offset": null,
+    "assisted_recovery_tick_offset": 10,
+    "raw_final_kills": 109,
+    "assisted_final_kills": 301,
+    "raw_final_unique_cells": 284,
+    "assisted_final_unique_cells": 565,
+    "classification": "necessary_recovery"
+  },
+  {
+    "layout": "04_early_wide_neck_typical_bursty",
+    "seed": 0,
+    "intervened": true,
+    "divergence_tick": 309,
+    "raw_recovers_on_own_within_window": true,
+    "raw_recovery_tick_offset": 19,
+    "assisted_recovery_tick_offset": 10,
+    "raw_final_kills": 141,
+    "assisted_final_kills": 192,
+    "raw_final_unique_cells": 574,
+    "assisted_final_unique_cells": 593,
+    "classification": "unnecessary_or_false_trigger"
+  },
+  {
+    "layout": "04_early_wide_neck_typical_bursty",
+    "seed": 1,
+    "intervened": false,
+    "classification": "no_intervention"
+  },
+  {
+    "layout": "04_early_wide_neck_typical_bursty",
+    "seed": 2,
+    "intervened": false,
+    "classification": "no_intervention"
+  },
+  {
+    "layout": "05_early_open_field_typical_fast",
+    "seed": 0,
+    "intervened": true,
+    "divergence_tick": 474,
+    "raw_recovers_on_own_within_window": true,
+    "raw_recovery_tick_offset": 43,
+    "assisted_recovery_tick_offset": 10,
+    "raw_final_kills": 318,
+    "assisted_final_kills": 344,
+    "raw_final_unique_cells": 563,
+    "assisted_final_unique_cells": 589,
+    "classification": "preventative_recovery"
+  },
+  {
+    "layout": "05_early_open_field_typical_fast",
+    "seed": 1,
+    "intervened": false,
+    "classification": "no_intervention"
+  },
+  {
+    "layout": "05_early_open_field_typical_fast",
+    "seed": 2,
+    "intervened": true,
+    "divergence_tick": 613,
+    "raw_recovers_on_own_within_window": false,
+    "raw_recovery_tick_offset": null,
+    "assisted_recovery_tick_offset": 10,
+    "raw_final_kills": 281,
+    "assisted_final_kills": 286,
+    "raw_final_unique_cells": 559,
+    "assisted_final_unique_cells": 581,
+    "classification": "necessary_recovery"
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "seed": 0,
+    "intervened": false,
+    "classification": "no_intervention"
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "seed": 1,
+    "intervened": true,
+    "divergence_tick": 188,
+    "raw_recovers_on_own_within_window": false,
+    "raw_recovery_tick_offset": null,
+    "assisted_recovery_tick_offset": 10,
+    "raw_final_kills": 99,
+    "assisted_final_kills": 338,
+    "raw_final_unique_cells": 165,
+    "assisted_final_unique_cells": 584,
+    "classification": "necessary_recovery"
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "seed": 2,
+    "intervened": false,
+    "classification": "no_intervention"
+  },
+  {
+    "layout": "07_early_open_field_low_fast",
+    "seed": 0,
+    "intervened": false,
+    "classification": "no_intervention"
+  },
+  {
+    "layout": "07_early_open_field_low_fast",
+    "seed": 1,
+    "intervened": false,
+    "classification": "no_intervention"
+  },
+  {
+    "layout": "07_early_open_field_low_fast",
+    "seed": 2,
+    "intervened": true,
+    "divergence_tick": 334,
+    "raw_recovers_on_own_within_window": false,
+    "raw_recovery_tick_offset": null,
+    "assisted_recovery_tick_offset": 10,
+    "raw_final_kills": 156,
+    "assisted_final_kills": 222,
+    "raw_final_unique_cells": 299,
+    "assisted_final_unique_cells": 568,
+    "classification": "necessary_recovery"
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "seed": 0,
+    "intervened": true,
+    "divergence_tick": 105,
+    "raw_recovers_on_own_within_window": false,
+    "raw_recovery_tick_offset": null,
+    "assisted_recovery_tick_offset": 11,
+    "raw_final_kills": 41,
+    "assisted_final_kills": 268,
+    "raw_final_unique_cells": 77,
+    "assisted_final_unique_cells": 578,
+    "classification": "necessary_recovery"
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "seed": 1,
+    "intervened": true,
+    "divergence_tick": 312,
+    "raw_recovers_on_own_within_window": false,
+    "raw_recovery_tick_offset": null,
+    "assisted_recovery_tick_offset": 11,
+    "raw_final_kills": 96,
+    "assisted_final_kills": 292,
+    "raw_final_unique_cells": 280,
+    "assisted_final_unique_cells": 567,
+    "classification": "necessary_recovery"
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "seed": 2,
+    "intervened": false,
+    "classification": "no_intervention"
+  }
+]

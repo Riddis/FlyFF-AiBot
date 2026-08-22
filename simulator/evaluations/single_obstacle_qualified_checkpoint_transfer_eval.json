@@ -1,0 +1,1121 @@
+{
+  "final_waypoint_only": {
+    "left": {
+      "summary": {
+        "n": 15,
+        "success_rate": 0.26666666666666666,
+        "collision_rate": 0.7333333333333333,
+        "timeout_rate": 0.0,
+        "mean_ticks_to_success": 8.0,
+        "mean_path_efficiency": 0.9168803134588143,
+        "mean_oscillation_rate": 0.9015873015873015,
+        "mean_reversal_rate": 0.5317460317460317,
+        "mean_straight_fraction": 0.32222222222222213,
+        "mean_min_clearance_cells": 1.2666666666666666,
+        "min_min_clearance_cells": 1.0,
+        "contact_ticks": [
+          3,
+          4,
+          3,
+          3,
+          3,
+          2,
+          3,
+          2,
+          3,
+          3,
+          2
+        ]
+      },
+      "episodes": [
+        {
+          "outcome": "collision",
+          "ticks": 3,
+          "contact_tick": 3,
+          "path_efficiency": null,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.3333333333333333,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 16.82842712474619
+        },
+        {
+          "outcome": "collision",
+          "ticks": 4,
+          "contact_tick": 4,
+          "path_efficiency": null,
+          "oscillation_rate": 0.6666666666666666,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 16.82842712474619
+        },
+        {
+          "outcome": "collision",
+          "ticks": 3,
+          "contact_tick": 3,
+          "path_efficiency": null,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.3333333333333333,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 15.828427124746192
+        },
+        {
+          "outcome": "collision",
+          "ticks": 3,
+          "contact_tick": 3,
+          "path_efficiency": null,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.3333333333333333,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 17.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9168803134588143,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 21.82842712474619
+        },
+        {
+          "outcome": "collision",
+          "ticks": 3,
+          "contact_tick": 3,
+          "path_efficiency": null,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.3333333333333333,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 15.828427124746192
+        },
+        {
+          "outcome": "collision",
+          "ticks": 2,
+          "contact_tick": 2,
+          "path_efficiency": null,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 1.0,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 16.82842712474619
+        },
+        {
+          "outcome": "collision",
+          "ticks": 3,
+          "contact_tick": 3,
+          "path_efficiency": null,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.3333333333333333,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 16.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9168803134588143,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 21.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9168803134588143,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 21.82842712474619
+        },
+        {
+          "outcome": "collision",
+          "ticks": 2,
+          "contact_tick": 2,
+          "path_efficiency": null,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 1.0,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 20.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9168803134588143,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 21.82842712474619
+        },
+        {
+          "outcome": "collision",
+          "ticks": 3,
+          "contact_tick": 3,
+          "path_efficiency": null,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.3333333333333333,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 17.82842712474619
+        },
+        {
+          "outcome": "collision",
+          "ticks": 3,
+          "contact_tick": 3,
+          "path_efficiency": null,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.3333333333333333,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 15.828427124746192
+        },
+        {
+          "outcome": "collision",
+          "ticks": 2,
+          "contact_tick": 2,
+          "path_efficiency": null,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 1.0,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 17.82842712474619
+        }
+      ]
+    },
+    "right": {
+      "summary": {
+        "n": 15,
+        "success_rate": 0.6,
+        "collision_rate": 0.26666666666666666,
+        "timeout_rate": 0.13333333333333333,
+        "mean_ticks_to_success": 9.555555555555555,
+        "mean_path_efficiency": 0.8385834983192123,
+        "mean_oscillation_rate": 0.6299145299145298,
+        "mean_reversal_rate": 0.3384615384615384,
+        "mean_straight_fraction": 0.2590123456790123,
+        "mean_min_clearance_cells": 2.2666666666666666,
+        "min_min_clearance_cells": 1.0,
+        "contact_ticks": [
+          4,
+          5,
+          4,
+          3
+        ]
+      },
+      "episodes": [
+        {
+          "outcome": "collision",
+          "ticks": 4,
+          "contact_tick": 4,
+          "path_efficiency": null,
+          "oscillation_rate": 0.6666666666666666,
+          "reversal_rate": 0.6666666666666666,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 15.828427124746192
+        },
+        {
+          "outcome": "success",
+          "ticks": 27,
+          "contact_tick": null,
+          "path_efficiency": 0.3166006452182375,
+          "oscillation_rate": 0.11538461538461539,
+          "reversal_rate": 0.07692307692307693,
+          "straight_fraction": 0.18518518518518517,
+          "min_clearance_cells": 3.0,
+          "initial_geodesic": 24.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.8909831841461332,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 18.82842712474619
+        },
+        {
+          "outcome": "timeout",
+          "ticks": 150,
+          "contact_tick": null,
+          "path_efficiency": null,
+          "oscillation_rate": 0.0,
+          "reversal_rate": 0.0,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 6.0,
+          "initial_geodesic": 24.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.9968734349154339,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 20.82842712474619
+        },
+        {
+          "outcome": "collision",
+          "ticks": 5,
+          "contact_tick": 5,
+          "path_efficiency": null,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.2,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 17.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.8909831841461336,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 18.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.9439283095307838,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 19.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.8380380587614831,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 17.82842712474619
+        },
+        {
+          "outcome": "collision",
+          "ticks": 4,
+          "contact_tick": 4,
+          "path_efficiency": null,
+          "oscillation_rate": 0.6666666666666666,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 22.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.8909831841461332,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 18.82842712474619
+        },
+        {
+          "outcome": "collision",
+          "ticks": 3,
+          "contact_tick": 3,
+          "path_efficiency": null,
+          "oscillation_rate": 0.5,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 1.0,
+          "initial_geodesic": 22.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.9968734349154339,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 20.82842712474619
+        },
+        {
+          "outcome": "timeout",
+          "ticks": 150,
+          "contact_tick": null,
+          "path_efficiency": null,
+          "oscillation_rate": 0.0,
+          "reversal_rate": 0.0,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 6.0,
+          "initial_geodesic": 24.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 10,
+          "contact_tick": null,
+          "path_efficiency": 0.781988049093139,
+          "oscillation_rate": 0.6666666666666666,
+          "reversal_rate": 0.6666666666666666,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 22.82842712474619
+        }
+      ]
+    },
+    "none": {
+      "summary": {
+        "n": 15,
+        "success_rate": 1.0,
+        "collision_rate": 0.0,
+        "timeout_rate": 0.0,
+        "mean_ticks_to_success": 7.733333333333333,
+        "mean_path_efficiency": 0.8988598206072635,
+        "mean_oscillation_rate": 0.746984126984127,
+        "mean_reversal_rate": 0.30412698412698413,
+        "mean_straight_fraction": 0.46243386243386236,
+        "mean_min_clearance_cells": 7.0,
+        "min_min_clearance_cells": 7.0,
+        "contact_ticks": []
+      },
+      "episodes": [
+        {
+          "outcome": "success",
+          "ticks": 6,
+          "contact_tick": null,
+          "path_efficiency": 0.9288507128131405,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 0.4,
+          "straight_fraction": 0.3333333333333333,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 17.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.9029544730118275,
+          "oscillation_rate": 0.625,
+          "reversal_rate": 0.25,
+          "straight_fraction": 0.5555555555555556,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 24.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.8323325666946924,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 20.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9248139629941027,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 22.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9248139629941027,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 22.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.9530122569237016,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 20.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.9000671315390515,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 19.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.9530122569237016,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 20.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9710546611438078,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 23.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.8471220061544009,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 18.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.8619110878749265,
+          "oscillation_rate": 0.625,
+          "reversal_rate": 0.25,
+          "straight_fraction": 0.5555555555555556,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 23.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.8619110878749265,
+          "oscillation_rate": 0.625,
+          "reversal_rate": 0.25,
+          "straight_fraction": 0.5555555555555556,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 23.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 6,
+          "contact_tick": null,
+          "path_efficiency": 0.7470320080109374,
+          "oscillation_rate": 0.8,
+          "reversal_rate": 0.4,
+          "straight_fraction": 0.16666666666666666,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 14.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9710546611438078,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 23.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.9029544730118275,
+          "oscillation_rate": 0.625,
+          "reversal_rate": 0.25,
+          "straight_fraction": 0.5555555555555556,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 24.0
+        }
+      ]
+    }
+  },
+  "with_subgoal": {
+    "left": {
+      "summary": {
+        "n": 15,
+        "success_rate": 1.0,
+        "collision_rate": 0.0,
+        "timeout_rate": 0.0,
+        "mean_ticks_to_success": 7.8,
+        "mean_path_efficiency": 0.790677740420349,
+        "mean_oscillation_rate": 0.7459523809523809,
+        "mean_reversal_rate": 0.457936507936508,
+        "mean_straight_fraction": 0.21362433862433863,
+        "mean_min_clearance_cells": 2.9609257720812137,
+        "min_min_clearance_cells": 2.0,
+        "contact_ticks": []
+      },
+      "episodes": [
+        {
+          "outcome": "success",
+          "ticks": 6,
+          "contact_tick": null,
+          "path_efficiency": 0.9231091408869161,
+          "oscillation_rate": 0.8,
+          "reversal_rate": 0.4,
+          "straight_fraction": 0.16666666666666666,
+          "min_clearance_cells": 3.605551275463989,
+          "initial_geodesic": 16.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.6186960993791872,
+          "oscillation_rate": 0.625,
+          "reversal_rate": 0.625,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 3.605551275463989,
+          "initial_geodesic": 16.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.6466522877574362,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.42857142857142855,
+          "straight_fraction": 0.125,
+          "min_clearance_cells": 3.1622776601683795,
+          "initial_geodesic": 15.828427124746192
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.848205251817318,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.8333333333333334,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 3.1622776601683795,
+          "initial_geodesic": 17.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9175137874952076,
+          "oscillation_rate": 0.5714285714285714,
+          "reversal_rate": 0.14285714285714285,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 3.1622776601683795,
+          "initial_geodesic": 21.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 6,
+          "contact_tick": null,
+          "path_efficiency": 0.8608564735526711,
+          "oscillation_rate": 0.8,
+          "reversal_rate": 0.6,
+          "straight_fraction": 0.16666666666666666,
+          "min_clearance_cells": 2.23606797749979,
+          "initial_geodesic": 15.828427124746192
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.7827903302920113,
+          "oscillation_rate": 0.5,
+          "reversal_rate": 0.0,
+          "straight_fraction": 0.5714285714285714,
+          "min_clearance_cells": 3.1622776601683795,
+          "initial_geodesic": 16.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.7946177888854369,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.8333333333333334,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 2.23606797749979,
+          "initial_geodesic": 16.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.8214589097558549,
+          "oscillation_rate": 0.75,
+          "reversal_rate": 0.625,
+          "straight_fraction": 0.2222222222222222,
+          "min_clearance_cells": 2.8284271247461903,
+          "initial_geodesic": 21.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.8214589097558548,
+          "oscillation_rate": 0.875,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.2222222222222222,
+          "min_clearance_cells": 2.8284271247461903,
+          "initial_geodesic": 21.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.7800305652589449,
+          "oscillation_rate": 0.875,
+          "reversal_rate": 0.375,
+          "straight_fraction": 0.2222222222222222,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 20.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.8214589097558549,
+          "oscillation_rate": 0.75,
+          "reversal_rate": 0.625,
+          "straight_fraction": 0.2222222222222222,
+          "min_clearance_cells": 3.605551275463989,
+          "initial_geodesic": 21.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.7348199833547725,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.375,
+          "min_clearance_cells": 2.8284271247461903,
+          "initial_geodesic": 17.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.6466522877574362,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.42857142857142855,
+          "straight_fraction": 0.125,
+          "min_clearance_cells": 2.8284271247461903,
+          "initial_geodesic": 15.828427124746192
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.8418453806003331,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.16666666666666666,
+          "straight_fraction": 0.2857142857142857,
+          "min_clearance_cells": 3.1622776601683795,
+          "initial_geodesic": 17.82842712474619
+        }
+      ]
+    },
+    "right": {
+      "summary": {
+        "n": 15,
+        "success_rate": 1.0,
+        "collision_rate": 0.0,
+        "timeout_rate": 0.0,
+        "mean_ticks_to_success": 8.466666666666667,
+        "mean_path_efficiency": 0.8319020152067824,
+        "mean_oscillation_rate": 0.8172222222222222,
+        "mean_reversal_rate": 0.5841798941798941,
+        "mean_straight_fraction": 0.15174603174603177,
+        "mean_min_clearance_cells": 2.900677616123508,
+        "min_min_clearance_cells": 2.0,
+        "contact_ticks": []
+      },
+      "episodes": [
+        {
+          "outcome": "success",
+          "ticks": 6,
+          "contact_tick": null,
+          "path_efficiency": 0.8608564735526711,
+          "oscillation_rate": 0.8,
+          "reversal_rate": 0.6,
+          "straight_fraction": 0.16666666666666666,
+          "min_clearance_cells": 3.1622776601683795,
+          "initial_geodesic": 15.828427124746192
+        },
+        {
+          "outcome": "success",
+          "ticks": 10,
+          "contact_tick": null,
+          "path_efficiency": 0.8538595655644559,
+          "oscillation_rate": 0.8888888888888888,
+          "reversal_rate": 0.6666666666666666,
+          "straight_fraction": 0.1,
+          "min_clearance_cells": 2.23606797749979,
+          "initial_geodesic": 24.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.7812440517453679,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.375,
+          "min_clearance_cells": 2.8284271247461903,
+          "initial_geodesic": 18.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 10,
+          "contact_tick": null,
+          "path_efficiency": 0.8538595655644563,
+          "oscillation_rate": 0.8888888888888888,
+          "reversal_rate": 0.7777777777777778,
+          "straight_fraction": 0.1,
+          "min_clearance_cells": 3.605551275463989,
+          "initial_geodesic": 24.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.7800305652589449,
+          "oscillation_rate": 0.875,
+          "reversal_rate": 0.375,
+          "straight_fraction": 0.2222222222222222,
+          "min_clearance_cells": 2.0,
+          "initial_geodesic": 20.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.6604197491078012,
+          "oscillation_rate": 0.625,
+          "reversal_rate": 0.625,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 3.0,
+          "initial_geodesic": 17.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.7812440517453679,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.375,
+          "min_clearance_cells": 2.23606797749979,
+          "initial_geodesic": 18.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.8358740555450374,
+          "oscillation_rate": 0.8571428571428571,
+          "reversal_rate": 0.8571428571428571,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 2.8284271247461903,
+          "initial_geodesic": 19.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.848205251817318,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.8333333333333334,
+          "straight_fraction": 0.0,
+          "min_clearance_cells": 3.605551275463989,
+          "initial_geodesic": 17.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.8654144828923896,
+          "oscillation_rate": 0.875,
+          "reversal_rate": 0.625,
+          "straight_fraction": 0.1111111111111111,
+          "min_clearance_cells": 3.605551275463989,
+          "initial_geodesic": 22.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.898399156343191,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.14285714285714285,
+          "min_clearance_cells": 3.1622776601683795,
+          "initial_geodesic": 18.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.8628872542527646,
+          "oscillation_rate": 0.875,
+          "reversal_rate": 0.5,
+          "straight_fraction": 0.2222222222222222,
+          "min_clearance_cells": 2.23606797749979,
+          "initial_geodesic": 22.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.8769619562551243,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.42857142857142855,
+          "straight_fraction": 0.25,
+          "min_clearance_cells": 3.1622776601683795,
+          "initial_geodesic": 20.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 10,
+          "contact_tick": null,
+          "path_efficiency": 0.8538595655644563,
+          "oscillation_rate": 0.8888888888888888,
+          "reversal_rate": 0.7777777777777778,
+          "straight_fraction": 0.1,
+          "min_clearance_cells": 3.605551275463989,
+          "initial_geodesic": 24.82842712474619
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.8654144828923892,
+          "oscillation_rate": 0.875,
+          "reversal_rate": 0.625,
+          "straight_fraction": 0.1111111111111111,
+          "min_clearance_cells": 2.23606797749979,
+          "initial_geodesic": 22.82842712474619
+        }
+      ]
+    },
+    "none": {
+      "summary": {
+        "n": 15,
+        "success_rate": 1.0,
+        "collision_rate": 0.0,
+        "timeout_rate": 0.0,
+        "mean_ticks_to_success": 7.733333333333333,
+        "mean_path_efficiency": 0.8988598206072635,
+        "mean_oscillation_rate": 0.746984126984127,
+        "mean_reversal_rate": 0.30412698412698413,
+        "mean_straight_fraction": 0.46243386243386236,
+        "mean_min_clearance_cells": 7.0,
+        "min_min_clearance_cells": 7.0,
+        "contact_ticks": []
+      },
+      "episodes": [
+        {
+          "outcome": "success",
+          "ticks": 6,
+          "contact_tick": null,
+          "path_efficiency": 0.9288507128131405,
+          "oscillation_rate": 1.0,
+          "reversal_rate": 0.4,
+          "straight_fraction": 0.3333333333333333,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 17.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.9029544730118275,
+          "oscillation_rate": 0.625,
+          "reversal_rate": 0.25,
+          "straight_fraction": 0.5555555555555556,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 24.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.8323325666946924,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 20.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9248139629941027,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 22.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9248139629941027,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 22.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.9530122569237016,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 20.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.9000671315390515,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 19.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.9530122569237016,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 20.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9710546611438078,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 23.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 7,
+          "contact_tick": null,
+          "path_efficiency": 0.8471220061544009,
+          "oscillation_rate": 0.8333333333333334,
+          "reversal_rate": 0.3333333333333333,
+          "straight_fraction": 0.42857142857142855,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 18.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.8619110878749265,
+          "oscillation_rate": 0.625,
+          "reversal_rate": 0.25,
+          "straight_fraction": 0.5555555555555556,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 23.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.8619110878749265,
+          "oscillation_rate": 0.625,
+          "reversal_rate": 0.25,
+          "straight_fraction": 0.5555555555555556,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 23.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 6,
+          "contact_tick": null,
+          "path_efficiency": 0.7470320080109374,
+          "oscillation_rate": 0.8,
+          "reversal_rate": 0.4,
+          "straight_fraction": 0.16666666666666666,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 14.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 8,
+          "contact_tick": null,
+          "path_efficiency": 0.9710546611438078,
+          "oscillation_rate": 0.7142857142857143,
+          "reversal_rate": 0.2857142857142857,
+          "straight_fraction": 0.5,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 23.0
+        },
+        {
+          "outcome": "success",
+          "ticks": 9,
+          "contact_tick": null,
+          "path_efficiency": 0.9029544730118275,
+          "oscillation_rate": 0.625,
+          "reversal_rate": 0.25,
+          "straight_fraction": 0.5555555555555556,
+          "min_clearance_cells": 7.0,
+          "initial_geodesic": 24.0
+        }
+      ]
+    }
+  }
+}

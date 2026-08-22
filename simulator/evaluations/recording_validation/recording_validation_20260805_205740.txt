@@ -1,0 +1,58 @@
+﻿{
+  "recording": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\recordings\\training\\SEND_TO_RIDDIMS_Riddims_20260805T172406.597517Z.zip",
+  "recorder_version": "1.11.0",
+  "status": "success",
+  "duration_seconds": 576.471,
+  "keyboard": {
+    "eva_hotkey": "2",
+    "layout": "azerty"
+  },
+  "recording_provenance": {
+    "classification_method": "automatic_keys_plus_displacement_v1",
+    "direct_movement_labels_allowed": true,
+    "movement_classification": {
+      "confidence": 0.989852714873996,
+      "direct_movement_labels_allowed": true,
+      "keyboard_explained_distance_native": 8339.668743810738,
+      "keyboard_explained_distance_ratio": 0.997463178718499,
+      "keyboard_explained_intervals": 1283,
+      "minimum_evidence_met": true,
+      "moving_intervals": 1287,
+      "scheme": "keyboard_wasd",
+      "total_distance_native": 8360.878799080296,
+      "unexplained_distance_native": 21.21005526955944,
+      "unexplained_intervals": 4
+    },
+    "movement_control_scheme": "keyboard_wasd",
+    "recording_role": "direct_keyboard_demonstration"
+  },
+  "recording_sha256": "352E59177C2A9850C87116DEEB8E2301FD6E22938468FFA313DC5DB8614FE92C",
+  "direct_movement_provenance_source": "embedded_manifest",
+  "presence_species_offset": 7628,
+  "presence_species_validated": true,
+  "farming_frames": 1521,
+  "focused_farming_frames": 1516,
+  "maximum_actor_slots": 5308,
+  "living_monsters_median": 483.0,
+  "action_samples": {
+    "0": 946,
+    "1": 210,
+    "2": 179,
+    "3": 140,
+    "4": 13
+  },
+  "probable_kills": 1797,
+  "respawn_candidates": 1544,
+  "unmatched_target_appearances": 10926,
+  "event_counts": {
+    "death": 1871,
+    "respawn_candidate": 1544,
+    "reuse": 5723,
+    "target_appearance": 10926,
+    "target_disappearance": 11503
+  },
+  "warnings": [],
+  "ready_to_share": true,
+  "ready_for_world_model": true,
+  "ready_for_demonstrations": true
+}

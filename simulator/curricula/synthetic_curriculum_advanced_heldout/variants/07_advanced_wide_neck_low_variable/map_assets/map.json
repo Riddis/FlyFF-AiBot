@@ -1,0 +1,26 @@
+{
+  "size": 210,
+  "shape": [
+    210,
+    210
+  ],
+  "free_cells": 23232,
+  "forbidden_cells": 0,
+  "template": "wide_neck",
+  "free_fraction": 0.5268027210884354,
+  "safe_fraction_of_free": 1.0,
+  "spawn_cell": [
+    104,
+    146
+  ],
+  "design": "large_open_farming_area",
+  "corridor_generation": false,
+  "escapability_validated": true,
+  "escapability_stage_budget_ticks": 40,
+  "escapability_attempts": 1,
+  "variant": "07_advanced_wide_neck_low_variable",
+  "stage": "advanced",
+  "density_profile": "low",
+  "respawn_profile": "variable",
+  "seed": 20515433
+}

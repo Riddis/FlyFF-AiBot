@@ -1,0 +1,4 @@
+old_path	old_blob	old_sha256	old_size	disposition	satisfied_gate	canonical_successor	replacement_test	commit	notes
+#	NO FILES WERE DELETED IN PHASE 12. This is a documented zero-deletion record, not an omission.	#	#	#	#	#	#	#	#
+#	36 plausible candidates were audited (docs/migration/PHASE12_DELETION_AUDIT.tsv): 32 RETAIN_TEST_CONTRACT (load-bearing for docs/migration/tests/test_phase4_contracts.py + test_phase5_contracts.py, part of the required 76-passed baseline), 2 RETAIN_RESOURCE_CONTRACT, 2 DEFER_PHASE13_CLEANUP.	#	#	#	#	#	#	#	#
+#	See docs/migration/PHASE12_RETENTION_ANALYSIS.md for the full mechanical proof behind every retention, and docs/migration/PHASE12_RETAINED_DEBT.tsv for the standing debt inventory this phase leaves explicit rather than pretending resolved.	#	#	#	#	#	#	#	#

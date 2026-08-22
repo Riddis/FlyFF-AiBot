@@ -1,0 +1,8 @@
+{
+  "manifest_spec_seed": 840000000,
+  "manifest_sha256": "fcb1d03e24ba159470e3ef7e5ab7a46383b40d51e58404d390ac523169455ede",
+  "baseline_checkpoint_path": "models\\generalized_waypoint_both_seed2_0051200.zip",
+  "baseline_checkpoint_sha256": "87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50",
+  "router_source_path": "simulator\\kinodynamic_route_planner.py",
+  "router_source_sha256": "72965645081fa82d7e7f1066c0e6f141c5fd0c83ab1fe5b204d7d7a46fe28ed2"
+}

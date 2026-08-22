@@ -1,0 +1,55 @@
+[
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 0,
+    "check_tick": 162,
+    "obstacle_aware_angle": -1.609787294771294,
+    "obstacle_aware_beam_choice": "STRAIGHT",
+    "coarse_angle": -1.6342776772481284,
+    "coarse_beam_choice": "STRAIGHT",
+    "agrees": true,
+    "coarse_path_clearance_profile": [
+      10,
+      10,
+      10,
+      11,
+      11,
+      11,
+      11
+    ]
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "check_tick": 52,
+    "obstacle_aware_angle": -1.3447979145191977,
+    "obstacle_aware_beam_choice": "STRAIGHT",
+    "coarse_angle": -1.3610905970693954,
+    "coarse_beam_choice": "STRAIGHT",
+    "agrees": true,
+    "coarse_path_clearance_profile": [
+      5,
+      5,
+      4,
+      3,
+      2,
+      1
+    ]
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "check_tick": 518,
+    "obstacle_aware_angle": 0.2731911961975157,
+    "obstacle_aware_beam_choice": "LEFT",
+    "coarse_angle": 0.2528909589289764,
+    "coarse_beam_choice": "LEFT",
+    "agrees": true,
+    "coarse_path_clearance_profile": [
+      9,
+      9,
+      8,
+      8
+    ]
+  }
+]

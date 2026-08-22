@@ -1,0 +1,48 @@
+[
+  {
+    "path": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\recordings\\training\\SEND_TO_RIDDIMS_Riddims_20260805T172406.597517Z.zip",
+    "filename": "SEND_TO_RIDDIMS_Riddims_20260805T172406.597517Z.zip",
+    "sha256": "352E59177C2A9850C87116DEEB8E2301FD6E22938468FFA313DC5DB8614FE92C",
+    "recorder_version": "1.11.0",
+    "duration_seconds": 576.5819763999898,
+    "total_frames": 1521,
+    "embedded_movement_scheme": "keyboard_wasd",
+    "retroactive_movement_scheme": "keyboard_wasd",
+    "retroactive_movement_confidence": 0.9898570235697437,
+    "retroactive_classification": {
+      "scheme": "keyboard_wasd",
+      "confidence": 0.9898570235697437,
+      "moving_intervals": 1287,
+      "keyboard_explained_intervals": 1283,
+      "unexplained_intervals": 4,
+      "total_distance_native": 8360.7350674784,
+      "keyboard_explained_distance_native": 8339.534382796137,
+      "unexplained_distance_native": 21.200684682262818,
+      "keyboard_explained_distance_ratio": 0.9974642558924359,
+      "minimum_evidence_met": true,
+      "direct_movement_labels_allowed": true
+    },
+    "legacy_action_counts": {
+      "FORWARD": 946,
+      "LEFT": 210,
+      "RIGHT": 179,
+      "EVA": 140,
+      "JUMP": 13
+    },
+    "eva_events": 140,
+    "jump_events": 13,
+    "presence_species_offset": 7628,
+    "presence_species_validated": true,
+    "presence_validation_source": "session_longitudinal_profiler",
+    "direct_movement_provenance_source": "embedded_manifest",
+    "ready_for_demonstrations": true,
+    "ready_for_world_model": true,
+    "eva_only_eligible": true,
+    "usable_for": [
+      "direct_steering_demonstration",
+      "world_model_fitting",
+      "eva_event_evidence",
+      "pointer_recovery_diagnostics"
+    ]
+  }
+]

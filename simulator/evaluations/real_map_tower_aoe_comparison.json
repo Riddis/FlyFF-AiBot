@@ -1,0 +1,76 @@
+{
+  "15k_raw": {
+    "stagnation": "4/5",
+    "median_kills_per_hour": 576.0,
+    "median_contacts_per_100": 256.70329731392786,
+    "per_seed": [
+      {
+        "kills_per_simulated_hour": 1392.0000000000002,
+        "contacts_per_100_distance": 181.99714633281025,
+        "unique_cells": 156,
+        "physical_stagnation": true
+      },
+      {
+        "kills_per_simulated_hour": 2448.0000000000014,
+        "contacts_per_100_distance": 58.40642885980579,
+        "unique_cells": 327,
+        "physical_stagnation": false
+      },
+      {
+        "kills_per_simulated_hour": 384.00000000000006,
+        "contacts_per_100_distance": 399.70609960523325,
+        "unique_cells": 56,
+        "physical_stagnation": true
+      },
+      {
+        "kills_per_simulated_hour": 24.000000000000103,
+        "contacts_per_100_distance": 5862.19601209374,
+        "unique_cells": 6,
+        "physical_stagnation": true
+      },
+      {
+        "kills_per_simulated_hour": 576.0,
+        "contacts_per_100_distance": 256.70329731392786,
+        "unique_cells": 126,
+        "physical_stagnation": true
+      }
+    ]
+  },
+  "phase2_v2": {
+    "stagnation": "4/5",
+    "median_kills_per_hour": 792.000000000003,
+    "median_contacts_per_100": 227.5772876671282,
+    "per_seed": [
+      {
+        "kills_per_simulated_hour": 792.000000000003,
+        "contacts_per_100_distance": 172.4426593549125,
+        "unique_cells": 139,
+        "physical_stagnation": true
+      },
+      {
+        "kills_per_simulated_hour": 912.0,
+        "contacts_per_100_distance": 227.5772876671282,
+        "unique_cells": 137,
+        "physical_stagnation": true
+      },
+      {
+        "kills_per_simulated_hour": 336.0,
+        "contacts_per_100_distance": 899.6170759919534,
+        "unique_cells": 39,
+        "physical_stagnation": true
+      },
+      {
+        "kills_per_simulated_hour": 24.000000000000103,
+        "contacts_per_100_distance": 5862.19601209374,
+        "unique_cells": 6,
+        "physical_stagnation": true
+      },
+      {
+        "kills_per_simulated_hour": 3840.0000000000023,
+        "contacts_per_100_distance": 5.597104728889484,
+        "unique_cells": 525,
+        "physical_stagnation": false
+      }
+    ]
+  }
+}

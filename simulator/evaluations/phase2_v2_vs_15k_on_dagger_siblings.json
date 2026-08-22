@@ -1,0 +1,46 @@
+{
+  "15k_baseline": {
+    "01_early_open_field_typical_fast": {
+      "stagnation": "1/3",
+      "median_contacts_per_100": 10.780744614039918,
+      "median_kills_per_hour": 5280.00000000001
+    },
+    "02_early_wide_neck_high_typical": {
+      "stagnation": "0/3",
+      "median_contacts_per_100": 21.798316486438644,
+      "median_kills_per_hour": 8568.000000000007
+    },
+    "03_early_open_field_low_fast": {
+      "stagnation": "0/3",
+      "median_contacts_per_100": 6.6454774273760995,
+      "median_kills_per_hour": 5232.0
+    },
+    "04_early_wide_neck_typical_bursty": {
+      "stagnation": "0/3",
+      "median_contacts_per_100": 6.155464013594606,
+      "median_kills_per_hour": 6336.00000000001
+    }
+  },
+  "phase2": {
+    "01_early_open_field_typical_fast": {
+      "stagnation": "1/3",
+      "median_contacts_per_100": 11.161118444385112,
+      "median_kills_per_hour": 5112.000000000009
+    },
+    "02_early_wide_neck_high_typical": {
+      "stagnation": "0/3",
+      "median_contacts_per_100": 11.669791108540633,
+      "median_kills_per_hour": 8616.000000000015
+    },
+    "03_early_open_field_low_fast": {
+      "stagnation": "1/3",
+      "median_contacts_per_100": 4.061349293724707,
+      "median_kills_per_hour": 3120.0
+    },
+    "04_early_wide_neck_typical_bursty": {
+      "stagnation": "0/3",
+      "median_contacts_per_100": 5.936402007724427,
+      "median_kills_per_hour": 7536.00000000001
+    }
+  }
+}

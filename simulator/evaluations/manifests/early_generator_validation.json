@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "stage": "early",
+  "role": "generator_validation",
+  "entries": [],
+  "notes": "No layouts currently classified as generator-invalid. The two known hard cases (see easy_challenge fixed_regression_scenarios) were inspected and found to have valid spawns, in-range population, and passing escapability validation -- they reflect policy robustness gaps, not generator defects, so they were NOT placed here."
+}

@@ -1,0 +1,618 @@
+from __future__ import annotations
+
+import json
+from threading import Event, current_thread
+from threading import enumerate as enumerate_threads
+from time import monotonic
+from types import SimpleNamespace
+
+import pytest
+from position import (
+    NativeDiagnosticOutcome,
+    NativeDiagnosticReport,
+    NativeHealthStatus,
+    NativePointerSnapshot,
+    NativePointerSnapshotError,
+    NativeRecoveryOutcome,
+    NativeRecoveryResult,
+    collect_native_health,
+    run_native_diagnostic,
+)
+from position.NativePointerRecovery import (
+    PointerRecoveryMetrics,
+    PointerRecoveryProgress,
+)
+from runtime.runtime_bus import RuntimeBus, RuntimeStatus
+from bot.runtime_controller import RuntimeController
+from runtime.worker_manager import WorkerKind
+
+
+def _metrics(outcome: str) -> PointerRecoveryMetrics:
+    return PointerRecoveryMetrics(
+        pid=7123,
+        module_base=0x10000000,
+        outcome=outcome,
+        elapsed_seconds=0.01,
+    )
+
+
+class _DiagnosticService:
+    def __init__(
+        self,
+        *,
+        wait_for_cancel: bool = False,
+        ignore_cancel: bool = False,
+        forced_outcome: NativeRecoveryOutcome | None = None,
+        start_unhealthy: bool = False,
+        profile_restore_result: bool | Exception | None = None,
+        recovery_profile_path: object = r"C:\fake\native_recovery_profile.json",
+    ) -> None:
+        self.memory = SimpleNamespace(pid=7123)
+        self.module_base = 0x10000000
+        self.module_name = "Neuz.exe"
+        self.module_path = r"C:\FlyFF\Neuz.exe"
+        self.module_size = 0xB00000
+        self.pointer_width_bytes = 4
+        self.configured_player_pointer_offset = 0x5852B8
+        self.configured_world_pointer_offset = 0x596C6C
+        self.world_vtable_offset = 0x800
+        self.world_vtable_field_offset = 0x2C
+        self.world_identity_kind = "module_marker"
+        self.player_pointer_address = 0x10002000
+        self.world_pointer_address = 0x10002100
+        self.is_closed = False
+        self.snapshot_calls = 0
+        self.recovery_calls = 0
+        self.readable_region_calls = 0
+        self.wait_for_cancel = wait_for_cancel
+        self.ignore_cancel = ignore_cancel
+        self.forced_outcome = forced_outcome
+        # Recovery mechanics (cancellation, hints, persistence, progress)
+        # are only exercised if the mock actually needs recovering --
+        # otherwise Section 11's "genuinely healthy => no scan" short
+        # circuit in run_native_diagnostic would skip recover_pointers
+        # entirely and these tests would assert on a scan that never ran.
+        self._recovered = not start_unhealthy
+        self.entered = Event()
+        self.release = Event()
+        self.recovery_kwargs: dict[str, object] = {}
+        self.recovery_profile_path = recovery_profile_path
+        self.presence_validation_source = "authoritative_refresh"
+        self.last_profile_restore_mode: str | None = None
+        self.last_profile_restore_error: str | None = None
+        self._profile_restore_result = profile_restore_result
+        self.profile_restore_calls = 0
+        self.profile_restore_kwargs: dict[str, object] = {}
+
+    def try_restore_persisted_profile(self, **kwargs) -> bool:
+        self.profile_restore_calls += 1
+        self.profile_restore_kwargs = dict(kwargs)
+        result = self._profile_restore_result
+        if isinstance(result, Exception):
+            self.last_profile_restore_error = str(result)
+            raise result
+        if result:
+            self._recovered = True
+            self.last_profile_restore_mode = "same_process_cache"
+            return True
+        self.last_profile_restore_mode = "missing"
+        return False
+
+    def read_pointer_snapshot(self) -> NativePointerSnapshot:
+        self.snapshot_calls += 1
+        if not self._recovered:
+            raise NativePointerSnapshotError("Local-player pointer is null")
+        return NativePointerSnapshot(
+            player_pointer_address=self.player_pointer_address,
+            world_pointer_address=self.world_pointer_address,
+            player_base=0x30000000,
+            world_base=0x34000000,
+            generation=4,
+            captured_at=12.0,
+        )
+
+    def recover_pointers(self, **kwargs) -> NativeRecoveryResult:
+        self.recovery_calls += 1
+        self.recovery_kwargs = dict(kwargs)
+        status_callback = kwargs["status_callback"]
+        status_callback(
+            PointerRecoveryProgress(
+                phase="started",
+                message="Recovery scan started.",
+                metrics=_metrics("running"),
+            )
+        )
+        self.entered.set()
+        cancellation = kwargs["cancellation"]
+        if self.ignore_cancel:
+            assert self.release.wait(2.0)
+            outcome = NativeRecoveryOutcome.NOT_FOUND
+        elif self.wait_for_cancel:
+            assert cancellation.wait(2.0)
+            outcome = NativeRecoveryOutcome.CANCELLED
+        else:
+            outcome = self.forced_outcome or NativeRecoveryOutcome.NOT_FOUND
+        metrics = _metrics(outcome.value)
+        status_callback(
+            PointerRecoveryProgress(
+                phase=outcome.value,
+                message=f"Recovery scan ended: {outcome.value}.",
+                metrics=metrics,
+            )
+        )
+        return NativeRecoveryResult(
+            outcome=outcome,
+            recovery=None,
+            metrics=metrics,
+            applied=False,
+        )
+
+
+class _Keyboard:
+    def is_target_foreground(self) -> bool:
+        return True
+
+
+class _DiagnosticBot:
+    def __init__(self, service: _DiagnosticService | None) -> None:
+        self.native_process_service = service
+        self.position_provider = SimpleNamespace(
+            config=SimpleNamespace(resolver="module_pointer"),
+            last_diagnostics=None,
+            read_pose=lambda *, pointer_snapshot: SimpleNamespace(
+                x=16.0,
+                y=3.0,
+                z=32.0,
+                pointer_snapshot=pointer_snapshot,
+            ),
+        )
+        self.monster_provider = SimpleNamespace(
+            discovered_slot_bases=(1, 2, 3),
+            last_diagnostics=None,
+        )
+        self.config = {
+            "show_frames": False,
+            "selected_map_name": "Tower AoE",
+            "dynamic_kill_counter": True,
+            "selected_mobs": [{"species_id": 944}, {"species_id": 948}],
+        }
+        self._native_map_overlay_name = "Tower AoE"
+        self._native_map_overlay = SimpleNamespace(
+            coordinate_frame=SimpleNamespace(
+                origin_native_x=253.0,
+                origin_native_z=86.0,
+                to_local_cells=lambda x, z: (x / 1.6, z / 1.6)
+            )
+        )
+        self.kill_counter_reader = SimpleNamespace(
+            _anchors={(1920, 1080): object()},
+            full_scan_count=2,
+        )
+        self.keyboard = _Keyboard()
+        self.stop_calls = 0
+        self.release_calls = 0
+
+    def build_preview(self, frame):
+        return frame
+
+    def prepare_window(self, *_args) -> None:
+        raise AssertionError("window preparation is outside this diagnostic test")
+
+    def stop(self) -> None:
+        self.stop_calls += 1
+
+    def stop_movement(self) -> None:
+        return None
+
+    def release_input(self) -> None:
+        self.release_calls += 1
+
+
+def test_health_snapshot_is_typed_and_never_starts_recovery_or_scan() -> None:
+    service = _DiagnosticService()
+    bot = _DiagnosticBot(service)
+
+    report = run_native_diagnostic(
+        bot,
+        recover=False,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert report.outcome is NativeDiagnosticOutcome.HEALTH_ONLY
+    assert report.before.status is NativeHealthStatus.HEALTHY
+    assert report.before.pointer_generation == 4
+    assert report.before.module_name == "Neuz.exe"
+    assert report.before.module_size == 0xB00000
+    assert report.before.pointer_width_bytes == 4
+    assert report.before.providers.cached_actor_slots == 3
+    assert report.before.runtime.selected_map_name == "Tower AoE"
+    assert report.before.runtime.map_overlay_loaded
+    assert report.before.runtime.native_player_position == (16.0, 3.0, 32.0)
+    assert report.before.runtime.map_coordinate_cell == (10.0, 20.0)
+    assert report.before.runtime.coordinate_error is None
+    assert report.before.runtime.ocr_anchor_cached
+    assert report.before.runtime.target_focused is True
+    assert service.snapshot_calls == 1
+    assert service.recovery_calls == 0
+    assert service.readable_region_calls == 0
+    json.dumps(report.to_dict())
+
+
+def test_detached_health_is_a_typed_report() -> None:
+    snapshot = collect_native_health(_DiagnosticBot(None), clock=lambda: 7.5)
+
+    assert snapshot.status is NativeHealthStatus.DETACHED
+    assert snapshot.captured_at == 7.5
+    assert snapshot.process_id is None
+    json.dumps(snapshot.to_dict())
+
+
+def test_healthy_pointers_do_not_trigger_a_full_recovery_scan() -> None:
+    """Section 11 forward correction (MISTAKES.md): Recover Pointers must
+    validate first and short-circuit when genuinely healthy, rather than
+    always launching a full rediscovery scan."""
+    service = _DiagnosticService()
+    bot = _DiagnosticBot(service)
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert report.outcome is NativeDiagnosticOutcome.RECOVERY_NOT_NEEDED
+    assert report.before.status is NativeHealthStatus.HEALTHY
+    assert service.recovery_calls == 0
+
+
+def test_persisted_profile_restore_succeeds_and_skips_full_discovery(tmp_path) -> None:
+    """Section 6/9/10 forward correction (MISTAKES.md): the canonical
+    ensure-native-ready ordering is current state -> persisted fast
+    restore -> full discovery. A live-observed cross-bot-restart
+    failure traced to the manual recovery path skipping the persisted-
+    profile step entirely; this proves the fix reaches and applies it,
+    and never falls through to a full scan when it succeeds."""
+    profile_path = tmp_path / "native_recovery_profile.json"
+    profile_path.write_text("{}", encoding="utf-8")
+    service = _DiagnosticService(
+        start_unhealthy=True,
+        profile_restore_result=True,
+        recovery_profile_path=str(profile_path),
+    )
+    bot = _DiagnosticBot(service)
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert report.outcome is NativeDiagnosticOutcome.RECOVERY_RESTORED_FROM_PROFILE
+    assert service.profile_restore_calls == 1
+    assert service.recovery_calls == 0
+    assert report.profile_restore_attempted is True
+    assert report.profile_restore_applied is True
+    assert report.profile_path == str(profile_path)
+    assert report.profile_exists is True
+    assert report.restore_mode == "same_process_cache"
+    assert report.full_discovery_started is False
+    assert report.rejection_reason is None
+
+
+def test_persisted_profile_restore_rejected_falls_back_to_one_full_discovery(tmp_path) -> None:
+    """Restore returning False (rejected/stale profile) must still
+    reach exactly one full-discovery fallback -- validation strength is
+    preserved, not weakened, when the fast path doesn't apply."""
+    profile_path = tmp_path / "native_recovery_profile.json"
+    profile_path.write_text("{}", encoding="utf-8")
+    service = _DiagnosticService(
+        start_unhealthy=True,
+        profile_restore_result=False,
+        forced_outcome=NativeRecoveryOutcome.NOT_FOUND,
+        recovery_profile_path=str(profile_path),
+    )
+    bot = _DiagnosticBot(service)
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert service.profile_restore_calls == 1
+    assert service.recovery_calls == 1
+    assert report.profile_restore_attempted is True
+    assert report.profile_restore_applied is False
+    assert report.full_discovery_started is True
+    assert report.fallback_reason == "restore_did_not_apply"
+
+
+def test_no_profile_file_on_disk_cannot_report_a_restore_as_applied(tmp_path) -> None:
+    """Section 11: 'no profile file' can never be paired with 'profile
+    restore validated=True' -- a missing file must produce
+    profile_exists=False and profile_restore_applied=False together."""
+    missing_path = tmp_path / "does_not_exist.json"
+    service = _DiagnosticService(
+        start_unhealthy=True,
+        profile_restore_result=False,
+        recovery_profile_path=str(missing_path),
+    )
+    bot = _DiagnosticBot(service)
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert report.profile_exists is False
+    assert report.profile_restore_applied is False
+    assert not (report.profile_exists is False and report.profile_restore_applied is True)
+
+
+def test_no_restore_method_on_service_falls_back_to_full_discovery_cleanly() -> None:
+    """A service without try_restore_persisted_profile (older/minimal
+    fake or compat shim) must still reach full discovery, with an
+    honest fallback_reason -- never crash on the missing method."""
+
+    class _Bare:
+        def __init__(self, inner: _DiagnosticService) -> None:
+            self._inner = inner
+
+        def __getattr__(self, name: str):
+            if name == "try_restore_persisted_profile":
+                raise AttributeError(name)
+            return getattr(self._inner, name)
+
+    bare_service = _Bare(_DiagnosticService(start_unhealthy=True))
+    bot = _DiagnosticBot(bare_service)  # type: ignore[arg-type]
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert report.profile_restore_attempted is False
+    assert report.full_discovery_started is True
+    assert report.fallback_reason == "no_restore_method_on_service"
+
+
+def test_movement_required_is_a_typed_non_error_diagnostic() -> None:
+    service = _DiagnosticService(
+        forced_outcome=NativeRecoveryOutcome.MOVEMENT_REQUIRED,
+        start_unhealthy=True,
+    )
+    bot = _DiagnosticBot(service)
+
+    report = run_native_diagnostic(
+        bot,
+        recover=True,
+        persist=True,
+        cancellation=None,
+        deadline=monotonic() + 1.0,
+        timeout_seconds=1.0,
+    )
+
+    assert report.outcome is NativeDiagnosticOutcome.RECOVERY_MOVEMENT_REQUIRED
+    assert report.error is None
+
+
+def test_managed_health_logs_supported_runtime_summary() -> None:
+    bot = _DiagnosticBot(_DiagnosticService())
+    bus = RuntimeBus()
+    controller = RuntimeController(bot, bus)
+
+    controller.start_native_diagnostic(recover=False, timeout=1.0)
+    assert controller.workers.join(WorkerKind.DIAGNOSTIC, 1.0)
+
+    messages = [message for _level, message in bus.drain_logs()]
+    summary = next(
+        message for message in messages if message.startswith("Native diagnostic summary")
+    )
+    assert "health=healthy" in summary
+    assert "map=Tower AoE" in summary
+    assert "map_cell=(10.00, 20.00)" in summary
+    assert "cached_actor_slots=3" in summary
+    assert "world_vtable_offset=0x800" in summary
+    assert "world_vtable_field=0x2C" in summary
+    assert "world_identity_kind=module_marker" in summary
+    assert "ocr_anchor_cached=True" in summary
+    assert "focused=True" in summary
+
+
+def test_managed_recovery_uses_worker_token_deadline_and_progress() -> None:
+    service = _DiagnosticService(wait_for_cancel=True, start_unhealthy=True)
+    bot = _DiagnosticBot(service)
+    bus = RuntimeBus()
+    controller = RuntimeController(bot, bus)
+
+    session_id = controller.start_native_diagnostic(
+        recover=True,
+        timeout=2.0,
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+    assert service.entered.wait(1.0)
+    diagnostic_threads = [
+        thread
+        for thread in enumerate_threads()
+        if thread.name == "flyff-native-pointer-recovery"
+    ]
+    assert len(diagnostic_threads) == 1
+    assert diagnostic_threads[0].daemon is False
+
+    with pytest.raises(RuntimeError, match="already active"):
+        controller.start_native_diagnostic(recover=True, timeout=2.0)
+
+    assert controller.stop_native_diagnostic()
+    assert controller.workers.join(WorkerKind.DIAGNOSTIC, 1.0)
+    completions = bus.drain_completions()
+    completion = next(
+        item for item in completions if item.worker_name == "native-pointer-recovery"
+    )
+    assert completion.session_id == session_id
+    assert isinstance(completion.result, NativeDiagnosticReport)
+    assert completion.result.outcome is NativeDiagnosticOutcome.RECOVERY_CANCELLED
+    assert completion.result.progress_updates >= 3
+    json.dumps(completion.result.to_dict())
+    assert service.recovery_kwargs["persist"] is True
+    hints = service.recovery_kwargs["hints"]
+    assert hints.known_species_ids == (944, 948)
+    assert hints.player_spawn_x == 253.0
+    assert hints.player_spawn_z == 86.0
+    assert hints.player_current_hp == 5000
+    assert hints.player_max_hp == 6000
+    assert hints.monster_hp_by_species == ((944, 400236),)
+    assert hints.require_verified_monster_hp is True
+    assert completion.result.persistence_requested is True
+    token = service.recovery_kwargs["cancellation"]
+    assert token.cancelled
+    assert float(service.recovery_kwargs["deadline"]) <= monotonic() + 2.0
+    version, status = bus.read_latest("native_diagnostic_status")
+    assert version > 0
+    assert isinstance(status, RuntimeStatus)
+    assert status.session_id == session_id
+    assert "finished" in status.message.lower()
+
+
+def test_managed_recovery_reads_player_hp_ocr_inside_worker() -> None:
+    service = _DiagnosticService(start_unhealthy=True)
+    bot = _DiagnosticBot(service)
+    ocr_threads: list[str] = []
+
+    def read_player_health() -> tuple[int, int]:
+        ocr_threads.append(current_thread().name)
+        return 30982, 30982
+
+    bot.read_player_health = read_player_health  # type: ignore[attr-defined]
+    bus = RuntimeBus()
+    controller = RuntimeController(bot, bus)
+
+    controller.start_native_diagnostic(recover=True, timeout=2.0)
+    assert controller.workers.join(WorkerKind.DIAGNOSTIC, 2.0)
+
+    hints = service.recovery_kwargs["hints"]
+    assert hints.player_current_hp == 30982
+    assert hints.player_max_hp == 30982
+    assert ocr_threads == ["flyff-native-pointer-recovery"]
+    messages = [message for _level, message in bus.drain_logs()]
+    assert "Player status OCR read HP 30982/30982." in messages
+
+
+def test_managed_recovery_retries_hp_ocr_across_fresh_frames() -> None:
+    service = _DiagnosticService(start_unhealthy=True)
+    bot = _DiagnosticBot(service)
+    readings = iter((None, None, (30982, 30982)))
+    calls: list[str] = []
+
+    def read_player_health() -> tuple[int, int] | None:
+        calls.append(current_thread().name)
+        return next(readings)
+
+    bot.read_player_health = read_player_health  # type: ignore[attr-defined]
+    controller = RuntimeController(bot, RuntimeBus())
+
+    controller.start_native_diagnostic(recover=True, timeout=2.0)
+    assert controller.workers.join(WorkerKind.DIAGNOSTIC, 2.0)
+
+    hints = service.recovery_kwargs["hints"]
+    assert hints.player_current_hp == 30982
+    assert hints.player_max_hp == 30982
+    assert calls == ["flyff-native-pointer-recovery"] * 3
+
+
+def test_diagnostic_false_join_preserves_dependencies_until_retry() -> None:
+    service = _DiagnosticService(ignore_cancel=True, start_unhealthy=True)
+    bot = _DiagnosticBot(service)
+    bus = RuntimeBus()
+    controller = RuntimeController(bot, bus)
+    controller.start_native_diagnostic(recover=True, timeout=2.0)
+    assert service.entered.wait(1.0)
+
+    first = controller.shutdown(0.01)
+
+    assert first[WorkerKind.DIAGNOSTIC] is False
+    assert controller.shutdown_timed_out == (WorkerKind.DIAGNOSTIC,)
+    assert bot.release_calls == 0
+    assert not bus.closed
+
+    service.release.set()
+    second = controller.shutdown(1.0)
+
+    assert all(second.values())
+    assert controller.shutdown_timed_out == ()
+    assert bot.release_calls == 1
+    assert bus.closed
+
+    third = controller.shutdown(1.0)
+
+    assert all(third.values())
+    assert bot.release_calls == 1
+
+
+def test_reattach_is_rejected_while_diagnostic_is_active() -> None:
+    service = _DiagnosticService(wait_for_cancel=True, start_unhealthy=True)
+    bot = _DiagnosticBot(service)
+    controller = RuntimeController(bot, RuntimeBus())
+    controller.start_native_diagnostic(recover=True, timeout=2.0)
+    assert service.entered.wait(1.0)
+
+    with pytest.raises(RuntimeError, match="native diagnostics"):
+        controller.attach(123)
+
+    assert bot.release_calls == 0
+    assert controller.stop_native_diagnostic()
+    assert controller.workers.join(WorkerKind.DIAGNOSTIC, 1.0)
+
+
+def test_control_start_is_rejected_while_recovery_diagnostic_is_active() -> None:
+    service = _DiagnosticService(wait_for_cancel=True, start_unhealthy=True)
+    bot = _DiagnosticBot(service)
+    controller = RuntimeController(bot, RuntimeBus())
+    controller.start_native_diagnostic(recover=True, timeout=2.0)
+    assert service.entered.wait(1.0)
+
+    with pytest.raises(RuntimeError, match="pointer recovery"):
+        controller.start_rl("dry-run")
+
+    assert not controller.control_active
+    assert controller.stop_native_diagnostic()
+    assert controller.workers.join(WorkerKind.DIAGNOSTIC, 1.0)
+
+
+def test_pointer_recovery_hints_load_selected_map_frame_before_overlay_exists() -> None:
+    bot = _DiagnosticBot(_DiagnosticService())
+    bot._native_map_overlay = None
+    bot._native_map_overlay_name = None
+    controller = RuntimeController(bot, RuntimeBus())
+
+    hints = controller._pointer_recovery_hints(
+        player_current_hp=5000,
+        player_max_hp=6000,
+    )
+
+    assert hints.known_species_ids == (944, 948)
+    assert hints.player_spawn_x == 253.0
+    assert hints.player_spawn_z == 86.0
+    assert hints.player_current_hp == 5000
+    assert hints.player_max_hp == 6000
+    assert hints.monster_hp_by_species == ((944, 400236),)
+    assert hints.require_verified_monster_hp is True

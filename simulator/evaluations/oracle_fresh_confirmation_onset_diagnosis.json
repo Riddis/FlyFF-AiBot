@@ -1,0 +1,122 @@
+[
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 0,
+    "onset_tick": 71,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 5,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 0,
+    "onset_tick": 167,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 4,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 0,
+    "onset_tick": 183,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 20,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 0,
+    "onset_tick": 188,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 25,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 0,
+    "onset_tick": 191,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 28,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 0,
+    "onset_tick": 332,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 4,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 0,
+    "onset_tick": 419,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 5,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "onset_tick": 57,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 4,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "onset_tick": 70,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 17,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "onset_tick": 320,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 6,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "onset_tick": 419,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 5,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "onset_tick": 524,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 5,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "onset_tick": 531,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 12,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "onset_tick": 535,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 16,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "onset_tick": 538,
+    "category": "C_fallback_persistence",
+    "fallback_streak_ticks_before_onset": 19,
+    "robust_count_at_onset": 0
+  }
+]

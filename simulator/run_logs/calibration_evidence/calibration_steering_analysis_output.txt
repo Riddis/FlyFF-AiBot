@@ -1,0 +1,53 @@
+Segmented 161 usable pulses from movement_calibration_steering.csv
+action
+LEFT     81
+RIGHT    80
+Name: count, dtype: int64
+
+================================================================================
+LEFT (n=81 pulses)
+================================================================================
+duration_s: n=  81 mean= 0.8780 median= 0.5398 std= 0.8230 p05= 0.0798 p95= 2.3196
+
+-- by duration bucket (first-0.2s response vs longer holds) --
+  dur in (-0.001, 0.1]: n= 12 mean_dur=0.078s distance/dur=13.511cells/s (=> per 0.2s: 2.702 cells) pre_pulse_baseline_speed=13.691cells/s
+  dur in (0.1, 0.3]: n= 12 mean_dur=0.130s distance/dur=14.009cells/s (=> per 0.2s: 2.802 cells) pre_pulse_baseline_speed=13.637cells/s
+      mean_heading_change=8.98deg turn/dur=69.04deg/s (=> per 0.2s: 13.81deg, 0.2410rad)
+  dur in (0.3, 0.75]: n= 29 mean_dur=0.524s distance/dur=13.670cells/s (=> per 0.2s: 2.734 cells) pre_pulse_baseline_speed=13.646cells/s
+      mean_heading_change=105.80deg turn/dur=201.86deg/s (=> per 0.2s: 40.37deg, 0.7046rad)
+  dur in (0.75, 2.0]: n= 18 mean_dur=1.649s distance/dur=13.677cells/s (=> per 0.2s: 2.735 cells) pre_pulse_baseline_speed=13.751cells/s
+      mean_heading_change=387.25deg turn/dur=234.87deg/s (=> per 0.2s: 46.97deg, 0.8199rad)
+
+-- return-to-straight (immediately after release) --
+  post-release first-0.3s speed (cells/s): n=  75 mean=13.7380 median=13.8363 std= 0.3467 p05=12.9933 p95=14.3502
+  post-release straight-run heading drift (deg, over its own duration): n=  75 mean= 0.3249 median= 0.5705 std= 0.3220 p05=-0.0002 p95= 0.6664
+
+================================================================================
+RIGHT (n=80 pulses)
+================================================================================
+duration_s: n=  80 mean= 0.8933 median= 0.4800 std= 0.8742 p05= 0.0601 p95= 2.5821
+
+-- by duration bucket (first-0.2s response vs longer holds) --
+  dur in (-0.001, 0.1]: n= 11 mean_dur=0.071s distance/dur=13.496cells/s (=> per 0.2s: 2.699 cells) pre_pulse_baseline_speed=13.768cells/s
+  dur in (0.1, 0.3]: n= 15 mean_dur=0.137s distance/dur=13.476cells/s (=> per 0.2s: 2.695 cells) pre_pulse_baseline_speed=13.548cells/s
+      mean_heading_change=-15.53deg turn/dur=-113.02deg/s (=> per 0.2s: -22.60deg, -0.3945rad)
+  dur in (0.3, 0.75]: n= 26 mean_dur=0.502s distance/dur=13.732cells/s (=> per 0.2s: 2.746 cells) pre_pulse_baseline_speed=13.776cells/s
+      mean_heading_change=-100.92deg turn/dur=-200.92deg/s (=> per 0.2s: -40.18deg, -0.7013rad)
+  dur in (0.75, 2.0]: n= 15 mean_dur=1.647s distance/dur=13.679cells/s (=> per 0.2s: 2.736 cells) pre_pulse_baseline_speed=13.669cells/s
+      mean_heading_change=-386.85deg turn/dur=-234.92deg/s (=> per 0.2s: -46.98deg, -0.8200rad)
+
+-- return-to-straight (immediately after release) --
+  post-release first-0.3s speed (cells/s): n=  79 mean=13.6990 median=13.6892 std= 0.3643 p05=13.0071 p95=14.3472
+  post-release straight-run heading drift (deg, over its own duration): n=  79 mean=-0.2968 median=-0.0003 std= 0.3252 p05=-0.6673 p95= 0.0002
+
+================================================================================
+LEFT vs RIGHT symmetry
+================================================================================
+LEFT (duration>=0.75s, n=28): turn_rate=235.67deg/s => per 0.2s: 47.13deg (0.8226rad)
+RIGHT (duration>=0.75s, n=28): turn_rate=-236.17deg/s => per 0.2s: -47.23deg (-0.8244rad)
+
+================================================================================
+For comparison
+================================================================================
+Current fitted model:      LEFT_dist=0.964 LEFT_turn=+0.184  RIGHT_dist=0.966 RIGHT_turn=-0.148 (per 0.2s)
+Stationary-start live calibration steady-state: LEFT_dist=2.642 LEFT_turn=+0.871  RIGHT_dist=2.641 RIGHT_turn=-0.874 (per 0.2s)

@@ -1,0 +1,443 @@
+{
+  "spec_seed": 850000000,
+  "episode_seed_base": 850800000,
+  "strata": {
+    "open_control": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed": 20
+      },
+      "outcome_episode_keys": {
+        "killed": [
+          "('open_control', 0)",
+          "('open_control', 1)",
+          "('open_control', 2)",
+          "('open_control', 3)",
+          "('open_control', 4)",
+          "('open_control', 5)",
+          "('open_control', 6)",
+          "('open_control', 7)",
+          "('open_control', 8)",
+          "('open_control', 9)",
+          "('open_control', 10)",
+          "('open_control', 11)",
+          "('open_control', 12)",
+          "('open_control', 13)",
+          "('open_control', 14)",
+          "('open_control', 15)",
+          "('open_control', 16)",
+          "('open_control', 17)",
+          "('open_control', 18)",
+          "('open_control', 19)"
+        ]
+      },
+      "total_kills": 20,
+      "kill_rate_episodes_with_ge1_kill": 1.0,
+      "mean_kills_per_episode": 1.0,
+      "episodes_reaching_eva_range": 20,
+      "episodes_reaching_eva_range_rate": 1.0,
+      "ticks_to_first_range": {
+        "n": 20,
+        "mean": 5.65,
+        "median": 6.0,
+        "min": 2,
+        "max": 9
+      },
+      "ticks_per_kill": {
+        "n": 20,
+        "mean": 5.65,
+        "median": 6.0,
+        "min": 2,
+        "max": 9
+      },
+      "total_contact_ticks": 0,
+      "episodes_with_collision": 0,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 0,
+      "mean_target_switches_per_episode": 0.0,
+      "total_replans": 0,
+      "switch_to_kill_success": {
+        "successes": 0,
+        "total_switches": 0,
+        "rate": null
+      },
+      "target_drift_cells": {
+        "n": 20,
+        "mean": 0.166,
+        "median": 0.176,
+        "min": 0.06,
+        "max": 0.27
+      }
+    },
+    "awkward_heading": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed": 20
+      },
+      "outcome_episode_keys": {
+        "killed": [
+          "('awkward_heading', 0)",
+          "('awkward_heading', 1)",
+          "('awkward_heading', 2)",
+          "('awkward_heading', 3)",
+          "('awkward_heading', 4)",
+          "('awkward_heading', 5)",
+          "('awkward_heading', 6)",
+          "('awkward_heading', 7)",
+          "('awkward_heading', 8)",
+          "('awkward_heading', 9)",
+          "('awkward_heading', 10)",
+          "('awkward_heading', 11)",
+          "('awkward_heading', 12)",
+          "('awkward_heading', 13)",
+          "('awkward_heading', 14)",
+          "('awkward_heading', 15)",
+          "('awkward_heading', 16)",
+          "('awkward_heading', 17)",
+          "('awkward_heading', 18)",
+          "('awkward_heading', 19)"
+        ]
+      },
+      "total_kills": 20,
+      "kill_rate_episodes_with_ge1_kill": 1.0,
+      "mean_kills_per_episode": 1.0,
+      "episodes_reaching_eva_range": 20,
+      "episodes_reaching_eva_range_rate": 1.0,
+      "ticks_to_first_range": {
+        "n": 20,
+        "mean": 7.1,
+        "median": 7.0,
+        "min": 4,
+        "max": 10
+      },
+      "ticks_per_kill": {
+        "n": 20,
+        "mean": 7.1,
+        "median": 7.0,
+        "min": 4,
+        "max": 10
+      },
+      "total_contact_ticks": 0,
+      "episodes_with_collision": 0,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 0,
+      "mean_target_switches_per_episode": 0.0,
+      "total_replans": 0,
+      "switch_to_kill_success": {
+        "successes": 0,
+        "total_switches": 0,
+        "rate": null
+      },
+      "target_drift_cells": {
+        "n": 20,
+        "mean": 0.208,
+        "median": 0.208,
+        "min": 0.12,
+        "max": 0.28
+      }
+    },
+    "obstacle_approach": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed": 19,
+        "collision": 1
+      },
+      "outcome_episode_keys": {
+        "killed": [
+          "('obstacle_approach', 0)",
+          "('obstacle_approach', 1)",
+          "('obstacle_approach', 2)",
+          "('obstacle_approach', 4)",
+          "('obstacle_approach', 5)",
+          "('obstacle_approach', 6)",
+          "('obstacle_approach', 7)",
+          "('obstacle_approach', 8)",
+          "('obstacle_approach', 9)",
+          "('obstacle_approach', 10)",
+          "('obstacle_approach', 11)",
+          "('obstacle_approach', 12)",
+          "('obstacle_approach', 13)",
+          "('obstacle_approach', 14)",
+          "('obstacle_approach', 15)",
+          "('obstacle_approach', 16)",
+          "('obstacle_approach', 17)",
+          "('obstacle_approach', 18)",
+          "('obstacle_approach', 19)"
+        ],
+        "collision": [
+          "('obstacle_approach', 3)"
+        ]
+      },
+      "total_kills": 19,
+      "kill_rate_episodes_with_ge1_kill": 0.95,
+      "mean_kills_per_episode": 0.95,
+      "episodes_reaching_eva_range": 19,
+      "episodes_reaching_eva_range_rate": 0.95,
+      "ticks_to_first_range": {
+        "n": 19,
+        "mean": 6.737,
+        "median": 6,
+        "min": 4,
+        "max": 14
+      },
+      "ticks_per_kill": {
+        "n": 19,
+        "mean": 6.737,
+        "median": 6,
+        "min": 4,
+        "max": 14
+      },
+      "total_contact_ticks": 1,
+      "episodes_with_collision": 1,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 0,
+      "mean_target_switches_per_episode": 0.0,
+      "total_replans": 0,
+      "switch_to_kill_success": {
+        "successes": 0,
+        "total_switches": 0,
+        "rate": null
+      },
+      "target_drift_cells": {
+        "n": 19,
+        "mean": 0.2,
+        "median": 0.18,
+        "min": 0.12,
+        "max": 0.42
+      }
+    },
+    "long_route": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed": 20
+      },
+      "outcome_episode_keys": {
+        "killed": [
+          "('long_route', 0)",
+          "('long_route', 1)",
+          "('long_route', 2)",
+          "('long_route', 3)",
+          "('long_route', 4)",
+          "('long_route', 5)",
+          "('long_route', 6)",
+          "('long_route', 7)",
+          "('long_route', 8)",
+          "('long_route', 9)",
+          "('long_route', 10)",
+          "('long_route', 11)",
+          "('long_route', 12)",
+          "('long_route', 13)",
+          "('long_route', 14)",
+          "('long_route', 15)",
+          "('long_route', 16)",
+          "('long_route', 17)",
+          "('long_route', 18)",
+          "('long_route', 19)"
+        ]
+      },
+      "total_kills": 20,
+      "kill_rate_episodes_with_ge1_kill": 1.0,
+      "mean_kills_per_episode": 1.0,
+      "episodes_reaching_eva_range": 20,
+      "episodes_reaching_eva_range_rate": 1.0,
+      "ticks_to_first_range": {
+        "n": 20,
+        "mean": 12.4,
+        "median": 12.0,
+        "min": 10,
+        "max": 16
+      },
+      "ticks_per_kill": {
+        "n": 20,
+        "mean": 12.4,
+        "median": 12.0,
+        "min": 10,
+        "max": 16
+      },
+      "total_contact_ticks": 0,
+      "episodes_with_collision": 0,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 0,
+      "mean_target_switches_per_episode": 0.0,
+      "total_replans": 0,
+      "switch_to_kill_success": {
+        "successes": 0,
+        "total_switches": 0,
+        "rate": null
+      },
+      "target_drift_cells": {
+        "n": 20,
+        "mean": 0.363,
+        "median": 0.36,
+        "min": 0.3,
+        "max": 0.448
+      }
+    },
+    "competing_targets": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed_target_count_reached": 20
+      },
+      "outcome_episode_keys": {
+        "killed_target_count_reached": [
+          "('competing_targets', 0)",
+          "('competing_targets', 1)",
+          "('competing_targets', 2)",
+          "('competing_targets', 3)",
+          "('competing_targets', 4)",
+          "('competing_targets', 5)",
+          "('competing_targets', 6)",
+          "('competing_targets', 7)",
+          "('competing_targets', 8)",
+          "('competing_targets', 9)",
+          "('competing_targets', 10)",
+          "('competing_targets', 11)",
+          "('competing_targets', 12)",
+          "('competing_targets', 13)",
+          "('competing_targets', 14)",
+          "('competing_targets', 15)",
+          "('competing_targets', 16)",
+          "('competing_targets', 17)",
+          "('competing_targets', 18)",
+          "('competing_targets', 19)"
+        ]
+      },
+      "total_kills": 60,
+      "kill_rate_episodes_with_ge1_kill": 1.0,
+      "mean_kills_per_episode": 3.0,
+      "episodes_reaching_eva_range": 20,
+      "episodes_reaching_eva_range_rate": 1.0,
+      "ticks_to_first_range": {
+        "n": 20,
+        "mean": 4.35,
+        "median": 4.0,
+        "min": 2,
+        "max": 8
+      },
+      "ticks_per_kill": {
+        "n": 57,
+        "mean": 7.421,
+        "median": 7,
+        "min": 2,
+        "max": 17
+      },
+      "total_contact_ticks": 0,
+      "episodes_with_collision": 0,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 41,
+      "mean_target_switches_per_episode": 2.05,
+      "total_replans": 41,
+      "switch_to_kill_success": {
+        "successes": 41,
+        "total_switches": 41,
+        "rate": 1.0
+      },
+      "target_drift_cells": {
+        "n": 61,
+        "mean": 0.187,
+        "median": 0.18,
+        "min": 0.03,
+        "max": 0.473
+      }
+    },
+    "multi_kill_farming": {
+      "n_episodes": 20,
+      "outcome_counts": {
+        "killed_target_count_reached": 20
+      },
+      "outcome_episode_keys": {
+        "killed_target_count_reached": [
+          "('multi_kill_farming', 0)",
+          "('multi_kill_farming', 1)",
+          "('multi_kill_farming', 2)",
+          "('multi_kill_farming', 3)",
+          "('multi_kill_farming', 4)",
+          "('multi_kill_farming', 5)",
+          "('multi_kill_farming', 6)",
+          "('multi_kill_farming', 7)",
+          "('multi_kill_farming', 8)",
+          "('multi_kill_farming', 9)",
+          "('multi_kill_farming', 10)",
+          "('multi_kill_farming', 11)",
+          "('multi_kill_farming', 12)",
+          "('multi_kill_farming', 13)",
+          "('multi_kill_farming', 14)",
+          "('multi_kill_farming', 15)",
+          "('multi_kill_farming', 16)",
+          "('multi_kill_farming', 17)",
+          "('multi_kill_farming', 18)",
+          "('multi_kill_farming', 19)"
+        ]
+      },
+      "total_kills": 60,
+      "kill_rate_episodes_with_ge1_kill": 1.0,
+      "mean_kills_per_episode": 3.0,
+      "episodes_reaching_eva_range": 20,
+      "episodes_reaching_eva_range_rate": 1.0,
+      "ticks_to_first_range": {
+        "n": 20,
+        "mean": 3.4,
+        "median": 3.0,
+        "min": 1,
+        "max": 7
+      },
+      "ticks_per_kill": {
+        "n": 54,
+        "mean": 6.704,
+        "median": 7.0,
+        "min": 1,
+        "max": 17
+      },
+      "total_contact_ticks": 0,
+      "episodes_with_collision": 0,
+      "episodes_timeout": 0,
+      "episodes_planner_failure": 0,
+      "episodes_stuck": 0,
+      "total_stuck_trigger_ticks": 0,
+      "episodes_ran_out_of_targets": 0,
+      "total_target_switches": 36,
+      "mean_target_switches_per_episode": 1.8,
+      "total_replans": 36,
+      "switch_to_kill_success": {
+        "successes": 35,
+        "total_switches": 36,
+        "rate": 0.972
+      },
+      "target_drift_cells": {
+        "n": 56,
+        "mean": 0.173,
+        "median": 0.18,
+        "min": 0.0,
+        "max": 0.461
+      }
+    }
+  },
+  "overall": {
+    "n_episodes": 120,
+    "total_kills": 199,
+    "episodes_with_collision": 1,
+    "episodes_timeout": 0,
+    "episodes_planner_failure": 0,
+    "episodes_stuck": 0
+  }
+}

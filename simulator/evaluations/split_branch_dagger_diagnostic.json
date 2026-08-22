@@ -1,0 +1,388 @@
+{
+  "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\split_branch_pilot_teacher.zip",
+  "teacher_policy": "obstacle_aware",
+  "stage": "early",
+  "episodes_per_layout": 1,
+  "dataset": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\datasets\\split_branch_dagger_round.npz",
+  "dataset_samples": 1977,
+  "layouts": [
+    {
+      "layout": "01_early_open_field_typical_fast",
+      "layout_id": 0,
+      "episodes": 1,
+      "visited_states": 480,
+      "steering_agreement_with_teacher": 0.6770833333333334,
+      "event_agreement_with_teacher": 0.8708333333333333,
+      "steering_confusion_matrix_teacher_rows_policy_cols": [
+        [
+          33,
+          7,
+          3
+        ],
+        [
+          34,
+          146,
+          32
+        ],
+        [
+          55,
+          24,
+          146
+        ]
+      ],
+      "maximum_consecutive_steering_run": 16,
+      "missed_eva_opportunity_ticks": 41,
+      "teacher_eva_opportunity_ticks": 89,
+      "policy_eva_recall_on_teacher_eva_states": 0.449438202247191,
+      "mean_policy_eva_probability_when_teacher_says_eva": 0.4630636396619041,
+      "mean_policy_eva_probability_when_teacher_says_none": 0.07415561516844558,
+      "density_binned_eva": {
+        "0": {
+          "ticks": 125,
+          "teacher_eva_ticks": 0,
+          "policy_eva_ticks": 0,
+          "policy_recall_hit_ticks": 0,
+          "teacher_eva_rate": 0.0,
+          "policy_eva_rate": 0.0,
+          "teacher_eva_opportunity_ticks": 0,
+          "policy_eva_recall_on_teacher_eva_states": null
+        },
+        "1-2": {
+          "ticks": 51,
+          "teacher_eva_ticks": 13,
+          "policy_eva_ticks": 5,
+          "policy_recall_hit_ticks": 5,
+          "teacher_eva_rate": 0.2549019607843137,
+          "policy_eva_rate": 0.09803921568627451,
+          "teacher_eva_opportunity_ticks": 13,
+          "policy_eva_recall_on_teacher_eva_states": 0.38461538461538464
+        },
+        "3-5": {
+          "ticks": 61,
+          "teacher_eva_ticks": 18,
+          "policy_eva_ticks": 7,
+          "policy_recall_hit_ticks": 7,
+          "teacher_eva_rate": 0.29508196721311475,
+          "policy_eva_rate": 0.11475409836065574,
+          "teacher_eva_opportunity_ticks": 18,
+          "policy_eva_recall_on_teacher_eva_states": 0.3888888888888889
+        },
+        "6-10": {
+          "ticks": 59,
+          "teacher_eva_ticks": 13,
+          "policy_eva_ticks": 8,
+          "policy_recall_hit_ticks": 6,
+          "teacher_eva_rate": 0.22033898305084745,
+          "policy_eva_rate": 0.13559322033898305,
+          "teacher_eva_opportunity_ticks": 13,
+          "policy_eva_recall_on_teacher_eva_states": 0.46153846153846156
+        },
+        "10+": {
+          "ticks": 184,
+          "teacher_eva_ticks": 45,
+          "policy_eva_ticks": 33,
+          "policy_recall_hit_ticks": 22,
+          "teacher_eva_rate": 0.24456521739130435,
+          "policy_eva_rate": 0.1793478260869565,
+          "teacher_eva_opportunity_ticks": 45,
+          "policy_eva_recall_on_teacher_eva_states": 0.4888888888888889
+        }
+      }
+    },
+    {
+      "layout": "02_early_wide_neck_high_typical",
+      "layout_id": 1,
+      "episodes": 1,
+      "visited_states": 510,
+      "steering_agreement_with_teacher": 0.7294117647058823,
+      "event_agreement_with_teacher": 0.8705882352941177,
+      "steering_confusion_matrix_teacher_rows_policy_cols": [
+        [
+          26,
+          5,
+          11
+        ],
+        [
+          31,
+          176,
+          43
+        ],
+        [
+          32,
+          16,
+          170
+        ]
+      ],
+      "maximum_consecutive_steering_run": 46,
+      "missed_eva_opportunity_ticks": 19,
+      "teacher_eva_opportunity_ticks": 71,
+      "policy_eva_recall_on_teacher_eva_states": 0.4225352112676056,
+      "mean_policy_eva_probability_when_teacher_says_eva": 0.37018681938996095,
+      "mean_policy_eva_probability_when_teacher_says_none": 0.084527130860367,
+      "density_binned_eva": {
+        "0": {
+          "ticks": 114,
+          "teacher_eva_ticks": 0,
+          "policy_eva_ticks": 0,
+          "policy_recall_hit_ticks": 0,
+          "teacher_eva_rate": 0.0,
+          "policy_eva_rate": 0.0,
+          "teacher_eva_opportunity_ticks": 0,
+          "policy_eva_recall_on_teacher_eva_states": null
+        },
+        "1-2": {
+          "ticks": 116,
+          "teacher_eva_ticks": 32,
+          "policy_eva_ticks": 15,
+          "policy_recall_hit_ticks": 10,
+          "teacher_eva_rate": 0.27586206896551724,
+          "policy_eva_rate": 0.12931034482758622,
+          "teacher_eva_opportunity_ticks": 32,
+          "policy_eva_recall_on_teacher_eva_states": 0.3125
+        },
+        "3-5": {
+          "ticks": 52,
+          "teacher_eva_ticks": 18,
+          "policy_eva_ticks": 2,
+          "policy_recall_hit_ticks": 2,
+          "teacher_eva_rate": 0.34615384615384615,
+          "policy_eva_rate": 0.038461538461538464,
+          "teacher_eva_opportunity_ticks": 18,
+          "policy_eva_recall_on_teacher_eva_states": 0.1111111111111111
+        },
+        "6-10": {
+          "ticks": 74,
+          "teacher_eva_ticks": 11,
+          "policy_eva_ticks": 12,
+          "policy_recall_hit_ticks": 8,
+          "teacher_eva_rate": 0.14864864864864866,
+          "policy_eva_rate": 0.16216216216216217,
+          "teacher_eva_opportunity_ticks": 11,
+          "policy_eva_recall_on_teacher_eva_states": 0.7272727272727273
+        },
+        "10+": {
+          "ticks": 154,
+          "teacher_eva_ticks": 10,
+          "policy_eva_ticks": 25,
+          "policy_recall_hit_ticks": 10,
+          "teacher_eva_rate": 0.06493506493506493,
+          "policy_eva_rate": 0.16233766233766234,
+          "teacher_eva_opportunity_ticks": 10,
+          "policy_eva_recall_on_teacher_eva_states": 1.0
+        }
+      }
+    },
+    {
+      "layout": "03_early_open_field_low_fast",
+      "layout_id": 2,
+      "episodes": 1,
+      "visited_states": 498,
+      "steering_agreement_with_teacher": 0.7349397590361446,
+      "event_agreement_with_teacher": 0.8855421686746988,
+      "steering_confusion_matrix_teacher_rows_policy_cols": [
+        [
+          19,
+          1,
+          4
+        ],
+        [
+          40,
+          179,
+          35
+        ],
+        [
+          43,
+          9,
+          168
+        ]
+      ],
+      "maximum_consecutive_steering_run": 29,
+      "missed_eva_opportunity_ticks": 15,
+      "teacher_eva_opportunity_ticks": 67,
+      "policy_eva_recall_on_teacher_eva_states": 0.5074626865671642,
+      "mean_policy_eva_probability_when_teacher_says_eva": 0.4800234596008685,
+      "mean_policy_eva_probability_when_teacher_says_none": 0.10000343732073959,
+      "density_binned_eva": {
+        "0": {
+          "ticks": 116,
+          "teacher_eva_ticks": 0,
+          "policy_eva_ticks": 0,
+          "policy_recall_hit_ticks": 0,
+          "teacher_eva_rate": 0.0,
+          "policy_eva_rate": 0.0,
+          "teacher_eva_opportunity_ticks": 0,
+          "policy_eva_recall_on_teacher_eva_states": null
+        },
+        "1-2": {
+          "ticks": 161,
+          "teacher_eva_ticks": 31,
+          "policy_eva_ticks": 21,
+          "policy_recall_hit_ticks": 13,
+          "teacher_eva_rate": 0.19254658385093168,
+          "policy_eva_rate": 0.13043478260869565,
+          "teacher_eva_opportunity_ticks": 31,
+          "policy_eva_recall_on_teacher_eva_states": 0.41935483870967744
+        },
+        "3-5": {
+          "ticks": 121,
+          "teacher_eva_ticks": 22,
+          "policy_eva_ticks": 19,
+          "policy_recall_hit_ticks": 9,
+          "teacher_eva_rate": 0.18181818181818182,
+          "policy_eva_rate": 0.15702479338842976,
+          "teacher_eva_opportunity_ticks": 22,
+          "policy_eva_recall_on_teacher_eva_states": 0.4090909090909091
+        },
+        "6-10": {
+          "ticks": 60,
+          "teacher_eva_ticks": 13,
+          "policy_eva_ticks": 13,
+          "policy_recall_hit_ticks": 11,
+          "teacher_eva_rate": 0.21666666666666667,
+          "policy_eva_rate": 0.21666666666666667,
+          "teacher_eva_opportunity_ticks": 13,
+          "policy_eva_recall_on_teacher_eva_states": 0.8461538461538461
+        },
+        "10+": {
+          "ticks": 40,
+          "teacher_eva_ticks": 1,
+          "policy_eva_ticks": 5,
+          "policy_recall_hit_ticks": 1,
+          "teacher_eva_rate": 0.025,
+          "policy_eva_rate": 0.125,
+          "teacher_eva_opportunity_ticks": 1,
+          "policy_eva_recall_on_teacher_eva_states": 1.0
+        }
+      }
+    },
+    {
+      "layout": "04_early_wide_neck_typical_bursty",
+      "layout_id": 3,
+      "episodes": 1,
+      "visited_states": 489,
+      "steering_agreement_with_teacher": 0.7321063394683026,
+      "event_agreement_with_teacher": 0.8507157464212679,
+      "steering_confusion_matrix_teacher_rows_policy_cols": [
+        [
+          16,
+          1,
+          3
+        ],
+        [
+          34,
+          128,
+          23
+        ],
+        [
+          46,
+          24,
+          214
+        ]
+      ],
+      "maximum_consecutive_steering_run": 23,
+      "missed_eva_opportunity_ticks": 40,
+      "teacher_eva_opportunity_ticks": 94,
+      "policy_eva_recall_on_teacher_eva_states": 0.40425531914893614,
+      "mean_policy_eva_probability_when_teacher_says_eva": 0.45544244578861176,
+      "mean_policy_eva_probability_when_teacher_says_none": 0.08571377767027427,
+      "density_binned_eva": {
+        "0": {
+          "ticks": 113,
+          "teacher_eva_ticks": 0,
+          "policy_eva_ticks": 1,
+          "policy_recall_hit_ticks": 0,
+          "teacher_eva_rate": 0.0,
+          "policy_eva_rate": 0.008849557522123894,
+          "teacher_eva_opportunity_ticks": 0,
+          "policy_eva_recall_on_teacher_eva_states": null
+        },
+        "1-2": {
+          "ticks": 98,
+          "teacher_eva_ticks": 24,
+          "policy_eva_ticks": 8,
+          "policy_recall_hit_ticks": 8,
+          "teacher_eva_rate": 0.24489795918367346,
+          "policy_eva_rate": 0.08163265306122448,
+          "teacher_eva_opportunity_ticks": 24,
+          "policy_eva_recall_on_teacher_eva_states": 0.3333333333333333
+        },
+        "3-5": {
+          "ticks": 69,
+          "teacher_eva_ticks": 25,
+          "policy_eva_ticks": 11,
+          "policy_recall_hit_ticks": 11,
+          "teacher_eva_rate": 0.36231884057971014,
+          "policy_eva_rate": 0.15942028985507245,
+          "teacher_eva_opportunity_ticks": 25,
+          "policy_eva_recall_on_teacher_eva_states": 0.44
+        },
+        "6-10": {
+          "ticks": 70,
+          "teacher_eva_ticks": 26,
+          "policy_eva_ticks": 6,
+          "policy_recall_hit_ticks": 6,
+          "teacher_eva_rate": 0.37142857142857144,
+          "policy_eva_rate": 0.08571428571428572,
+          "teacher_eva_opportunity_ticks": 26,
+          "policy_eva_recall_on_teacher_eva_states": 0.23076923076923078
+        },
+        "10+": {
+          "ticks": 139,
+          "teacher_eva_ticks": 19,
+          "policy_eva_ticks": 27,
+          "policy_recall_hit_ticks": 13,
+          "teacher_eva_rate": 0.1366906474820144,
+          "policy_eva_rate": 0.19424460431654678,
+          "teacher_eva_opportunity_ticks": 19,
+          "policy_eva_recall_on_teacher_eva_states": 0.6842105263157895
+        }
+      }
+    }
+  ],
+  "aggregate": {
+    "visited_states": 1977,
+    "mean_steering_agreement_with_teacher": 0.7183852991359158,
+    "mean_event_agreement_with_teacher": 0.8694198709308545,
+    "missed_eva_opportunity_ticks": 115,
+    "teacher_eva_opportunity_ticks": 321,
+    "policy_eva_recall_on_teacher_eva_states": 0.4423676012461059,
+    "conflicting_duplicate_observations": 0,
+    "density_binned_eva": {
+      "0": {
+        "ticks": 468,
+        "teacher_eva_rate": 0.0,
+        "policy_eva_rate": 0.002136752136752137,
+        "teacher_eva_opportunity_ticks": 0,
+        "policy_eva_recall_on_teacher_eva_states": null
+      },
+      "1-2": {
+        "ticks": 426,
+        "teacher_eva_rate": 0.2347417840375587,
+        "policy_eva_rate": 0.11502347417840375,
+        "teacher_eva_opportunity_ticks": 100,
+        "policy_eva_recall_on_teacher_eva_states": 0.36
+      },
+      "3-5": {
+        "ticks": 303,
+        "teacher_eva_rate": 0.2739273927392739,
+        "policy_eva_rate": 0.12871287128712872,
+        "teacher_eva_opportunity_ticks": 83,
+        "policy_eva_recall_on_teacher_eva_states": 0.3493975903614458
+      },
+      "6-10": {
+        "ticks": 263,
+        "teacher_eva_rate": 0.23954372623574144,
+        "policy_eva_rate": 0.1482889733840304,
+        "teacher_eva_opportunity_ticks": 63,
+        "policy_eva_recall_on_teacher_eva_states": 0.49206349206349204
+      },
+      "10+": {
+        "ticks": 517,
+        "teacher_eva_rate": 0.1450676982591876,
+        "policy_eva_rate": 0.17408123791102514,
+        "teacher_eva_opportunity_ticks": 75,
+        "policy_eva_recall_on_teacher_eva_states": 0.6133333333333333
+      }
+    }
+  }
+}

@@ -1,0 +1,845 @@
+{
+  "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\generic_farming_v17_pilot.zip",
+  "curriculum": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\synthetic_curriculum\\curriculum.json",
+  "stage": "early",
+  "variant": null,
+  "episode_seconds": 60.0,
+  "max_actions": 400,
+  "timing_contract": "fixed-simulated-time-v1",
+  "invalid_eva_contract": "control-interval-and-restart-cooldown-v1",
+  "reward_contract": "concave-kill-geodesic-state-delta-v2",
+  "reward_config": {
+    "reward_contract": "concave-kill-geodesic-state-delta-v2",
+    "kill_reward_scale": 1.0,
+    "kill_reward_exponent": 0.5,
+    "approach_reward_scale": 0.03,
+    "invalid_eva_penalty": 0.1,
+    "eva_miss_penalty": 0.05,
+    "contact_penalty": 0.035,
+    "obstacle_buffer_penalty": 0.025,
+    "obstacle_cell_penalty": 0.75,
+    "jump_flair_reward": 0.001,
+    "teleport_warning_radius_cells": 6.0,
+    "teleport_buffer_radius_cells": 2.0,
+    "teleport_proximity_penalty": 3.0,
+    "teleport_buffer_penalty": 12.0,
+    "teleport_trigger_penalty": 50.0
+  },
+  "layouts": [
+    {
+      "variant": "01_early_open_field_typical_fast",
+      "stage": "early",
+      "template": "open_field",
+      "density_profile": "typical",
+      "respawn_profile": "fast",
+      "random": {
+        "episodes": 1,
+        "mean_reward": -20.276948775786142,
+        "reward_std": 0.0,
+        "mean_kills": 2.0,
+        "kills_per_simulated_hour": 120.0,
+        "mean_simulated_seconds": 60.0,
+        "mean_actions": 279.0,
+        "time_horizon_reached_rate": 1.0,
+        "episodes_short_of_time_horizon": 0,
+        "mean_eva_attempts": 58.0,
+        "mean_valid_eva_casts": 7.0,
+        "mean_invalid_eva_attempts": 51.0,
+        "valid_eva_rate": 0.1206896551724138,
+        "invalid_eva_rate": 0.8793103448275862,
+        "kills_per_valid_eva": 0.2857142857142857,
+        "mean_total_distance_cells": 96.33728280774268,
+        "mean_net_displacement_cells": 82.07078703969451,
+        "mean_path_efficiency": 0.8519109595760618,
+        "mean_repeated_cell_rate": 0.8458781362007168,
+        "mean_section_transitions": 1.0,
+        "mean_contacts": 234.0,
+        "reward_contract": "concave-kill-geodesic-state-delta-v2",
+        "mean_reward_components": {
+          "approach": -2.198162338159264,
+          "contact": -8.190000000000023,
+          "eva_miss": -0.3,
+          "invalid_eva": -5.099999999999998,
+          "jump_flair": 0.022000000000000013,
+          "kill": 1.4142135623730951,
+          "obstacle_buffer": -5.925000000000017,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "reward_components_per_simulated_hour": {
+          "approach": -131.88974028955585,
+          "contact": -491.40000000000134,
+          "eva_miss": -18.0,
+          "invalid_eva": -305.9999999999999,
+          "jump_flair": 1.3200000000000007,
+          "kill": 84.8528137423857,
+          "obstacle_buffer": -355.500000000001,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "action_counts": {
+          "0": 52,
+          "1": 48,
+          "2": 54,
+          "3": 58,
+          "4": 67
+        },
+        "action_probabilities": {
+          "0": 0.1863799283154122,
+          "1": 0.17204301075268819,
+          "2": 0.1935483870967742,
+          "3": 0.2078853046594982,
+          "4": 0.24014336917562723
+        },
+        "episode_rewards": [
+          -20.276948775786142
+        ],
+        "episode_kills": [
+          2
+        ],
+        "episode_simulated_seconds": [
+          60.0
+        ],
+        "episode_valid_eva_casts": [
+          7
+        ],
+        "episode_invalid_eva_attempts": [
+          51
+        ],
+        "episode_reward_components": [
+          {
+            "kill": 1.4142135623730951,
+            "approach": -2.198162338159264,
+            "invalid_eva": -5.099999999999998,
+            "eva_miss": -0.3,
+            "contact": -8.190000000000023,
+            "obstacle_buffer": -5.925000000000017,
+            "obstacle_cell": 0.0,
+            "jump_flair": 0.022000000000000013,
+            "teleport_proximity": 0.0,
+            "teleport_buffer": 0.0,
+            "teleport_trigger": 0.0
+          }
+        ]
+      },
+      "policy": {
+        "episodes": 1,
+        "mean_reward": -0.017132034355964172,
+        "reward_std": 0.0,
+        "mean_kills": 0.0,
+        "kills_per_simulated_hour": 0.0,
+        "mean_simulated_seconds": 60.0,
+        "mean_actions": 300.0,
+        "time_horizon_reached_rate": 1.0,
+        "episodes_short_of_time_horizon": 0,
+        "mean_eva_attempts": 0.0,
+        "mean_valid_eva_casts": 0.0,
+        "mean_invalid_eva_attempts": 0.0,
+        "valid_eva_rate": 0.0,
+        "invalid_eva_rate": 0.0,
+        "kills_per_valid_eva": 0.0,
+        "mean_total_distance_cells": 500.4434057149866,
+        "mean_net_displacement_cells": 28.714466524291904,
+        "mean_path_efficiency": 0.05737804953842356,
+        "mean_repeated_cell_rate": 0.19,
+        "mean_section_transitions": 5.0,
+        "mean_contacts": 0.0,
+        "reward_contract": "concave-kill-geodesic-state-delta-v2",
+        "mean_reward_components": {
+          "approach": -0.017132034355964172,
+          "contact": 0.0,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0,
+          "kill": 0.0,
+          "obstacle_buffer": 0.0,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "reward_components_per_simulated_hour": {
+          "approach": -1.0279220613578504,
+          "contact": 0.0,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0,
+          "kill": 0.0,
+          "obstacle_buffer": 0.0,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "action_counts": {
+          "0": 0,
+          "1": 0,
+          "2": 300,
+          "3": 0,
+          "4": 0
+        },
+        "action_probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 1.0,
+          "3": 0.0,
+          "4": 0.0
+        },
+        "episode_rewards": [
+          -0.017132034355964172
+        ],
+        "episode_kills": [
+          0
+        ],
+        "episode_simulated_seconds": [
+          60.0
+        ],
+        "episode_valid_eva_casts": [
+          0
+        ],
+        "episode_invalid_eva_attempts": [
+          0
+        ],
+        "episode_reward_components": [
+          {
+            "kill": 0.0,
+            "approach": -0.017132034355964172,
+            "invalid_eva": 0.0,
+            "eva_miss": 0.0,
+            "contact": 0.0,
+            "obstacle_buffer": 0.0,
+            "obstacle_cell": 0.0,
+            "jump_flair": 0.0,
+            "teleport_proximity": 0.0,
+            "teleport_buffer": 0.0,
+            "teleport_trigger": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "variant": "02_early_wide_neck_high_typical",
+      "stage": "early",
+      "template": "wide_neck",
+      "density_profile": "high",
+      "respawn_profile": "typical",
+      "random": {
+        "episodes": 1,
+        "mean_reward": -4.598657833305367,
+        "reward_std": 0.0,
+        "mean_kills": 24.0,
+        "kills_per_simulated_hour": 1440.0,
+        "mean_simulated_seconds": 60.0,
+        "mean_actions": 270.0,
+        "time_horizon_reached_rate": 1.0,
+        "episodes_short_of_time_horizon": 0,
+        "mean_eva_attempts": 46.0,
+        "mean_valid_eva_casts": 10.0,
+        "mean_invalid_eva_attempts": 36.0,
+        "valid_eva_rate": 0.21739130434782608,
+        "invalid_eva_rate": 0.782608695652174,
+        "kills_per_valid_eva": 2.4,
+        "mean_total_distance_cells": 197.47764202205198,
+        "mean_net_displacement_cells": 52.24936556951243,
+        "mean_path_efficiency": 0.26458370190422786,
+        "mean_repeated_cell_rate": 0.6185185185185185,
+        "mean_section_transitions": 1.0,
+        "mean_contacts": 161.0,
+        "reward_contract": "concave-kill-geodesic-state-delta-v2",
+        "mean_reward_components": {
+          "approach": 2.4499264068711915,
+          "contact": -5.635000000000013,
+          "eva_miss": -0.35,
+          "invalid_eva": -3.600000000000002,
+          "jump_flair": 0.02100000000000001,
+          "kill": 6.69041575982343,
+          "obstacle_buffer": -4.174999999999992,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "reward_components_per_simulated_hour": {
+          "approach": 146.99558441227148,
+          "contact": -338.10000000000076,
+          "eva_miss": -21.0,
+          "invalid_eva": -216.0000000000001,
+          "jump_flair": 1.2600000000000007,
+          "kill": 401.4249455894058,
+          "obstacle_buffer": -250.49999999999952,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "action_counts": {
+          "0": 52,
+          "1": 58,
+          "2": 53,
+          "3": 46,
+          "4": 61
+        },
+        "action_probabilities": {
+          "0": 0.1925925925925926,
+          "1": 0.21481481481481482,
+          "2": 0.1962962962962963,
+          "3": 0.17037037037037037,
+          "4": 0.22592592592592592
+        },
+        "episode_rewards": [
+          -4.598657833305367
+        ],
+        "episode_kills": [
+          24
+        ],
+        "episode_simulated_seconds": [
+          60.0
+        ],
+        "episode_valid_eva_casts": [
+          10
+        ],
+        "episode_invalid_eva_attempts": [
+          36
+        ],
+        "episode_reward_components": [
+          {
+            "kill": 6.69041575982343,
+            "approach": 2.4499264068711915,
+            "invalid_eva": -3.600000000000002,
+            "eva_miss": -0.35,
+            "contact": -5.635000000000013,
+            "obstacle_buffer": -4.174999999999992,
+            "obstacle_cell": 0.0,
+            "jump_flair": 0.02100000000000001,
+            "teleport_proximity": 0.0,
+            "teleport_buffer": 0.0,
+            "teleport_trigger": 0.0
+          }
+        ]
+      },
+      "policy": {
+        "episodes": 1,
+        "mean_reward": -0.1439696961967001,
+        "reward_std": 0.0,
+        "mean_kills": 0.0,
+        "kills_per_simulated_hour": 0.0,
+        "mean_simulated_seconds": 60.0,
+        "mean_actions": 300.0,
+        "time_horizon_reached_rate": 1.0,
+        "episodes_short_of_time_horizon": 0,
+        "mean_eva_attempts": 0.0,
+        "mean_valid_eva_casts": 0.0,
+        "mean_invalid_eva_attempts": 0.0,
+        "valid_eva_rate": 0.0,
+        "invalid_eva_rate": 0.0,
+        "kills_per_valid_eva": 0.0,
+        "mean_total_distance_cells": 473.3253808153668,
+        "mean_net_displacement_cells": 28.482674850278638,
+        "mean_path_efficiency": 0.060175676193855034,
+        "mean_repeated_cell_rate": 0.19666666666666666,
+        "mean_section_transitions": 13.0,
+        "mean_contacts": 3.0,
+        "reward_contract": "concave-kill-geodesic-state-delta-v2",
+        "mean_reward_components": {
+          "approach": 0.1110303038032999,
+          "contact": -0.10500000000000001,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0,
+          "kill": 0.0,
+          "obstacle_buffer": -0.15,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "reward_components_per_simulated_hour": {
+          "approach": 6.661818228197993,
+          "contact": -6.300000000000001,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0,
+          "kill": 0.0,
+          "obstacle_buffer": -9.0,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "action_counts": {
+          "0": 0,
+          "1": 0,
+          "2": 300,
+          "3": 0,
+          "4": 0
+        },
+        "action_probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 1.0,
+          "3": 0.0,
+          "4": 0.0
+        },
+        "episode_rewards": [
+          -0.1439696961967001
+        ],
+        "episode_kills": [
+          0
+        ],
+        "episode_simulated_seconds": [
+          60.0
+        ],
+        "episode_valid_eva_casts": [
+          0
+        ],
+        "episode_invalid_eva_attempts": [
+          0
+        ],
+        "episode_reward_components": [
+          {
+            "kill": 0.0,
+            "approach": 0.1110303038032999,
+            "invalid_eva": 0.0,
+            "eva_miss": 0.0,
+            "contact": -0.10500000000000001,
+            "obstacle_buffer": -0.15,
+            "obstacle_cell": 0.0,
+            "jump_flair": 0.0,
+            "teleport_proximity": 0.0,
+            "teleport_buffer": 0.0,
+            "teleport_trigger": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "variant": "03_early_open_field_low_fast",
+      "stage": "early",
+      "template": "open_field",
+      "density_profile": "low",
+      "respawn_profile": "fast",
+      "random": {
+        "episodes": 1,
+        "mean_reward": -17.181463927687833,
+        "reward_std": 0.0,
+        "mean_kills": 2.0,
+        "kills_per_simulated_hour": 120.0,
+        "mean_simulated_seconds": 60.0,
+        "mean_actions": 273.0,
+        "time_horizon_reached_rate": 1.0,
+        "episodes_short_of_time_horizon": 0,
+        "mean_eva_attempts": 53.0,
+        "mean_valid_eva_casts": 9.0,
+        "mean_invalid_eva_attempts": 44.0,
+        "valid_eva_rate": 0.16981132075471697,
+        "invalid_eva_rate": 0.8301886792452831,
+        "kills_per_valid_eva": 0.2222222222222222,
+        "mean_total_distance_cells": 157.5023194579412,
+        "mean_net_displacement_cells": 106.43524999173835,
+        "mean_path_efficiency": 0.6757694131619464,
+        "mean_repeated_cell_rate": 0.7289377289377289,
+        "mean_section_transitions": 3.0,
+        "mean_contacts": 192.0,
+        "reward_contract": "concave-kill-geodesic-state-delta-v2",
+        "mean_reward_components": {
+          "approach": -2.223677490060914,
+          "contact": -6.7200000000000175,
+          "eva_miss": -0.39999999999999997,
+          "invalid_eva": -4.4,
+          "jump_flair": 0.023000000000000013,
+          "kill": 1.4142135623730951,
+          "obstacle_buffer": -4.875000000000002,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "reward_components_per_simulated_hour": {
+          "approach": -133.42064940365483,
+          "contact": -403.200000000001,
+          "eva_miss": -23.999999999999996,
+          "invalid_eva": -264.00000000000006,
+          "jump_flair": 1.380000000000001,
+          "kill": 84.8528137423857,
+          "obstacle_buffer": -292.5000000000001,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "action_counts": {
+          "0": 52,
+          "1": 63,
+          "2": 48,
+          "3": 53,
+          "4": 57
+        },
+        "action_probabilities": {
+          "0": 0.19047619047619047,
+          "1": 0.23076923076923078,
+          "2": 0.17582417582417584,
+          "3": 0.19413919413919414,
+          "4": 0.2087912087912088
+        },
+        "episode_rewards": [
+          -17.181463927687833
+        ],
+        "episode_kills": [
+          2
+        ],
+        "episode_simulated_seconds": [
+          60.0
+        ],
+        "episode_valid_eva_casts": [
+          9
+        ],
+        "episode_invalid_eva_attempts": [
+          44
+        ],
+        "episode_reward_components": [
+          {
+            "kill": 1.4142135623730951,
+            "approach": -2.223677490060914,
+            "invalid_eva": -4.4,
+            "eva_miss": -0.39999999999999997,
+            "contact": -6.7200000000000175,
+            "obstacle_buffer": -4.875000000000002,
+            "obstacle_cell": 0.0,
+            "jump_flair": 0.023000000000000013,
+            "teleport_proximity": 0.0,
+            "teleport_buffer": 0.0,
+            "teleport_trigger": 0.0
+          }
+        ]
+      },
+      "policy": {
+        "episodes": 1,
+        "mean_reward": -0.044779220613578835,
+        "reward_std": 0.0,
+        "mean_kills": 0.0,
+        "kills_per_simulated_hour": 0.0,
+        "mean_simulated_seconds": 60.0,
+        "mean_actions": 300.0,
+        "time_horizon_reached_rate": 1.0,
+        "episodes_short_of_time_horizon": 0,
+        "mean_eva_attempts": 0.0,
+        "mean_valid_eva_casts": 0.0,
+        "mean_invalid_eva_attempts": 0.0,
+        "valid_eva_rate": 0.0,
+        "invalid_eva_rate": 0.0,
+        "kills_per_valid_eva": 0.0,
+        "mean_total_distance_cells": 507.4063191829132,
+        "mean_net_displacement_cells": 17.58895472212728,
+        "mean_path_efficiency": 0.03466443766496865,
+        "mean_repeated_cell_rate": 0.17,
+        "mean_section_transitions": 2.0,
+        "mean_contacts": 0.0,
+        "reward_contract": "concave-kill-geodesic-state-delta-v2",
+        "mean_reward_components": {
+          "approach": -0.044779220613578835,
+          "contact": 0.0,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0,
+          "kill": 0.0,
+          "obstacle_buffer": 0.0,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "reward_components_per_simulated_hour": {
+          "approach": -2.68675323681473,
+          "contact": 0.0,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0,
+          "kill": 0.0,
+          "obstacle_buffer": 0.0,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "action_counts": {
+          "0": 0,
+          "1": 0,
+          "2": 300,
+          "3": 0,
+          "4": 0
+        },
+        "action_probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 1.0,
+          "3": 0.0,
+          "4": 0.0
+        },
+        "episode_rewards": [
+          -0.044779220613578835
+        ],
+        "episode_kills": [
+          0
+        ],
+        "episode_simulated_seconds": [
+          60.0
+        ],
+        "episode_valid_eva_casts": [
+          0
+        ],
+        "episode_invalid_eva_attempts": [
+          0
+        ],
+        "episode_reward_components": [
+          {
+            "kill": 0.0,
+            "approach": -0.044779220613578835,
+            "invalid_eva": 0.0,
+            "eva_miss": 0.0,
+            "contact": 0.0,
+            "obstacle_buffer": 0.0,
+            "obstacle_cell": 0.0,
+            "jump_flair": 0.0,
+            "teleport_proximity": 0.0,
+            "teleport_buffer": 0.0,
+            "teleport_trigger": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "variant": "04_early_wide_neck_typical_bursty",
+      "stage": "early",
+      "template": "wide_neck",
+      "density_profile": "typical",
+      "respawn_profile": "bursty",
+      "random": {
+        "episodes": 1,
+        "mean_reward": -8.03724003617209,
+        "reward_std": 0.0,
+        "mean_kills": 25.0,
+        "kills_per_simulated_hour": 1500.0,
+        "mean_simulated_seconds": 60.0,
+        "mean_actions": 273.0,
+        "time_horizon_reached_rate": 1.0,
+        "episodes_short_of_time_horizon": 0,
+        "mean_eva_attempts": 51.0,
+        "mean_valid_eva_casts": 9.0,
+        "mean_invalid_eva_attempts": 42.0,
+        "valid_eva_rate": 0.17647058823529413,
+        "invalid_eva_rate": 0.8235294117647058,
+        "kills_per_valid_eva": 2.7777777777777777,
+        "mean_total_distance_cells": 290.11022587959366,
+        "mean_net_displacement_cells": 106.85584306774575,
+        "mean_path_efficiency": 0.3683284266997704,
+        "mean_repeated_cell_rate": 0.4908424908424908,
+        "mean_section_transitions": 4.0,
+        "mean_contacts": 112.0,
+        "reward_contract": "concave-kill-geodesic-state-delta-v2",
+        "mean_reward_components": {
+          "approach": -3.324632034355964,
+          "contact": -3.920000000000006,
+          "eva_miss": -0.35,
+          "invalid_eva": -4.200000000000001,
+          "jump_flair": 0.01900000000000001,
+          "kill": 6.8883919981838755,
+          "obstacle_buffer": -3.149999999999993,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "reward_components_per_simulated_hour": {
+          "approach": -199.47792206135784,
+          "contact": -235.20000000000036,
+          "eva_miss": -21.0,
+          "invalid_eva": -252.00000000000006,
+          "jump_flair": 1.1400000000000006,
+          "kill": 413.3035198910326,
+          "obstacle_buffer": -188.99999999999957,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "action_counts": {
+          "0": 55,
+          "1": 57,
+          "2": 63,
+          "3": 51,
+          "4": 47
+        },
+        "action_probabilities": {
+          "0": 0.20146520146520147,
+          "1": 0.2087912087912088,
+          "2": 0.23076923076923078,
+          "3": 0.18681318681318682,
+          "4": 0.17216117216117216
+        },
+        "episode_rewards": [
+          -8.03724003617209
+        ],
+        "episode_kills": [
+          25
+        ],
+        "episode_simulated_seconds": [
+          60.0
+        ],
+        "episode_valid_eva_casts": [
+          9
+        ],
+        "episode_invalid_eva_attempts": [
+          42
+        ],
+        "episode_reward_components": [
+          {
+            "kill": 6.8883919981838755,
+            "approach": -3.324632034355964,
+            "invalid_eva": -4.200000000000001,
+            "eva_miss": -0.35,
+            "contact": -3.920000000000006,
+            "obstacle_buffer": -3.149999999999993,
+            "obstacle_cell": 0.0,
+            "jump_flair": 0.01900000000000001,
+            "teleport_proximity": 0.0,
+            "teleport_buffer": 0.0,
+            "teleport_trigger": 0.0
+          }
+        ]
+      },
+      "policy": {
+        "episodes": 1,
+        "mean_reward": -5.014999999999997,
+        "reward_std": 0.0,
+        "mean_kills": 0.0,
+        "kills_per_simulated_hour": 0.0,
+        "mean_simulated_seconds": 60.0,
+        "mean_actions": 300.0,
+        "time_horizon_reached_rate": 1.0,
+        "episodes_short_of_time_horizon": 0,
+        "mean_eva_attempts": 0.0,
+        "mean_valid_eva_casts": 0.0,
+        "mean_invalid_eva_attempts": 0.0,
+        "valid_eva_rate": 0.0,
+        "invalid_eva_rate": 0.0,
+        "kills_per_valid_eva": 0.0,
+        "mean_total_distance_cells": 404.9909736352776,
+        "mean_net_displacement_cells": 67.36366116579607,
+        "mean_path_efficiency": 0.16633373470308924,
+        "mean_repeated_cell_rate": 0.31,
+        "mean_section_transitions": 0.0,
+        "mean_contacts": 44.0,
+        "reward_contract": "concave-kill-geodesic-state-delta-v2",
+        "mean_reward_components": {
+          "approach": -1.8000000000000003,
+          "contact": -1.5399999999999994,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0,
+          "kill": 0.0,
+          "obstacle_buffer": -1.674999999999998,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "reward_components_per_simulated_hour": {
+          "approach": -108.00000000000001,
+          "contact": -92.39999999999996,
+          "eva_miss": 0.0,
+          "invalid_eva": 0.0,
+          "jump_flair": 0.0,
+          "kill": 0.0,
+          "obstacle_buffer": -100.49999999999987,
+          "obstacle_cell": 0.0,
+          "teleport_buffer": 0.0,
+          "teleport_proximity": 0.0,
+          "teleport_trigger": 0.0
+        },
+        "action_counts": {
+          "0": 0,
+          "1": 0,
+          "2": 300,
+          "3": 0,
+          "4": 0
+        },
+        "action_probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 1.0,
+          "3": 0.0,
+          "4": 0.0
+        },
+        "episode_rewards": [
+          -5.014999999999997
+        ],
+        "episode_kills": [
+          0
+        ],
+        "episode_simulated_seconds": [
+          60.0
+        ],
+        "episode_valid_eva_casts": [
+          0
+        ],
+        "episode_invalid_eva_attempts": [
+          0
+        ],
+        "episode_reward_components": [
+          {
+            "kill": 0.0,
+            "approach": -1.8000000000000003,
+            "invalid_eva": 0.0,
+            "eva_miss": 0.0,
+            "contact": -1.5399999999999994,
+            "obstacle_buffer": -1.674999999999998,
+            "obstacle_cell": 0.0,
+            "jump_flair": 0.0,
+            "teleport_proximity": 0.0,
+            "teleport_buffer": 0.0,
+            "teleport_trigger": 0.0
+          }
+        ]
+      }
+    }
+  ],
+  "aggregate": {
+    "policy_kills_per_simulated_hour": 0.0,
+    "random_kills_per_simulated_hour": 795.0,
+    "policy_to_random_kill_rate_ratio": 0.0,
+    "policy_mean_reward": -1.30522023779156,
+    "random_mean_reward": -12.523577643237857,
+    "policy_mean_valid_eva_casts": 0.0,
+    "policy_mean_invalid_eva_attempts": 0.0,
+    "policy_kills_per_valid_eva": 0.0,
+    "policy_action_probabilities": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 1.0,
+      "3": 0.0,
+      "4": 0.0
+    },
+    "maximum_policy_action_probability": 1.0
+  },
+  "stage_gate": {
+    "passed": false,
+    "criteria": {
+      "minimum_policy_to_random_kill_rate_ratio": 1.0,
+      "maximum_single_action_probability": 0.9,
+      "requires_nonzero_kills": true,
+      "requires_valid_eva_cast": true,
+      "requires_activity_on_every_layout": true
+    },
+    "reasons": [
+      "policy produced no kills",
+      "policy/random kill-rate ratio 0.000 is below 1.000",
+      "one action probability 1.000 exceeds 0.900",
+      "policy completed no valid EVA casts",
+      "policy produced no kills or no valid EVA cast on layouts: 01_early_open_field_typical_fast, 02_early_wide_neck_high_typical, 03_early_open_field_low_fast, 04_early_wide_neck_typical_bursty"
+    ]
+  }
+}

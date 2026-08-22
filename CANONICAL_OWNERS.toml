@@ -1,0 +1,205 @@
+schema_version = 1
+purpose = "Machine-consumed current/target ownership registry for behaviorally sensitive concepts"
+
+# The migration is finished (2026-08-21). current_phase is NOT active
+# migration-stage tracking -- it is the reference phase number
+# docs/migration/tools/migration_integrity.py's bridge_errors() compares
+# every docs/migration/BRIDGES.md [[bridge]] entry's removal_gate
+# against, to catch a bridge accidentally left un-retired. Every bridge
+# with a PHASE_N gate (B1/B2=PHASE_7, B3=PHASE_8) is already
+# status="removed" with empty locations; only B4 (removal_gate="NEVER",
+# phase-number-independent) remains genuinely active. No value >= 8
+# changes that check's outcome today -- kept at its real historical
+# value rather than bumped further, since bumping it would falsely
+# imply an ongoing phase sequence that no longer exists.
+current_phase = 14
+
+# [rules.R7b] (retired): it policed a top-level legacy/ historical-
+# compatibility subtree (legacy/manifest_compat.py) restricted to
+# archives/, legacy/, research/, and simulator/schema.py importers. A
+# later audit found legacy/manifest_compat.py held only ~40 lines of
+# absence-driven warning/provenance-normalization functions -- none of
+# the G7 frozen dataclasses that actually cannot move -- and
+# simulator/schema.py was already its only current importer. The
+# module was folded into simulator/legacy_manifest_compat.py (its sole
+# consumer's own ownership) and the legacy/ package deleted, so the
+# rule's package boundary no longer exists to police. The real,
+# still-load-bearing old-archive-manifest behavior itself is
+# unchanged; see tests/test_archive_schema_legacy_compat.py.
+
+[repository]
+python_roots = ["."]
+
+[[concept]]
+id = "tower_map_profiles"
+rule = "R7a"
+symbols = ["TowerMapProfile", "LIVE_TOWER_PROFILE", "SIM_TOWER_PROFILE"]
+current_owners = [
+  "farming/map_profile.py",
+]
+target_owner = "farming/map_profile.py"
+status = "green-canonical-named-consumer-profiles"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "observation_schema_id"
+rule = "R6"
+symbols = ["OBSERVATION_SCHEMA_ID"]
+current_owners = [
+  "farming/observation_contract.py",
+]
+target_owner = "farming/observation_contract.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "observation_size"
+rule = "R6"
+symbols = ["OBSERVATION_SIZE"]
+current_owners = [
+  "farming/observation.py",
+]
+target_owner = "farming/observation.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "policy_action_nvecs"
+rule = "R6"
+symbols = ["POLICY_ACTION_NVECS"]
+current_owners = [
+  "farming/actions.py",
+]
+target_owner = "farming/actions.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "farming_action_contract"
+rule = "R7a"
+symbols = ["FarmingAction", "SteeringAction", "FarmingEvent", "POLICY_ACTION_NVECS"]
+current_owners = [
+  "farming/actions.py",
+]
+target_owner = "farming/actions.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "farming_observation_contract"
+rule = "R7a"
+symbols = ["OBSERVATION_SCHEMA_ID", "OBSERVATION_SIZE", "ObservationBuilder"]
+current_owners = [
+  "farming/observation_contract.py",
+  "farming/observation.py",
+]
+target_owner = "farming; recorder archive metadata is a consumer"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "farming_model_contract"
+rule = "R7a"
+symbols = ["CURRENT_MODEL_CONTRACT", "ModelContractMetadata", "validate_model_contract"]
+current_owners = [
+  "farming/model_contract.py",
+]
+target_owner = "farming/model_contract.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "farming_reward_contract"
+rule = "R7a"
+symbols = ["RewardCalculator", "RewardComponents"]
+current_owners = [
+  "farming/reward.py",
+]
+target_owner = "farming/reward.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "farming_session_contract"
+rule = "R7a"
+symbols = ["SessionOutcome", "SessionEndReason"]
+current_owners = [
+  "farming/session.py",
+]
+target_owner = "farming/session.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "native_position_stack"
+rule = "R7a"
+symbols = ["NativeFlyffPositionProvider", "NativeFlyffMonsterProvider", "NativeProcessService"]
+current_owners = [
+  "position/NativeFlyffMonsterProvider.py",
+  "position/NativeFlyffPositionProvider.py",
+  "position/native_process_service.py",
+]
+target_owner = "position with explicit live/recording attach policies and profiling subtree"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "qualified_persistent_waypoint_selector"
+rule = "R7a"
+symbols = ["select_persistent_waypoint"]
+current_owners = ["navigation/kinodynamic_route_planner.py"]
+target_owner = "navigation/kinodynamic_route_planner.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "shared_movement_kernel"
+rule = "R7a"
+symbols = ["SteeringDirection", "AdvanceResult", "advance_player_tick", "resolve_signed_turn_radians"]
+current_owners = ["navigation/movement_kernel.py"]
+target_owner = "navigation/movement_kernel.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+note = "AdvanceResult carries its natural navigation.movement_kernel module identity (the runtime __module__ pin to simulator.movement_kernel, previously kept for a frozen G8c fixture nothing current reads, was retired 2026-08-21 -- see ADR 0002's Retirement section)."
+
+[[concept]]
+id = "shared_navigation_evidence"
+rule = "R7a"
+symbols = ["NavigationStepEvidence", "sidecar_values_from_history", "previous_steering_one_hot"]
+current_owners = ["navigation/navigation_evidence.py"]
+target_owner = "navigation/navigation_evidence.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "serialized_split_policy_api"
+rule = "R7a"
+symbols = ["SplitSteeringNavigationPolicy", "SplitSteeringEventPolicy"]
+current_owners = ["simulator/split_branch_policy.py"]
+target_owner = "simulator namespace retained as checkpoint ABI unless a separately gated compatibility shim is introduced"
+status = "green-frozen-checkpoint-abi"
+accepted_baseline_violation = false
+minimum_owners = 1
+
+[[concept]]
+id = "serialized_farming_training_api"
+rule = "R7a"
+symbols = ["TerminalPrefixRolloutBuffer", "TrainingBoundary", "TrainingBoundaryKind"]
+current_owners = ["farming/sb3_training.py"]
+target_owner = "farming.sb3_training namespace retained as checkpoint ABI unless a separately gated compatibility shim is introduced"
+status = "green-frozen-checkpoint-abi"
+accepted_baseline_violation = false
+minimum_owners = 1

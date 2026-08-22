@@ -1,0 +1,550 @@
+[
+  {
+    "label": "teacher",
+    "layout": "01_early_open_field_typical_fast",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 17440.0,
+      "min": 10060.00000000006,
+      "max": 18440.00000000011
+    },
+    "valid_eva_casts": {
+      "median": 84.0,
+      "min": 82.0,
+      "max": 86.0
+    },
+    "invalid_eva_attempts": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "missed_eva_opportunities": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "contacts_per_100_distance": {
+      "median": 0.5568149339552806,
+      "min": 0.0,
+      "max": 0.8888629825082366
+    },
+    "total_distance_cells": {
+      "median": 894.1098512837164,
+      "min": 841.4468052759963,
+      "max": 900.0262309749038
+    },
+    "steering_distribution": [
+      0.20870639086137696,
+      0.36461870947823405,
+      0.426674899660389
+    ],
+    "event_distribution": [
+      0.8675517134918185,
+      0.12997838839147885,
+      0.002469898116702686
+    ]
+  },
+  {
+    "label": "10k",
+    "layout": "01_early_open_field_typical_fast",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 12760.000000000111,
+      "min": 11620.000000000104,
+      "max": 16780.000000000142
+    },
+    "valid_eva_casts": {
+      "median": 53.0,
+      "min": 45.0,
+      "max": 55.0
+    },
+    "invalid_eva_attempts": {
+      "median": 17.0,
+      "min": 9.0,
+      "max": 27.0
+    },
+    "missed_eva_opportunities": {
+      "median": 160.0,
+      "min": 144.0,
+      "max": 212.0
+    },
+    "contacts_per_100_distance": {
+      "median": 0.5132369863601335,
+      "min": 0.1026967445353232,
+      "max": 2.7700068051402256
+    },
+    "total_distance_cells": {
+      "median": 974.7268472372285,
+      "min": 973.740700861305,
+      "max": 1000.9062798916733
+    },
+    "steering_distribution": [
+      0.18497727880245923,
+      0.37824111200213845,
+      0.4367816091954023
+    ],
+    "event_distribution": [
+      0.9091152098369419,
+      0.09061748195669607,
+      0.0002673082063619353
+    ],
+    "teacher_ratio_median": 0.7316513761467953
+  },
+  {
+    "label": "15k",
+    "layout": "01_early_open_field_typical_fast",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 13040.000000000111,
+      "min": 9760.000000000093,
+      "max": 15420.000000000107
+    },
+    "valid_eva_casts": {
+      "median": 52.0,
+      "min": 47.0,
+      "max": 58.0
+    },
+    "invalid_eva_attempts": {
+      "median": 16.0,
+      "min": 5.0,
+      "max": 22.0
+    },
+    "missed_eva_opportunities": {
+      "median": 160.0,
+      "min": 133.0,
+      "max": 208.0
+    },
+    "contacts_per_100_distance": {
+      "median": 1.635532733666625,
+      "min": 0.5183285177691407,
+      "max": 4.48109244595672
+    },
+    "total_distance_cells": {
+      "median": 964.6391870390893,
+      "min": 937.271446785181,
+      "max": 984.9404769127814
+    },
+    "steering_distribution": [
+      0.19339242546333602,
+      0.3432715551974214,
+      0.46333601933924257
+    ],
+    "event_distribution": [
+      0.9100188020413645,
+      0.0899811979586355,
+      0.0
+    ],
+    "teacher_ratio_median": 0.747706422018355
+  },
+  {
+    "label": "teacher",
+    "layout": "02_early_wide_neck_high_typical",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 14580.0,
+      "min": 11680.0,
+      "max": 17900.0
+    },
+    "valid_eva_casts": {
+      "median": 79.0,
+      "min": 78.0,
+      "max": 83.0
+    },
+    "invalid_eva_attempts": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "missed_eva_opportunities": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "contacts_per_100_distance": {
+      "median": 0.8017976234736779,
+      "min": 0.0,
+      "max": 1.577638004438246
+    },
+    "total_distance_cells": {
+      "median": 887.4025575331534,
+      "min": 865.1403628924821,
+      "max": 917.514459411537
+    },
+    "steering_distribution": [
+      0.2028985507246377,
+      0.3511473429951691,
+      0.4459541062801932
+    ],
+    "event_distribution": [
+      0.8780193236714976,
+      0.12016908212560387,
+      0.0018115942028985507
+    ]
+  },
+  {
+    "label": "10k",
+    "layout": "02_early_wide_neck_high_typical",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 12640.000000000107,
+      "min": 10460.000000000087,
+      "max": 13280.000000000118
+    },
+    "valid_eva_casts": {
+      "median": 48.0,
+      "min": 46.0,
+      "max": 51.0
+    },
+    "invalid_eva_attempts": {
+      "median": 18.0,
+      "min": 9.0,
+      "max": 24.0
+    },
+    "missed_eva_opportunities": {
+      "median": 165.0,
+      "min": 102.0,
+      "max": 202.0
+    },
+    "contacts_per_100_distance": {
+      "median": 1.5681907002481308,
+      "min": 0.8075213618625231,
+      "max": 10.695476129152938
+    },
+    "total_distance_cells": {
+      "median": 969.2546696191239,
+      "min": 925.6249913938204,
+      "max": 1020.2840762586056
+    },
+    "steering_distribution": [
+      0.21736828170505693,
+      0.40428911834789516,
+      0.37834259994704794
+    ],
+    "event_distribution": [
+      0.9139528726502515,
+      0.0857823669579031,
+      0.00026476039184537993
+    ],
+    "teacher_ratio_median": 0.8669410150891707
+  },
+  {
+    "label": "15k",
+    "layout": "02_early_wide_neck_high_typical",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 9700.000000000084,
+      "min": 5040.000000000052,
+      "max": 13940.000000000127
+    },
+    "valid_eva_casts": {
+      "median": 38.0,
+      "min": 25.0,
+      "max": 52.0
+    },
+    "invalid_eva_attempts": {
+      "median": 18.0,
+      "min": 5.0,
+      "max": 38.0
+    },
+    "missed_eva_opportunities": {
+      "median": 103.0,
+      "min": 60.0,
+      "max": 183.0
+    },
+    "contacts_per_100_distance": {
+      "median": 3.6350091228479333,
+      "min": 0.7058246429258873,
+      "max": 123.31727266290468
+    },
+    "total_distance_cells": {
+      "median": 979.0323702143126,
+      "min": 415.1892017589323,
+      "max": 991.7477478517296
+    },
+    "steering_distribution": [
+      0.346085182351441,
+      0.3147156337668962,
+      0.3391991838816628
+    ],
+    "event_distribution": [
+      0.9268043866360622,
+      0.07243050242285132,
+      0.0007651109410864575
+    ],
+    "teacher_ratio_median": 0.6652949245541896
+  },
+  {
+    "label": "teacher",
+    "layout": "03_early_open_field_low_fast",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 6000.000000000028,
+      "min": 5160.000000000027,
+      "max": 7340.000000000041
+    },
+    "valid_eva_casts": {
+      "median": 78.0,
+      "min": 68.0,
+      "max": 80.0
+    },
+    "invalid_eva_attempts": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "missed_eva_opportunities": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "contacts_per_100_distance": {
+      "median": 1.212082210470822,
+      "min": 0.0,
+      "max": 16.12007050363106
+    },
+    "total_distance_cells": {
+      "median": 918.5957194316375,
+      "min": 794.0411921347855,
+      "max": 972.5666999538432
+    },
+    "steering_distribution": [
+      0.26535480023852115,
+      0.3539057841383423,
+      0.38073941562313657
+    ],
+    "event_distribution": [
+      0.883422778771616,
+      0.11419200954084675,
+      0.002385211687537269
+    ]
+  },
+  {
+    "label": "10k",
+    "layout": "03_early_open_field_low_fast",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 5220.000000000046,
+      "min": 4140.000000000036,
+      "max": 5320.000000000056
+    },
+    "valid_eva_casts": {
+      "median": 50.0,
+      "min": 45.0,
+      "max": 55.0
+    },
+    "invalid_eva_attempts": {
+      "median": 16.0,
+      "min": 13.0,
+      "max": 33.0
+    },
+    "missed_eva_opportunities": {
+      "median": 70.0,
+      "min": 52.0,
+      "max": 123.0
+    },
+    "contacts_per_100_distance": {
+      "median": 1.5103702111849813,
+      "min": 0.4933546129826306,
+      "max": 22.679658064636037
+    },
+    "total_distance_cells": {
+      "median": 993.1339938326478,
+      "min": 806.8904719747449,
+      "max": 1013.4697980772775
+    },
+    "steering_distribution": [
+      0.2536115569823435,
+      0.330390583199572,
+      0.4159978598180845
+    ],
+    "event_distribution": [
+      0.9063670411985019,
+      0.09363295880149813,
+      0.0
+    ],
+    "teacher_ratio_median": 0.8700000000000037
+  },
+  {
+    "label": "15k",
+    "layout": "03_early_open_field_low_fast",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 4720.000000000052,
+      "min": 4000.0,
+      "max": 6720.000000000052
+    },
+    "valid_eva_casts": {
+      "median": 44.0,
+      "min": 42.0,
+      "max": 55.0
+    },
+    "invalid_eva_attempts": {
+      "median": 13.0,
+      "min": 10.0,
+      "max": 16.0
+    },
+    "missed_eva_opportunities": {
+      "median": 158.0,
+      "min": 80.0,
+      "max": 255.0
+    },
+    "contacts_per_100_distance": {
+      "median": 0.8711649550605389,
+      "min": 0.2966876571533563,
+      "max": 1.1805392932387397
+    },
+    "total_distance_cells": {
+      "median": 1011.1644106749326,
+      "min": 962.2653680160929,
+      "max": 1033.0994087537156
+    },
+    "steering_distribution": [
+      0.1891607471717969,
+      0.35780057879505395,
+      0.4530386740331492
+    ],
+    "event_distribution": [
+      0.9208103130755064,
+      0.07918968692449356,
+      0.0
+    ],
+    "teacher_ratio_median": 0.7866666666666716
+  },
+  {
+    "label": "teacher",
+    "layout": "04_early_wide_neck_typical_bursty",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 8140.00000000005,
+      "min": 5420.000000000061,
+      "max": 10100.0
+    },
+    "valid_eva_casts": {
+      "median": 76.0,
+      "min": 46.0,
+      "max": 82.0
+    },
+    "invalid_eva_attempts": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "missed_eva_opportunities": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "contacts_per_100_distance": {
+      "median": 0.7359789317904266,
+      "min": 0.5411965279162205,
+      "max": 101.62134333339148
+    },
+    "total_distance_cells": {
+      "median": 869.8483633101775,
+      "min": 431.9958638607665,
+      "max": 951.1141824360377
+    },
+    "steering_distribution": [
+      0.3640275387263339,
+      0.3123924268502582,
+      0.32358003442340794
+    ],
+    "event_distribution": [
+      0.9010327022375215,
+      0.0972461273666093,
+      0.0017211703958691911
+    ]
+  },
+  {
+    "label": "10k",
+    "layout": "04_early_wide_neck_typical_bursty",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 8060.000000000063,
+      "min": 7240.000000000064,
+      "max": 9220.000000000071
+    },
+    "valid_eva_casts": {
+      "median": 50.0,
+      "min": 41.0,
+      "max": 55.0
+    },
+    "invalid_eva_attempts": {
+      "median": 26.0,
+      "min": 13.0,
+      "max": 33.0
+    },
+    "missed_eva_opportunities": {
+      "median": 106.0,
+      "min": 90.0,
+      "max": 134.0
+    },
+    "contacts_per_100_distance": {
+      "median": 5.2667266317727215,
+      "min": 3.5720023222151625,
+      "max": 12.427315696882541
+    },
+    "total_distance_cells": {
+      "median": 930.3691538572821,
+      "min": 901.2404829153555,
+      "max": 979.8425880724203
+    },
+    "steering_distribution": [
+      0.2261999469636701,
+      0.3619729514717582,
+      0.41182710156457175
+    ],
+    "event_distribution": [
+      0.9045346062052506,
+      0.0954653937947494,
+      0.0
+    ],
+    "teacher_ratio_median": 0.9901719901719918
+  },
+  {
+    "label": "15k",
+    "layout": "04_early_wide_neck_typical_bursty",
+    "n_episodes": 5,
+    "kills_per_simulated_hour": {
+      "median": 8780.000000000073,
+      "min": 7860.000000000062,
+      "max": 9820.0000000001
+    },
+    "valid_eva_casts": {
+      "median": 50.0,
+      "min": 44.0,
+      "max": 54.0
+    },
+    "invalid_eva_attempts": {
+      "median": 14.0,
+      "min": 8.0,
+      "max": 30.0
+    },
+    "missed_eva_opportunities": {
+      "median": 121.0,
+      "min": 55.0,
+      "max": 160.0
+    },
+    "contacts_per_100_distance": {
+      "median": 1.4126621386840525,
+      "min": 0.6053040321932692,
+      "max": 10.205088637557093
+    },
+    "total_distance_cells": {
+      "median": 991.0366829142545,
+      "min": 891.7120000810075,
+      "max": 1006.4153121749995
+    },
+    "steering_distribution": [
+      0.2235544897415401,
+      0.3834265920596856,
+      0.3930189181987743
+    ],
+    "event_distribution": [
+      0.9107380762057021,
+      0.08899547029043432,
+      0.0002664535038635758
+    ],
+    "teacher_ratio_median": 1.0786240786240808
+  }
+]

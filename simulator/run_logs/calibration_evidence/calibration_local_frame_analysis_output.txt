@@ -1,0 +1,74 @@
+==========================================================================================
+LOCAL-FRAME EXTRACTOR SYNTHETIC VALIDATION (continuous ground truth only)
+==========================================================================================
+constant_curvature_arc dist=2.74 turn=0.874 quantize=False: endpoint=(2.4510,1.0170) expected=(2.4042,1.1231) err=(0.0467,0.1061) OK
+constant_curvature_arc dist=2.74 turn=0.874 quantize=True: endpoint=(2.4660,0.9856) expected=(2.4042,1.1231) err=(0.0617,0.1375) OK
+constant_curvature_arc dist=2.74 turn=0.8 quantize=False: endpoint=(2.4965,0.9397) expected=(2.4569,1.0388) err=(0.0396,0.0991) OK
+constant_curvature_arc dist=2.74 turn=0.8 quantize=True: endpoint=(2.4967,0.9600) expected=(2.4569,1.0388) err=(0.0397,0.0788) OK
+constant_curvature_arc dist=2.5 turn=0.5 quantize=False: endpoint=(2.4117,0.5520) expected=(2.3971,0.6121) err=(0.0145,0.0601) OK
+constant_curvature_arc dist=2.5 turn=0.5 quantize=True: endpoint=(2.4241,0.5493) expected=(2.3971,0.6121) err=(0.0269,0.0628) OK
+short_ramp dist=2.74 turn=0.874 quantize=False: endpoint=(2.4580,0.9592) expected=(2.4448,0.9924) err=(0.0132,0.0333) OK
+short_ramp dist=2.74 turn=0.874 quantize=True: endpoint=(2.4370,0.9996) expected=(2.4448,0.9924) err=(0.0078,0.0071) OK
+short_ramp dist=2.74 turn=0.8 quantize=False: endpoint=(2.5023,0.8869) expected=(2.4911,0.9179) err=(0.0112,0.0310) OK
+short_ramp dist=2.74 turn=0.8 quantize=True: endpoint=(2.4995,0.9059) expected=(2.4911,0.9179) err=(0.0083,0.0120) OK
+short_ramp dist=2.5 turn=0.5 quantize=False: endpoint=(2.4137,0.5221) expected=(2.4096,0.5408) err=(0.0041,0.0187) OK
+short_ramp dist=2.5 turn=0.5 quantize=True: endpoint=(2.4057,0.5311) expected=(2.4096,0.5408) err=(0.0038,0.0097) OK
+
+ALL LOCAL-FRAME SYNTHETIC TESTS PASSED
+
+
+==========================================================================================
+REAL DATA: movement_calibration_steering.csv
+==========================================================================================
+
+LEFT tick=1 (n=57):
+  mean distance=2.7555 cells, mean turn=0.8002 rad (45.85deg)
+  actual mean endpoint=(2.4965, 0.9438)
+    turn_then_translate (current simulator)       endpoint_RMSE=1.1910 cells   path_RMSE=0.8770 cells
+    translate_then_turn                           endpoint_RMSE=0.9847 cells   path_RMSE=0.3992 cells
+    midpoint_chord                                endpoint_RMSE=0.1552 cells   path_RMSE=0.3051 cells
+    constant_curvature_arc                        endpoint_RMSE=0.1282 cells   path_RMSE=0.1362 cells
+
+LEFT tick=steady (n=257):
+  mean distance=2.7325 cells, mean turn=0.8725 rad (49.99deg)
+  actual mean endpoint=(2.4026, 1.1078)
+    turn_then_translate (current simulator)       endpoint_RMSE=1.1854 cells   path_RMSE=0.8722 cells
+    translate_then_turn                           endpoint_RMSE=1.1614 cells   path_RMSE=0.4967 cells
+    midpoint_chord                                endpoint_RMSE=0.1218 cells   path_RMSE=0.2621 cells
+    constant_curvature_arc                        endpoint_RMSE=0.0852 cells   path_RMSE=0.1162 cells
+
+RIGHT tick=1 (n=56):
+  mean distance=2.7295 cells, mean turn=-0.7856 rad (-45.01deg)
+  actual mean endpoint=(2.4815, -0.9180)
+    turn_then_translate (current simulator)       endpoint_RMSE=1.1612 cells   path_RMSE=0.8566 cells
+    translate_then_turn                           endpoint_RMSE=0.9564 cells   path_RMSE=0.3815 cells
+    midpoint_chord                                endpoint_RMSE=0.1524 cells   path_RMSE=0.3030 cells
+    constant_curvature_arc                        endpoint_RMSE=0.1269 cells   path_RMSE=0.1378 cells
+
+RIGHT tick=steady (n=261):
+  mean distance=2.7358 cells, mean turn=-0.8740 rad (-50.08deg)
+  actual mean endpoint=(2.3923, -1.1369)
+    turn_then_translate (current simulator)       endpoint_RMSE=1.1596 cells   path_RMSE=0.8585 cells
+    translate_then_turn                           endpoint_RMSE=1.1928 cells   path_RMSE=0.5036 cells
+    midpoint_chord                                endpoint_RMSE=0.1212 cells   path_RMSE=0.2536 cells
+    constant_curvature_arc                        endpoint_RMSE=0.0841 cells   path_RMSE=0.1131 cells
+
+==========================================================================================
+POOLED (RIGHT mirrored to LEFT sign)
+==========================================================================================
+
+POOLED tick=1 (n=113):
+  mean distance=2.7426 cells, mean turn=0.7930 rad (45.43deg)
+  actual mean endpoint=(2.4891, 0.9310)
+    turn_then_translate (current simulator)       endpoint_RMSE=1.1764 cells   path_RMSE=0.8669 cells
+    translate_then_turn                           endpoint_RMSE=0.9708 cells   path_RMSE=0.3905 cells
+    midpoint_chord                                endpoint_RMSE=0.1538 cells   path_RMSE=0.3041 cells
+    constant_curvature_arc                        endpoint_RMSE=0.1276 cells   path_RMSE=0.1370 cells
+
+POOLED tick=steady (n=518):
+  mean distance=2.7342 cells, mean turn=0.8733 rad (50.04deg)
+  actual mean endpoint=(2.3974, 1.1225)
+    turn_then_translate (current simulator)       endpoint_RMSE=1.1725 cells   path_RMSE=0.8653 cells
+    translate_then_turn                           endpoint_RMSE=1.1773 cells   path_RMSE=0.5002 cells
+    midpoint_chord                                endpoint_RMSE=0.1215 cells   path_RMSE=0.2579 cells
+    constant_curvature_arc                        endpoint_RMSE=0.0846 cells   path_RMSE=0.1147 cells

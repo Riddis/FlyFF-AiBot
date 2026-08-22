@@ -1,0 +1,63 @@
+{
+  "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\split_branch_pilot_teacher.zip",
+  "has_split_steering_branch": true,
+  "layouts": [
+    {
+      "layout": "01_early_open_field_typical_fast",
+      "samples_with_target": 300,
+      "corr_angle_p_left": 0.7442399640739527,
+      "corr_angle_p_right": -0.7602204924081781,
+      "steering_counts": [
+        33,
+        59,
+        37
+      ],
+      "rollout_length": 129,
+      "maximum_consecutive_steering_run": 14
+    },
+    {
+      "layout": "02_early_wide_neck_high_typical",
+      "samples_with_target": 300,
+      "corr_angle_p_left": 0.7147975809075695,
+      "corr_angle_p_right": -0.7259481283321165,
+      "steering_counts": [
+        26,
+        64,
+        57
+      ],
+      "rollout_length": 147,
+      "maximum_consecutive_steering_run": 13
+    },
+    {
+      "layout": "03_early_open_field_low_fast",
+      "samples_with_target": 300,
+      "corr_angle_p_left": 0.762100169631335,
+      "corr_angle_p_right": -0.7422345369043205,
+      "steering_counts": [
+        15,
+        123,
+        0
+      ],
+      "rollout_length": 138,
+      "maximum_consecutive_steering_run": 37
+    },
+    {
+      "layout": "04_early_wide_neck_typical_bursty",
+      "samples_with_target": 300,
+      "corr_angle_p_left": 0.735875293530096,
+      "corr_angle_p_right": -0.7489928403326421,
+      "steering_counts": [
+        25,
+        31,
+        76
+      ],
+      "rollout_length": 132,
+      "maximum_consecutive_steering_run": 14
+    }
+  ],
+  "mirror_consistency": {
+    "samples": 16,
+    "left_right_swap_error": 0.3683452904224396,
+    "straight_logit_drift": 0.0670430138707161
+  }
+}

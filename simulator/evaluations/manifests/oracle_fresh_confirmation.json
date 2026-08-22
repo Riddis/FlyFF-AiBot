@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "stage": "early",
+  "role": "heldout",
+  "curriculum_path": "curricula/synthetic_curriculum_oracle_fresh_confirmation/curriculum.json",
+  "layouts": [
+    "01_early_open_field_typical_fast",
+    "02_early_open_field_high_bursty",
+    "03_early_irregular_plain_typical_fast",
+    "04_early_irregular_plain_high_bursty",
+    "05_early_broad_lobes_typical_fast",
+    "06_early_broad_lobes_high_bursty",
+    "07_early_split_field_typical_fast",
+    "08_early_split_field_high_bursty",
+    "09_early_wide_neck_typical_fast",
+    "10_early_wide_neck_high_bursty",
+    "11_early_open_center_typical_fast",
+    "12_early_open_center_high_bursty"
+  ],
+  "notes": "FRESH confirmation pool for the terminal-gated v3 steering oracle (escape-BFS robust-safety fix + continuation_depth=4), built 2026-08-09 specifically because early_heldout/early_heldout_unseen_templates/early_challenge became development pools during this oracle's tuning (they directly informed the terminal gate, the escape-BFS fix, and the continuation_depth selection). Covers all 6 templates used during tuning at 2 density/respawn combos each (typical_fast, high_bursty), obstacle_level=0, stage=early. Seed base 23000000 -- disjoint from every seed range used by training, early_heldout, early_heldout_unseen_templates, and early_challenge (all confirmed to fall within ~20,268,xxx-21,324,xxx). Standard for this pool is stricter than Basic's own later recovery-assisted graduation tolerance: essentially zero physical collision events, since this evaluates a collision-avoidance TEACHER, not a training-wheel policy."
+}

@@ -1,0 +1,165 @@
+[
+  {
+    "round": 1,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_beginner_ppo_010k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "challenge: max contacts/100 increased 163.3% after rehearsal (5.93 -> 15.61)"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_beginner_ppo_010k.zip",
+    "round_passed_absolute_bar": true,
+    "bar_failure_reasons": [],
+    "consecutive_passes": 1,
+    "aggregates": {
+      "heldout": {
+        "mean_teacher_ratio_median": 0.5765861836899298,
+        "max_layout_contacts_per_100_distance": 8.89484309785416,
+        "min_unique_cells_median": 600.0,
+        "min_kills_per_hour_median": 4044.000000000001,
+        "total_physical_stagnation_episodes": 0,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 16
+      },
+      "unseen_templates": {
+        "mean_teacher_ratio_median": 0.5206752332823367,
+        "max_layout_contacts_per_100_distance": 11.25839080891707,
+        "min_unique_cells_median": 557.5,
+        "min_kills_per_hour_median": 3924.000000000002,
+        "total_physical_stagnation_episodes": 0,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 14
+      },
+      "challenge": {
+        "mean_teacher_ratio_median": null,
+        "max_layout_contacts_per_100_distance": 5.928620752341134,
+        "min_unique_cells_median": null,
+        "min_kills_per_hour_median": null,
+        "total_physical_stagnation_episodes": 0,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 2
+      }
+    }
+  },
+  {
+    "round": 2,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_beginner_ppo_020k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "challenge: max contacts/100 increased 711.7% after rehearsal (9.41 -> 76.38)"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_beginner_ppo_020k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "unseen_templates: physical_stagnation_episodes=1 exceeds 0",
+      "unseen_templates: max_layout_contacts_per_100_distance=16.44 exceeds 15.0"
+    ],
+    "consecutive_passes": 0,
+    "aggregates": {
+      "heldout": {
+        "mean_teacher_ratio_median": 0.6238465606754114,
+        "max_layout_contacts_per_100_distance": 9.757208898405718,
+        "min_unique_cells_median": 586.0,
+        "min_kills_per_hour_median": 4044.000000000002,
+        "total_physical_stagnation_episodes": 0,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 16
+      },
+      "unseen_templates": {
+        "mean_teacher_ratio_median": 0.5039032484029443,
+        "max_layout_contacts_per_100_distance": 16.435076299524106,
+        "min_unique_cells_median": 514.0,
+        "min_kills_per_hour_median": 3024.000000000002,
+        "total_physical_stagnation_episodes": 1,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 14
+      },
+      "challenge": {
+        "mean_teacher_ratio_median": 0.5129766560432353,
+        "max_layout_contacts_per_100_distance": 9.409333147846962,
+        "min_unique_cells_median": 486.5,
+        "min_kills_per_hour_median": 720.0,
+        "total_physical_stagnation_episodes": 1,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 38
+      }
+    }
+  },
+  {
+    "round": 3,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_beginner_ppo_030k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_beginner_ppo_030k_rehearsed.zip",
+    "round_passed_absolute_bar": true,
+    "bar_failure_reasons": [],
+    "consecutive_passes": 1,
+    "aggregates": {
+      "heldout": {
+        "mean_teacher_ratio_median": 0.6176021856673336,
+        "max_layout_contacts_per_100_distance": 7.243413558622242,
+        "min_unique_cells_median": 606.0,
+        "min_kills_per_hour_median": 4404.0,
+        "total_physical_stagnation_episodes": 0,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 16
+      },
+      "unseen_templates": {
+        "mean_teacher_ratio_median": 0.5580876102629121,
+        "max_layout_contacts_per_100_distance": 10.34170519887314,
+        "min_unique_cells_median": 598.0,
+        "min_kills_per_hour_median": 4044.0000000000027,
+        "total_physical_stagnation_episodes": 0,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 14
+      },
+      "challenge": {
+        "mean_teacher_ratio_median": 0.599927218015004,
+        "max_layout_contacts_per_100_distance": 11.553384780714104,
+        "min_unique_cells_median": 460.5,
+        "min_kills_per_hour_median": 744.0000000000002,
+        "total_physical_stagnation_episodes": 0,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 38
+      }
+    }
+  },
+  {
+    "round": 4,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_beginner_ppo_040k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_beginner_ppo_040k_rehearsed.zip",
+    "round_passed_absolute_bar": true,
+    "bar_failure_reasons": [],
+    "consecutive_passes": 2,
+    "aggregates": {
+      "heldout": {
+        "mean_teacher_ratio_median": 0.6398996896006865,
+        "max_layout_contacts_per_100_distance": 7.738769277303002,
+        "min_unique_cells_median": 606.5,
+        "min_kills_per_hour_median": 3912.0000000000014,
+        "total_physical_stagnation_episodes": 0,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 16
+      },
+      "unseen_templates": {
+        "mean_teacher_ratio_median": 0.556893776250203,
+        "max_layout_contacts_per_100_distance": 11.168096616250285,
+        "min_unique_cells_median": 589.0,
+        "min_kills_per_hour_median": 3324.0,
+        "total_physical_stagnation_episodes": 0,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 14
+      },
+      "challenge": {
+        "mean_teacher_ratio_median": 0.5402309005789907,
+        "max_layout_contacts_per_100_distance": 15.537829645059617,
+        "min_unique_cells_median": 482.0,
+        "min_kills_per_hour_median": 804.0000000000007,
+        "total_physical_stagnation_episodes": 0,
+        "total_zero_kill_episodes": 0,
+        "total_episodes": 38
+      }
+    }
+  }
+]

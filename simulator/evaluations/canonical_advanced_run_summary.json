@@ -1,0 +1,525 @@
+[
+  {
+    "round": 1,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_010k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "heldout: physical_stagnation_episodes increased from 1 to 2 after rehearsal"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_010k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=1 exceeds 0",
+      "max_layout_contacts_per_100_distance=133.51 exceeds 15.0",
+      "min_unique_cells_median=346 below 400 (possible inactivity/avoidance)",
+      "min_kills_per_hour_median=336 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.5557179695771618,
+      "max_layout_contacts_per_100_distance": 133.51201164344664,
+      "min_unique_cells_median": 346.0,
+      "min_kills_per_hour_median": 336.0,
+      "total_physical_stagnation_episodes": 1,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 2,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_020k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_020k_rehearsed.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=1 exceeds 0",
+      "max_layout_contacts_per_100_distance=256.46 exceeds 15.0",
+      "min_unique_cells_median=352 below 400 (possible inactivity/avoidance)",
+      "min_kills_per_hour_median=240 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6377687151254504,
+      "max_layout_contacts_per_100_distance": 256.4621236528739,
+      "min_unique_cells_median": 352.0,
+      "min_kills_per_hour_median": 240.0000000000001,
+      "total_physical_stagnation_episodes": 1,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 3,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_030k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "heldout: physical_stagnation_episodes increased from 3 to 4 after rehearsal"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_030k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=3 exceeds 0",
+      "max_layout_contacts_per_100_distance=281.42 exceeds 15.0",
+      "min_unique_cells_median=220 below 400 (possible inactivity/avoidance)",
+      "min_kills_per_hour_median=312 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.5396793012999688,
+      "max_layout_contacts_per_100_distance": 281.4152972868422,
+      "min_unique_cells_median": 219.5,
+      "min_kills_per_hour_median": 312.0000000000001,
+      "total_physical_stagnation_episodes": 3,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 4,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_040k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_040k_rehearsed.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "max_layout_contacts_per_100_distance=25.59 exceeds 15.0"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.5182215223041966,
+      "max_layout_contacts_per_100_distance": 25.591666372815233,
+      "min_unique_cells_median": 500.0,
+      "min_kills_per_hour_median": 720.0000000000007,
+      "total_physical_stagnation_episodes": 0,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 5,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_050k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_050k_rehearsed.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=2 exceeds 0",
+      "max_layout_contacts_per_100_distance=76.25 exceeds 15.0",
+      "min_unique_cells_median=386 below 400 (possible inactivity/avoidance)",
+      "min_kills_per_hour_median=276 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.5942780387595746,
+      "max_layout_contacts_per_100_distance": 76.25065780920617,
+      "min_unique_cells_median": 385.5,
+      "min_kills_per_hour_median": 276.0000000000002,
+      "total_physical_stagnation_episodes": 2,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 6,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_060k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_060k_rehearsed.zip",
+    "round_passed_absolute_bar": true,
+    "bar_failure_reasons": [],
+    "consecutive_passes": 1,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6148712161060003,
+      "max_layout_contacts_per_100_distance": 14.837423048987725,
+      "min_unique_cells_median": 519.0,
+      "min_kills_per_hour_median": 600.0000000000002,
+      "total_physical_stagnation_episodes": 0,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 7,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_070k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_070k_rehearsed.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=2 exceeds 0",
+      "max_layout_contacts_per_100_distance=152.64 exceeds 15.0",
+      "min_unique_cells_median=344 below 400 (possible inactivity/avoidance)",
+      "min_kills_per_hour_median=276 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.4684578833863437,
+      "max_layout_contacts_per_100_distance": 152.63664610837333,
+      "min_unique_cells_median": 344.0,
+      "min_kills_per_hour_median": 276.0000000000001,
+      "total_physical_stagnation_episodes": 2,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 8,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_080k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_080k_rehearsed.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "min_kills_per_hour_median=420 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.639075550789802,
+      "max_layout_contacts_per_100_distance": 12.149594008423842,
+      "min_unique_cells_median": 537.5,
+      "min_kills_per_hour_median": 420.0,
+      "total_physical_stagnation_episodes": 0,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 9,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_090k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "heldout: max contacts/100 increased 380.9% after rehearsal (14.26 -> 68.59)",
+      "heldout: min unique_cells dropped 24.2% after rehearsal (535 -> 406)",
+      "heldout: physical_stagnation_episodes increased from 0 to 2 after rehearsal"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_090k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "min_kills_per_hour_median=396 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.7104398335324436,
+      "max_layout_contacts_per_100_distance": 14.263180026079352,
+      "min_unique_cells_median": 535.0,
+      "min_kills_per_hour_median": 396.00000000000017,
+      "total_physical_stagnation_episodes": 0,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 10,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_100k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "heldout: max contacts/100 increased 199.6% after rehearsal (38.54 -> 115.48)"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_100k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=3 exceeds 0",
+      "max_layout_contacts_per_100_distance=38.54 exceeds 15.0"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6749354344702584,
+      "max_layout_contacts_per_100_distance": 38.542362929761346,
+      "min_unique_cells_median": 458.0,
+      "min_kills_per_hour_median": 948.0,
+      "total_physical_stagnation_episodes": 3,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 11,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_110k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "heldout: max contacts/100 increased 56.3% after rehearsal (35.77 -> 55.92)",
+      "heldout: physical_stagnation_episodes increased from 1 to 2 after rehearsal"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_110k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=1 exceeds 0",
+      "max_layout_contacts_per_100_distance=35.77 exceeds 15.0"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6641959892164394,
+      "max_layout_contacts_per_100_distance": 35.77228569257614,
+      "min_unique_cells_median": 482.5,
+      "min_kills_per_hour_median": 1944.0000000000002,
+      "total_physical_stagnation_episodes": 1,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 12,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_120k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "heldout: max contacts/100 increased 82.6% after rehearsal (18.43 -> 33.66)",
+      "heldout: physical_stagnation_episodes increased from 0 to 1 after rehearsal"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_120k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "max_layout_contacts_per_100_distance=18.43 exceeds 15.0",
+      "min_kills_per_hour_median=300 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6063993997102662,
+      "max_layout_contacts_per_100_distance": 18.433214114544747,
+      "min_unique_cells_median": 540.0,
+      "min_kills_per_hour_median": 300.0000000000001,
+      "total_physical_stagnation_episodes": 0,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 13,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_130k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "heldout: max contacts/100 increased 85.1% after rehearsal (13.28 -> 24.58)"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_130k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=1 exceeds 0",
+      "min_kills_per_hour_median=384 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.5968108953002325,
+      "max_layout_contacts_per_100_distance": 13.276206321687784,
+      "min_unique_cells_median": 528.5,
+      "min_kills_per_hour_median": 384.00000000000006,
+      "total_physical_stagnation_episodes": 1,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 14,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_140k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_140k_rehearsed.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=1 exceeds 0",
+      "max_layout_contacts_per_100_distance=61.78 exceeds 15.0",
+      "min_kills_per_hour_median=384 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6309377750763642,
+      "max_layout_contacts_per_100_distance": 61.77526058875386,
+      "min_unique_cells_median": 420.0,
+      "min_kills_per_hour_median": 384.0000000000001,
+      "total_physical_stagnation_episodes": 1,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 15,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_150k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_150k_rehearsed.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=2 exceeds 0",
+      "max_layout_contacts_per_100_distance=37.24 exceeds 15.0",
+      "min_kills_per_hour_median=324 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6337869313088121,
+      "max_layout_contacts_per_100_distance": 37.239838486770864,
+      "min_unique_cells_median": 426.0,
+      "min_kills_per_hour_median": 324.0000000000002,
+      "total_physical_stagnation_episodes": 2,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 16,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_160k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_160k_rehearsed.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=1 exceeds 0",
+      "max_layout_contacts_per_100_distance=36.39 exceeds 15.0",
+      "min_kills_per_hour_median=372 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6555909231915183,
+      "max_layout_contacts_per_100_distance": 36.386693316762205,
+      "min_unique_cells_median": 473.5,
+      "min_kills_per_hour_median": 372.0000000000001,
+      "total_physical_stagnation_episodes": 1,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 17,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_170k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "heldout: physical_stagnation_episodes increased from 1 to 3 after rehearsal"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_170k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=1 exceeds 0",
+      "max_layout_contacts_per_100_distance=244.22 exceeds 15.0",
+      "min_unique_cells_median=340 below 400 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6501484842269667,
+      "max_layout_contacts_per_100_distance": 244.21671227984615,
+      "min_unique_cells_median": 339.5,
+      "min_kills_per_hour_median": 648.0000000000001,
+      "total_physical_stagnation_episodes": 1,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 18,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_180k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "heldout: max contacts/100 increased 159.7% after rehearsal (20.64 -> 53.60)",
+      "heldout: physical_stagnation_episodes increased from 1 to 3 after rehearsal"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_180k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=1 exceeds 0",
+      "max_layout_contacts_per_100_distance=20.64 exceeds 15.0"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.718612316548176,
+      "max_layout_contacts_per_100_distance": 20.64026197570264,
+      "min_unique_cells_median": 538.0,
+      "min_kills_per_hour_median": 1476.0,
+      "total_physical_stagnation_episodes": 1,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 19,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_190k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_190k_rehearsed.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "max_layout_contacts_per_100_distance=15.58 exceeds 15.0",
+      "min_kills_per_hour_median=288 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6229252864000293,
+      "max_layout_contacts_per_100_distance": 15.584542236381033,
+      "min_unique_cells_median": 559.0,
+      "min_kills_per_hour_median": 288.0000000000001,
+      "total_physical_stagnation_episodes": 0,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 20,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_200k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "heldout: min unique_cells dropped 27.7% after rehearsal (406 -> 294)",
+      "heldout: physical_stagnation_episodes increased from 3 to 4 after rehearsal"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_200k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=3 exceeds 0",
+      "max_layout_contacts_per_100_distance=59.32 exceeds 15.0",
+      "min_kills_per_hour_median=348 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.566472492351415,
+      "max_layout_contacts_per_100_distance": 59.318581253704245,
+      "min_unique_cells_median": 406.0,
+      "min_kills_per_hour_median": 348.0,
+      "total_physical_stagnation_episodes": 3,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 21,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_210k.zip",
+    "rehearsal_damage_detected": false,
+    "rehearsal_damage_reasons": [],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_210k_rehearsed.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=2 exceeds 0",
+      "max_layout_contacts_per_100_distance=48.37 exceeds 15.0",
+      "min_kills_per_hour_median=348 below 500 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.5959267210388765,
+      "max_layout_contacts_per_100_distance": 48.3743782308628,
+      "min_unique_cells_median": 435.5,
+      "min_kills_per_hour_median": 348.0000000000003,
+      "total_physical_stagnation_episodes": 2,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  },
+  {
+    "round": 22,
+    "pre_rehearsal_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_220k.zip",
+    "rehearsal_damage_detected": true,
+    "rehearsal_damage_reasons": [
+      "heldout: physical_stagnation_episodes increased from 3 to 4 after rehearsal"
+    ],
+    "carried_forward_checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\flyff_farming_simulator\\models\\canonical_advanced_ppo_220k.zip",
+    "round_passed_absolute_bar": false,
+    "bar_failure_reasons": [
+      "physical_stagnation_episodes=3 exceeds 0",
+      "max_layout_contacts_per_100_distance=106.83 exceeds 15.0",
+      "min_unique_cells_median=372 below 400 (possible inactivity/avoidance)"
+    ],
+    "consecutive_passes": 0,
+    "aggregate": {
+      "mean_teacher_ratio_median": 0.6913071894043211,
+      "max_layout_contacts_per_100_distance": 106.8336119994294,
+      "min_unique_cells_median": 372.0,
+      "min_kills_per_hour_median": 2172.0,
+      "total_physical_stagnation_episodes": 3,
+      "total_zero_kill_episodes": 0,
+      "total_episodes": 24
+    }
+  }
+]

@@ -1,0 +1,366 @@
+{
+  "rows": [
+    {
+      "index": 0,
+      "wall": {
+        "gap_side": "right",
+        "wall_offset_cells": 6,
+        "wall_depth_cells": 4,
+        "half_span_cells": 8,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": false,
+      "direct_distance_cells": 23.65,
+      "actual_initial_heading_deg": -82.49,
+      "route_nodes": 10,
+      "route_length_cells": 24.35,
+      "remainder_to_destination_cells": 1.82,
+      "total_path_cost_cells": 26.16,
+      "path_cost_ratio": 1.107
+    },
+    {
+      "index": 1,
+      "wall": {
+        "gap_side": "left",
+        "wall_offset_cells": 7,
+        "wall_depth_cells": 4,
+        "half_span_cells": 5,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": false,
+      "direct_distance_cells": 12.72,
+      "actual_initial_heading_deg": 173.19,
+      "route_nodes": 11,
+      "route_length_cells": 26.76,
+      "remainder_to_destination_cells": 1.53,
+      "total_path_cost_cells": 28.28,
+      "path_cost_ratio": 2.224
+    },
+    {
+      "index": 2,
+      "wall": {
+        "gap_side": "left",
+        "wall_offset_cells": 7,
+        "wall_depth_cells": 4,
+        "half_span_cells": 8,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": false,
+      "direct_distance_cells": 22.66,
+      "actual_initial_heading_deg": -60.62,
+      "route_nodes": 11,
+      "route_length_cells": 27.16,
+      "remainder_to_destination_cells": 0.94,
+      "total_path_cost_cells": 28.09,
+      "path_cost_ratio": 1.24
+    },
+    {
+      "index": 3,
+      "wall": {
+        "gap_side": "none",
+        "wall_offset_cells": 5,
+        "wall_depth_cells": 3,
+        "half_span_cells": 7,
+        "straight_offset_cells": 3
+      },
+      "direct_segment_clear": true,
+      "direct_distance_cells": 10.71,
+      "actual_initial_heading_deg": -177.36,
+      "route_nodes": 9,
+      "route_length_cells": 21.51,
+      "remainder_to_destination_cells": 1.97,
+      "total_path_cost_cells": 23.48,
+      "path_cost_ratio": 2.192
+    },
+    {
+      "index": 4,
+      "wall": {
+        "gap_side": "left",
+        "wall_offset_cells": 9,
+        "wall_depth_cells": 4,
+        "half_span_cells": 8,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": true,
+      "direct_distance_cells": 12.08,
+      "actual_initial_heading_deg": -161.07,
+      "route_nodes": 10,
+      "route_length_cells": 24.25,
+      "remainder_to_destination_cells": 0.33,
+      "total_path_cost_cells": 24.58,
+      "path_cost_ratio": 2.035
+    },
+    {
+      "index": 5,
+      "wall": {
+        "gap_side": "none",
+        "wall_offset_cells": 9,
+        "wall_depth_cells": 3,
+        "half_span_cells": 5,
+        "straight_offset_cells": 1
+      },
+      "direct_segment_clear": false,
+      "direct_distance_cells": 11.21,
+      "actual_initial_heading_deg": -40.91,
+      "route_nodes": 10,
+      "route_length_cells": 24.17,
+      "remainder_to_destination_cells": 2.28,
+      "total_path_cost_cells": 26.45,
+      "path_cost_ratio": 2.359
+    },
+    {
+      "index": 6,
+      "wall": {
+        "gap_side": "none",
+        "wall_offset_cells": 5,
+        "wall_depth_cells": 3,
+        "half_span_cells": 5,
+        "straight_offset_cells": 1
+      },
+      "direct_segment_clear": true,
+      "direct_distance_cells": 18.18,
+      "actual_initial_heading_deg": -74.12,
+      "route_nodes": 11,
+      "route_length_cells": 27.17,
+      "remainder_to_destination_cells": 0.39,
+      "total_path_cost_cells": 27.56,
+      "path_cost_ratio": 1.516
+    },
+    {
+      "index": 7,
+      "wall": {
+        "gap_side": "none",
+        "wall_offset_cells": 9,
+        "wall_depth_cells": 3,
+        "half_span_cells": 6,
+        "straight_offset_cells": 1
+      },
+      "direct_segment_clear": true,
+      "direct_distance_cells": 20.99,
+      "actual_initial_heading_deg": 77.73,
+      "route_nodes": 8,
+      "route_length_cells": 19.1,
+      "remainder_to_destination_cells": 2.09,
+      "total_path_cost_cells": 21.18,
+      "path_cost_ratio": 1.009
+    },
+    {
+      "index": 8,
+      "wall": {
+        "gap_side": "right",
+        "wall_offset_cells": 9,
+        "wall_depth_cells": 3,
+        "half_span_cells": 8,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": false,
+      "direct_distance_cells": 12.19,
+      "actual_initial_heading_deg": -120.19,
+      "route_nodes": 10,
+      "route_length_cells": 24.1,
+      "remainder_to_destination_cells": 2.49,
+      "total_path_cost_cells": 26.59,
+      "path_cost_ratio": 2.182
+    },
+    {
+      "index": 9,
+      "wall": {
+        "gap_side": "right",
+        "wall_offset_cells": 6,
+        "wall_depth_cells": 4,
+        "half_span_cells": 8,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": true,
+      "direct_distance_cells": 19.54,
+      "actual_initial_heading_deg": 26.11,
+      "route_nodes": 15,
+      "route_length_cells": 37.77,
+      "remainder_to_destination_cells": 1.85,
+      "total_path_cost_cells": 39.62,
+      "path_cost_ratio": 2.028
+    },
+    {
+      "index": 10,
+      "wall": {
+        "gap_side": "left",
+        "wall_offset_cells": 7,
+        "wall_depth_cells": 3,
+        "half_span_cells": 8,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": true,
+      "direct_distance_cells": 16.02,
+      "actual_initial_heading_deg": 157.28,
+      "route_nodes": 9,
+      "route_length_cells": 21.59,
+      "remainder_to_destination_cells": 2.3,
+      "total_path_cost_cells": 23.89,
+      "path_cost_ratio": 1.492
+    },
+    {
+      "index": 11,
+      "wall": {
+        "gap_side": "left",
+        "wall_offset_cells": 8,
+        "wall_depth_cells": 4,
+        "half_span_cells": 8,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": true,
+      "direct_distance_cells": 17.93,
+      "actual_initial_heading_deg": 119.64,
+      "route_nodes": 8,
+      "route_length_cells": 18.94,
+      "remainder_to_destination_cells": 2.13,
+      "total_path_cost_cells": 21.07,
+      "path_cost_ratio": 1.175
+    },
+    {
+      "index": 12,
+      "wall": {
+        "gap_side": "right",
+        "wall_offset_cells": 9,
+        "wall_depth_cells": 3,
+        "half_span_cells": 5,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": true,
+      "direct_distance_cells": 21.95,
+      "actual_initial_heading_deg": 4.64,
+      "route_nodes": 9,
+      "route_length_cells": 21.77,
+      "remainder_to_destination_cells": 1.37,
+      "total_path_cost_cells": 23.13,
+      "path_cost_ratio": 1.054
+    },
+    {
+      "index": 13,
+      "wall": {
+        "gap_side": "right",
+        "wall_offset_cells": 7,
+        "wall_depth_cells": 3,
+        "half_span_cells": 5,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": false,
+      "direct_distance_cells": 19.68,
+      "actual_initial_heading_deg": 7.28,
+      "route_nodes": 10,
+      "route_length_cells": 24.26,
+      "remainder_to_destination_cells": 0.83,
+      "total_path_cost_cells": 25.09,
+      "path_cost_ratio": 1.275
+    },
+    {
+      "index": 14,
+      "wall": {
+        "gap_side": "none",
+        "wall_offset_cells": 7,
+        "wall_depth_cells": 4,
+        "half_span_cells": 6,
+        "straight_offset_cells": 1
+      },
+      "direct_segment_clear": false,
+      "direct_distance_cells": 17.6,
+      "actual_initial_heading_deg": -55.64,
+      "route_nodes": 9,
+      "route_length_cells": 21.61,
+      "remainder_to_destination_cells": 0.47,
+      "total_path_cost_cells": 22.08,
+      "path_cost_ratio": 1.255
+    },
+    {
+      "index": 15,
+      "wall": {
+        "gap_side": "left",
+        "wall_offset_cells": 5,
+        "wall_depth_cells": 4,
+        "half_span_cells": 6,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": false,
+      "direct_distance_cells": 16.95,
+      "actual_initial_heading_deg": 78.99,
+      "route_nodes": 9,
+      "route_length_cells": 21.69,
+      "remainder_to_destination_cells": 0.34,
+      "total_path_cost_cells": 22.04,
+      "path_cost_ratio": 1.3
+    },
+    {
+      "index": 16,
+      "wall": {
+        "gap_side": "none",
+        "wall_offset_cells": 7,
+        "wall_depth_cells": 4,
+        "half_span_cells": 7,
+        "straight_offset_cells": 1
+      },
+      "direct_segment_clear": false,
+      "direct_distance_cells": 14.65,
+      "actual_initial_heading_deg": 12.85,
+      "route_nodes": 8,
+      "route_length_cells": 18.94,
+      "remainder_to_destination_cells": 0.82,
+      "total_path_cost_cells": 19.77,
+      "path_cost_ratio": 1.35
+    },
+    {
+      "index": 17,
+      "wall": {
+        "gap_side": "left",
+        "wall_offset_cells": 9,
+        "wall_depth_cells": 3,
+        "half_span_cells": 8,
+        "straight_offset_cells": 0
+      },
+      "direct_segment_clear": true,
+      "direct_distance_cells": 17.79,
+      "actual_initial_heading_deg": -3.38,
+      "route_nodes": 7,
+      "route_length_cells": 16.29,
+      "remainder_to_destination_cells": 2.23,
+      "total_path_cost_cells": 18.51,
+      "path_cost_ratio": 1.041
+    },
+    {
+      "index": 18,
+      "wall": {
+        "gap_side": "none",
+        "wall_offset_cells": 9,
+        "wall_depth_cells": 4,
+        "half_span_cells": 7,
+        "straight_offset_cells": 2
+      },
+      "direct_segment_clear": true,
+      "direct_distance_cells": 14.34,
+      "actual_initial_heading_deg": -87.08,
+      "route_nodes": 9,
+      "route_length_cells": 21.35,
+      "remainder_to_destination_cells": 1.1,
+      "total_path_cost_cells": 22.45,
+      "path_cost_ratio": 1.565
+    },
+    {
+      "index": 19,
+      "wall": {
+        "gap_side": "none",
+        "wall_offset_cells": 5,
+        "wall_depth_cells": 4,
+        "half_span_cells": 8,
+        "straight_offset_cells": 2
+      },
+      "direct_segment_clear": false,
+      "direct_distance_cells": 17.69,
+      "actual_initial_heading_deg": 64.58,
+      "route_nodes": 9,
+      "route_length_cells": 21.69,
+      "remainder_to_destination_cells": 1.62,
+      "total_path_cost_cells": 23.31,
+      "path_cost_ratio": 1.317
+    }
+  ],
+  "n_blocked": 10,
+  "n_clear": 10
+}

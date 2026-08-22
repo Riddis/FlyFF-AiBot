@@ -1,0 +1,18 @@
+[
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 0,
+    "check_tick": 162,
+    "note": "coarse=RIGHT vs historical=STRAIGHT",
+    "historical_contacts_in_window": 28,
+    "waypoint_steered_contacts_in_window": 28
+  },
+  {
+    "layout": "03_early_irregular_plain_typical_fast",
+    "seed": 1,
+    "check_tick": 52,
+    "note": "coarse=LEFT vs historical=STRAIGHT",
+    "historical_contacts_in_window": 19,
+    "waypoint_steered_contacts_in_window": 19
+  }
+]

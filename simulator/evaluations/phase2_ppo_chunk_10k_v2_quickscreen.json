@@ -1,0 +1,359 @@
+{
+  "heldout_same_template": {
+    "role": "heldout",
+    "layouts": {
+      "01_early_open_field_typical_fast": {
+        "label": "01_early_open_field_typical_fast",
+        "n_episodes": 3,
+        "kills_per_simulated_hour": {
+          "median": 7416.000000000007,
+          "min": 3432.0000000000027,
+          "max": 8064.000000000011
+        },
+        "teacher_ratio_median": 0.8373983739837405,
+        "contacts_per_100_distance": {
+          "median": 4.718146541374001,
+          "min": 4.67026596425874,
+          "max": 97.09514784026445
+        },
+        "unique_cells": {
+          "median": 607.0,
+          "min": 259.0,
+          "max": 611.0
+        },
+        "steering_agreement": {
+          "median": 0.8176100628930818,
+          "min": 0.3160919540229885,
+          "max": 0.838006230529595
+        },
+        "event_agreement": {
+          "median": 0.8193146417445483,
+          "min": 0.8113207547169812,
+          "max": 0.8318965517241379
+        },
+        "corr_angle_p_left": {
+          "median": 0.7466491538381805,
+          "min": 0.2913855187439729,
+          "max": 0.7971422505759376
+        },
+        "corr_angle_p_right": {
+          "median": -0.7743360534307959,
+          "min": -0.7816083450481899,
+          "max": -0.7001326303450717
+        },
+        "steering_persistent_episodes": 1,
+        "physical_stagnation_episodes": 1,
+        "productive_sustained_turn_episodes": 0,
+        "zero_kill_episodes": 0
+      },
+      "02_early_wide_neck_high_typical": {
+        "label": "02_early_wide_neck_high_typical",
+        "n_episodes": 3,
+        "kills_per_simulated_hour": {
+          "median": 8832.00000000001,
+          "min": 1656.0,
+          "max": 12600.000000000002
+        },
+        "teacher_ratio_median": 0.5768025078369912,
+        "contacts_per_100_distance": {
+          "median": 42.25811860194629,
+          "min": 8.198474066044705,
+          "max": 273.45768783725777
+        },
+        "unique_cells": {
+          "median": 397.0,
+          "min": 128.0,
+          "max": 590.0
+        },
+        "steering_agreement": {
+          "median": 0.6910919540229885,
+          "min": 0.17551020408163265,
+          "max": 0.9174454828660437
+        },
+        "event_agreement": {
+          "median": 0.4166666666666667,
+          "min": 0.1673469387755102,
+          "max": 0.7757009345794392
+        },
+        "corr_angle_p_left": {
+          "median": 0.3124451411743936,
+          "min": 0.1519234396440389,
+          "max": 0.7962707897420375
+        },
+        "corr_angle_p_right": {
+          "median": -0.6713547170080988,
+          "min": -0.7794620161363466,
+          "max": -0.3329002272734869
+        },
+        "steering_persistent_episodes": 1,
+        "physical_stagnation_episodes": 1,
+        "productive_sustained_turn_episodes": 0,
+        "zero_kill_episodes": 0
+      },
+      "03_early_open_field_low_fast": {
+        "label": "03_early_open_field_low_fast",
+        "n_episodes": 3,
+        "kills_per_simulated_hour": {
+          "median": 6312.000000000005,
+          "min": 3120.0000000000014,
+          "max": 8976.00000000002
+        },
+        "teacher_ratio_median": 0.6902887139107611,
+        "contacts_per_100_distance": {
+          "median": 22.337217240256596,
+          "min": 3.825430504920036,
+          "max": 119.552416229056
+        },
+        "unique_cells": {
+          "median": 456.0,
+          "min": 220.0,
+          "max": 604.0
+        },
+        "steering_agreement": {
+          "median": 0.5669781931464174,
+          "min": 0.25673758865248225,
+          "max": 0.7777777777777778
+        },
+        "event_agreement": {
+          "median": 0.701095461658842,
+          "min": 0.2127659574468085,
+          "max": 0.794392523364486
+        },
+        "corr_angle_p_left": {
+          "median": 0.43192824238249494,
+          "min": 0.337615686288036,
+          "max": 0.7932580574027889
+        },
+        "corr_angle_p_right": {
+          "median": -0.670976824827915,
+          "min": -0.7880451004805226,
+          "max": 0.01689105790496564
+        },
+        "steering_persistent_episodes": 1,
+        "physical_stagnation_episodes": 2,
+        "productive_sustained_turn_episodes": 0,
+        "zero_kill_episodes": 0
+      },
+      "04_early_wide_neck_typical_bursty": {
+        "label": "04_early_wide_neck_typical_bursty",
+        "n_episodes": 3,
+        "kills_per_simulated_hour": {
+          "median": 8424.00000000001,
+          "min": 3096.0000000000005,
+          "max": 9072.000000000002
+        },
+        "teacher_ratio_median": 0.8540145985401469,
+        "contacts_per_100_distance": {
+          "median": 4.715043500846652,
+          "min": 4.478579449217217,
+          "max": 9.727069797550834
+        },
+        "unique_cells": {
+          "median": 606.0,
+          "min": 573.0,
+          "max": 613.0
+        },
+        "steering_agreement": {
+          "median": 0.8278041074249605,
+          "min": 0.7625786163522013,
+          "max": 0.8888888888888888
+        },
+        "event_agreement": {
+          "median": 0.7924528301886793,
+          "min": 0.7677725118483413,
+          "max": 0.8148148148148148
+        },
+        "corr_angle_p_left": {
+          "median": 0.8098102762681139,
+          "min": 0.7499564302883608,
+          "max": 0.8504458438369185
+        },
+        "corr_angle_p_right": {
+          "median": -0.7986366867713999,
+          "min": -0.8405358017470553,
+          "max": -0.7430729877094487
+        },
+        "steering_persistent_episodes": 0,
+        "physical_stagnation_episodes": 0,
+        "productive_sustained_turn_episodes": 0,
+        "zero_kill_episodes": 0
+      },
+      "05_early_open_field_typical_fast": {
+        "label": "05_early_open_field_typical_fast",
+        "n_episodes": 3,
+        "kills_per_simulated_hour": {
+          "median": 7656.000000000012,
+          "min": 6792.000000000006,
+          "max": 9336.000000000002
+        },
+        "teacher_ratio_median": 0.6860215053763448,
+        "contacts_per_100_distance": {
+          "median": 5.592028212560984,
+          "min": 3.167956865832071,
+          "max": 7.995060218093826
+        },
+        "unique_cells": {
+          "median": 591.0,
+          "min": 588.0,
+          "max": 599.0
+        },
+        "steering_agreement": {
+          "median": 0.8,
+          "min": 0.7480438184663537,
+          "max": 0.8126984126984127
+        },
+        "event_agreement": {
+          "median": 0.7323943661971831,
+          "min": 0.641860465116279,
+          "max": 0.7619047619047619
+        },
+        "corr_angle_p_left": {
+          "median": 0.7423158710972827,
+          "min": 0.7332027082264722,
+          "max": 0.7962466974199005
+        },
+        "corr_angle_p_right": {
+          "median": -0.7466498000055883,
+          "min": -0.7867195717012726,
+          "max": -0.7460662269134641
+        },
+        "steering_persistent_episodes": 0,
+        "physical_stagnation_episodes": 0,
+        "productive_sustained_turn_episodes": 0,
+        "zero_kill_episodes": 0
+      },
+      "06_early_wide_neck_high_typical": {
+        "label": "06_early_wide_neck_high_typical",
+        "n_episodes": 3,
+        "kills_per_simulated_hour": {
+          "median": 5712.000000000004,
+          "min": 2040.0000000000016,
+          "max": 6072.000000000004
+        },
+        "teacher_ratio_median": 0.5421412300683375,
+        "contacts_per_100_distance": {
+          "median": 59.99302607743879,
+          "min": 2.262854166854431,
+          "max": 152.94139997641244
+        },
+        "unique_cells": {
+          "median": 343.0,
+          "min": 200.0,
+          "max": 592.0
+        },
+        "steering_agreement": {
+          "median": 0.4515669515669516,
+          "min": 0.2742616033755274,
+          "max": 0.9045454545454545
+        },
+        "event_agreement": {
+          "median": 0.8433048433048433,
+          "min": 0.7287878787878788,
+          "max": 0.9085794655414908
+        },
+        "corr_angle_p_left": {
+          "median": 0.5099800853462617,
+          "min": 0.42412967679426034,
+          "max": 0.8296183491108235
+        },
+        "corr_angle_p_right": {
+          "median": -0.2769499517948184,
+          "min": -0.8126472958241121,
+          "max": -0.12615641239574135
+        },
+        "steering_persistent_episodes": 2,
+        "physical_stagnation_episodes": 2,
+        "productive_sustained_turn_episodes": 1,
+        "zero_kill_episodes": 0
+      },
+      "07_early_open_field_low_fast": {
+        "label": "07_early_open_field_low_fast",
+        "n_episodes": 3,
+        "kills_per_simulated_hour": {
+          "median": 6240.000000000001,
+          "min": 1176.0,
+          "max": 8064.000000000002
+        },
+        "teacher_ratio_median": 0.9252669039145904,
+        "contacts_per_100_distance": {
+          "median": 1.989179499486103,
+          "min": 1.8165030007680876,
+          "max": 176.39583647193217
+        },
+        "unique_cells": {
+          "median": 637.0,
+          "min": 177.0,
+          "max": 640.0
+        },
+        "steering_agreement": {
+          "median": 0.8425076452599388,
+          "min": 0.8387096774193549,
+          "max": 0.8579234972677595
+        },
+        "event_agreement": {
+          "median": 0.7431192660550459,
+          "min": 0.7357910906298003,
+          "max": 0.8961748633879781
+        },
+        "corr_angle_p_left": {
+          "median": 0.7721007769074818,
+          "min": 0.682471577944918,
+          "max": 0.8022432747290149
+        },
+        "corr_angle_p_right": {
+          "median": -0.8028152327413098,
+          "min": -0.8035602135046385,
+          "max": -0.6925307704975745
+        },
+        "steering_persistent_episodes": 1,
+        "physical_stagnation_episodes": 1,
+        "productive_sustained_turn_episodes": 0,
+        "zero_kill_episodes": 0
+      },
+      "08_early_wide_neck_typical_bursty": {
+        "label": "08_early_wide_neck_typical_bursty",
+        "n_episodes": 3,
+        "kills_per_simulated_hour": {
+          "median": 7224.000000000003,
+          "min": 1008.0,
+          "max": 7296.0
+        },
+        "teacher_ratio_median": 0.771794871794871,
+        "contacts_per_100_distance": {
+          "median": 35.31345011081767,
+          "min": 12.403840356936161,
+          "max": 282.39814441801013
+        },
+        "unique_cells": {
+          "median": 417.0,
+          "min": 133.0,
+          "max": 546.0
+        },
+        "steering_agreement": {
+          "median": 0.7730829420970265,
+          "min": 0.5401234567901234,
+          "max": 0.889795918367347
+        },
+        "event_agreement": {
+          "median": 0.8410493827160493,
+          "min": 0.7417840375586855,
+          "max": 0.9782312925170068
+        },
+        "corr_angle_p_left": {
+          "median": 0.7403611651848037,
+          "min": 0.7033195300051911,
+          "max": 0.7772838060052742
+        },
+        "corr_angle_p_right": {
+          "median": -0.6873102834795352,
+          "min": -0.7339186441686922,
+          "max": -0.6054750918439488
+        },
+        "steering_persistent_episodes": 1,
+        "physical_stagnation_episodes": 2,
+        "productive_sustained_turn_episodes": 0,
+        "zero_kill_episodes": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "stage": "advanced",
+  "role": "heldout",
+  "curriculum_path": "curricula/synthetic_curriculum_advanced_heldout/curriculum.json",
+  "layouts": [
+    "01_advanced_open_field_low_variable",
+    "02_advanced_open_field_high_slow",
+    "03_advanced_irregular_plain_low_variable",
+    "04_advanced_irregular_plain_high_slow",
+    "05_advanced_broad_lobes_low_variable",
+    "06_advanced_broad_lobes_high_slow",
+    "07_advanced_wide_neck_low_variable",
+    "08_advanced_wide_neck_high_slow",
+    "09_advanced_split_field_low_variable",
+    "10_advanced_split_field_high_slow",
+    "11_advanced_open_center_low_variable",
+    "12_advanced_open_center_high_slow"
+  ],
+  "notes": "Advanced-stage held-out pool: all 6 templates at obstacle_level=2, using the low/variable and high/slow density-respawn combos NOT used in the training curriculum (which uses shifting/variable and uneven/slow) -- tests generalization across both new map instances AND unseen advanced-tier profile combinations, not just fresh seeds of identical settings."
+}

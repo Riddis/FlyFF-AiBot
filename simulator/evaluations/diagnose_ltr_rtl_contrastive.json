@@ -1,0 +1,1930 @@
+{
+  "LTR21": {
+    "family": "repaired",
+    "stratum": "two_wall_left_then_right",
+    "index": 21,
+    "results": {
+      "baseline_0051200": {
+        "outcome": "collision",
+        "trace": [
+          {
+            "tick": 0,
+            "pre_pose_xzh_deg": [
+              0.0,
+              0.0,
+              -14.29
+            ],
+            "route_candidate": [
+              11.721,
+              5.158
+            ],
+            "candidate_clearance": 3.162,
+            "dist_to_candidate_cells": 8.004,
+            "held_target": [
+              11.721,
+              5.158
+            ],
+            "target_clearance": 3.162,
+            "dist_to_target_cells": 8.004,
+            "controller_reason": "INITIAL",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              4.195,
+              0.793,
+              31.15
+            ],
+            "clearance_after_step": 5.0,
+            "final_distance_cells": 36.678,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 1,
+            "pre_pose_xzh_deg": [
+              4.195,
+              0.793,
+              31.15
+            ],
+            "route_candidate": [
+              7.971,
+              2.892
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 2.701,
+            "held_target": [
+              7.971,
+              2.892
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 2.701,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              7.944,
+              3.059,
+              31.15
+            ],
+            "clearance_after_step": 3.606,
+            "final_distance_cells": 34.384,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 2,
+            "pre_pose_xzh_deg": [
+              7.944,
+              3.059,
+              31.15
+            ],
+            "route_candidate": [
+              19.226,
+              3.095
+            ],
+            "candidate_clearance": 2.0,
+            "dist_to_candidate_cells": 7.051,
+            "held_target": [
+              19.226,
+              3.095
+            ],
+            "target_clearance": 2.0,
+            "dist_to_target_cells": 7.051,
+            "controller_reason": "CURRENT_REACHED_OR_PASSED",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              12.189,
+              3.517,
+              -14.29
+            ],
+            "clearance_after_step": 2.0,
+            "final_distance_cells": 31.755,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 3,
+            "pre_pose_xzh_deg": [
+              12.189,
+              3.517,
+              -14.29
+            ],
+            "route_candidate": [
+              19.226,
+              3.095
+            ],
+            "candidate_clearance": 2.0,
+            "dist_to_candidate_cells": 4.406,
+            "held_target": [
+              19.226,
+              3.095
+            ],
+            "target_clearance": 2.0,
+            "dist_to_target_cells": 4.406,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              16.435,
+              2.436,
+              -14.29
+            ],
+            "clearance_after_step": 2.236,
+            "final_distance_cells": 29.065,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 4,
+            "pre_pose_xzh_deg": [
+              16.435,
+              2.436,
+              -14.29
+            ],
+            "route_candidate": [
+              47.4,
+              -6.555
+            ],
+            "candidate_clearance": 2.236,
+            "dist_to_candidate_cells": 20.153,
+            "held_target": [
+              47.4,
+              -6.555
+            ],
+            "target_clearance": 2.236,
+            "dist_to_target_cells": 20.153,
+            "controller_reason": "CURRENT_REACHED_OR_PASSED",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              20.681,
+              1.355,
+              -14.29
+            ],
+            "clearance_after_step": 4.123,
+            "final_distance_cells": 26.384,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 5,
+            "pre_pose_xzh_deg": [
+              20.681,
+              1.355,
+              -14.29
+            ],
+            "route_candidate": [
+              43.142,
+              -6.839
+            ],
+            "candidate_clearance": 3.162,
+            "dist_to_candidate_cells": 14.943,
+            "held_target": [
+              43.142,
+              -6.839
+            ],
+            "target_clearance": 3.162,
+            "dist_to_target_cells": 14.943,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              24.927,
+              0.273,
+              -14.29
+            ],
+            "clearance_after_step": 7.0,
+            "final_distance_cells": 23.718,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 6,
+            "pre_pose_xzh_deg": [
+              24.927,
+              0.273,
+              -14.29
+            ],
+            "route_candidate": [
+              43.142,
+              -6.839
+            ],
+            "candidate_clearance": 3.0,
+            "dist_to_candidate_cells": 12.221,
+            "held_target": [
+              43.142,
+              -6.839
+            ],
+            "target_clearance": 3.0,
+            "dist_to_target_cells": 12.221,
+            "controller_reason": "KEEP_CURRENT",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              29.173,
+              -0.808,
+              -14.29
+            ],
+            "clearance_after_step": 7.0,
+            "final_distance_cells": 21.069,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 7,
+            "pre_pose_xzh_deg": [
+              29.173,
+              -0.808,
+              -14.29
+            ],
+            "route_candidate": [
+              38.997,
+              -5.419
+            ],
+            "candidate_clearance": 3.162,
+            "dist_to_candidate_cells": 6.783,
+            "held_target": [
+              38.997,
+              -5.419
+            ],
+            "target_clearance": 3.162,
+            "dist_to_target_cells": 6.783,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              33.419,
+              -1.889,
+              -14.29
+            ],
+            "clearance_after_step": 4.123,
+            "final_distance_cells": 18.447,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 8,
+            "pre_pose_xzh_deg": [
+              33.419,
+              -1.889,
+              -14.29
+            ],
+            "route_candidate": [
+              59.161,
+              -0.685
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 16.106,
+            "held_target": [
+              59.161,
+              -0.685
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 16.106,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              37.614,
+              -1.096,
+              31.15
+            ],
+            "clearance_after_step": 1.414,
+            "final_distance_cells": 15.803,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 9,
+            "pre_pose_xzh_deg": [
+              37.614,
+              -1.096,
+              31.15
+            ],
+            "route_candidate": [
+              59.161,
+              -0.685
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 13.47,
+            "held_target": [
+              59.161,
+              -0.685
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 13.47,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              39.149,
+              -0.638,
+              -14.29
+            ],
+            "clearance_after_step": 1.0,
+            "final_distance_cells": 14.833,
+            "contact_this_tick": true
+          }
+        ]
+      },
+      "trained_seed100_0056320": {
+        "outcome": "success",
+        "trace": [
+          {
+            "tick": 0,
+            "pre_pose_xzh_deg": [
+              0.0,
+              0.0,
+              -14.29
+            ],
+            "route_candidate": [
+              11.721,
+              5.158
+            ],
+            "candidate_clearance": 3.162,
+            "dist_to_candidate_cells": 8.004,
+            "held_target": [
+              11.721,
+              5.158
+            ],
+            "target_clearance": 3.162,
+            "dist_to_target_cells": 8.004,
+            "controller_reason": "INITIAL",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              4.195,
+              0.793,
+              31.15
+            ],
+            "clearance_after_step": 5.0,
+            "final_distance_cells": 36.678,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 1,
+            "pre_pose_xzh_deg": [
+              4.195,
+              0.793,
+              31.15
+            ],
+            "route_candidate": [
+              7.971,
+              2.892
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 2.701,
+            "held_target": [
+              7.971,
+              2.892
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 2.701,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              7.944,
+              3.059,
+              31.15
+            ],
+            "clearance_after_step": 3.606,
+            "final_distance_cells": 34.384,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 2,
+            "pre_pose_xzh_deg": [
+              7.944,
+              3.059,
+              31.15
+            ],
+            "route_candidate": [
+              19.226,
+              3.095
+            ],
+            "candidate_clearance": 2.0,
+            "dist_to_candidate_cells": 7.051,
+            "held_target": [
+              19.226,
+              3.095
+            ],
+            "target_clearance": 2.0,
+            "dist_to_target_cells": 7.051,
+            "controller_reason": "CURRENT_REACHED_OR_PASSED",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              12.189,
+              3.517,
+              -14.29
+            ],
+            "clearance_after_step": 2.0,
+            "final_distance_cells": 31.755,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 3,
+            "pre_pose_xzh_deg": [
+              12.189,
+              3.517,
+              -14.29
+            ],
+            "route_candidate": [
+              19.226,
+              3.095
+            ],
+            "candidate_clearance": 2.0,
+            "dist_to_candidate_cells": 4.406,
+            "held_target": [
+              19.226,
+              3.095
+            ],
+            "target_clearance": 2.0,
+            "dist_to_target_cells": 4.406,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              16.383,
+              4.31,
+              31.15
+            ],
+            "clearance_after_step": 3.162,
+            "final_distance_cells": 29.181,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 4,
+            "pre_pose_xzh_deg": [
+              16.383,
+              4.31,
+              31.15
+            ],
+            "route_candidate": [
+              22.416,
+              0.261
+            ],
+            "candidate_clearance": 2.828,
+            "dist_to_candidate_cells": 4.541,
+            "held_target": [
+              22.416,
+              0.261
+            ],
+            "target_clearance": 2.828,
+            "dist_to_target_cells": 4.541,
+            "controller_reason": "CURRENT_REACHED_OR_PASSED",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              20.627,
+              4.768,
+              -14.29
+            ],
+            "clearance_after_step": 5.0,
+            "final_distance_cells": 26.572,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 5,
+            "pre_pose_xzh_deg": [
+              20.627,
+              4.768,
+              -14.29
+            ],
+            "route_candidate": [
+              34.852,
+              -3.999
+            ],
+            "candidate_clearance": 4.472,
+            "dist_to_candidate_cells": 10.443,
+            "held_target": [
+              34.852,
+              -3.999
+            ],
+            "target_clearance": 4.472,
+            "dist_to_target_cells": 10.443,
+            "controller_reason": "BETTER_FORWARD_TARGET",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              23.791,
+              1.937,
+              -64.34
+            ],
+            "clearance_after_step": 6.083,
+            "final_distance_cells": 24.457,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 6,
+            "pre_pose_xzh_deg": [
+              23.791,
+              1.937,
+              -64.34
+            ],
+            "route_candidate": [
+              38.997,
+              -5.419
+            ],
+            "candidate_clearance": 3.162,
+            "dist_to_candidate_cells": 10.557,
+            "held_target": [
+              38.997,
+              -5.419
+            ],
+            "target_clearance": 3.162,
+            "dist_to_target_cells": 10.557,
+            "controller_reason": "BETTER_FORWARD_TARGET",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              27.092,
+              -0.769,
+              -18.91
+            ],
+            "clearance_after_step": 7.0,
+            "final_distance_cells": 22.369,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 7,
+            "pre_pose_xzh_deg": [
+              27.092,
+              -0.769,
+              -18.91
+            ],
+            "route_candidate": [
+              43.142,
+              -6.839
+            ],
+            "candidate_clearance": 3.162,
+            "dist_to_candidate_cells": 10.725,
+            "held_target": [
+              43.142,
+              -6.839
+            ],
+            "target_clearance": 3.162,
+            "dist_to_target_cells": 10.725,
+            "controller_reason": "BETTER_FORWARD_TARGET",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              31.237,
+              -2.189,
+              -18.91
+            ],
+            "clearance_after_step": 5.099,
+            "final_distance_cells": 19.821,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 8,
+            "pre_pose_xzh_deg": [
+              31.237,
+              -2.189,
+              -18.91
+            ],
+            "route_candidate": [
+              43.142,
+              -6.839
+            ],
+            "candidate_clearance": 3.0,
+            "dist_to_candidate_cells": 7.988,
+            "held_target": [
+              43.142,
+              -6.839
+            ],
+            "target_clearance": 3.0,
+            "dist_to_target_cells": 7.988,
+            "controller_reason": "KEEP_CURRENT",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              35.382,
+              -3.609,
+              -18.91
+            ],
+            "clearance_after_step": 3.606,
+            "final_distance_cells": 17.33,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 9,
+            "pre_pose_xzh_deg": [
+              35.382,
+              -3.609,
+              -18.91
+            ],
+            "route_candidate": [
+              59.161,
+              -0.685
+            ],
+            "candidate_clearance": 2.0,
+            "dist_to_candidate_cells": 14.974,
+            "held_target": [
+              59.161,
+              -0.685
+            ],
+            "target_clearance": 2.0,
+            "dist_to_target_cells": 14.974,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              39.627,
+              -3.157,
+              26.53
+            ],
+            "clearance_after_step": 2.0,
+            "final_distance_cells": 14.663,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 10,
+            "pre_pose_xzh_deg": [
+              39.627,
+              -3.157,
+              26.53
+            ],
+            "route_candidate": [
+              59.161,
+              -0.685
+            ],
+            "candidate_clearance": 2.0,
+            "dist_to_candidate_cells": 12.306,
+            "held_target": [
+              59.161,
+              -0.685
+            ],
+            "target_clearance": 2.0,
+            "dist_to_target_cells": 12.306,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              43.894,
+              -3.043,
+              -18.91
+            ],
+            "clearance_after_step": 2.0,
+            "final_distance_cells": 12.014,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 11,
+            "pre_pose_xzh_deg": [
+              43.894,
+              -3.043,
+              -18.91
+            ],
+            "route_candidate": [
+              59.161,
+              -0.685
+            ],
+            "candidate_clearance": 2.236,
+            "dist_to_candidate_cells": 9.655,
+            "held_target": [
+              59.161,
+              -0.685
+            ],
+            "target_clearance": 2.236,
+            "dist_to_target_cells": 9.655,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              48.139,
+              -2.59,
+              26.53
+            ],
+            "clearance_after_step": 3.606,
+            "final_distance_cells": 9.351,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 12,
+            "pre_pose_xzh_deg": [
+              48.139,
+              -2.59,
+              26.53
+            ],
+            "route_candidate": [
+              59.161,
+              -0.685
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 6.991,
+            "held_target": [
+              62.874,
+              0.0
+            ],
+            "target_clearance": 4.123,
+            "dist_to_target_cells": 9.351,
+            "controller_reason": "FINAL_TARGET_LOCK",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              52.406,
+              -2.476,
+              -18.91
+            ],
+            "clearance_after_step": 6.325,
+            "final_distance_cells": 6.723,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 13,
+            "pre_pose_xzh_deg": [
+              52.406,
+              -2.476,
+              -18.91
+            ],
+            "route_candidate": [
+              59.161,
+              -0.685
+            ],
+            "candidate_clearance": 6.083,
+            "dist_to_candidate_cells": 4.368,
+            "held_target": [
+              62.874,
+              0.0
+            ],
+            "target_clearance": 6.083,
+            "dist_to_target_cells": 6.723,
+            "controller_reason": "FINAL_TARGET_LOCK",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              56.651,
+              -2.024,
+              26.53
+            ],
+            "clearance_after_step": 7.0,
+            "final_distance_cells": 4.09,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 14,
+            "pre_pose_xzh_deg": [
+              56.651,
+              -2.024,
+              26.53
+            ],
+            "route_candidate": [
+              59.161,
+              -0.685
+            ],
+            "candidate_clearance": 7.0,
+            "dist_to_candidate_cells": 1.778,
+            "held_target": [
+              62.874,
+              0.0
+            ],
+            "target_clearance": 7.0,
+            "dist_to_target_cells": 4.09,
+            "controller_reason": "FINAL_TARGET_LOCK",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              60.571,
+              -0.067,
+              26.53
+            ],
+            "clearance_after_step": 7.0,
+            "final_distance_cells": 1.44,
+            "contact_this_tick": false
+          }
+        ]
+      }
+    }
+  },
+  "LTR26": {
+    "family": "repaired",
+    "stratum": "two_wall_left_then_right",
+    "index": 26,
+    "results": {
+      "baseline_0051200": {
+        "outcome": "collision",
+        "trace": [
+          {
+            "tick": 0,
+            "pre_pose_xzh_deg": [
+              0.0,
+              0.0,
+              -0.3
+            ],
+            "route_candidate": [
+              10.127,
+              7.839
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 8.004,
+            "held_target": [
+              10.127,
+              7.839
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 8.004,
+            "controller_reason": "INITIAL",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              3.878,
+              1.783,
+              45.14
+            ],
+            "clearance_after_step": 4.123,
+            "final_distance_cells": 29.725,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 1,
+            "pre_pose_xzh_deg": [
+              3.878,
+              1.783,
+              45.14
+            ],
+            "route_candidate": [
+              44.289,
+              7.662
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 25.522,
+            "held_target": [
+              44.289,
+              7.662
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 25.522,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              7.886,
+              3.254,
+              -0.3
+            ],
+            "clearance_after_step": 2.236,
+            "final_distance_cells": 27.275,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 2,
+            "pre_pose_xzh_deg": [
+              7.886,
+              3.254,
+              -0.3
+            ],
+            "route_candidate": [
+              44.289,
+              7.662
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 22.918,
+            "held_target": [
+              44.289,
+              7.662
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 22.918,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              12.268,
+              3.231,
+              -0.3
+            ],
+            "clearance_after_step": 2.236,
+            "final_distance_cells": 24.544,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 3,
+            "pre_pose_xzh_deg": [
+              12.268,
+              3.231,
+              -0.3
+            ],
+            "route_candidate": [
+              44.289,
+              7.662
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 20.204,
+            "held_target": [
+              44.289,
+              7.662
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 20.204,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              16.649,
+              3.208,
+              -0.3
+            ],
+            "clearance_after_step": 3.606,
+            "final_distance_cells": 21.815,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 4,
+            "pre_pose_xzh_deg": [
+              16.649,
+              3.208,
+              -0.3
+            ],
+            "route_candidate": [
+              27.216,
+              9.399
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 7.654,
+            "held_target": [
+              27.216,
+              9.399
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 7.654,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              20.528,
+              4.992,
+              45.14
+            ],
+            "clearance_after_step": 6.0,
+            "final_distance_cells": 19.549,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 5,
+            "pre_pose_xzh_deg": [
+              20.528,
+              4.992,
+              45.14
+            ],
+            "route_candidate": [
+              27.216,
+              9.399
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 5.006,
+            "held_target": [
+              27.216,
+              9.399
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 5.006,
+            "controller_reason": "KEEP_CURRENT",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              24.535,
+              6.462,
+              -0.3
+            ],
+            "clearance_after_step": 4.123,
+            "final_distance_cells": 17.272,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 6,
+            "pre_pose_xzh_deg": [
+              24.535,
+              6.462,
+              -0.3
+            ],
+            "route_candidate": [
+              50.406,
+              1.387
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 16.477,
+            "held_target": [
+              50.406,
+              1.387
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 16.477,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              28.917,
+              6.439,
+              -0.3
+            ],
+            "clearance_after_step": 1.414,
+            "final_distance_cells": 14.62,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 7,
+            "pre_pose_xzh_deg": [
+              28.917,
+              6.439,
+              -0.3
+            ],
+            "route_candidate": [
+              50.406,
+              1.387
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 13.797,
+            "held_target": [
+              50.406,
+              1.387
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 13.797,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              32.776,
+              5.713,
+              -45.73
+            ],
+            "clearance_after_step": 1.0,
+            "final_distance_cells": 12.178,
+            "contact_this_tick": true
+          }
+        ]
+      },
+      "trained_seed100_0056320": {
+        "outcome": "success",
+        "trace": [
+          {
+            "tick": 0,
+            "pre_pose_xzh_deg": [
+              0.0,
+              0.0,
+              -0.3
+            ],
+            "route_candidate": [
+              10.127,
+              7.839
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 8.004,
+            "held_target": [
+              10.127,
+              7.839
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 8.004,
+            "controller_reason": "INITIAL",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              3.878,
+              1.783,
+              45.14
+            ],
+            "clearance_after_step": 4.123,
+            "final_distance_cells": 29.725,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 1,
+            "pre_pose_xzh_deg": [
+              3.878,
+              1.783,
+              45.14
+            ],
+            "route_candidate": [
+              44.289,
+              7.662
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 25.522,
+            "held_target": [
+              44.289,
+              7.662
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 25.522,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              7.886,
+              3.254,
+              -0.3
+            ],
+            "clearance_after_step": 2.236,
+            "final_distance_cells": 27.275,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 2,
+            "pre_pose_xzh_deg": [
+              7.886,
+              3.254,
+              -0.3
+            ],
+            "route_candidate": [
+              44.289,
+              7.662
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 22.918,
+            "held_target": [
+              44.289,
+              7.662
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 22.918,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              12.268,
+              3.231,
+              -0.3
+            ],
+            "clearance_after_step": 2.236,
+            "final_distance_cells": 24.544,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 3,
+            "pre_pose_xzh_deg": [
+              12.268,
+              3.231,
+              -0.3
+            ],
+            "route_candidate": [
+              44.289,
+              7.662
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 20.204,
+            "held_target": [
+              44.289,
+              7.662
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 20.204,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              16.146,
+              5.014,
+              45.14
+            ],
+            "clearance_after_step": 4.243,
+            "final_distance_cells": 22.258,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 4,
+            "pre_pose_xzh_deg": [
+              16.146,
+              5.014,
+              45.14
+            ],
+            "route_candidate": [
+              27.216,
+              9.399
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 7.442,
+            "held_target": [
+              27.216,
+              9.399
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 7.442,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              20.154,
+              6.485,
+              -0.3
+            ],
+            "clearance_after_step": 6.083,
+            "final_distance_cells": 19.948,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 5,
+            "pre_pose_xzh_deg": [
+              20.154,
+              6.485,
+              -0.3
+            ],
+            "route_candidate": [
+              27.216,
+              9.399
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 4.775,
+            "held_target": [
+              27.216,
+              9.399
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 4.775,
+            "controller_reason": "KEEP_CURRENT",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              24.032,
+              8.268,
+              45.14
+            ],
+            "clearance_after_step": 4.472,
+            "final_distance_cells": 17.871,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 6,
+            "pre_pose_xzh_deg": [
+              24.032,
+              8.268,
+              45.14
+            ],
+            "route_candidate": [
+              27.216,
+              9.399
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 2.112,
+            "held_target": [
+              27.216,
+              9.399
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 2.112,
+            "controller_reason": "KEEP_CURRENT",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              28.04,
+              9.738,
+              -0.3
+            ],
+            "clearance_after_step": 3.162,
+            "final_distance_cells": 15.821,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 7,
+            "pre_pose_xzh_deg": [
+              28.04,
+              9.738,
+              -0.3
+            ],
+            "route_candidate": [
+              40.361,
+              9.331
+            ],
+            "candidate_clearance": 3.0,
+            "dist_to_candidate_cells": 7.705,
+            "held_target": [
+              40.361,
+              9.331
+            ],
+            "target_clearance": 3.0,
+            "dist_to_target_cells": 7.705,
+            "controller_reason": "CURRENT_REACHED_OR_PASSED",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              32.421,
+              9.716,
+              -0.3
+            ],
+            "clearance_after_step": 3.0,
+            "final_distance_cells": 13.328,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 8,
+            "pre_pose_xzh_deg": [
+              32.421,
+              9.716,
+              -0.3
+            ],
+            "route_candidate": [
+              44.289,
+              7.662
+            ],
+            "candidate_clearance": 3.0,
+            "dist_to_candidate_cells": 7.528,
+            "held_target": [
+              44.289,
+              7.662
+            ],
+            "target_clearance": 3.0,
+            "dist_to_target_cells": 7.528,
+            "controller_reason": "BETTER_FORWARD_TARGET",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              36.803,
+              9.693,
+              -0.3
+            ],
+            "clearance_after_step": 3.606,
+            "final_distance_cells": 10.954,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 9,
+            "pre_pose_xzh_deg": [
+              36.803,
+              9.693,
+              -0.3
+            ],
+            "route_candidate": [
+              50.406,
+              1.387
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 9.962,
+            "held_target": [
+              51.405,
+              0.0
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 10.954,
+            "controller_reason": "FINAL_TARGET_LOCK",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              40.662,
+              7.87,
+              -45.73
+            ],
+            "clearance_after_step": 4.472,
+            "final_distance_cells": 8.323,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 10,
+            "pre_pose_xzh_deg": [
+              40.662,
+              7.87,
+              -45.73
+            ],
+            "route_candidate": [
+              50.406,
+              1.387
+            ],
+            "candidate_clearance": 5.099,
+            "dist_to_candidate_cells": 7.314,
+            "held_target": [
+              51.405,
+              0.0
+            ],
+            "target_clearance": 5.099,
+            "dist_to_target_cells": 8.323,
+            "controller_reason": "FINAL_TARGET_LOCK",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              44.655,
+              6.358,
+              -0.3
+            ],
+            "clearance_after_step": 7.0,
+            "final_distance_cells": 5.796,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 11,
+            "pre_pose_xzh_deg": [
+              44.655,
+              6.358,
+              -0.3
+            ],
+            "route_candidate": [
+              50.406,
+              1.387
+            ],
+            "candidate_clearance": 7.0,
+            "dist_to_candidate_cells": 4.751,
+            "held_target": [
+              51.405,
+              0.0
+            ],
+            "target_clearance": 7.0,
+            "dist_to_target_cells": 5.796,
+            "controller_reason": "FINAL_TARGET_LOCK",
+            "steering_action": "RIGHT",
+            "post_pose_xzh_deg": [
+              48.514,
+              4.535,
+              -45.73
+            ],
+            "clearance_after_step": 7.0,
+            "final_distance_cells": 3.361,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 12,
+            "pre_pose_xzh_deg": [
+              48.514,
+              4.535,
+              -45.73
+            ],
+            "route_candidate": [
+              50.406,
+              1.387
+            ],
+            "candidate_clearance": 7.0,
+            "dist_to_candidate_cells": 2.295,
+            "held_target": [
+              51.405,
+              0.0
+            ],
+            "target_clearance": 7.0,
+            "dist_to_target_cells": 3.361,
+            "controller_reason": "FINAL_TARGET_LOCK",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              51.573,
+              1.397,
+              -45.73
+            ],
+            "clearance_after_step": 7.0,
+            "final_distance_cells": 0.88,
+            "contact_this_tick": false
+          }
+        ]
+      }
+    }
+  },
+  "RTL8": {
+    "family": "persistent_failure",
+    "stratum": "two_wall_right_then_left",
+    "index": 8,
+    "results": {
+      "baseline_0051200": {
+        "outcome": "collision",
+        "trace": [
+          {
+            "tick": 0,
+            "pre_pose_xzh_deg": [
+              0.0,
+              0.0,
+              -21.23
+            ],
+            "route_candidate": [
+              8.168,
+              -3.174
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 5.477,
+            "held_target": [
+              8.168,
+              -3.174
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 5.477,
+            "controller_reason": "INITIAL",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              4.084,
+              -1.587,
+              -21.23
+            ],
+            "clearance_after_step": 5.099,
+            "final_distance_cells": 35.842,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 1,
+            "pre_pose_xzh_deg": [
+              4.084,
+              -1.587,
+              -21.23
+            ],
+            "route_candidate": [
+              8.168,
+              -3.174
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 2.738,
+            "held_target": [
+              8.168,
+              -3.174
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 2.738,
+            "controller_reason": "KEEP_CURRENT",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              8.168,
+              -3.174,
+              -21.23
+            ],
+            "clearance_after_step": 3.606,
+            "final_distance_cells": 33.334,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 2,
+            "pre_pose_xzh_deg": [
+              8.168,
+              -3.174,
+              -21.23
+            ],
+            "route_candidate": [
+              60.918,
+              -1.806
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 32.98,
+            "held_target": [
+              60.918,
+              -1.806
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 32.98,
+            "controller_reason": "CURRENT_REACHED_OR_PASSED",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              12.428,
+              -2.894,
+              24.2
+            ],
+            "clearance_after_step": 2.0,
+            "final_distance_cells": 30.666,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 3,
+            "pre_pose_xzh_deg": [
+              12.428,
+              -2.894,
+              24.2
+            ],
+            "route_candidate": [
+              60.918,
+              -1.806
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 30.314,
+            "held_target": [
+              60.918,
+              -1.806
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 30.314,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              15.057,
+              -0.881,
+              74.26
+            ],
+            "clearance_after_step": 1.0,
+            "final_distance_cells": 28.975,
+            "contact_this_tick": true
+          }
+        ]
+      },
+      "trained_seed100_0056320": {
+        "outcome": "collision",
+        "trace": [
+          {
+            "tick": 0,
+            "pre_pose_xzh_deg": [
+              0.0,
+              0.0,
+              -21.23
+            ],
+            "route_candidate": [
+              8.168,
+              -3.174
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 5.477,
+            "held_target": [
+              8.168,
+              -3.174
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 5.477,
+            "controller_reason": "INITIAL",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              4.084,
+              -1.587,
+              -21.23
+            ],
+            "clearance_after_step": 5.099,
+            "final_distance_cells": 35.842,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 1,
+            "pre_pose_xzh_deg": [
+              4.084,
+              -1.587,
+              -21.23
+            ],
+            "route_candidate": [
+              8.168,
+              -3.174
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 2.738,
+            "held_target": [
+              8.168,
+              -3.174
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 2.738,
+            "controller_reason": "KEEP_CURRENT",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              8.168,
+              -3.174,
+              -21.23
+            ],
+            "clearance_after_step": 3.606,
+            "final_distance_cells": 33.334,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 2,
+            "pre_pose_xzh_deg": [
+              8.168,
+              -3.174,
+              -21.23
+            ],
+            "route_candidate": [
+              60.918,
+              -1.806
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 32.98,
+            "held_target": [
+              60.918,
+              -1.806
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 32.98,
+            "controller_reason": "CURRENT_REACHED_OR_PASSED",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              12.428,
+              -2.894,
+              24.2
+            ],
+            "clearance_after_step": 2.0,
+            "final_distance_cells": 30.666,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 3,
+            "pre_pose_xzh_deg": [
+              12.428,
+              -2.894,
+              24.2
+            ],
+            "route_candidate": [
+              60.918,
+              -1.806
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 30.314,
+            "held_target": [
+              60.918,
+              -1.806
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 30.314,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              15.057,
+              -0.881,
+              74.26
+            ],
+            "clearance_after_step": 1.0,
+            "final_distance_cells": 28.975,
+            "contact_this_tick": true
+          }
+        ]
+      }
+    }
+  },
+  "RTL9": {
+    "family": "persistent_failure",
+    "stratum": "two_wall_right_then_left",
+    "index": 9,
+    "results": {
+      "baseline_0051200": {
+        "outcome": "collision",
+        "trace": [
+          {
+            "tick": 0,
+            "pre_pose_xzh_deg": [
+              0.0,
+              0.0,
+              -21.16
+            ],
+            "route_candidate": [
+              8.172,
+              -3.164
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 5.477,
+            "held_target": [
+              8.172,
+              -3.164
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 5.477,
+            "controller_reason": "INITIAL",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              4.086,
+              -1.582,
+              -21.16
+            ],
+            "clearance_after_step": 5.099,
+            "final_distance_cells": 37.959,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 1,
+            "pre_pose_xzh_deg": [
+              4.086,
+              -1.582,
+              -21.16
+            ],
+            "route_candidate": [
+              8.172,
+              -3.164
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 2.738,
+            "held_target": [
+              8.172,
+              -3.164
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 2.738,
+            "controller_reason": "KEEP_CURRENT",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              8.172,
+              -3.164,
+              -21.16
+            ],
+            "clearance_after_step": 3.606,
+            "final_distance_cells": 35.448,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 2,
+            "pre_pose_xzh_deg": [
+              8.172,
+              -3.164,
+              -21.16
+            ],
+            "route_candidate": [
+              64.915,
+              0.069
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 35.522,
+            "held_target": [
+              64.915,
+              0.069
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 35.522,
+            "controller_reason": "CURRENT_REACHED_OR_PASSED",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              12.431,
+              -2.879,
+              24.27
+            ],
+            "clearance_after_step": 2.0,
+            "final_distance_cells": 32.78,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 3,
+            "pre_pose_xzh_deg": [
+              12.431,
+              -2.879,
+              24.27
+            ],
+            "route_candidate": [
+              64.915,
+              0.069
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 32.854,
+            "held_target": [
+              64.915,
+              0.069
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 32.854,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              15.056,
+              -0.864,
+              74.33
+            ],
+            "clearance_after_step": 1.0,
+            "final_distance_cells": 31.095,
+            "contact_this_tick": true
+          }
+        ]
+      },
+      "trained_seed100_0056320": {
+        "outcome": "collision",
+        "trace": [
+          {
+            "tick": 0,
+            "pre_pose_xzh_deg": [
+              0.0,
+              0.0,
+              -21.16
+            ],
+            "route_candidate": [
+              8.172,
+              -3.164
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 5.477,
+            "held_target": [
+              8.172,
+              -3.164
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 5.477,
+            "controller_reason": "INITIAL",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              4.086,
+              -1.582,
+              -21.16
+            ],
+            "clearance_after_step": 5.099,
+            "final_distance_cells": 37.959,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 1,
+            "pre_pose_xzh_deg": [
+              4.086,
+              -1.582,
+              -21.16
+            ],
+            "route_candidate": [
+              8.172,
+              -3.164
+            ],
+            "candidate_clearance": 3.606,
+            "dist_to_candidate_cells": 2.738,
+            "held_target": [
+              8.172,
+              -3.164
+            ],
+            "target_clearance": 3.606,
+            "dist_to_target_cells": 2.738,
+            "controller_reason": "KEEP_CURRENT",
+            "steering_action": "STRAIGHT",
+            "post_pose_xzh_deg": [
+              8.172,
+              -3.164,
+              -21.16
+            ],
+            "clearance_after_step": 3.606,
+            "final_distance_cells": 35.448,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 2,
+            "pre_pose_xzh_deg": [
+              8.172,
+              -3.164,
+              -21.16
+            ],
+            "route_candidate": [
+              64.915,
+              0.069
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 35.522,
+            "held_target": [
+              64.915,
+              0.069
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 35.522,
+            "controller_reason": "CURRENT_REACHED_OR_PASSED",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              12.431,
+              -2.879,
+              24.27
+            ],
+            "clearance_after_step": 2.0,
+            "final_distance_cells": 32.78,
+            "contact_this_tick": false
+          },
+          {
+            "tick": 3,
+            "pre_pose_xzh_deg": [
+              12.431,
+              -2.879,
+              24.27
+            ],
+            "route_candidate": [
+              64.915,
+              0.069
+            ],
+            "candidate_clearance": 1.0,
+            "dist_to_candidate_cells": 32.854,
+            "held_target": [
+              64.915,
+              0.069
+            ],
+            "target_clearance": 1.0,
+            "dist_to_target_cells": 32.854,
+            "controller_reason": "CURRENT_UNSAFE",
+            "steering_action": "LEFT",
+            "post_pose_xzh_deg": [
+              15.056,
+              -0.864,
+              74.33
+            ],
+            "clearance_after_step": 1.0,
+            "final_distance_cells": 31.095,
+            "contact_this_tick": true
+          }
+        ]
+      }
+    }
+  }
+}

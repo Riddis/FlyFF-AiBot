@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "stage": "early",
+  "role": "heldout",
+  "curriculum_path": "curricula/synthetic_curriculum_navigation_calibration/curriculum.json",
+  "layouts": [
+    "01_early_open_field_typical_fast",
+    "02_early_open_field_high_typical",
+    "03_early_irregular_plain_typical_fast",
+    "04_early_irregular_plain_high_typical",
+    "05_early_broad_lobes_typical_fast",
+    "06_early_broad_lobes_high_typical",
+    "07_early_wide_neck_typical_fast",
+    "08_early_wide_neck_high_typical",
+    "09_early_split_field_typical_fast",
+    "10_early_split_field_high_typical",
+    "11_early_open_center_typical_fast",
+    "12_early_open_center_high_typical"
+  ],
+  "notes": "Phase 2 navigation-feature calibration pool ONLY -- never used as DAgger training data and never used for graduation scoring. Disjoint seeds (base 20261400) from training (20260804), early_heldout (20260900), early_heldout_unseen_templates (20261100), and early_challenge/factorial_probe (20261200). Covers all 6 early-stage templates x 2 density profiles for broad threshold-calibration coverage. Used to derive: history window size, expected clear-path displacement, danger-near proximity band, collision-onset/persistent-contact-rate thresholds -- frozen before any DAgger dataset mining, per the approved Phase 2 plan."
+}

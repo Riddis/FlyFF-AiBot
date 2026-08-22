@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "stage": "early",
+  "role": "heldout",
+  "curriculum_path": "curricula/synthetic_curriculum_unseen_templates/curriculum.json",
+  "layouts": [
+    "01_early_irregular_plain_typical_fast",
+    "03_early_split_field_typical_fast",
+    "04_early_split_field_high_bursty",
+    "05_early_broad_lobes_typical_fast",
+    "06_early_broad_lobes_low_bursty",
+    "07_early_open_center_typical_fast",
+    "08_early_open_center_high_bursty"
+  ],
+  "notes": "Never-trained-on templates (irregular_plain/split_field/broad_lobes/open_center). 02_early_irregular_plain_low_bursty is excluded here because its seed=1 evaluation is tracked as a fixed regression scenario in the easy_challenge manifest instead."
+}

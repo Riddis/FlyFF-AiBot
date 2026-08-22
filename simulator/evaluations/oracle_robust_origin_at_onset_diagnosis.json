@@ -1,0 +1,779 @@
+[
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 54,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 156,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 171,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 264,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 281,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 285,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 288,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 291,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 362,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 387,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 482,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 573,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 20,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 150,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 168,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 270,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 363,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 420,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 438,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 498,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "05_early_broad_lobes_typical_fast",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 509,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 55,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 132,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 142,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 281,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 499,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 521,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 0,
+    "onset_tick": 536,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 374,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 387,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 389,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 392,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 397,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 440,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 498,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "04_early_split_field_high_bursty",
+    "note": "substantial regression",
+    "seed": 1,
+    "onset_tick": 509,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 56,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 219,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 231,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 362,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 369,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 377,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 379,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 394,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 485,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 572,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 49,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 52,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 344,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 358,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 360,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "07_early_open_center_typical_fast",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 366,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 40,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 54,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 266,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 280,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 282,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 284,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 286,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 289,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 291,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 41,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 46,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 194,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 438,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 449,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 551,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 555,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 558,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_open_center_high_bursty",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 563,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 48,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 66,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 251,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 269,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 0,
+    "onset_tick": 275,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 44,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 56,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 145,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 160,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 164,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 303,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "06_early_wide_neck_high_typical",
+    "note": "minor regression",
+    "seed": 1,
+    "onset_tick": 398,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 0,
+    "onset_tick": 42,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 0,
+    "onset_tick": 428,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 0,
+    "onset_tick": 431,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 1,
+    "onset_tick": 30,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 1,
+    "onset_tick": 41,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 1,
+    "onset_tick": 208,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 1,
+    "onset_tick": 291,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 1,
+    "onset_tick": 397,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 1,
+    "onset_tick": 415,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 1,
+    "onset_tick": 522,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "03_early_open_field_low_fast",
+    "note": "biggest improvement (-107)",
+    "seed": 1,
+    "onset_tick": 593,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "onset_tick": 40,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "onset_tick": 46,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "onset_tick": 92,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "onset_tick": 106,
+    "robust_count_at_onset": 1
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "onset_tick": 224,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "onset_tick": 236,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "onset_tick": 240,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "onset_tick": 400,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "onset_tick": 566,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "onset_tick": 581,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 0,
+    "onset_tick": 583,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 1,
+    "onset_tick": 59,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 1,
+    "onset_tick": 74,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 1,
+    "onset_tick": 344,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 1,
+    "onset_tick": 359,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 1,
+    "onset_tick": 364,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 1,
+    "onset_tick": 411,
+    "robust_count_at_onset": 0
+  },
+  {
+    "layout": "08_early_wide_neck_typical_bursty",
+    "note": "large improvement (-73)",
+    "seed": 1,
+    "onset_tick": 496,
+    "robust_count_at_onset": 0
+  }
+]

@@ -1,0 +1,2071 @@
+{
+  "spec_seed": 850000000,
+  "strata": {
+    "open_control": {
+      "target": 20,
+      "attempts": 20,
+      "accepted": [
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              13.933594773133661,
+              -0.297879012519698
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              17.790740254855773,
+              0.2819707267554541
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              16.05483430588862,
+              -0.3069408185314784
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              23.844475132055077,
+              -0.13576962392543923
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              16.17001669578584,
+              0.11264368357204602
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              21.74073597232249,
+              0.3993725263287511
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              11.987002403148523,
+              0.21634856651536116
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              15.715026264307177,
+              0.3882502396483245
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              19.18817919538781,
+              -0.18502145007268245
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              18.100580713386588,
+              0.5436802588869114
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              17.179053947543224,
+              -0.21424688428103272
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              22.17142148172322,
+              0.10847363339607263
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              20.23028506277975,
+              0.6087548814535237
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              18.42302424140009,
+              -0.37423180852805016
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              21.460344417450155,
+              -0.16627064105166034
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              14.818498254105531,
+              -0.5956843407326553
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              19.86879237915091,
+              0.005466908135130399
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              13.534610885775528,
+              0.27085022179690743
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              21.993027655819674,
+              0.18816837678864062
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "open_control",
+          "monster_offsets": [
+            [
+              22.653109804749057,
+              -0.0341500894080905
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        }
+      ],
+      "rejected": []
+    },
+    "awkward_heading": {
+      "target": 20,
+      "attempts": 20,
+      "accepted": [
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              23.054972247834744,
+              0.5379259414509887
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -2.0203901281311336
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              12.729962199464223,
+              0.5684893382308043
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -2.2200766332074626
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              15.768134892907494,
+              -0.002585330322824264
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": 3.0818458007028955
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              16.42841357428696,
+              -0.24704058592463118
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -2.488078153436586
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              14.821923143300939,
+              -0.0363630309842542
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": 2.526401407334478
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              10.453375893269465,
+              0.36342309942671513
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": 2.609488760191411
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              23.13983542756361,
+              0.0763337125733764
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -2.542813879142912
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              20.891901705073874,
+              0.1421170391121377
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -2.0063340016736677
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              19.271398239278135,
+              -0.12919100835762432
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": 2.521757751286953
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              17.151175433481527,
+              0.3405047329504435
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": 2.5416260526237076
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              10.68711082620429,
+              -0.28961269341558005
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -3.229296384857088
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              13.634788474988687,
+              -0.3592229764495258
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": 2.172213509138615
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              14.674516668350911,
+              -0.09242730473746086
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -2.8678326170808726
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              21.99353086685358,
+              0.5562548885966581
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -1.9048522110104233
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              23.76317866926881,
+              0.5377076807057062
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -1.6503539858528997
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              23.38719995900005,
+              -0.28655495032817596
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -2.637299319615415
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              18.92507368795701,
+              0.1855442761689653
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": 2.427303371889589
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              18.119158263628336,
+              0.4938809105935358
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": 3.3085845302962555
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              21.625462301200578,
+              -0.22200924953516898
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -2.339781839905259
+        },
+        {
+          "category": "awkward_heading",
+          "monster_offsets": [
+            [
+              22.86241439036941,
+              0.2958315376789442
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": -2.797621865454128
+        }
+      ],
+      "rejected": []
+    },
+    "obstacle_approach": {
+      "target": 20,
+      "attempts": 20,
+      "accepted": [
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              23.645051968567262,
+              0.03280166123583583
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "right",
+              "wall_offset_cells": 6,
+              "wall_depth_cells": 4,
+              "half_span_cells": 8,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              12.716863867782903,
+              -0.26376934518785694
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "left",
+              "wall_offset_cells": 7,
+              "wall_depth_cells": 4,
+              "half_span_cells": 5,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              22.6623766849899,
+              -0.5705628898828172
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "left",
+              "wall_offset_cells": 7,
+              "wall_depth_cells": 4,
+              "half_span_cells": 8,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              10.708304836349846,
+              -0.017571619208831213
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "none",
+              "wall_offset_cells": 5,
+              "wall_depth_cells": 3,
+              "half_span_cells": 7,
+              "straight_offset_cells": 3
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              12.07783971018349,
+              0.3547694194027712
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "left",
+              "wall_offset_cells": 9,
+              "wall_depth_cells": 4,
+              "half_span_cells": 8,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              11.21275119954716,
+              -0.30794931214166266
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "none",
+              "wall_offset_cells": 9,
+              "wall_depth_cells": 3,
+              "half_span_cells": 5,
+              "straight_offset_cells": 1
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              18.181353461510923,
+              -0.024608479412720152
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "none",
+              "wall_offset_cells": 5,
+              "wall_depth_cells": 3,
+              "half_span_cells": 5,
+              "straight_offset_cells": 1
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              20.986914225440028,
+              0.6041717225587193
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "none",
+              "wall_offset_cells": 9,
+              "wall_depth_cells": 3,
+              "half_span_cells": 6,
+              "straight_offset_cells": 1
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              12.187206227193418,
+              0.2665213449512439
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "right",
+              "wall_offset_cells": 9,
+              "wall_depth_cells": 3,
+              "half_span_cells": 8,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              19.535825523768892,
+              -0.5260428151553809
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "right",
+              "wall_offset_cells": 6,
+              "wall_depth_cells": 4,
+              "half_span_cells": 8,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              16.016368330438844,
+              0.2934625114852055
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "left",
+              "wall_offset_cells": 7,
+              "wall_depth_cells": 3,
+              "half_span_cells": 8,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              17.931686567196415,
+              0.46668018468703854
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "left",
+              "wall_offset_cells": 8,
+              "wall_depth_cells": 4,
+              "half_span_cells": 8,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              21.951788013864494,
+              -0.4283545430585537
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "right",
+              "wall_offset_cells": 9,
+              "wall_depth_cells": 3,
+              "half_span_cells": 5,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              19.675388255734077,
+              0.30171872204343975
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "right",
+              "wall_offset_cells": 7,
+              "wall_depth_cells": 3,
+              "half_span_cells": 5,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              17.596336958263358,
+              -0.49847740146287584
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "none",
+              "wall_offset_cells": 7,
+              "wall_depth_cells": 4,
+              "half_span_cells": 6,
+              "straight_offset_cells": 1
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              16.952440562437843,
+              -0.19252576422934659
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "left",
+              "wall_offset_cells": 5,
+              "wall_depth_cells": 4,
+              "half_span_cells": 6,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              14.64503454806517,
+              -0.059002646392425584
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "none",
+              "wall_offset_cells": 7,
+              "wall_depth_cells": 4,
+              "half_span_cells": 7,
+              "straight_offset_cells": 1
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              17.786080619712326,
+              0.49231663010120363
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "left",
+              "wall_offset_cells": 9,
+              "wall_depth_cells": 3,
+              "half_span_cells": 8,
+              "straight_offset_cells": 0
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              14.340410110528573,
+              0.30511438380310607
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "none",
+              "wall_offset_cells": 9,
+              "wall_depth_cells": 4,
+              "half_span_cells": 7,
+              "straight_offset_cells": 2
+            }
+          ],
+          "heading_override_radians": null
+        },
+        {
+          "category": "obstacle_approach",
+          "monster_offsets": [
+            [
+              17.69407352460006,
+              -0.6027040739030357
+            ]
+          ],
+          "wall_specs": [
+            {
+              "gap_side": "none",
+              "wall_offset_cells": 5,
+              "wall_depth_cells": 4,
+              "half_span_cells": 8,
+              "straight_offset_cells": 2
+            }
+          ],
+          "heading_override_radians": null
+        }
+      ],
+      "rejected": []
+    },
+    "long_route": {
+      "target": 20,
+      "attempts": 20,
+      "accepted": [
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              37.19771748059394,
+              -0.42494878218566434
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              32.81487704373522,
+              0.5844146272647535
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              39.893952824588055,
+              -0.2536414974501912
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              36.46156231311717,
+              0.6090930496713451
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              34.69567128787637,
+              0.1069316365029851
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              39.86897812557199,
+              0.032202361243201305
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              38.43635706095175,
+              -0.2502684504823887
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              32.810952871992924,
+              0.603067654367452
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              34.11028009322979,
+              0.5089639116497722
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              32.738458671925486,
+              -0.5689074213733383
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              34.94259504471331,
+              0.5463377358476493
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              36.43961829593775,
+              -0.3361023386938203
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              34.29970575378914,
+              0.29472167854508335
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              34.40396263180595,
+              -0.35225480850475877
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              38.02056680485866,
+              -0.5874461520072856
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              33.79961729040015,
+              0.2568665323487769
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              37.72784463465836,
+              -0.0781659080478625
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              37.12079657563107,
+              0.24662637332742354
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              34.7380822239649,
+              0.4634768108335068
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "long_route",
+          "monster_offsets": [
+            [
+              37.873001690103685,
+              -0.35019976026992233
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        }
+      ],
+      "rejected": []
+    },
+    "competing_targets": {
+      "target": 20,
+      "attempts": 20,
+      "accepted": [
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              19.723779941160952,
+              0.4230708584998786
+            ],
+            [
+              20.458829662839907,
+              1.430450478934726
+            ],
+            [
+              28.501088111788835,
+              -2.0913383767434186
+            ],
+            [
+              29.83107499784463,
+              2.857142827769162
+            ],
+            [
+              25.852881673618562,
+              -2.440308815908676
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              16.74392929247135,
+              -1.5244073819626587
+            ],
+            [
+              18.00609613891164,
+              -2.4083648806094953
+            ],
+            [
+              28.535572437529012,
+              1.2288911983642343
+            ],
+            [
+              27.95442900433777,
+              1.4730214276114504
+            ],
+            [
+              29.010427081145284,
+              0.11089785090575832
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              12.874886830044993,
+              -0.6093005696694315
+            ],
+            [
+              12.217286048149557,
+              0.523327838090952
+            ],
+            [
+              22.580340956395162,
+              1.3311915858812347
+            ],
+            [
+              27.318676217750642,
+              -2.187954908450561
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              11.404849203941467,
+              -0.11781148003390118
+            ],
+            [
+              12.127304953766807,
+              -0.9389215759824938
+            ],
+            [
+              23.063657839048048,
+              1.4980782172206677
+            ],
+            [
+              29.974651592926367,
+              2.537196584644975
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              17.363719101030746,
+              -1.4604246571695698
+            ],
+            [
+              16.178169844778648,
+              -0.24688825096475386
+            ],
+            [
+              26.58961460157325,
+              0.9395323017938946
+            ],
+            [
+              29.860828582568388,
+              -0.3808438785592734
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              19.297234786383704,
+              0.34763912819631204
+            ],
+            [
+              20.39100304771928,
+              1.3063423968264956
+            ],
+            [
+              28.160620048902345,
+              -2.5475482655586568
+            ],
+            [
+              24.407050639672384,
+              0.7651030475713472
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              13.952462058304391,
+              0.2300632611200888
+            ],
+            [
+              14.888754641929216,
+              1.068585663434257
+            ],
+            [
+              23.162002429794182,
+              -2.2101281638035566
+            ],
+            [
+              30.766834082511327,
+              1.560877049721726
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              13.895307132313018,
+              -0.43857671249975794
+            ],
+            [
+              12.46651096384062,
+              -0.9617113953046735
+            ],
+            [
+              26.90874464644043,
+              1.218813073821961
+            ],
+            [
+              30.132816623430166,
+              -2.107575642234834
+            ],
+            [
+              27.22167414548095,
+              2.15397181477905
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              14.153994687994764,
+              0.7338252592038748
+            ],
+            [
+              14.461264454682816,
+              1.5596909363229656
+            ],
+            [
+              28.33834328998409,
+              2.101239979098972
+            ],
+            [
+              27.994983351119423,
+              2.9368208368733777
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              17.743235988883526,
+              -0.324433734137634
+            ],
+            [
+              18.283214372076706,
+              -1.0291158916354548
+            ],
+            [
+              30.4696073155082,
+              -1.8027216409930191
+            ],
+            [
+              29.71563526872145,
+              2.155829120858982
+            ],
+            [
+              29.1204460655621,
+              -0.9045280135539384
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              16.89408561459137,
+              1.212876501196091
+            ],
+            [
+              15.770687363736073,
+              1.8486261507658666
+            ],
+            [
+              31.716235727261825,
+              -0.6771673260517095
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              12.41553007543656,
+              -1.4730800313389207
+            ],
+            [
+              11.638498526438388,
+              -0.7946034411541577
+            ],
+            [
+              22.746742482960208,
+              -2.51160254393233
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              10.690023627288637,
+              0.31888477794361014
+            ],
+            [
+              11.839454923514221,
+              -0.6914451422263461
+            ],
+            [
+              29.853481988361217,
+              -2.5442603656320335
+            ],
+            [
+              30.313282312684866,
+              1.197412158762937
+            ],
+            [
+              27.03816252187022,
+              -3.001480610085814
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              14.301089642925211,
+              -0.04756194514763212
+            ],
+            [
+              14.6316023630337,
+              -0.8523391869227432
+            ],
+            [
+              25.765639957526,
+              1.2765196664970482
+            ],
+            [
+              29.977596737614903,
+              -0.6463218713869656
+            ],
+            [
+              23.744278797187317,
+              -1.1753884643695272
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              17.062642743388032,
+              -0.23800747739716166
+            ],
+            [
+              17.770107708925835,
+              -1.2409717825128352
+            ],
+            [
+              23.177909791569263,
+              2.199686607618249
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              11.0786788873833,
+              0.751274767906239
+            ],
+            [
+              9.954331448406718,
+              1.5812003016211897
+            ],
+            [
+              24.514980441735066,
+              2.797950270349559
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              19.596289088021273,
+              1.2424549260279032
+            ],
+            [
+              18.599795688902727,
+              0.03383540811806407
+            ],
+            [
+              26.13678799091129,
+              -0.6761068693385828
+            ],
+            [
+              28.328989299091084,
+              -2.6210720389943725
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              12.309382219807974,
+              1.112646681567981
+            ],
+            [
+              13.31898373516629,
+              1.8944702729013763
+            ],
+            [
+              25.772527094629385,
+              -2.111778279092026
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              12.65710313919174,
+              -0.6788939968005214
+            ],
+            [
+              11.814929656267504,
+              0.13732155824922754
+            ],
+            [
+              28.380659408174033,
+              2.5270966624111084
+            ],
+            [
+              25.24072949078779,
+              2.9891576875321
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "competing_targets",
+          "monster_offsets": [
+            [
+              11.69260686680871,
+              0.9174511347218477
+            ],
+            [
+              13.125994728067667,
+              0.3898298242814615
+            ],
+            [
+              29.7407036796318,
+              -2.040274194042365
+            ],
+            [
+              22.859257131320717,
+              -2.831840982536736
+            ],
+            [
+              26.80557149781416,
+              -1.3709653077257224
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        }
+      ],
+      "rejected": []
+    },
+    "multi_kill_farming": {
+      "target": 20,
+      "attempts": 20,
+      "accepted": [
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              28.371706421333393,
+              -2.5410279604548207
+            ],
+            [
+              13.066834383783526,
+              -0.8474549846541275
+            ],
+            [
+              14.495131423349614,
+              -0.20787704229624815
+            ],
+            [
+              27.41371788395813,
+              -1.8462839013211358
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              28.323816924970124,
+              2.5558027683149005
+            ],
+            [
+              23.214547808680678,
+              -0.7001207266005052
+            ],
+            [
+              19.015792357812128,
+              -1.802684421101149
+            ],
+            [
+              17.199557751271882,
+              2.3366390188418675
+            ],
+            [
+              25.593850959648037,
+              -1.7563446172374002
+            ],
+            [
+              28.160954712597533,
+              2.1969712153737673
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              12.48809940101222,
+              0.12887757708714576
+            ],
+            [
+              14.409261455732612,
+              -1.7739232280986716
+            ],
+            [
+              26.301085186838854,
+              0.8408414490051022
+            ],
+            [
+              10.36661234949117,
+              -1.9846033266567025
+            ],
+            [
+              28.876529236748045,
+              2.939786239216744
+            ],
+            [
+              14.317116618874998,
+              -1.050038661267413
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              13.215345774416175,
+              0.9047501633300019
+            ],
+            [
+              21.908388047620235,
+              -2.519851029493336
+            ],
+            [
+              23.072216049007004,
+              0.7605529057572205
+            ],
+            [
+              21.914228655492394,
+              2.555556837710796
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              18.16082338980711,
+              -0.4189904796092936
+            ],
+            [
+              22.149191580117957,
+              1.006756736059577
+            ],
+            [
+              20.23776291001571,
+              2.6762776442031155
+            ],
+            [
+              23.278769909197074,
+              1.0728159341680596
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              23.179130869998374,
+              1.2666140680497193
+            ],
+            [
+              18.78949556169966,
+              1.2340435018242744
+            ],
+            [
+              8.221091984020442,
+              2.804316607453239
+            ],
+            [
+              23.27917968502912,
+              -2.829090256357688
+            ],
+            [
+              15.767122590441753,
+              0.986258084090216
+            ],
+            [
+              21.46827527742972,
+              2.6717624756853224
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              26.703888673236353,
+              -2.0201656922751776
+            ],
+            [
+              18.12888230048023,
+              -0.8641695019687079
+            ],
+            [
+              22.4274987754584,
+              0.477739246037741
+            ],
+            [
+              18.987260130652142,
+              2.8634298461658556
+            ],
+            [
+              9.190473160221721,
+              1.9520167625416152
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              16.436246213155385,
+              0.28737093054362006
+            ],
+            [
+              25.856976114507326,
+              -0.1343828290757907
+            ],
+            [
+              18.20994681241779,
+              0.6486648277578309
+            ],
+            [
+              26.730262252226495,
+              -1.2616656304034988
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              20.73771900630419,
+              -2.3120657222504746
+            ],
+            [
+              12.206382586544578,
+              1.1522258945831085
+            ],
+            [
+              15.583623759833843,
+              1.6956019288394053
+            ],
+            [
+              28.044372636353735,
+              -0.6114313384054699
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              13.146045864960195,
+              1.4450046391177231
+            ],
+            [
+              10.011961780264938,
+              2.753773910255802
+            ],
+            [
+              19.74855030712078,
+              -1.2155145781311687
+            ],
+            [
+              21.55179830479849,
+              1.7309165961008892
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              9.703610247974241,
+              -0.5721154832016659
+            ],
+            [
+              14.740207211685478,
+              -2.0254147324453182
+            ],
+            [
+              20.498668463317816,
+              0.4977303916553879
+            ],
+            [
+              18.156073601286096,
+              1.4566592139231496
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              14.931760148777286,
+              2.85300553938416
+            ],
+            [
+              13.614387516499614,
+              2.91859349872806
+            ],
+            [
+              18.169579271098648,
+              0.6021317719941579
+            ],
+            [
+              28.077801724970943,
+              -2.0968992396723385
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              16.122924274127463,
+              3.100293572798808
+            ],
+            [
+              19.4306497109679,
+              1.0710044364714548
+            ],
+            [
+              16.956976161716774,
+              -2.904672294453159
+            ],
+            [
+              25.425303960219175,
+              -1.5041964242396575
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              23.595214861961868,
+              2.3207445670665114
+            ],
+            [
+              19.82284653987358,
+              -0.22336546531703005
+            ],
+            [
+              15.333802856628168,
+              2.7079033163410333
+            ],
+            [
+              14.290541627699515,
+              1.5890289709445593
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              9.827627959404273,
+              -0.22772335147623313
+            ],
+            [
+              16.947233224022465,
+              0.21049942361662666
+            ],
+            [
+              16.80115715191188,
+              -2.43137104943736
+            ],
+            [
+              21.346613090518286,
+              1.317893396374532
+            ],
+            [
+              14.686047650326545,
+              -0.06365532653961425
+            ],
+            [
+              27.75084230611608,
+              0.48364854761026255
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              21.070647170881205,
+              1.576701730451398
+            ],
+            [
+              16.032953167331886,
+              2.993663126307877
+            ],
+            [
+              10.490543243784826,
+              -0.405694755817116
+            ],
+            [
+              14.719798583172597,
+              -1.1332413154853849
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              21.744300572182105,
+              -1.887452706743987
+            ],
+            [
+              26.721851369298534,
+              -2.7410746437549403
+            ],
+            [
+              10.08253847988166,
+              3.0977794707521458
+            ],
+            [
+              26.99038896827812,
+              -2.0143747365598212
+            ],
+            [
+              9.418059996285505,
+              0.5619109414496641
+            ],
+            [
+              9.474547187513418,
+              -0.20905167933912105
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              28.335260383575744,
+              -2.554747326500296
+            ],
+            [
+              28.873941707779988,
+              1.113375090819054
+            ],
+            [
+              29.572930338290572,
+              0.6483824700928329
+            ],
+            [
+              25.925181158316786,
+              1.581564997087968
+            ],
+            [
+              13.355320703363606,
+              -0.6805391803041445
+            ],
+            [
+              8.297634597498735,
+              1.8597850820235529
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              26.528862659438722,
+              1.7297465757789077
+            ],
+            [
+              25.37946745423311,
+              -0.5305811020649367
+            ],
+            [
+              16.96945882139239,
+              -2.4725876322065816
+            ],
+            [
+              15.19400027057391,
+              0.7913468489978372
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        },
+        {
+          "category": "multi_kill_farming",
+          "monster_offsets": [
+            [
+              25.56570412203373,
+              -2.4262471109643546
+            ],
+            [
+              29.09337731391417,
+              0.01805699419082174
+            ],
+            [
+              27.350982009866534,
+              -0.21890867451610596
+            ],
+            [
+              14.947610350581606,
+              -2.088955237338297
+            ],
+            [
+              16.989571079910064,
+              1.5985044211580348
+            ]
+          ],
+          "wall_specs": [],
+          "heading_override_radians": null
+        }
+      ],
+      "rejected": []
+    }
+  }
+}

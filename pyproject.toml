@@ -1,2 +1,10 @@
 [tool.ruff.lint.per-file-ignores]
-"foreground_vision_bot/mapper/[A-Z]*.py" = ["N999"]
+# Corrected in Phase 13: the old path never matches anything (
+# foreground_vision_bot/mapper/ is untracked -- confirmed via
+# `git ls-files foreground_vision_bot/mapper/` returning zero files),
+# so this rule was silently inert. The canonical mapper/ package (root
+# level, post-Phase-7 collapse) uses the same deliberate PascalCase
+# module-naming convention this ignore exists to suppress -- confirmed
+# via `ruff check mapper/ --select N999`, which currently reports one
+# finding per PascalCase-named file there.
+"mapper/[A-Z]*.py" = ["N999"]
