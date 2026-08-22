@@ -284,3 +284,62 @@ def test_farming_policy_wrapper_keep_action_holds_heading_with_no_target(frozen_
     assert info["invalid_target_selection"] is False
     assert obs.shape[0] == RAW_OBSERVATION_SIZE
     wrapped.close()
+
+
+def test_farming_policy_wrapper_full_episode_persistence_switch_and_death_sequence(frozen_steering_model):
+    """Rollout-level (not unit-level) proof that persistence, an
+    intentional mid-episode switch, and death-triggers-a-new-decision all
+    behave correctly across a SINGLE continuous episode driven only through
+    `FarmingPolicyWrapper.step()` -- the unit tests above exercise
+    `PersistentFarmingTarget` and single ticks in isolation; this proves the
+    same properties survive real consecutive ticks of the actual composed
+    env (physics advancing, observations changing, slot order reshuffling
+    between ticks)."""
+    env = _make_env(episode_steps=200, population=8)
+    steering = copy.copy(frozen_steering_model)
+    wrapped = FarmingPolicyWrapper(env, steering)
+    wrapped.reset(seed=17)
+
+    a_pos = env.unwrapped.map.layout_to_native(46, 20)
+    b_pos = env.unwrapped.map.layout_to_native(20, 45)
+    a_id, b_id = _place_actors(env, [a_pos, b_pos])
+    base_env = env.unwrapped
+
+    def _slot_action_for(actor_id: int) -> int:
+        base_env._observation()
+        return base_env._direct_actor_slot_ids.index(actor_id) + 1
+
+    # Tick 1: explicitly select A.
+    _, _, _, _, info = wrapped.step(np.asarray([_slot_action_for(a_id), int(FarmingEvent.NONE)]))
+    assert info["resolved_target_id"] == a_id, "tick 1: explicit selection of A did not resolve to A"
+
+    # Tick 2: KEEP -- must persist on A even though the slot layout may have
+    # reshuffled after tick 1's physics step (persistence is by actor id,
+    # never by re-deriving "whoever is in slot N now").
+    _, _, _, _, info = wrapped.step(np.asarray([KEEP_CURRENT_TARGET_ACTION, int(FarmingEvent.NONE)]))
+    assert info["resolved_target_id"] == a_id, "tick 2: KEEP did not persist the previously-chosen target A"
+
+    # Tick 3: intentional switch to B -- must actually move away from A, not
+    # silently keep A because A is still alive and reachable.
+    _, _, _, _, info = wrapped.step(np.asarray([_slot_action_for(b_id), int(FarmingEvent.NONE)]))
+    assert info["resolved_target_id"] == b_id, "tick 3: explicit switch to B did not resolve to B"
+
+    # Kill B outside the wrapper (simulating a kill/despawn between ticks).
+    for actor in base_env.actors:
+        if actor.actor_id == b_id:
+            actor.alive = False
+
+    # Tick 4: KEEP on a now-dead target must degrade to no-target, not
+    # silently substitute some other live actor via the deterministic
+    # heuristic.
+    _, _, _, _, info = wrapped.step(np.asarray([KEEP_CURRENT_TARGET_ACTION, int(FarmingEvent.NONE)]))
+    assert info["resolved_target_id"] is None, "tick 4: death of the current target must degrade to no-target, not a substitute"
+
+    # Tick 5: the policy's OWN next decision (re-selecting A, still alive)
+    # is what resolves the new target -- proving the death was a genuine
+    # new decision point handed back to the policy, not something already
+    # silently resolved for it.
+    _, _, _, _, info = wrapped.step(np.asarray([_slot_action_for(a_id), int(FarmingEvent.NONE)]))
+    assert info["resolved_target_id"] == a_id, "tick 5: the policy's own re-selection of A did not resolve to A"
+
+    wrapped.close()
