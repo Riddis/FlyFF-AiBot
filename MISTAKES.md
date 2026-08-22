@@ -268,6 +268,37 @@ Entry template:
   obvious from the API surface, even when (especially when) it's already
   documented elsewhere in the same file.
 
+### [2026-08-22] confounded variable in a "steering source" isolation test during the frozen-navigation-sub-policy integration
+- What happened: while proving `simulator/basic_environment.py::_roll_
+  basic_episode` sources steering from `FrozenNavigationSteering` rather
+  than the trainable net's own (deliberately untrained) steering head,
+  wrote a test that rolled the SAME episode twice with two DIFFERENT full
+  PPO models (different seeds) and asserted the executed steering sequence
+  must be identical. It failed -- the sequences diverged partway through.
+- Root cause: the two models differed in BOTH their (irrelevant, unused)
+  steering head AND their (relevant, actually-used) event head. Different
+  event choices legitimately changed the trajectory (e.g. different EVA
+  timing), which legitimately changed what the deterministic frozen
+  navigation stack computed on LATER ticks -- a real, correct divergence,
+  not evidence of a steering-source leak. The test varied two things at
+  once while claiming to isolate one.
+- How caught: ran the test immediately; the failure diff showed divergence
+  starting at a specific tick rather than immediate/total mismatch, which
+  didn't match what a genuine "wrong head is driving steering" bug would
+  produce (that would show up in constant disagreement, not a clean
+  tick-N-onward split).
+- Fix: replaced the test with a direct sentinel-injection proof instead
+  (monkeypatch `_policy_forward` to return an impossible steering value
+  every tick, keeping its real event output; assert the sentinel never
+  reaches `record.policy_steering`) -- this isolates the ONE claim being
+  tested without touching anything else about the model.
+- Lesson: when a test claims to isolate "does X source the value" by
+  swapping out a whole object that has multiple independent outputs (a
+  policy with several heads, a config with several fields), swapping the
+  WHOLE object varies every output at once, not just the one under test --
+  prefer directly rigging/monkeypatching only the single input/output
+  actually being checked, or swap only that one component in isolation.
+
 ## Category: verification that doesn't verify
 
 ### [2026-08-14] "sampler code unchanged" claim based on an invalid git check
