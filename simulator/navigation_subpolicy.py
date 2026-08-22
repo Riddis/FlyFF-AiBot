@@ -66,6 +66,33 @@ FROZEN_NAVIGATION_CHECKPOINT_PATH = ROOT / "models" / "generalized_waypoint_both
 FROZEN_NAVIGATION_CHECKPOINT_SHA256 = "87bd8d3e0be88b7f243ad6c9b35ff6d3f8bde1f37b35334febf936ec115cda50"
 
 
+def event_only_architecture_contract() -> dict[str, Any]:
+    """Provenance fragment for every event-only curriculum checkpoint
+    (Beginner onward) -- docs/architecture/CURRICULUM_TRAINING_PIPELINE.md
+    section 19: an event-only farming checkpoint is not reproducible or
+    even executable by itself without knowing WHICH frozen navigation
+    checkpoint it was paired with (steering ownership, per section 4, lives
+    entirely outside this checkpoint). Callers pass this as `simulator.
+    run_provenance.build_run_manifest`'s `architecture_contract=` so it
+    overrides that function's own `SplitSteeringNavigationPolicy`-shaped
+    default. The navigation checkpoint's own implementation version is
+    already covered by the manifest's top-level `git.commit` field (router/
+    frozen-navigation code and this checkpoint's own training code are
+    versioned together in the same repository state), so it is not
+    duplicated here."""
+    from farming.actions import FarmingEvent
+
+    return {
+        "policy_class": "ActorCriticPolicy (event-only, plain MlpPolicy)",
+        "action_contract": f"Discrete({len(FarmingEvent)}) event-only -- FarmingEvent, no steering action",
+        "raw_observation_size": RAW_OBSERVATION_SIZE,
+        "policy_input_schema_id": "923-value raw production observation contract (no navigation sidecar)",
+        "navigation_checkpoint_path": str(FROZEN_NAVIGATION_CHECKPOINT_PATH),
+        "navigation_checkpoint_sha256": FROZEN_NAVIGATION_CHECKPOINT_SHA256,
+        "navigation_ownership": "steering is FrozenNavigationSteering's output; this checkpoint never samples/logs it",
+    }
+
+
 def verify_frozen_navigation_checkpoint(path: Path = FROZEN_NAVIGATION_CHECKPOINT_PATH) -> str:
     """Refuses to proceed if the frozen checkpoint's bytes have changed --
     docs/agent/PROJECT_RULES.md section 6 (immutable artifacts). Returns the

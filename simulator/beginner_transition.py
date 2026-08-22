@@ -112,6 +112,39 @@ def build_event_only_ppo_from_basic_checkpoint(
     return model
 
 
+def save_event_only_checkpoint_with_provenance(
+    model: Any,
+    checkpoint_path: str | Path,
+    *,
+    basic_checkpoint: str | Path,
+    seed: int,
+    canonical_stage: str = "beginner",
+) -> Path:
+    """Saves the Basic -> Beginner event-only bridge checkpoint
+    (`build_event_only_ppo_from_basic_checkpoint`'s output) together with
+    its provenance manifest -- the one artifact in the event-only lineage
+    that has no natural PPO-chunk/rehearsal call site of its own to write
+    one (`continue_event_only_ppo_chunk`/`rehearse_event_only_on_basic_data`
+    both write their own). Without this, the very first event-only
+    checkpoint would be the one link in the chain untraceable back to which
+    Basic checkpoint's event weights it carries."""
+
+    from .navigation_subpolicy import event_only_architecture_contract
+    from .run_provenance import build_run_manifest, write_run_manifest
+
+    checkpoint = Path(checkpoint_path)
+    checkpoint.parent.mkdir(parents=True, exist_ok=True)
+    model.save(str(checkpoint))
+    manifest = build_run_manifest(
+        stage=canonical_stage, milestone="event_only_bridge", seeds=seed,
+        config={"action_contract": "event_only", "source": "transfer_event_head_to_event_only_policy"},
+        architecture_contract=event_only_architecture_contract(),
+        starting_checkpoint=str(Path(basic_checkpoint).resolve()), output_checkpoint=str(checkpoint.resolve()),
+    )
+    write_run_manifest(checkpoint, manifest)
+    return checkpoint
+
+
 def continue_event_only_ppo_chunk(
     checkpoint: str | Path,
     output: str | Path,
@@ -150,11 +183,14 @@ def continue_event_only_ppo_chunk(
         stage=stage, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, device=device,
         callback=SB3ProgressCallback(int(timesteps), label=f"{canonical_stage}_ppo_event_only", min_interval_seconds=progress_every_seconds),
     )
+    from .navigation_subpolicy import event_only_architecture_contract
+
     manifest = build_run_manifest(
         stage=canonical_stage, milestone="ppo_chunk", seeds=seed,
         config={"timesteps": timesteps, "stage": stage, "episode_seconds": episode_seconds,
                 "max_actions": max_actions, "action_contract": "event_only", **conservative_ppo_hparams},
         curriculum_path=str(curriculum), recovery_config={"enabled": False, "reason": "structural -- see module docstring"},
+        architecture_contract=event_only_architecture_contract(),
         starting_checkpoint=str(Path(checkpoint).resolve()), output_checkpoint=result["checkpoint_out"],
     )
     write_run_manifest(result["checkpoint_out"], manifest)
@@ -880,10 +916,13 @@ def rehearse_event_only_on_basic_data(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     model.save(str(output_path))
 
+    from .navigation_subpolicy import event_only_architecture_contract
+
     manifest = build_run_manifest(
         stage=canonical_stage, milestone="rehearsal", seeds=seed,
         config={"epochs": epochs, "learning_rate": learning_rate, "batch_size": batch_size,
                 "basic_dataset_paths": [str(p) for p in basic_dataset_paths], "action_contract": "event_only"},
+        architecture_contract=event_only_architecture_contract(),
         starting_checkpoint=str(Path(checkpoint).resolve()), output_checkpoint=str(output_path.resolve()),
     )
     write_run_manifest(output_path, manifest)

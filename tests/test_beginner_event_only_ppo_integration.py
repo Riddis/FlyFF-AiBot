@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
 from gymnasium import spaces
 from stable_baselines3 import PPO
@@ -131,6 +132,61 @@ def test_continue_event_only_ppo_chunk_trains_only_event_and_never_touches_00512
     assert after.action_space.n == len(FarmingEvent)
     for name, param in after.policy.named_parameters():
         assert not torch.isnan(param).any(), f"NaN in {name} after Beginner event-only PPO chunk"
+
+
+def test_event_only_checkpoints_record_navigation_checkpoint_provenance(tmp_path: Path) -> None:
+    """Section 19's provenance requirement: an event-only checkpoint is not
+    reproducible/executable by itself without knowing which frozen
+    navigator it composes with -- every provenance manifest in this lineage
+    must record its path and SHA-256."""
+    import json
+
+    from simulator.beginner_transition import save_event_only_checkpoint_with_provenance
+    from simulator.navigation_subpolicy import FROZEN_NAVIGATION_CHECKPOINT_SHA256
+
+    curriculum_path = _tiny_curriculum(tmp_path)
+    basic_checkpoint = _basic_checkpoint(tmp_path, curriculum_path)
+    event_only = build_event_only_ppo_from_basic_checkpoint(basic_checkpoint, seed=0, device="cpu")
+    start_checkpoint = tmp_path / "event_only_start.zip"
+    save_event_only_checkpoint_with_provenance(
+        event_only, start_checkpoint, basic_checkpoint=basic_checkpoint, seed=0,
+    )
+    start_manifest = json.loads(start_checkpoint.with_suffix("").with_suffix(".provenance.json").read_text(encoding="utf-8"))
+    assert start_manifest["architecture_contract"]["navigation_checkpoint_sha256"] == FROZEN_NAVIGATION_CHECKPOINT_SHA256
+
+    ppo_output = tmp_path / "event_only_round1.zip"
+    continue_event_only_ppo_chunk(
+        start_checkpoint, ppo_output, curriculum=str(curriculum_path), timesteps=32,
+        stage="early", seed=0, episode_seconds=3.0, max_actions=20,
+    )
+    ppo_manifest = json.loads(ppo_output.with_suffix("").with_suffix(".provenance.json").read_text(encoding="utf-8"))
+    assert ppo_manifest["architecture_contract"]["navigation_checkpoint_sha256"] == FROZEN_NAVIGATION_CHECKPOINT_SHA256
+    assert ppo_manifest["starting_checkpoint"] == str(start_checkpoint.resolve())
+
+
+def test_resume_ppo_chunk_event_only_rejects_a_dual_head_checkpoint(tmp_path: Path) -> None:
+    """Model-contract negative check for the event-only curriculum stages
+    (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md section 18): a
+    pre-recovery MultiDiscrete([3,3]) SplitSteeringNavigationPolicy
+    checkpoint (Basic's own shape, or any stale checkpoint that never went
+    through build_event_only_ppo_from_basic_checkpoint) must be refused,
+    not silently accepted with a steering action that would then never
+    execute."""
+    from simulator.navigation_ppo import resume_ppo_chunk_event_only
+
+    curriculum_path = _tiny_curriculum(tmp_path)
+    dual_head_checkpoint = _basic_checkpoint(tmp_path, curriculum_path)
+
+    # SB3's own PPO.load(env=...) space check catches this first (dual-head's
+    # 928-value observation vs. event-only's 923-value one) -- an even
+    # stronger guarantee than a bespoke action-space check alone, since it
+    # refuses the mismatch before any policy_kwargs/action-space comparison
+    # is even reached.
+    with pytest.raises(ValueError, match="spaces do not match"):
+        resume_ppo_chunk_event_only(
+            checkpoint=dual_head_checkpoint, curriculum=str(curriculum_path), output=tmp_path / "should_not_exist.zip",
+            timesteps=32, stage="early", seed=0, episode_seconds=3.0, max_actions=20,
+        )
 
 
 def test_frozen_navigation_wrapper_step_executes_sampled_event_and_frozen_steering(tmp_path: Path) -> None:

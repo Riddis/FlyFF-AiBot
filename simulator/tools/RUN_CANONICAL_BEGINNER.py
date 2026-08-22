@@ -253,6 +253,7 @@ def main() -> None:
         build_event_only_ppo_from_basic_checkpoint,
         continue_event_only_ppo_chunk,
         rehearse_event_only_on_basic_data,
+        save_event_only_checkpoint_with_provenance,
         zero_shot_raw_diagnostic_parallel,
     )
     from simulator.curriculum_manifests import load_challenge_manifest, load_heldout_manifest
@@ -276,8 +277,10 @@ def main() -> None:
         log(f"Reusing existing event-only starting checkpoint: {event_only_start_checkpoint}")
     else:
         event_only_model = build_event_only_ppo_from_basic_checkpoint(GRADUATED_BASIC_CHECKPOINT, seed=SEED, device="cpu")
-        event_only_model.save(str(event_only_start_checkpoint))
-        log(f"Saved event-only starting checkpoint: {event_only_start_checkpoint} "
+        save_event_only_checkpoint_with_provenance(
+            event_only_model, event_only_start_checkpoint, basic_checkpoint=GRADUATED_BASIC_CHECKPOINT, seed=SEED,
+        )
+        log(f"Saved event-only starting checkpoint: {event_only_start_checkpoint} (+ provenance) "
             f"action_space={event_only_model.action_space} observation_space={event_only_model.observation_space}")
     loaded_start = PPO.load(str(event_only_start_checkpoint), device="cpu")
     if not isinstance(loaded_start.action_space, spaces.Discrete) or loaded_start.action_space.n != len(FarmingEvent):
