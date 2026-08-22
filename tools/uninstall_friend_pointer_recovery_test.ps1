@@ -1,12 +1,12 @@
 param(
-    [string]$RepoRoot = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)),
+    [string]$RepoRoot = (Split-Path -Parent $PSScriptRoot),
     [switch]$KeepBuildArtifacts,
     [switch]$KeepBackups
 )
 
 $ErrorActionPreference = "Stop"
-$AppRoot = Join-Path $RepoRoot "foreground_vision_bot"
-$RequiredReader = Join-Path $AppRoot "tools\test_native_independent_reader.py"
+$AppRoot = $RepoRoot
+$RequiredReader = Join-Path $RepoRoot "devtools\native\test_native_independent_reader.py"
 
 if (-not (Test-Path $RequiredReader)) {
     throw "This does not look like the Flyff RL repository root. Missing: $RequiredReader"
@@ -27,7 +27,7 @@ foreach ($RelativePath in $RelativeFiles) {
     $Target = Join-Path $AppRoot $RelativePath
     if (Test-Path $Target) {
         Remove-Item $Target -Force
-        Write-Host "Removed: foreground_vision_bot\$RelativePath"
+        Write-Host "Removed: $RelativePath"
     }
 }
 

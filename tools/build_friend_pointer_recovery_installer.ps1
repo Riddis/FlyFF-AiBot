@@ -176,7 +176,7 @@ if (-not $Iscc) {
 Inno Setup appears to be installed, but ISCC.exe could not be located automatically.
 Run this command after replacing the path with the actual ISCC.exe location:
 
-powershell -ExecutionPolicy Bypass -File .\foreground_vision_bot\tools\build_friend_pointer_recovery_installer.ps1 -SkipExeBuild -IsccPath "C:\Path\To\Inno Setup 7\ISCC.exe"
+powershell -ExecutionPolicy Bypass -File .\tools\build_friend_pointer_recovery_installer.ps1 -SkipExeBuild -IsccPath "C:\Path\To\Inno Setup 7\ISCC.exe"
 "@
 }
 
