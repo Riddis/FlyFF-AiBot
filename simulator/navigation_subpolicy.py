@@ -261,3 +261,160 @@ class FrozenNavigationWrapper(gym.Wrapper):
         info["steering_planner_failure"] = tick_result.planner_failure if tick_result else False
         info["steering_waypoint"] = tick_result.waypoint if tick_result else None
         return np.asarray(obs, dtype=np.float32)[:RAW_OBSERVATION_SIZE], reward, terminated, truncated, info
+
+
+def _event_only_policy_forward(net: Any, observation_raw: np.ndarray) -> int:
+    """Forward pass for a plain (non-split) ActorCriticPolicy with a
+    Discrete(len(FarmingEvent)) action space -- `net.get_distribution`
+    returns ONE Categorical distribution here, unlike SplitSteeringNavigation
+    Policy's two-head list (`simulator.milestone_evaluator._policy_forward`),
+    so this cannot reuse that helper directly."""
+    import torch
+
+    with torch.no_grad():
+        obs_t = torch.as_tensor(
+            np.asarray(observation_raw, dtype=np.float32)[None, :RAW_OBSERVATION_SIZE],
+            dtype=torch.float32, device=net.device,
+        )
+        probs = net.get_distribution(obs_t).distribution.probs[0].cpu().numpy()
+    return int(probs.argmax())
+
+
+def run_composed_episode(
+    curriculum_path: str, layout_name: str, *, event_policy: Any, navigation_steering: FrozenNavigationSteering,
+    seed: int, episode_seconds: float, max_actions: int, stage: str = "early",
+    event_forward: Any = None,
+) -> dict[str, Any]:
+    """THE canonical composed-episode rollout for the event-only curriculum
+    stages (Beginner/Intermediate/Advanced) and every evaluator that grades
+    them (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md section 4/12):
+    steering every tick comes from `navigation_steering` (production router +
+    frozen 0051200, driven by the environment's own native target hysteresis
+    -- see FrozenNavigationSteering's docstring), event comes from
+    `event_policy`'s own forward pass. Composed exactly like
+    FrozenNavigationWrapper.step, but as a plain function returning the same
+    rich per-episode result dict `milestone_evaluator.run_episode`/
+    `beginner_transition.run_episode_925` do (so `milestone_evaluator.
+    _summarize_episodes` and the density-binned EVA report work completely
+    unchanged) -- this is what lets `milestone_evaluator.py`, `basic_
+    milestone_evaluator.py` (already frozen-nav via `_roll_basic_episode`),
+    and `beginner_transition.py` share ONE composition implementation
+    instead of four.
+
+    `event_forward`, if given, is `(event_policy, full_observation) -> int`
+    and overrides the default event-only forward pass (`_event_only_policy_
+    forward`, which slices the observation to the raw 923 values a plain
+    ActorCriticPolicy expects). Pass this to reuse this same composition for
+    a DIFFERENT policy shape that also needs frozen-navigation steering --
+    e.g. Basic's own dual-head `SplitSteeringNavigationPolicy` evaluated
+    zero-shot/raw (its event branch reads the full observation, its
+    steering branch is ignored entirely, matching section 4's ownership
+    split) -- without a second composition implementation.
+
+    No recovery -- matches training exactly: Beginner/Intermediate/Advanced
+    PPO training has no recovery in its loop by construction (see
+    `simulator/basic_environment.py`'s module docstring), so evaluation
+    exercising recovery here would grade a different architecture than the
+    one actually trained.
+
+    Steering-probability diagnostics (`corr_angle_p_left`/`corr_angle_p_right`)
+    are always None here: steering is FrozenNavigationSteering's deterministic
+    output, not a learned probability distribution to correlate against
+    target angle -- that diagnostic is meaningful only for a policy that
+    still owns steering (Basic's dual-head net, still checked by `basic_
+    milestone_evaluator.py`'s own reporting)."""
+    event_forward = event_forward or _event_only_policy_forward
+
+    from .milestone_evaluator import _contact_event_stats
+    from .movement_classification import classify_episode_movement
+    from .navigation_history import NavigationHistoryWrapper
+    from .scripted_policies import scripted_command
+    from .synthetic import iter_variant_environments
+
+    entry, base_env = next(iter(iter_variant_environments(
+        curriculum_path, stage=stage, seed=seed, episode_steps=max_actions,
+        episode_seconds=episode_seconds, variant_name=layout_name,
+    )))
+    env = NavigationHistoryWrapper(base_env)
+    observation, _info = env.reset(seed=seed)
+    navigation_steering.reset()
+
+    steering_choices: list[int] = []
+    unique_cells_trace: list[int] = []
+    total_distance_trace: list[float] = []
+    contacts_trace: list[int] = []
+    steering_matches: list[bool] = []
+    event_matches: list[bool] = []
+    eva_target_counts: list[int] = []
+    teacher_events: list[int] = []
+    policy_events: list[int] = []
+    geodesic_euclidean_disagreements = 0
+    geodesic_euclidean_total = 0
+    info: dict[str, Any] = {}
+
+    for _ in range(int(max_actions)):
+        teacher_command = scripted_command("obstacle_aware", base_env)
+        candidates = base_env._visible_candidates()
+        if candidates:
+            player_cell = base_env.map.native_to_layout_cell(base_env.player_x, base_env.player_z)
+            geodesic_field = base_env._geodesic_field(player_cell)
+            _potential, best_actor_id = base_env._group_approach_potential(candidates, geodesic_field)
+            if best_actor_id is not None:
+                geodesic_euclidean_total += 1
+                if candidates[0][1].actor_id != best_actor_id:
+                    geodesic_euclidean_disagreements += 1
+
+        target_id = base_env._nearest_reachable_actor_id
+        if target_id is None:
+            steering = int(SteeringDirection.NONE)
+        else:
+            steering = navigation_steering.steering_action(env, target_actor_id=target_id).steering
+        event = event_forward(event_policy, np.asarray(observation, dtype=np.float32))
+
+        steering_choices.append(steering)
+        steering_matches.append(steering == int(teacher_command.steering))
+        event_matches.append(event == int(teacher_command.event))
+        eva_target_counts.append(int(base_env.eva_target_count()))
+        teacher_events.append(int(teacher_command.event))
+        policy_events.append(event)
+
+        observation, _reward, terminated, truncated, info = env.step(np.asarray([steering, event], dtype=np.int64))
+        unique_cells_trace.append(int(info["unique_cells"]))
+        total_distance_trace.append(float(info["total_distance_cells"]))
+        contacts_trace.append(int(info["contacts"]))
+        if terminated or truncated:
+            break
+
+    env.close()
+
+    movement = classify_episode_movement(
+        steering_choices=steering_choices, unique_cells_trace=unique_cells_trace, total_distance_trace=total_distance_trace,
+    )
+
+    return {
+        "layout": layout_name, "seed": int(seed), "steps": len(steering_choices),
+        "kills_per_simulated_hour": float(info.get("total_kills", 0)) * 3600.0 / max(1e-9, float(info.get("elapsed_seconds", 0.0))),
+        "total_kills": int(info.get("total_kills", 0)),
+        "valid_eva_casts": int(info.get("valid_eva_casts", 0)),
+        "invalid_eva_attempts": int(info.get("invalid_eva_attempts", 0)),
+        "missed_eva_opportunities": int(info.get("missed_eva_opportunities", 0)),
+        "contacts": int(info.get("contacts", 0)),
+        "contacts_per_100_distance": float(info.get("contacts", 0)) * 100.0 / max(1e-9, float(info.get("total_distance_cells", 0.0))),
+        "total_distance_cells": float(info.get("total_distance_cells", 0.0)),
+        "unique_cells": int(info.get("unique_cells", 0)),
+        "path_efficiency": float(info.get("path_efficiency", 0.0)),
+        "steering_agreement": float(np.mean(steering_matches)) if steering_matches else None,
+        "event_agreement": float(np.mean(event_matches)) if event_matches else None,
+        "corr_angle_p_left": None,
+        "corr_angle_p_right": None,
+        "geodesic_euclidean_disagreement_rate": (
+            geodesic_euclidean_disagreements / geodesic_euclidean_total if geodesic_euclidean_total else None
+        ),
+        "zero_kill": bool(info.get("total_kills", 0) == 0),
+        "recovery": None,
+        **movement,
+        **_contact_event_stats(contacts_trace),
+        "_eva_target_counts": eva_target_counts,
+        "_teacher_events": teacher_events,
+        "_policy_events": policy_events,
+    }

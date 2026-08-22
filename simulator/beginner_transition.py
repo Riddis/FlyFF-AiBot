@@ -17,65 +17,167 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import gymnasium as gym
+import numpy as np
 
-def _raw_policy_forward(net: Any, observation_925: Any) -> tuple[int, int, Any]:
+
+class _EventOnlySpaceProbe(gym.Env):
+    """Minimal probe env exposing only the event-only training contract's
+    spaces (`Discrete(len(FarmingEvent))` over `Box(RAW_OBSERVATION_SIZE,)`)
+    -- used solely to construct a fresh `ActorCriticPolicy` with the right
+    shapes before `transfer_event_head_to_event_only_policy` overwrites its
+    weights in place (`build_event_only_ppo_from_basic_checkpoint`). Never
+    stepped for real: no simulator state, no real episode. Must genuinely
+    subclass `gymnasium.Env` -- SB3's `PPO.__init__` rejects a duck-typed
+    env that only exposes `observation_space`/`action_space`/`reset`/`step`
+    without the real base class."""
+
+    metadata: dict = {"render_modes": []}
+
+    def __init__(self) -> None:
+        from gymnasium import spaces
+
+        from navigation.navigation_evidence import RAW_OBSERVATION_SIZE
+
+        from farming.actions import FarmingEvent
+
+        super().__init__()
+        self.observation_space = spaces.Box(low=-1.0, high=1.0, shape=(RAW_OBSERVATION_SIZE,), dtype=np.float32)
+        self.action_space = spaces.Discrete(len(FarmingEvent))
+        self._raw_size = RAW_OBSERVATION_SIZE
+
+    def reset(self, *, seed: int | None = None, options: dict | None = None) -> tuple[np.ndarray, dict]:
+        return np.zeros(self._raw_size, dtype=np.float32), {}
+
+    def step(self, action: Any) -> tuple[np.ndarray, float, bool, bool, dict]:
+        return np.zeros(self._raw_size, dtype=np.float32), 0.0, True, False, {}
+
+
+def build_event_only_ppo_from_basic_checkpoint(
+    basic_checkpoint: str | Path,
+    *,
+    event_net_arch: list[int] | None = None,
+    vf_net_arch: list[int] | None = None,
+    seed: int = 0,
+    device: str = "cpu",
+    n_steps: int = 256,
+    batch_size: int = 128,
+    n_epochs: int = 4,
+    learning_rate: float = 5e-5,
+    clip_range: float = 0.10,
+    target_kl: float = 0.015,
+    gamma: float = 0.995,
+    gae_lambda: float = 0.95,
+    ent_coef: float = 0.015,
+) -> Any:
+    """The Basic -> Beginner checkpoint bridge, end to end (docs/architecture/
+    CURRICULUM_TRAINING_PIPELINE.md section 4/5): loads `basic_checkpoint`
+    (a graduated `SplitSteeringNavigationPolicy`, `MultiDiscrete([3,3])`
+    dual-head checkpoint), constructs a fresh event-only PPO
+    (`Discrete(len(FarmingEvent))`, plain `ActorCriticPolicy`,
+    project-standard conservative PPO hyperparameters -- same defaults as
+    `simulator.basic_training.build_fresh_basic_policy`, for the same reason:
+    so the returned checkpoint is immediately safe to hand to a PPO chunk
+    without a separate hyperparameter-repair step), and transplants the
+    source's event/value weights into it via `simulator.
+    factorized_v193_training.transfer_event_head_to_event_only_policy`
+    (proven bit-for-bit event-distribution-identical, see
+    `tests/test_event_head_transplant.py`). The source's steering branch is
+    discarded entirely -- it was never trained (see `build_fresh_basic_
+    policy`'s docstring). `event_net_arch`/`vf_net_arch` must match the
+    source checkpoint's own architecture or the transplant raises a shape
+    mismatch (SplitSteeringNavigationPolicy's default `[64, 32]`/`[64, 32]`
+    unless the source was built with something else).
+
+    Returns the fresh event-only PPO model, not yet saved -- the caller
+    saves it (with provenance) to establish the canonical Beginner starting
+    checkpoint."""
+
+    from stable_baselines3 import PPO
+
+    from .factorized_v193_training import transfer_event_head_to_event_only_policy
+
+    source = PPO.load(str(basic_checkpoint), device=device)
+    probe_env = _EventOnlySpaceProbe()
+    model = PPO(
+        "MlpPolicy", probe_env,
+        policy_kwargs={"net_arch": dict(pi=event_net_arch or [64, 32], vf=vf_net_arch or [64, 32])},
+        seed=int(seed), device=device,
+        # Same conservative project-standard hyperparameters as
+        # build_fresh_basic_policy -- see that function's docstring.
+        n_steps=n_steps, batch_size=batch_size, n_epochs=n_epochs, learning_rate=learning_rate,
+        clip_range=clip_range, target_kl=target_kl, gamma=gamma, gae_lambda=gae_lambda, ent_coef=ent_coef,
+    )
+    transfer_event_head_to_event_only_policy(source.policy, model.policy)
+    return model
+
+
+def continue_event_only_ppo_chunk(
+    checkpoint: str | Path,
+    output: str | Path,
+    *,
+    curriculum: str | Path,
+    timesteps: int,
+    stage: str = "early",
+    seed: int = 0,
+    episode_seconds: float = 150.0,
+    max_actions: int = 1000,
+    device: str = "cpu",
+    progress_every_seconds: float = 15.0,
+    canonical_stage: str = "beginner",
+) -> dict[str, Any]:
+    """One bounded event-only PPO chunk on an already-event-only checkpoint
+    (the output of `build_event_only_ppo_from_basic_checkpoint`, or a prior
+    round's own output), recovery off throughout (structural, matching
+    `graduate_basic_to_beginner`'s reasoning), steering externally driven by
+    `simulator.navigation_ppo.balanced_training_vec_env_event_only`'s
+    `FrozenNavigationWrapper` composition -- never sampled by or logged from
+    this policy. This is the event-only counterpart of
+    `graduate_basic_to_beginner`, used by Beginner/Intermediate/Advanced
+    alike (only the curriculum/checkpoint lineage differs -- same
+    `canonical_stage` convention as that function)."""
+
+    from .navigation_ppo import resume_ppo_chunk_event_only
+    from .progress_reporting import SB3ProgressCallback
+    from .run_provenance import build_run_manifest, write_run_manifest
+
+    conservative_ppo_hparams = {
+        "n_steps": 256, "batch_size": 128, "n_epochs": 4, "learning_rate": 5e-5,
+        "clip_range": 0.10, "target_kl": 0.015, "gamma": 0.995, "gae_lambda": 0.95, "ent_coef": 0.015,
+    }
+    result = resume_ppo_chunk_event_only(
+        checkpoint=checkpoint, curriculum=curriculum, output=output, timesteps=timesteps,
+        stage=stage, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, device=device,
+        callback=SB3ProgressCallback(int(timesteps), label=f"{canonical_stage}_ppo_event_only", min_interval_seconds=progress_every_seconds),
+    )
+    manifest = build_run_manifest(
+        stage=canonical_stage, milestone="ppo_chunk", seeds=seed,
+        config={"timesteps": timesteps, "stage": stage, "episode_seconds": episode_seconds,
+                "max_actions": max_actions, "action_contract": "event_only", **conservative_ppo_hparams},
+        curriculum_path=str(curriculum), recovery_config={"enabled": False, "reason": "structural -- see module docstring"},
+        starting_checkpoint=str(Path(checkpoint).resolve()), output_checkpoint=result["checkpoint_out"],
+    )
+    write_run_manifest(result["checkpoint_out"], manifest)
+    return result
+
+
+def _dual_head_event_forward(net: Any, observation_full: Any) -> int:
+    """`event_forward` for `navigation_subpolicy.run_composed_episode` when
+    `event_policy` is Basic's own dual-head `SplitSteeringNavigationPolicy`
+    (not a plain event-only `ActorCriticPolicy`): reads only the event
+    branch on the FULL observation (event_net has always consumed it,
+    unsliced) -- the steering branch is never read, matching the recovered
+    architecture's ownership split (steering belongs to `navigation_
+    steering`, not to this net, even for Basic's own zero-shot diagnostic)."""
     import numpy as np
     import torch
 
     with torch.no_grad():
-        obs_t = torch.as_tensor(observation_925[None, :], dtype=torch.float32, device=net.device)
-        dist = net.get_distribution(obs_t).distribution
-        s = dist[0].probs[0].cpu().numpy()
-    return int(s.argmax()), int(dist[1].probs[0].cpu().numpy().argmax()), s
-
-
-def _run_925_episode_raw(curriculum_path: str, layout_name: str, *, net: Any, seed: int, episode_seconds: float, max_actions: int, stage: str = "early") -> dict[str, Any]:
-    """Raw (recovery-off) rollout of a 925-input SplitSteeringNavigationPolicy.
-
-    milestone_evaluator.run_episode cannot be reused directly here: it drives
-    iter_variant_environments' raw 923-value env unwrapped, which is correct
-    for the standard production contract but would feed this policy the
-    wrong input width (see the shape-mismatch this replaced during the
-    smoke test). NavigationHistoryWrapper supplies the same 925-value input
-    Basic/Beginner training already use, so this is an apples-to-apples
-    evaluation of the actual policy being graduated, not a proxy for it.
-    """
-    import numpy as np
-
-    from .movement_classification import classify_episode_movement
-    from .navigation_history import NavigationHistoryWrapper
-    from .synthetic import iter_variant_environments
-
-    entry, base_env = next(iter(iter_variant_environments(
-        curriculum_path, stage=stage, seed=seed, episode_steps=max_actions,
-        episode_seconds=episode_seconds, variant_name=layout_name,
-    )))
-    env = NavigationHistoryWrapper(base_env)
-    observation, _ = env.reset(seed=seed)
-
-    steering_choices, unique_cells_trace, total_distance_trace = [], [], []
-    info: dict[str, Any] = {}
-    for _ in range(int(max_actions)):
-        steering, event, _probs = _raw_policy_forward(net, np.asarray(observation, dtype=np.float32))
-        steering_choices.append(steering)
-        observation, _r, terminated, truncated, info = env.step(np.asarray([steering, event], dtype=np.int64))
-        unique_cells_trace.append(int(info["unique_cells"]))
-        total_distance_trace.append(float(info["total_distance_cells"]))
-        if terminated or truncated:
-            break
-    env.close()
-
-    movement = classify_episode_movement(
-        steering_choices=steering_choices, unique_cells_trace=unique_cells_trace, total_distance_trace=total_distance_trace,
-    )
-    return {
-        "layout": layout_name, "seed": int(seed), "steps": len(steering_choices),
-        "total_kills": int(info.get("total_kills", 0)),
-        "contacts": int(info.get("contacts", 0)),
-        "contacts_per_100_distance": float(info.get("contacts", 0)) * 100.0 / max(1e-9, float(info.get("total_distance_cells", 0.0))),
-        "unique_cells": int(info.get("unique_cells", 0)),
-        **movement,
-    }
+        obs_t = torch.as_tensor(
+            np.asarray(observation_full, dtype=np.float32)[None, :], dtype=torch.float32, device=net.device,
+        )
+        event_probs = net.get_distribution(obs_t).distribution[1].probs[0].cpu().numpy()
+    return int(event_probs.argmax())
 
 
 def _aggregate_raw_diagnostic(checkpoint: str | Path, per_layout_results: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
@@ -108,23 +210,32 @@ def zero_shot_raw_diagnostic(
     just-graduated Basic checkpoint, against the existing immutable
     held-out pool. Purely informational: how much of Beginner's job is
     already done vs. still to learn. Never a pass/fail gate on Basic.
-    Sequential/in-process -- see `zero_shot_raw_diagnostic_parallel` for a
-    multi-process equivalent."""
+
+    Steering comes from `FrozenNavigationSteering`, exactly as it does in
+    Basic's own assisted rollout (`simulator.basic_environment.
+    _roll_basic_episode`) -- `checkpoint`'s own steering head is never read
+    (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md section 4/7: the
+    direct-bearing/net's-own-steering path this replaced is superseded, not
+    merely an alternative). Sequential/in-process -- see
+    `zero_shot_raw_diagnostic_parallel` for a multi-process equivalent."""
 
     from stable_baselines3 import PPO
 
     from .curriculum_manifests import load_heldout_manifest
+    from .navigation_subpolicy import FrozenNavigationSteering, run_composed_episode
 
     model = PPO.load(str(checkpoint), device="cpu")
     net = model.policy
+    navigation_steering = FrozenNavigationSteering.load_frozen(device="cpu")
     manifest = load_heldout_manifest(heldout_manifest_path)
 
     per_layout_results: dict[str, list[dict[str, Any]]] = {}
     for layout_name in manifest.layouts:
         per_layout_results[layout_name] = [
-            _run_925_episode_raw(
-                manifest.curriculum_path, layout_name, net=net, seed=seed,
-                episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage,
+            run_composed_episode(
+                manifest.curriculum_path, layout_name, event_policy=net, navigation_steering=navigation_steering,
+                seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage,
+                event_forward=_dual_head_event_forward,
             )
             for seed in seeds
         ]
@@ -132,18 +243,24 @@ def zero_shot_raw_diagnostic(
 
 
 _PARALLEL_WORKER_NET: Any = None
+_PARALLEL_WORKER_NAVIGATION_STEERING: Any = None
 
 
 def _init_raw_diagnostic_worker(checkpoint_path: str) -> None:
-    global _PARALLEL_WORKER_NET
+    global _PARALLEL_WORKER_NET, _PARALLEL_WORKER_NAVIGATION_STEERING
     from stable_baselines3 import PPO
+    from .navigation_subpolicy import FrozenNavigationSteering
     _PARALLEL_WORKER_NET = PPO.load(checkpoint_path, device="cpu").policy
+    _PARALLEL_WORKER_NAVIGATION_STEERING = FrozenNavigationSteering.load_frozen(device="cpu")
 
 
 def _raw_diagnostic_worker_task(curriculum_path: str, layout_name: str, seed: int, episode_seconds: float, max_actions: int, stage: str = "early") -> dict[str, Any]:
-    return _run_925_episode_raw(
-        curriculum_path, layout_name, net=_PARALLEL_WORKER_NET, seed=seed,
-        episode_seconds=episode_seconds, max_actions=max_actions, stage=stage,
+    from .navigation_subpolicy import run_composed_episode
+    return run_composed_episode(
+        curriculum_path, layout_name, event_policy=_PARALLEL_WORKER_NET,
+        navigation_steering=_PARALLEL_WORKER_NAVIGATION_STEERING,
+        seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=stage,
+        event_forward=_dual_head_event_forward,
     )
 
 
@@ -191,6 +308,21 @@ def run_episode_925(
     stage: str = "early",
 ) -> dict[str, Any]:
     """925-dim-aware counterpart to milestone_evaluator.run_episode.
+
+    SUPERSEDED for canonical Beginner/Intermediate/Advanced evaluation as of
+    the frozen-navigation-sub-policy recovery (docs/architecture/
+    CURRICULUM_TRAINING_PIPELINE.md section 4/10): this function drives
+    `net`'s OWN steering head directly, which is exactly the direct-bearing
+    path those stages no longer train (their checkpoints are event-only and
+    have no steering head at all). `simulator.tools.RUN_CANONICAL_BEGINNER.
+    py`/`RUN_CANONICAL_INTERMEDIATE.py`/`RUN_CANONICAL_ADVANCED.py` use
+    `milestone_evaluator.evaluate_heldout`/`evaluate_challenge` with
+    `navigation_steering=`/`use_frozen_navigation=True` instead (dispatching
+    through `navigation_subpolicy.run_composed_episode`). Kept, not deleted,
+    as a still-correct general-purpose evaluator for any
+    SplitSteeringNavigationPolicy-shaped dual-head checkpoint that
+    genuinely owns its own steering (e.g. re-evaluating a pre-recovery
+    historical checkpoint) -- not what current canonical training produces.
 
     milestone_evaluator.run_episode drives iter_variant_environments' raw
     923-value env unwrapped -- correct for the standard production
@@ -656,6 +788,108 @@ def rehearse_beginner_on_basic_data(
     )
     write_run_manifest(output_path, manifest)
     return result
+
+
+def rehearse_event_only_on_basic_data(
+    checkpoint: str | Path,
+    output: str | Path,
+    *,
+    basic_dataset_paths: list[str | Path],
+    epochs: int = 2,
+    learning_rate: float = 1e-5,
+    batch_size: int = 128,
+    seed: int = 0,
+    canonical_stage: str = "beginner",
+) -> dict[str, Any]:
+    """Event-only counterpart of `rehearse_beginner_on_basic_data`, for a
+    checkpoint produced by `build_event_only_ppo_from_basic_checkpoint`/
+    `continue_event_only_ppo_chunk` (plain `ActorCriticPolicy`,
+    `Discrete(len(FarmingEvent))`) -- that function's own training loop
+    hard-requires a `SplitSteeringNavigationPolicy` (asserts `policy.
+    mlp_extractor.steering_net` exists), so it cannot be reused unchanged
+    here. Trains only the event action on the RAW_OBSERVATION_SIZE slice of
+    the combined Basic-stage dataset (human bootstrap + recovery-assisted
+    DAgger) -- event_net has never read the navigation sidecar (see
+    `FrozenNavigationWrapper`'s docstring), and this policy has no steering
+    head to train (steering labels in the combined dataset are inert here,
+    matching the recovered architecture's ownership split: steering belongs
+    to the frozen navigation checkpoint, never to a curriculum checkpoint)."""
+
+    import torch
+    import torch.nn.functional as F
+    from stable_baselines3 import PPO
+
+    from navigation.navigation_evidence import RAW_OBSERVATION_SIZE
+
+    from .basic_training import _session_stratified_split
+    from .factorized_v193_training import _sqrt_inverse_class_weights
+    from .run_provenance import build_run_manifest, write_run_manifest
+
+    combined_path = Path(output).with_suffix(".rehearsal_combined.npz")
+    _concatenate_basic_datasets(basic_dataset_paths, combined_path)
+
+    with np.load(combined_path, allow_pickle=False) as data:
+        observations = np.asarray(data["observations"], dtype=np.float32)[:, :RAW_OBSERVATION_SIZE]
+        actions = np.asarray(data["actions"], dtype=np.int64)
+        session_index = np.asarray(data["session_index"], dtype=np.int64)
+
+    train_idx, val_idx = _session_stratified_split(
+        session_index, validation_fraction=0.15, seed=seed, event_labels=actions[:, 1],
+    )
+    if len(val_idx) == 0 or len(train_idx) == 0:
+        raise ValueError("event rehearsal split produced an empty train or validation slice")
+
+    from farming.actions import FarmingEvent
+
+    model = PPO.load(str(checkpoint), device="cpu")
+    policy = model.policy
+    if int(getattr(policy.action_net, "out_features", -1)) != len(FarmingEvent):
+        raise ValueError(
+            f"policy.action_net has {getattr(policy.action_net, 'out_features', None)} outputs, expected "
+            f"{len(FarmingEvent)} -- is model.policy a fresh event-only ActorCriticPolicy "
+            "(build_event_only_ppo_from_basic_checkpoint's output), not a SplitSteeringNavigationPolicy?"
+        )
+
+    event_weights = torch.as_tensor(
+        _sqrt_inverse_class_weights(actions[:, 1], train_idx, 3), dtype=torch.float32, device=policy.device,
+    )
+
+    optimizer = torch.optim.Adam(policy.parameters(), lr=float(learning_rate))
+    policy.train()
+    rng = np.random.default_rng(seed)
+    history: list[dict[str, Any]] = []
+    for epoch in range(1, int(epochs) + 1):
+        order = rng.permutation(train_idx)
+        epoch_loss = 0.0
+        n_batches = 0
+        for start in range(0, len(order), int(batch_size)):
+            batch_idx = order[start : start + int(batch_size)]
+            obs = torch.as_tensor(observations[batch_idx], device=policy.device)
+            labels = torch.as_tensor(actions[batch_idx, 1], device=policy.device, dtype=torch.long)
+            distribution = policy.get_distribution(obs).distribution
+            loss = F.cross_entropy(distribution.logits, labels, weight=event_weights)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            epoch_loss += float(loss.item())
+            n_batches += 1
+        history.append({"epoch": epoch, "mean_event_loss": epoch_loss / max(1, n_batches)})
+    policy.eval()
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    model.save(str(output_path))
+
+    manifest = build_run_manifest(
+        stage=canonical_stage, milestone="rehearsal", seeds=seed,
+        config={"epochs": epochs, "learning_rate": learning_rate, "batch_size": batch_size,
+                "basic_dataset_paths": [str(p) for p in basic_dataset_paths], "action_contract": "event_only"},
+        starting_checkpoint=str(Path(checkpoint).resolve()), output_checkpoint=str(output_path.resolve()),
+    )
+    write_run_manifest(output_path, manifest)
+    return {
+        "train_samples": int(len(train_idx)), "validation_samples": int(len(val_idx)), "history": history,
+    }
 
 
 def _concatenate_basic_datasets(dataset_paths: list[str | Path], output_path: Path) -> Path:

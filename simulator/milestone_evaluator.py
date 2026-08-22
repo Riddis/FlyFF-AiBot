@@ -387,8 +387,22 @@ def _summarize_recovery(results: list[dict[str, Any]]) -> dict[str, Any]:
 
 def evaluate_heldout(
     model: Any, manifest: HeldoutManifest, *, seeds: list[int], episode_seconds: float, max_actions: int,
-    use_recovery: bool = False,
+    use_recovery: bool = False, navigation_steering: Any = None,
 ) -> dict[str, Any]:
+    """`navigation_steering` (a `simulator.navigation_subpolicy.
+    FrozenNavigationSteering`), when given, switches this evaluator to the
+    composed frozen-navigation architecture (docs/architecture/
+    CURRICULUM_TRAINING_PIPELINE.md section 4/10) -- `model.policy` is then
+    treated as an event-only policy and every episode is rolled via
+    `navigation_subpolicy.run_composed_episode` instead of this module's own
+    direct-bearing `run_episode`, so evaluation exercises exactly the same
+    architecture Beginner/Intermediate/Advanced PPO training does. Mutually
+    exclusive with `use_recovery` -- the composed stages have no recovery in
+    their training loop (see `simulator/basic_environment.py`'s module
+    docstring), so grading them with recovery on would score a different
+    architecture than the one actually trained."""
+    if navigation_steering is not None and use_recovery:
+        raise ValueError("navigation_steering and use_recovery are mutually exclusive -- see this function's docstring")
     net = model.policy
     per_layout: dict[str, Any] = {}
     for layout_name in manifest.layouts:
@@ -397,13 +411,23 @@ def evaluate_heldout(
             for seed in seeds
         ]
         teacher_median_kph = float(np.median([r["kills_per_simulated_hour"] for r in teacher_results]))
-        policy_results = [
-            run_episode(
-                manifest.curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds,
-                max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=manifest.stage,
-            )
-            for seed in seeds
-        ]
+        if navigation_steering is not None:
+            from .navigation_subpolicy import run_composed_episode
+            policy_results = [
+                run_composed_episode(
+                    manifest.curriculum_path, layout_name, event_policy=net, navigation_steering=navigation_steering,
+                    seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage,
+                )
+                for seed in seeds
+            ]
+        else:
+            policy_results = [
+                run_episode(
+                    manifest.curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds,
+                    max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=manifest.stage,
+                )
+                for seed in seeds
+            ]
         per_layout[layout_name] = _summarize_episodes(layout_name, policy_results, teacher_median_kph)
     return {"role": "heldout", "stage": manifest.stage, "assisted": use_recovery, "layouts": per_layout}
 
@@ -416,19 +440,34 @@ def _new_recovery_controller() -> Any:
 
 def evaluate_challenge(
     model: Any, manifest: ChallengeManifest, *, family_seeds: list[int], episode_seconds: float, max_actions: int,
-    use_recovery: bool = False,
+    use_recovery: bool = False, navigation_steering: Any = None,
 ) -> dict[str, Any]:
+    """See `evaluate_heldout`'s docstring for `navigation_steering`."""
+    if navigation_steering is not None and use_recovery:
+        raise ValueError("navigation_steering and use_recovery are mutually exclusive -- see evaluate_heldout's docstring")
     net = model.policy
+
+    def _roll_policy(curriculum_path: str, layout_name: str, *, seed: int, episode_seconds: float, max_actions: int) -> dict[str, Any]:
+        if navigation_steering is not None:
+            from .navigation_subpolicy import run_composed_episode
+            return run_composed_episode(
+                curriculum_path, layout_name, event_policy=net, navigation_steering=navigation_steering,
+                seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage,
+            )
+        return run_episode(
+            curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds,
+            max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=manifest.stage,
+        )
+
     fixed_results: dict[str, Any] = {}
     for scenario in manifest.fixed_regression_scenarios:
         teacher = _run_teacher_episode(
             scenario.curriculum_path, scenario.layout, seed=scenario.seed,
             episode_seconds=scenario.episode_seconds, max_actions=scenario.max_actions, stage=manifest.stage,
         )
-        policy = run_episode(
-            scenario.curriculum_path, scenario.layout, net=net, seed=scenario.seed,
+        policy = _roll_policy(
+            scenario.curriculum_path, scenario.layout, seed=scenario.seed,
             episode_seconds=scenario.episode_seconds, max_actions=scenario.max_actions,
-            recovery=(_new_recovery_controller() if use_recovery else None), stage=manifest.stage,
         )
         policy["teacher_ratio"] = policy["kills_per_simulated_hour"] / teacher["kills_per_simulated_hour"] if teacher["kills_per_simulated_hour"] else None
         policy["expected_failure_signature"] = scenario.expected_failure_signature
@@ -442,9 +481,9 @@ def evaluate_challenge(
         ]
         teacher_median_kph = float(np.median([r["kills_per_simulated_hour"] for r in teacher_results]))
         policy_results = [
-            run_episode(
-                manifest.challenge_family_curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds,
-                max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=manifest.stage,
+            _roll_policy(
+                manifest.challenge_family_curriculum_path, layout_name, seed=seed,
+                episode_seconds=episode_seconds, max_actions=max_actions,
             )
             for seed in family_seeds
         ]
@@ -457,12 +496,21 @@ def evaluate_challenge(
 
 
 _PARALLEL_EVAL_NET: Any = None
+_PARALLEL_EVAL_NAVIGATION_STEERING: Any = None
 
 
-def _init_full_eval_worker(checkpoint_path: str) -> None:
-    global _PARALLEL_EVAL_NET
+def _init_full_eval_worker(checkpoint_path: str, use_frozen_navigation: bool = False) -> None:
+    global _PARALLEL_EVAL_NET, _PARALLEL_EVAL_NAVIGATION_STEERING
     from stable_baselines3 import PPO
     _PARALLEL_EVAL_NET = PPO.load(checkpoint_path, device="cpu").policy
+    if use_frozen_navigation:
+        # Each worker process loads its own frozen-navigation steering
+        # oracle -- it cannot be shared across a process boundary (same
+        # reasoning as basic_environment._init_dagger_roll_worker).
+        from .navigation_subpolicy import FrozenNavigationSteering
+        _PARALLEL_EVAL_NAVIGATION_STEERING = FrozenNavigationSteering.load_frozen(device="cpu")
+    else:
+        _PARALLEL_EVAL_NAVIGATION_STEERING = None
 
 
 def _heldout_episode_task(
@@ -470,16 +518,23 @@ def _heldout_episode_task(
     stage: str = "early",
 ) -> tuple[str, dict[str, Any], dict[str, Any]]:
     teacher = _run_teacher_episode(curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=stage)
-    policy = run_episode(
-        curriculum_path, layout_name, net=_PARALLEL_EVAL_NET, seed=seed, episode_seconds=episode_seconds,
-        max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=stage,
-    )
+    if _PARALLEL_EVAL_NAVIGATION_STEERING is not None:
+        from .navigation_subpolicy import run_composed_episode
+        policy = run_composed_episode(
+            curriculum_path, layout_name, event_policy=_PARALLEL_EVAL_NET, navigation_steering=_PARALLEL_EVAL_NAVIGATION_STEERING,
+            seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=stage,
+        )
+    else:
+        policy = run_episode(
+            curriculum_path, layout_name, net=_PARALLEL_EVAL_NET, seed=seed, episode_seconds=episode_seconds,
+            max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=stage,
+        )
     return layout_name, teacher, policy
 
 
 def evaluate_heldout_parallel(
     checkpoint_path: str | Path, manifest: HeldoutManifest, *, seeds: list[int], episode_seconds: float,
-    max_actions: int, use_recovery: bool = False, n_workers: int = 4,
+    max_actions: int, use_recovery: bool = False, n_workers: int = 4, use_frozen_navigation: bool = False,
 ) -> dict[str, Any]:
     """Same report as `evaluate_heldout`, computed by farming (teacher,
     policy) episode pairs out across `n_workers` OS processes instead of
@@ -488,7 +543,15 @@ def evaluate_heldout_parallel(
     sequential would take hours; see evaluate_basic_milestone_parallel's
     docstring for the same compute-for-wallclock tradeoff rationale.
     Requires a checkpoint on disk (not an in-memory model), since each
-    worker process loads its own copy."""
+    worker process loads its own copy.
+
+    `use_frozen_navigation=True` is the parallel-process counterpart of
+    `evaluate_heldout`'s `navigation_steering` argument (a live oracle
+    object cannot cross a process boundary, so each worker loads its own --
+    see `_init_full_eval_worker`); mutually exclusive with `use_recovery`,
+    same reasoning as `evaluate_heldout`."""
+    if use_frozen_navigation and use_recovery:
+        raise ValueError("use_frozen_navigation and use_recovery are mutually exclusive -- see evaluate_heldout's docstring")
 
     from concurrent.futures import ProcessPoolExecutor
 
@@ -497,7 +560,8 @@ def evaluate_heldout_parallel(
         for layout_name in manifest.layouts for seed in seeds
     ]
     with ProcessPoolExecutor(
-        max_workers=max(1, n_workers), initializer=_init_full_eval_worker, initargs=(str(checkpoint_path),),
+        max_workers=max(1, n_workers), initializer=_init_full_eval_worker,
+        initargs=(str(checkpoint_path), use_frozen_navigation),
     ) as pool:
         flat = list(pool.map(_heldout_episode_task, *zip(*tasks))) if tasks else []
 
@@ -520,10 +584,17 @@ def _challenge_fixed_task(
     expected_failure_signature: str, use_recovery: bool, stage: str = "early",
 ) -> dict[str, Any]:
     teacher = _run_teacher_episode(curriculum_path, layout, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=stage)
-    policy = run_episode(
-        curriculum_path, layout, net=_PARALLEL_EVAL_NET, seed=seed, episode_seconds=episode_seconds,
-        max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=stage,
-    )
+    if _PARALLEL_EVAL_NAVIGATION_STEERING is not None:
+        from .navigation_subpolicy import run_composed_episode
+        policy = run_composed_episode(
+            curriculum_path, layout, event_policy=_PARALLEL_EVAL_NET, navigation_steering=_PARALLEL_EVAL_NAVIGATION_STEERING,
+            seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=stage,
+        )
+    else:
+        policy = run_episode(
+            curriculum_path, layout, net=_PARALLEL_EVAL_NET, seed=seed, episode_seconds=episode_seconds,
+            max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=stage,
+        )
     policy["teacher_ratio"] = (
         policy["kills_per_simulated_hour"] / teacher["kills_per_simulated_hour"] if teacher["kills_per_simulated_hour"] else None
     )
@@ -533,10 +604,13 @@ def _challenge_fixed_task(
 
 def evaluate_challenge_parallel(
     checkpoint_path: str | Path, manifest: ChallengeManifest, *, family_seeds: list[int], episode_seconds: float,
-    max_actions: int, use_recovery: bool = False, n_workers: int = 4,
+    max_actions: int, use_recovery: bool = False, n_workers: int = 4, use_frozen_navigation: bool = False,
 ) -> dict[str, Any]:
     """Same report as `evaluate_challenge`, parallelized the same way as
-    `evaluate_heldout_parallel` -- see that function's docstring."""
+    `evaluate_heldout_parallel` -- see that function's docstring, including
+    `use_frozen_navigation`."""
+    if use_frozen_navigation and use_recovery:
+        raise ValueError("use_frozen_navigation and use_recovery are mutually exclusive -- see evaluate_heldout's docstring")
 
     from concurrent.futures import ProcessPoolExecutor
 
@@ -552,7 +626,8 @@ def evaluate_challenge_parallel(
     fixed_results: dict[str, Any] = {}
     per_layout: dict[str, Any] = {}
     with ProcessPoolExecutor(
-        max_workers=max(1, n_workers), initializer=_init_full_eval_worker, initargs=(str(checkpoint_path),),
+        max_workers=max(1, n_workers), initializer=_init_full_eval_worker,
+        initargs=(str(checkpoint_path), use_frozen_navigation),
     ) as pool:
         if fixed_tasks:
             fixed_flat = list(pool.map(_challenge_fixed_task, *zip(*fixed_tasks)))

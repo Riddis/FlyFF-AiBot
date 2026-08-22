@@ -1,10 +1,20 @@
-"""Canonical Beginner-stage run: recovery-off PPO continuation from the
-graduated Basic checkpoint (models/canonical_basic_graduated.zip ==
+"""Canonical Beginner-stage run: recovery-off, event-only PPO continuation
+from the graduated Basic checkpoint (models/canonical_basic_graduated.zip ==
 canonical_basic_milestone_006.zip, user-confirmed graduated 2026-08-08).
 
-Recovery is structurally impossible here -- balanced_training_vec_env_phase2
+Frozen-navigation-sub-policy architecture (docs/architecture/
+CURRICULUM_TRAINING_PIPELINE.md section 4): Beginner's trainable policy owns
+ONLY the event/farming action (Discrete(len(FarmingEvent))) -- steering
+belongs entirely to FrozenNavigationSteering (production router + frozen
+0051200), never sampled or logged by this policy. Basic's graduated
+dual-head checkpoint is bridged into a fresh event-only policy once
+(build_event_only_ppo_from_basic_checkpoint), then every PPO round below
+continues that event-only lineage via continue_event_only_ppo_chunk /
+balanced_training_vec_env_event_only (simulator/navigation_ppo.py).
+
+Recovery is structurally impossible here -- balanced_training_vec_env_event_only
 (simulator/navigation_ppo.py) never wraps its training envs with
-RecoveryController, so resume_ppo_chunk_phase2's on-policy rollout buffer
+RecoveryController, so resume_ppo_chunk_event_only's on-policy rollout buffer
 is always faithful. See simulator/beginner_transition.py and
 simulator/basic_environment.py's module docstrings for the full rationale.
 
@@ -202,19 +212,27 @@ def check_round_passes_absolute_bar(heldout_agg: dict, unseen_agg: dict, challen
 
 
 def run_full_evaluation(checkpoint_path, heldout_manifest, unseen_manifest, challenge_manifest, *, label: str) -> tuple[dict, dict, dict]:
-    from simulator.beginner_transition import evaluate_challenge_925_parallel, evaluate_heldout_925_parallel
+    # Composed frozen-navigation evaluation (docs/architecture/
+    # CURRICULUM_TRAINING_PIPELINE.md section 4/10): checkpoint_path is now
+    # an event-only policy, graded through the SAME architecture it trains
+    # under -- steering from FrozenNavigationSteering (production router +
+    # frozen 0051200), event from the checkpoint's own forward pass. Not the
+    # 925-dim dual-head evaluators (evaluate_heldout_925/evaluate_
+    # challenge_925) -- those assume a checkpoint with its own steering
+    # head, which this checkpoint does not have.
+    from simulator.milestone_evaluator import evaluate_challenge_parallel, evaluate_heldout_parallel
 
-    heldout = evaluate_heldout_925_parallel(
+    heldout = evaluate_heldout_parallel(
         checkpoint_path, heldout_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
-        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS,
+        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
     )
-    unseen = evaluate_heldout_925_parallel(
+    unseen = evaluate_heldout_parallel(
         checkpoint_path, unseen_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
-        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS,
+        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
     )
-    challenge = evaluate_challenge_925_parallel(
+    challenge = evaluate_challenge_parallel(
         checkpoint_path, challenge_manifest, family_seeds=CHALLENGE_FAMILY_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
-        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS,
+        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
     )
     (EVAL_DIR / f"canonical_{label}_heldout.json").write_text(json.dumps(heldout, indent=2, default=str), encoding="utf-8")
     (EVAL_DIR / f"canonical_{label}_unseen.json").write_text(json.dumps(unseen, indent=2, default=str), encoding="utf-8")
@@ -227,11 +245,14 @@ def main() -> None:
     EVAL_DIR.mkdir(exist_ok=True)
 
     from stable_baselines3 import PPO
+    from gymnasium import spaces
 
+    from farming.actions import FarmingEvent
     from simulator.basic_training import canonical_checkpoint_name
     from simulator.beginner_transition import (
-        graduate_basic_to_beginner,
-        rehearse_beginner_on_basic_data,
+        build_event_only_ppo_from_basic_checkpoint,
+        continue_event_only_ppo_chunk,
+        rehearse_event_only_on_basic_data,
         zero_shot_raw_diagnostic_parallel,
     )
     from simulator.curriculum_manifests import load_challenge_manifest, load_heldout_manifest
@@ -239,6 +260,32 @@ def main() -> None:
     if not GRADUATED_BASIC_CHECKPOINT.exists():
         raise FileNotFoundError(f"{GRADUATED_BASIC_CHECKPOINT} not found -- graduate a Basic checkpoint to this path first.")
     log(f"Graduated Basic checkpoint: {GRADUATED_BASIC_CHECKPOINT}")
+
+    # ---------------------------------------------------------------
+    log("=== Stage -1: Basic -> Beginner checkpoint bridge (event-only PPO, Discrete(len(FarmingEvent))) ===")
+    # ---------------------------------------------------------------
+    # The recovered frozen-navigation-sub-policy architecture (docs/
+    # architecture/CURRICULUM_TRAINING_PIPELINE.md section 4): Beginner's
+    # trainable policy owns ONLY the event/farming action -- steering
+    # belongs entirely to FrozenNavigationSteering. Basic's graduated
+    # dual-head checkpoint's event/value weights are transplanted into a
+    # fresh event-only policy once here; every PPO round below continues
+    # THAT lineage, never the dual-head one.
+    event_only_start_checkpoint = MODELS_DIR / f"{canonical_checkpoint_name('beginner', 'event_only_start')}.zip"
+    if event_only_start_checkpoint.exists():
+        log(f"Reusing existing event-only starting checkpoint: {event_only_start_checkpoint}")
+    else:
+        event_only_model = build_event_only_ppo_from_basic_checkpoint(GRADUATED_BASIC_CHECKPOINT, seed=SEED, device="cpu")
+        event_only_model.save(str(event_only_start_checkpoint))
+        log(f"Saved event-only starting checkpoint: {event_only_start_checkpoint} "
+            f"action_space={event_only_model.action_space} observation_space={event_only_model.observation_space}")
+    loaded_start = PPO.load(str(event_only_start_checkpoint), device="cpu")
+    if not isinstance(loaded_start.action_space, spaces.Discrete) or loaded_start.action_space.n != len(FarmingEvent):
+        raise RuntimeError(
+            f"Event-only starting checkpoint has action_space={loaded_start.action_space}, "
+            f"expected Discrete({len(FarmingEvent)}) -- refusing to start Beginner PPO with a MultiDiscrete/steering-sampling checkpoint."
+        )
+    del loaded_start
 
     heldout_manifest = load_heldout_manifest(EARLY_HELDOUT_MANIFEST)
     unseen_manifest = load_heldout_manifest(EARLY_HELDOUT_UNSEEN_MANIFEST)
@@ -278,7 +325,7 @@ def main() -> None:
         m = re.match(r"canonical_beginner_ppo_(\d+)k\.zip", p.name)
         if m and "rehearsed" not in p.name:
             existing_rounds[int(m.group(1)) // (PPO_CHUNK_TIMESTEPS // 1000)] = p
-    current_checkpoint = GRADUATED_BASIC_CHECKPOINT
+    current_checkpoint = event_only_start_checkpoint
     consecutive_passes = 0
     round_reports: list[dict] = []
     summary_path = EVAL_DIR / "canonical_beginner_run_summary.json"
@@ -305,7 +352,7 @@ def main() -> None:
         if ppo_output.exists() and round_idx in existing_rounds:
             log(f"Reusing existing PPO chunk checkpoint: {ppo_output}")
         else:
-            ppo_result = graduate_basic_to_beginner(
+            ppo_result = continue_event_only_ppo_chunk(
                 current_checkpoint, ppo_output, curriculum=BEGINNER_CURRICULUM, timesteps=PPO_CHUNK_TIMESTEPS,
                 stage="early", seed=round_seed, episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS,
                 device="cpu", progress_every_seconds=20.0,
@@ -315,6 +362,11 @@ def main() -> None:
             log(f"Saved: {ppo_result['checkpoint_out']} (+ provenance)")
         pre_rehearsal_checkpoint = ppo_output
         model = PPO.load(str(pre_rehearsal_checkpoint), device="cpu")
+        if not isinstance(model.action_space, spaces.Discrete) or model.action_space.n != len(FarmingEvent):
+            raise RuntimeError(
+                f"Round {round_idx} PPO chunk checkpoint has action_space={model.action_space}, "
+                f"expected Discrete({len(FarmingEvent)}) -- the event-only contract must never drift back to MultiDiscrete."
+            )
         check_no_nan(model, f"round {round_idx} after PPO chunk")
 
         # ---------------------------------------------------------------
@@ -352,7 +404,7 @@ def main() -> None:
             post_unseen = json.loads((EVAL_DIR / f"canonical_{post_label}_unseen.json").read_text(encoding="utf-8"))
             post_challenge = json.loads((EVAL_DIR / f"canonical_{post_label}_challenge.json").read_text(encoding="utf-8"))
         else:
-            rehearsal_result = rehearse_beginner_on_basic_data(
+            rehearsal_result = rehearse_event_only_on_basic_data(
                 pre_rehearsal_checkpoint, rehearsed_output, basic_dataset_paths=event_dataset_paths,
                 epochs=REHEARSAL_EPOCHS, learning_rate=REHEARSAL_LEARNING_RATE, batch_size=128, seed=round_seed,
             )

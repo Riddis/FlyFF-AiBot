@@ -31,6 +31,57 @@ from .navigation_history import NavigationHistoryWrapper
 from .synthetic import iter_variant_environments
 
 
+def balanced_training_vec_env_event_only(
+    curriculum: str | Path,
+    *,
+    stage: str,
+    seed: int,
+    episode_seconds: float,
+    max_actions: int,
+) -> tuple[DummyVecEnv, list[str]]:
+    """Beginner/Intermediate/Advanced PPO training env under the recovered
+    frozen-navigation-sub-policy architecture (docs/architecture/
+    CURRICULUM_TRAINING_PIPELINE.md section 4): each variant is
+    NavigationHistoryWrapper-wrapped then FrozenNavigationWrapper-wrapped
+    (`simulator.navigation_subpolicy`), exposing `Discrete(len(FarmingEvent))`
+    over `Box(RAW_OBSERVATION_SIZE,)` to the trainable event-only policy --
+    steering every tick comes from a per-sub-environment
+    `FrozenNavigationSteering` instance (production router + frozen
+    0051200), never sampled by or logged from the trainable policy itself,
+    so the PPO rollout buffer this env feeds only ever contains the event
+    action. Each of the pooled sub-environments gets its OWN
+    `FrozenNavigationSteering` (and therefore its own loaded copy of the
+    frozen checkpoint) since the oracle carries per-episode target/route
+    state that cannot be shared across parallel envs -- mirrors
+    `simulator.basic_environment._init_dagger_roll_worker`'s identical
+    per-process-copy reasoning, here per-sub-environment instead."""
+
+    from .navigation_subpolicy import FrozenNavigationSteering, FrozenNavigationWrapper
+
+    pairs = list(
+        iter_variant_environments(
+            curriculum, stage=stage, seed=seed, episode_steps=max_actions, episode_seconds=episode_seconds,
+        )
+    )
+    if not pairs:
+        raise ValueError(f"No synthetic layouts are available for stage {stage!r}")
+    names = [entry.name for entry, _env in pairs]
+    factories = []
+    for entry, env in pairs:
+        name = entry.name
+
+        def make_env(raw_env=env, variant_name=name):
+            history_wrapped = NavigationHistoryWrapper(raw_env)
+            steering = FrozenNavigationSteering.load_frozen(device="cpu")
+            composed = FrozenNavigationWrapper(history_wrapped, steering)
+            monitored = Monitor(composed)
+            setattr(monitored, "synthetic_variant", variant_name)
+            return monitored
+
+        factories.append(make_env)
+    return DummyVecEnv(factories), names
+
+
 def balanced_training_vec_env_phase2(
     curriculum: str | Path,
     *,
@@ -152,6 +203,91 @@ def resume_ppo_chunk_phase2(
         # {12, 16} with n_steps=256 (2026-08-08 rollout-math audit). Report
         # both rather than letting the checkpoint's "*_010k" label imply an
         # exact count.
+        "actual_timesteps": num_timesteps_after - num_timesteps_before,
+        "num_timesteps_before": num_timesteps_before,
+        "num_timesteps_after": num_timesteps_after,
+        "checkpoint_in": str(Path(checkpoint).resolve()),
+        "checkpoint_out": str(Path(output).resolve()),
+    }
+
+
+def resume_ppo_chunk_event_only(
+    *,
+    checkpoint: str | Path,
+    curriculum: str | Path,
+    output: str | Path,
+    timesteps: int,
+    stage: str = "early",
+    seed: int = 0,
+    episode_seconds: float = 150.0,
+    max_actions: int = 1000,
+    device: str = "cpu",
+    n_steps: int = 256,
+    batch_size: int = 128,
+    n_epochs: int = 4,
+    learning_rate: float = 5e-5,
+    clip_range: float = 0.10,
+    target_kl: float = 0.015,
+    gamma: float = 0.995,
+    gae_lambda: float = 0.95,
+    ent_coef: float = 0.015,
+    callback: Any = None,
+) -> dict[str, Any]:
+    """Beginner/Intermediate/Advanced PPO continuation under the recovered
+    frozen-navigation-sub-policy architecture -- the event-only counterpart
+    of `resume_ppo_chunk_phase2`. Loads an already-built event-only
+    checkpoint (`Discrete(len(FarmingEvent))` action space, plain
+    `ActorCriticPolicy`, produced by Basic's `canonical_checkpoint_name`
+    lineage via `simulator.factorized_v193_training.
+    transfer_event_head_to_event_only_policy`) unchanged, trains one bounded
+    PPO chunk against `balanced_training_vec_env_event_only` (steering
+    externally driven by `FrozenNavigationWrapper`, never sampled by this
+    policy), saves the result. Never loops on its own -- call again for
+    another chunk. Same conservative hyperparameter defaults as
+    `resume_ppo_chunk_phase2`, for the same reason (see that function's
+    docstring)."""
+
+    from stable_baselines3 import PPO
+
+    env, training_layouts = balanced_training_vec_env_event_only(
+        curriculum, stage=stage, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions,
+    )
+    try:
+        policy = PPO.load(
+            str(checkpoint), env=env, device=device,
+            n_steps=n_steps, batch_size=batch_size, n_epochs=n_epochs, learning_rate=learning_rate,
+            clip_range=clip_range, target_kl=target_kl, gamma=gamma, gae_lambda=gae_lambda, ent_coef=ent_coef,
+        )
+        if not isinstance(policy.action_space, type(env.action_space)) or policy.action_space != env.action_space:
+            raise ValueError(
+                f"Checkpoint action space {policy.action_space} does not match the event-only "
+                f"training env's {env.action_space} -- refusing to train with a mismatch "
+                "(a MultiDiscrete checkpoint would silently log a steering action that never executes)"
+            )
+        before_obs_shape = tuple(policy.observation_space.shape)
+        wrapped_obs_shape = tuple(env.observation_space.shape)
+        if before_obs_shape != wrapped_obs_shape:
+            raise ValueError(
+                f"Checkpoint observation shape {before_obs_shape} does not match the "
+                f"wrapped training env's {wrapped_obs_shape} -- refusing to train with a mismatch"
+            )
+
+        num_timesteps_before = int(policy.num_timesteps)
+        policy.learn(
+            total_timesteps=int(timesteps), reset_num_timesteps=False, progress_bar=False,
+            callback=callback,
+        )
+        num_timesteps_after = int(policy.num_timesteps)
+
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        policy.save(str(output_path))
+    finally:
+        env.close()
+
+    return {
+        "training_layouts": training_layouts,
+        "timesteps": int(timesteps),
         "actual_timesteps": num_timesteps_after - num_timesteps_before,
         "num_timesteps_before": num_timesteps_before,
         "num_timesteps_after": num_timesteps_after,
