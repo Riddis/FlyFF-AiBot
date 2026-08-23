@@ -55,7 +55,6 @@ Run with: python RUN_CANONICAL_BEGINNER.py
 from __future__ import annotations
 
 import json
-import re
 import sys
 import time
 from pathlib import Path
@@ -246,6 +245,19 @@ def check_round_passes_absolute_bar(heldout_agg: dict, unseen_agg: dict, challen
     return (not reasons), reasons
 
 
+# Evaluation-config identity fingerprints (task section 5): only the
+# configuration that actually changes an evaluation's meaning/result.
+_HELDOUT_EVAL_CONFIG = {"episode_seconds": FULL_EPISODE_SECONDS, "max_actions": FULL_MAX_ACTIONS, "seeds": EVAL_SEEDS}
+_CHALLENGE_EVAL_CONFIG = {"episode_seconds": FULL_EPISODE_SECONDS, "max_actions": FULL_MAX_ACTIONS, "family_seeds": CHALLENGE_FAMILY_SEEDS}
+
+
+def _role_identity_kwargs(checkpoint_path, *, role: str, manifest_path: str, config: dict) -> dict:
+    return dict(
+        stage="early", declared_parent_checkpoint=GRADUATED_BASIC_CHECKPOINT, evaluated_checkpoint=checkpoint_path,
+        evaluation_role=role, manifests={role: manifest_path}, config=config,
+    )
+
+
 def run_full_evaluation(checkpoint_path, heldout_manifest, unseen_manifest, challenge_manifest, *, label: str) -> tuple[dict, dict, dict]:
     # Composed frozen-navigation evaluation (docs/architecture/
     # CURRICULUM_TRAINING_PIPELINE.md section 4/10/12): checkpoint_path is a
@@ -253,25 +265,84 @@ def run_full_evaluation(checkpoint_path, heldout_manifest, unseen_manifest, chal
     # trains under -- target selection AND event from the checkpoint's own
     # forward pass, steering from FrozenNavigationSteering driven by the
     # policy's resolved target.
-    from simulator.curriculum_resume_identity import with_current_generation_identity
+    from simulator.curriculum_resume_identity import current_generation_path, with_evaluation_cache_identity
     from simulator.milestone_evaluator import evaluate_challenge_parallel, evaluate_heldout_parallel
 
-    heldout = with_current_generation_identity(evaluate_heldout_parallel(
-        checkpoint_path, heldout_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
-        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
-    ))
-    unseen = with_current_generation_identity(evaluate_heldout_parallel(
-        checkpoint_path, unseen_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
-        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
-    ))
-    challenge = with_current_generation_identity(evaluate_challenge_parallel(
-        checkpoint_path, challenge_manifest, family_seeds=CHALLENGE_FAMILY_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
-        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
-    ))
-    (EVAL_DIR / f"canonical_{label}_heldout.json").write_text(json.dumps(heldout, indent=2, default=str), encoding="utf-8")
-    (EVAL_DIR / f"canonical_{label}_unseen.json").write_text(json.dumps(unseen, indent=2, default=str), encoding="utf-8")
-    (EVAL_DIR / f"canonical_{label}_challenge.json").write_text(json.dumps(challenge, indent=2, default=str), encoding="utf-8")
+    heldout = with_evaluation_cache_identity(
+        evaluate_heldout_parallel(
+            checkpoint_path, heldout_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
+            max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
+        ),
+        **_role_identity_kwargs(checkpoint_path, role="heldout", manifest_path=EARLY_HELDOUT_MANIFEST, config=_HELDOUT_EVAL_CONFIG),
+    )
+    unseen = with_evaluation_cache_identity(
+        evaluate_heldout_parallel(
+            checkpoint_path, unseen_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
+            max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
+        ),
+        **_role_identity_kwargs(checkpoint_path, role="unseen_templates", manifest_path=EARLY_HELDOUT_UNSEEN_MANIFEST, config=_HELDOUT_EVAL_CONFIG),
+    )
+    challenge = with_evaluation_cache_identity(
+        evaluate_challenge_parallel(
+            checkpoint_path, challenge_manifest, family_seeds=CHALLENGE_FAMILY_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
+            max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
+        ),
+        **_role_identity_kwargs(checkpoint_path, role="challenge", manifest_path=EARLY_CHALLENGE_MANIFEST, config=_CHALLENGE_EVAL_CONFIG),
+    )
+    current_generation_path(EVAL_DIR / f"canonical_{label}_heldout.json").write_text(json.dumps(heldout, indent=2, default=str), encoding="utf-8")
+    current_generation_path(EVAL_DIR / f"canonical_{label}_unseen.json").write_text(json.dumps(unseen, indent=2, default=str), encoding="utf-8")
+    current_generation_path(EVAL_DIR / f"canonical_{label}_challenge.json").write_text(json.dumps(challenge, indent=2, default=str), encoding="utf-8")
     return heldout, unseen, challenge
+
+
+def _load_coherent_evaluation_set(checkpoint_path, *, label: str) -> tuple[dict, dict, dict] | None:
+    """Returns (heldout, unseen, challenge) ONLY if all three cached files
+    validate against checkpoint_path's own current identity; if even one is
+    missing/invalid, returns None so the caller recomputes ALL THREE
+    together -- never a mix of valid and stale members (task section 9)."""
+    from simulator.curriculum_resume_identity import current_generation_path, evaluation_cache_identity, load_cached_evaluation_if_current
+
+    heldout = load_cached_evaluation_if_current(
+        current_generation_path(EVAL_DIR / f"canonical_{label}_heldout.json"), log=log,
+        expected_identity=evaluation_cache_identity(**_role_identity_kwargs(checkpoint_path, role="heldout", manifest_path=EARLY_HELDOUT_MANIFEST, config=_HELDOUT_EVAL_CONFIG)),
+    )
+    unseen = load_cached_evaluation_if_current(
+        current_generation_path(EVAL_DIR / f"canonical_{label}_unseen.json"), log=log,
+        expected_identity=evaluation_cache_identity(**_role_identity_kwargs(checkpoint_path, role="unseen_templates", manifest_path=EARLY_HELDOUT_UNSEEN_MANIFEST, config=_HELDOUT_EVAL_CONFIG)),
+    )
+    challenge = load_cached_evaluation_if_current(
+        current_generation_path(EVAL_DIR / f"canonical_{label}_challenge.json"), log=log,
+        expected_identity=evaluation_cache_identity(**_role_identity_kwargs(checkpoint_path, role="challenge", manifest_path=EARLY_CHALLENGE_MANIFEST, config=_CHALLENGE_EVAL_CONFIG)),
+    )
+    if heldout is None or unseen is None or challenge is None:
+        if heldout is not None or unseen is not None or challenge is not None:
+            log(f"Coherent-cache-set check for {label}: at least one role was valid but not all three -- "
+                "recomputing ALL THREE together rather than mixing valid and stale members.")
+        return None
+    return heldout, unseen, challenge
+
+
+def _resume_round_state(summary_path: Path, *, declared_parent_checkpoint: Path) -> tuple[list[dict], int, Path]:
+    """The full round-resume decision in one directly-testable place:
+    (round_reports, consecutive_passes, current_checkpoint). No
+    orphan-checkpoint resume (task section 7) -- this never inspects
+    MODELS_DIR or globs for a same-named checkpoint file; the ONLY source
+    of truth is a validated current-generation round record. Absent one,
+    `current_checkpoint` is exactly `declared_parent_checkpoint`."""
+    from simulator.curriculum_resume_identity import load_resumable_round_reports
+
+    current_checkpoint = declared_parent_checkpoint
+    consecutive_passes = 0
+    round_reports = load_resumable_round_reports(
+        summary_path, log=log, stage="early", declared_parent_checkpoint=declared_parent_checkpoint,
+    )
+    if round_reports:
+        try:
+            consecutive_passes = round_reports[-1]["consecutive_passes"]
+            current_checkpoint = Path(round_reports[-1]["carried_forward_checkpoint"])
+        except KeyError:
+            round_reports = []
+    return round_reports, consecutive_passes, current_checkpoint
 
 
 def _require_farming_policy_action_space(model, *, where: str) -> None:
@@ -302,9 +373,11 @@ def main() -> None:
     )
     from simulator.curriculum_manifests import load_challenge_manifest, load_heldout_manifest
     from simulator.curriculum_resume_identity import (
-        load_cached_report_if_current,
-        load_resumable_round_reports,
-        with_current_generation_identity,
+        current_generation_path,
+        evaluation_cache_identity,
+        load_cached_evaluation_if_current,
+        with_evaluation_cache_identity,
+        with_round_identity,
     )
 
     if not GRADUATED_BASIC_CHECKPOINT.exists():
@@ -327,8 +400,13 @@ def main() -> None:
     # ---------------------------------------------------------------
     log("=== Stage 0: zero-shot recovery-off Beginner diagnostic on the graduated Basic checkpoint (baseline, NOT a gate) ===")
     # ---------------------------------------------------------------
-    zero_shot_path = EVAL_DIR / "canonical_beginner_zero_shot_diagnostic.json"
-    zero_shot_report = load_cached_report_if_current(zero_shot_path, log=log)
+    zero_shot_path = current_generation_path(EVAL_DIR / "canonical_beginner_zero_shot_diagnostic.json")
+    zero_shot_identity_kwargs = _role_identity_kwargs(
+        GRADUATED_BASIC_CHECKPOINT, role="zero_shot", manifest_path=EARLY_HELDOUT_MANIFEST, config=_HELDOUT_EVAL_CONFIG,
+    )
+    zero_shot_report = load_cached_evaluation_if_current(
+        zero_shot_path, log=log, expected_identity=evaluation_cache_identity(**zero_shot_identity_kwargs),
+    )
     if zero_shot_report is not None:
         log(f"Reusing existing zero-shot diagnostic: {zero_shot_path}")
     else:
@@ -336,7 +414,7 @@ def main() -> None:
             GRADUATED_BASIC_CHECKPOINT, heldout_manifest_path=EARLY_HELDOUT_MANIFEST, seeds=EVAL_SEEDS,
             episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS,
         )
-        zero_shot_report = with_current_generation_identity(zero_shot_report)
+        zero_shot_report = with_evaluation_cache_identity(zero_shot_report, **zero_shot_identity_kwargs)
         zero_shot_path.write_text(json.dumps(zero_shot_report, indent=2, default=str), encoding="utf-8")
     for layout, stats in zero_shot_report["per_layout"].items():
         log(f"  zero-shot[{layout}]: stagnation={stats['physical_stagnation_episodes']}/{stats['n_episodes']} "
@@ -344,32 +422,18 @@ def main() -> None:
     log("Zero-shot diagnostic recorded as a starting-point baseline only -- never used as the graduation bar (see module docstring).")
 
     # ---------------------------------------------------------------
-    # Resume support: detect already-completed rounds by their saved
-    # checkpoints, so a restart (e.g. after this exact crash) does not
-    # redo expensive PPO/evaluation work.
+    # Resume support: a round is resumable ONLY if a validated
+    # current-generation round record (correct stage, architecture,
+    # navigation SHA, declared parent + its live SHA, and the round's own
+    # checkpoint content SHA) vouches for it -- NEVER a same-named
+    # checkpoint file found by directory glob merely because it exists
+    # (task section 7: no orphan-checkpoint resume). Every round from
+    # start_round onward is therefore always freshly trained below.
     # ---------------------------------------------------------------
-    existing_rounds: dict[int, Path] = {}
-    for p in MODELS_DIR.glob("canonical_beginner_ppo_*k.zip"):
-        m = re.match(r"canonical_beginner_ppo_(\d+)k\.zip", p.name)
-        if m and "rehearsed" not in p.name:
-            existing_rounds[int(m.group(1)) // (PPO_CHUNK_TIMESTEPS // 1000)] = p
-    current_checkpoint = GRADUATED_BASIC_CHECKPOINT
-    consecutive_passes = 0
-    summary_path = EVAL_DIR / "canonical_beginner_run_summary.json"
-    summary_existed_before = summary_path.exists()
-    round_reports = load_resumable_round_reports(summary_path, log=log, declared_parent_checkpoint=GRADUATED_BASIC_CHECKPOINT)
-    if round_reports:
-        try:
-            consecutive_passes = round_reports[-1]["consecutive_passes"]
-            current_checkpoint = Path(round_reports[-1]["carried_forward_checkpoint"])
-        except KeyError:
-            round_reports = []
-    if summary_existed_before and not round_reports:
-        # Either genuinely empty, or rejected by load_resumable_round_reports
-        # for an identity mismatch -- in both cases this summary can no
-        # longer vouch for same-named pre-built checkpoint files either, so
-        # do not silently reuse them via the round-checkpoint glob above.
-        existing_rounds = {}
+    summary_path = current_generation_path(EVAL_DIR / "canonical_beginner_run_summary.json")
+    round_reports, consecutive_passes, current_checkpoint = _resume_round_state(
+        summary_path, declared_parent_checkpoint=GRADUATED_BASIC_CHECKPOINT,
+    )
 
     start_round = len(round_reports) + 1
 
@@ -382,17 +446,18 @@ def main() -> None:
         # ---------------------------------------------------------------
         ppo_milestone = f"ppo_{round_idx * PPO_CHUNK_TIMESTEPS // 1000:03d}k"
         ppo_output = MODELS_DIR / f"{canonical_checkpoint_name('beginner', ppo_milestone)}.zip"
-        if ppo_output.exists() and round_idx in existing_rounds:
-            log(f"Reusing existing PPO chunk checkpoint: {ppo_output}")
-        else:
-            ppo_result = continue_farming_policy_ppo_chunk(
-                current_checkpoint, ppo_output, curriculum=BEGINNER_CURRICULUM, timesteps=PPO_CHUNK_TIMESTEPS,
-                stage="early", seed=round_seed, episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS,
-                device="cpu", progress_every_seconds=20.0,
-            )
-            log(f"PPO chunk done. layouts={ppo_result['training_layouts']} requested_timesteps={ppo_result['timesteps']} "
-                f"actual_timesteps={ppo_result.get('actual_timesteps', 'n/a')}")
-            log(f"Saved: {ppo_result['checkpoint_out']} (+ provenance)")
+        # No orphan-checkpoint resume (task section 7): this round is only
+        # ever reached when load_resumable_round_reports did NOT already
+        # vouch for it, so it is always freshly trained -- never reused
+        # merely because a same-named file happens to exist on disk.
+        ppo_result = continue_farming_policy_ppo_chunk(
+            current_checkpoint, ppo_output, curriculum=BEGINNER_CURRICULUM, timesteps=PPO_CHUNK_TIMESTEPS,
+            stage="early", seed=round_seed, episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS,
+            device="cpu", progress_every_seconds=20.0,
+        )
+        log(f"PPO chunk done. layouts={ppo_result['training_layouts']} requested_timesteps={ppo_result['timesteps']} "
+            f"actual_timesteps={ppo_result.get('actual_timesteps', 'n/a')}")
+        log(f"Saved: {ppo_result['checkpoint_out']} (+ provenance)")
         pre_rehearsal_checkpoint = ppo_output
         model = PPO.load(str(pre_rehearsal_checkpoint), device="cpu")
         _require_farming_policy_action_space(model, where=f"round {round_idx} PPO chunk checkpoint")
@@ -402,12 +467,10 @@ def main() -> None:
         log(f"=== Round {round_idx}, Stage 2: evaluate PRE-rehearsal checkpoint (raw, recovery-off) ===")
         # ---------------------------------------------------------------
         pre_label = f"{ppo_milestone}_pre_rehearsal"
-        pre_heldout_path = EVAL_DIR / f"canonical_{pre_label}_heldout.json"
-        pre_heldout = load_cached_report_if_current(pre_heldout_path, log=log)
-        if pre_heldout is not None:
-            log("Reusing existing pre-rehearsal evaluation.")
-            pre_unseen = json.loads((EVAL_DIR / f"canonical_{pre_label}_unseen.json").read_text(encoding="utf-8"))
-            pre_challenge = json.loads((EVAL_DIR / f"canonical_{pre_label}_challenge.json").read_text(encoding="utf-8"))
+        cached_pre = _load_coherent_evaluation_set(pre_rehearsal_checkpoint, label=pre_label)
+        if cached_pre is not None:
+            log("Reusing existing pre-rehearsal evaluation (coherent cache set: heldout+unseen+challenge all validated).")
+            pre_heldout, pre_unseen, pre_challenge = cached_pre
         else:
             pre_heldout, pre_unseen, pre_challenge = run_full_evaluation(
                 pre_rehearsal_checkpoint, heldout_manifest, unseen_manifest, challenge_manifest, label=pre_label,
@@ -426,12 +489,10 @@ def main() -> None:
         # ---------------------------------------------------------------
         rehearsed_output = MODELS_DIR / f"{canonical_checkpoint_name('beginner', ppo_milestone + '_rehearsed')}.zip"
         post_label = f"{ppo_milestone}_post_rehearsal"
-        post_heldout_path = EVAL_DIR / f"canonical_{post_label}_heldout.json"
-        post_heldout = load_cached_report_if_current(post_heldout_path, log=log)
-        if rehearsed_output.exists() and post_heldout is not None:
-            log("Reusing existing rehearsed checkpoint + evaluation.")
-            post_unseen = json.loads((EVAL_DIR / f"canonical_{post_label}_unseen.json").read_text(encoding="utf-8"))
-            post_challenge = json.loads((EVAL_DIR / f"canonical_{post_label}_challenge.json").read_text(encoding="utf-8"))
+        cached_post = _load_coherent_evaluation_set(rehearsed_output, label=post_label) if rehearsed_output.exists() else None
+        if cached_post is not None:
+            log("Reusing existing rehearsed checkpoint + evaluation (coherent cache set: heldout+unseen+challenge all validated).")
+            post_heldout, post_unseen, post_challenge = cached_post
         else:
             rehearsal_result = rehearse_farming_policy_on_basic_data(
                 pre_rehearsal_checkpoint, rehearsed_output, basic_dataset_paths=event_dataset_paths,
@@ -487,7 +548,7 @@ def main() -> None:
             consecutive_passes = 0
             log(f"Round {round_idx} did NOT pass the absolute bar: {bar_reasons}")
 
-        round_reports.append(with_current_generation_identity({
+        round_reports.append(with_round_identity({
             "round": round_idx,
             "pre_rehearsal_checkpoint": str(pre_rehearsal_checkpoint.resolve()),
             "rehearsal_damage_detected": bool(damage_reasons),
@@ -499,7 +560,7 @@ def main() -> None:
             "aggregates": {
                 "heldout": carried_forward_agg[0], "unseen_templates": carried_forward_agg[1], "challenge": carried_forward_agg[2],
             },
-        }, declared_parent_checkpoint=GRADUATED_BASIC_CHECKPOINT))
+        }, stage="early", declared_parent_checkpoint=GRADUATED_BASIC_CHECKPOINT, current_checkpoint=carried_forward_checkpoint))
         summary_path.write_text(json.dumps(round_reports, indent=2, default=str), encoding="utf-8")
         current_checkpoint = carried_forward_checkpoint
 
