@@ -258,6 +258,121 @@ def test_round_record_with_no_identity_current_checkpoint_is_rejected(parent_che
     assert reason is not None
 
 
+# --- malformed nested identity input boundary hardening (2026-08-23,
+# persisted-identity-input-boundary task) -- a persisted round record's
+# `identity` and every field it or `carried_forward_checkpoint` names is
+# untrusted JSON at every nesting level, not just the top-level shape
+# checked above. Every case below previously escaped as an
+# AttributeError/TypeError instead of being rejected as ordinary
+# non-resumable state (`round_record_validity_reason` returning a reason
+# string, never raising). -----------------------------------------------
+
+
+@pytest.mark.parametrize("bad_identity", [None, "abc", [], [1, 2], 1, 1.5, True])
+def test_round_record_rejects_every_non_dict_identity_shape(parent_checkpoint, current_checkpoint, bad_identity):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["identity"] = bad_identity
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
+@pytest.mark.parametrize("bad_value", [{}, [], 1, True, None])
+def test_round_record_rejects_malformed_carried_forward_checkpoint_types(parent_checkpoint, current_checkpoint, bad_value):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["carried_forward_checkpoint"] = bad_value
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
+@pytest.mark.parametrize("bad_value", [{}, [], 1, True, None])
+def test_round_record_rejects_malformed_identity_current_checkpoint_types(parent_checkpoint, current_checkpoint, bad_value):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["identity"]["current_checkpoint"] = bad_value
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
+@pytest.mark.parametrize("bad_sha", [123, True, {}, [], None, "not-a-sha", "a" * 63, "a" * 65, "g" * 64, "A" * 64])
+def test_round_record_rejects_malformed_current_checkpoint_sha256(parent_checkpoint, current_checkpoint, bad_sha):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["identity"]["current_checkpoint_sha256"] = bad_sha
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
+@pytest.mark.parametrize("bad_sha", [123, True, {}, [], None, "not-a-sha", "a" * 63, "a" * 65])
+def test_round_record_rejects_malformed_declared_parent_checkpoint_sha256(parent_checkpoint, current_checkpoint, bad_sha):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["identity"]["declared_parent_checkpoint_sha256"] = bad_sha
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
+@pytest.mark.parametrize("bad_sha", [123, True, {}, [], None, "not-a-sha", "a" * 63, "a" * 65])
+def test_round_record_rejects_malformed_navigation_checkpoint_sha256(parent_checkpoint, current_checkpoint, bad_sha):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["identity"]["navigation_checkpoint_sha256"] = bad_sha
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
+@pytest.mark.parametrize("bad_value", [{}, [], 1, True, None])
+def test_round_record_rejects_malformed_declared_parent_checkpoint_path_type(parent_checkpoint, current_checkpoint, bad_value):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["identity"]["declared_parent_checkpoint"] = bad_value
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
+@pytest.mark.parametrize("bad_value", [{}, [], 1, True, [13.0, 3], [13, 3, 0], None])
+def test_round_record_rejects_malformed_policy_action_nvec_types(parent_checkpoint, current_checkpoint, bad_value):
+    """Includes `[13.0, 3]` -- a float element must never be silently
+    accepted as the exact integer `13` a real runner always writes
+    (`13.0 == 13` in Python)."""
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["identity"]["policy_action_nvec"] = bad_value
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
+@pytest.mark.parametrize("bad_value", [923.0, True, "923", {}, [], None])
+def test_round_record_rejects_malformed_raw_observation_size_types(parent_checkpoint, current_checkpoint, bad_value):
+    """`923.0 == 923` and `isinstance(True, int)` in Python -- a float or
+    bool must never be silently accepted as the exact integer this field
+    requires."""
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["identity"]["raw_observation_size"] = bad_value
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
+# --- fuzz-like nested type matrix (task section 13): every identity field
+# actually consumed by the round validity checker, crossed with every
+# wrong-JSON-type category (null/bool/number/list/dict) -- proves no single
+# field/type combination can escape as an exception. ------------------------
+
+
+@pytest.mark.parametrize("field", [
+    "current_checkpoint", "current_checkpoint_sha256", "declared_parent_checkpoint",
+    "declared_parent_checkpoint_sha256", "navigation_checkpoint_sha256", "policy_action_nvec",
+    "raw_observation_size", "generation_id", "curriculum_stage",
+])
+@pytest.mark.parametrize("bad_value", [None, True, 1, [1, 2], {"a": 1}])
+def test_round_record_nested_identity_field_rejects_every_wrong_json_type(parent_checkpoint, current_checkpoint, field, bad_value):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["identity"][field] = bad_value
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
+@pytest.mark.parametrize("bad_value", [None, True, 1, [1, 2], {"a": 1}])
+def test_round_record_top_level_carried_forward_checkpoint_rejects_every_wrong_json_type(parent_checkpoint, current_checkpoint, bad_value):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["carried_forward_checkpoint"] = bad_value
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
 # --- load_resumable_round_reports: real temporary files -------------------
 
 
@@ -413,6 +528,15 @@ def test_load_resumable_round_reports_rejects_malformed_json_without_raising(tmp
     summary_path.write_text("{not valid json", encoding="utf-8")
     result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
     assert result == []
+
+
+def test_load_resumable_round_reports_rejects_invalid_utf8_without_raising(tmp_path, parent_checkpoint):
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    original_bytes = b"\xff\xfe this is not valid utf-8 \x80\x81"
+    summary_path.write_bytes(original_bytes)
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+    assert summary_path.read_bytes() == original_bytes, "rejection must never mutate the file it read"
 
 
 @pytest.mark.parametrize("entry", [None, "round", 1, []])
@@ -685,6 +809,24 @@ def test_missing_cache_file_returns_none(tmp_path, parent_checkpoint, current_ch
     assert load_cached_evaluation_if_current(tmp_path / "does_not_exist.json", log=lambda _m: None, expected_identity=expected) is None
 
 
+def test_cache_rejects_invalid_utf8_without_raising(tmp_path, parent_checkpoint, current_checkpoint, heldout_manifest):
+    cache_path = current_generation_path(tmp_path / "canonical_x_pre_rehearsal_heldout.json")
+    original_bytes = b"\xff\xfe this is not valid utf-8 \x80\x81"
+    cache_path.write_bytes(original_bytes)
+    expected = evaluation_cache_identity(**_cache_identity_kwargs(parent_checkpoint, current_checkpoint, heldout_manifest))
+    result = load_cached_evaluation_if_current(cache_path, log=lambda _m: None, expected_identity=expected)
+    assert result is None
+    assert cache_path.read_bytes() == original_bytes, "rejection must never mutate the file it read"
+
+
+def test_cache_with_non_dict_identity_is_rejected(tmp_path, parent_checkpoint, current_checkpoint, heldout_manifest):
+    cache_path = current_generation_path(tmp_path / "canonical_x_pre_rehearsal_heldout.json")
+    cache_path.write_text(json.dumps({"n_episodes": 4, "identity": "not an object"}), encoding="utf-8")
+    expected = evaluation_cache_identity(**_cache_identity_kwargs(parent_checkpoint, current_checkpoint, heldout_manifest))
+    result = load_cached_evaluation_if_current(cache_path, log=lambda _m: None, expected_identity=expected)
+    assert result is None
+
+
 # --- each canonical runner actually wires the new API in -----------------
 
 
@@ -857,3 +999,84 @@ class TestRunnerResumeRoundState:
         assert consecutive_passes == 0
         assert current_checkpoint == parent_checkpoint
         assert next_resumable_round(round_reports) == 1
+
+    # --- malformed nested identity fallback matrix (persisted-identity-
+    # input-boundary task, section 14): a malformed nested identity/
+    # checkpoint field anywhere in a persisted round record must never raise
+    # out of `_resume_round_state` -- it must fall back exactly like any
+    # other non-resumable summary (empty round_reports, 0 consecutive
+    # passes, the declared graduated parent as current_checkpoint, round 1
+    # next), and must never mutate the file it read. -------------------------
+
+    def _single_round_summary(self, tmp_path, parent_checkpoint, current_checkpoint, stage):
+        record = _valid_round_record(parent_checkpoint, current_checkpoint, stage=stage, round_number=1)
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        return record, summary_path
+
+    def _assert_falls_back_to_parent(self, module, summary_path, parent_checkpoint):
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert round_reports == []
+        assert consecutive_passes == 0
+        assert current_checkpoint == parent_checkpoint
+        assert next_resumable_round(round_reports) == 1
+
+    def test_string_identity_falls_back_to_declared_parent(self, module, stage, tmp_path, parent_checkpoint, current_checkpoint):
+        """Task section 2.A: `identity = "truthy string"`."""
+        record, summary_path = self._single_round_summary(tmp_path, parent_checkpoint, current_checkpoint, stage)
+        record["identity"] = "truthy string"
+        original_bytes = json.dumps([record]).encode("utf-8")
+        summary_path.write_bytes(original_bytes)
+        self._assert_falls_back_to_parent(module, summary_path, parent_checkpoint)
+        assert summary_path.read_bytes() == original_bytes
+
+    def test_dict_carried_forward_checkpoint_falls_back_to_declared_parent(self, module, stage, tmp_path, parent_checkpoint, current_checkpoint):
+        """Task section 2.B: `carried_forward_checkpoint = {}`."""
+        record, summary_path = self._single_round_summary(tmp_path, parent_checkpoint, current_checkpoint, stage)
+        record["carried_forward_checkpoint"] = {}
+        original_bytes = json.dumps([record]).encode("utf-8")
+        summary_path.write_bytes(original_bytes)
+        self._assert_falls_back_to_parent(module, summary_path, parent_checkpoint)
+        assert summary_path.read_bytes() == original_bytes
+
+    def test_dict_identity_current_checkpoint_falls_back_to_declared_parent(self, module, stage, tmp_path, parent_checkpoint, current_checkpoint):
+        """Task section 2.C: `identity.current_checkpoint = {}`."""
+        record, summary_path = self._single_round_summary(tmp_path, parent_checkpoint, current_checkpoint, stage)
+        record["identity"]["current_checkpoint"] = {}
+        original_bytes = json.dumps([record]).encode("utf-8")
+        summary_path.write_bytes(original_bytes)
+        self._assert_falls_back_to_parent(module, summary_path, parent_checkpoint)
+        assert summary_path.read_bytes() == original_bytes
+
+    def test_int_identity_current_checkpoint_sha256_falls_back_to_declared_parent(self, module, stage, tmp_path, parent_checkpoint, current_checkpoint):
+        """Task section 2.D: `identity.current_checkpoint_sha256 = 123`."""
+        record, summary_path = self._single_round_summary(tmp_path, parent_checkpoint, current_checkpoint, stage)
+        record["identity"]["current_checkpoint_sha256"] = 123
+        original_bytes = json.dumps([record]).encode("utf-8")
+        summary_path.write_bytes(original_bytes)
+        self._assert_falls_back_to_parent(module, summary_path, parent_checkpoint)
+        assert summary_path.read_bytes() == original_bytes
+
+    def test_invalid_utf8_summary_file_falls_back_to_declared_parent(self, module, stage, tmp_path, parent_checkpoint):
+        """Task section 2.E: persisted file contains invalid UTF-8 bytes."""
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        original_bytes = b"\xff\xfe this is not valid utf-8 \x80\x81"
+        summary_path.write_bytes(original_bytes)
+        self._assert_falls_back_to_parent(module, summary_path, parent_checkpoint)
+        assert summary_path.read_bytes() == original_bytes
+
+    def test_valid_summary_still_resumes_normally_alongside_the_fallback_matrix(self, module, stage, tmp_path, parent_checkpoint):
+        """Sanity companion to the fallback matrix above: a genuinely valid
+        summary must still resume, proving the hardening above rejects only
+        malformed input, not everything."""
+        records = _build_round_chain(tmp_path, parent_checkpoint, [1, 2], stage=stage)
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        summary_path.write_text(json.dumps(records), encoding="utf-8")
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert [r["round"] for r in round_reports] == [1, 2]
+        assert consecutive_passes == 2
+        assert current_checkpoint.resolve() == Path(records[1]["carried_forward_checkpoint"]).resolve()
+        assert next_resumable_round(round_reports) == 3

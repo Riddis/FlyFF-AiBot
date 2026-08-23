@@ -108,6 +108,51 @@ def stable_config_fingerprint(config: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+_LOWERCASE_HEX_DIGITS = frozenset("0123456789abcdef")
+
+
+def _is_sha256_hex(value: Any) -> bool:
+    """`True` only for an exact JSON string of 64 lowercase hex characters --
+    the exact shape every writer in this module (`sha256_of_file` via
+    `hashlib...hexdigest()`) always produces. Persisted JSON is untrusted
+    input: an int, bool, `None`, a right-length-but-non-hex string, or a
+    wrong-length string must all be rejected here rather than reaching a
+    `[:12]`-slice or comparison that assumes a string."""
+    return type(value) is str and len(value) == 64 and all(c in _LOWERCASE_HEX_DIGITS for c in value)
+
+
+def _is_nonempty_str(value: Any) -> bool:
+    return type(value) is str and value != ""
+
+
+def _is_exact_int_list(value: Any) -> bool:
+    """`type(x) is int` (not `isinstance`) on every element so a JSON `true`
+    element is never silently accepted as `1`, and a JSON float element
+    (e.g. `13.0`) is never silently accepted as the exact integer `13`."""
+    return type(value) is list and all(type(item) is int for item in value)
+
+
+# Structural validators for identity fields that are compared by plain `!=`
+# equality in `identity_mismatch_reason` but whose expected value is itself a
+# richer type than a bare string -- without this, a malformed stored value of
+# an unexpected type (e.g. `raw_observation_size: 923.0` or
+# `policy_action_nvec: {}`) could either raise deep inside a caller that
+# assumes the expected shape, or (worse) compare equal by Python's loose
+# cross-type equality (`923.0 == 923`, `True == 1`) and be silently accepted.
+# Keys not listed here are plain strings compared directly by
+# `identity_mismatch_reason`'s `!=` check, which never raises for any JSON
+# scalar/container combination.
+_IDENTITY_FIELD_VALIDATORS: dict[str, Callable[[Any], bool]] = {
+    "raw_observation_size": lambda v: type(v) is int,
+    "policy_action_nvec": _is_exact_int_list,
+    "navigation_checkpoint_sha256": _is_sha256_hex,
+    "declared_parent_checkpoint": _is_nonempty_str,
+    "declared_parent_checkpoint_sha256": lambda v: v is None or _is_sha256_hex(v),
+    "evaluated_checkpoint": _is_nonempty_str,
+    "evaluated_checkpoint_sha256": lambda v: v is None or _is_sha256_hex(v),
+}
+
+
 def _generation_core() -> dict[str, Any]:
     from farming.actions import FarmingEvent
     from farming.observation import DIRECT_ACTOR_SLOTS
@@ -123,21 +168,32 @@ def _generation_core() -> dict[str, Any]:
     }
 
 
-def identity_mismatch_reason(stored: dict[str, Any] | None, expected: dict[str, Any]) -> str | None:
+def identity_mismatch_reason(stored: Any, expected: dict[str, Any]) -> str | None:
     """Returns `None` if `stored` carries every key `expected` names with a
     matching value; otherwise a human-readable reason it must NOT be
     trusted for resume/cache reuse. A missing/empty `stored` dict -- the
     case for every artifact written before this identity scheme existed --
     is always a mismatch: absence of identity is never an implicit match.
-    Keys `stored` carries that `expected` does not name are ignored (lets
-    round records carry their own extra `current_checkpoint*` fields that
-    round-level validation checks separately, see
-    `round_record_validity_reason`)."""
+    `stored` is untrusted persisted JSON and may be any type at all (a
+    string, a list, a number, ...), never just a dict with the wrong
+    content -- `type(stored) is dict` is required before any `.get()` call
+    so a malformed non-dict identity is rejected here rather than raising
+    `AttributeError` in this function or a `TypeError`/`Path()` failure
+    deeper in a caller that assumes the expected shape. Keys `stored`
+    carries that `expected` does not name are ignored (lets round records
+    carry their own extra `current_checkpoint*` fields that round-level
+    validation checks separately, see `round_record_validity_reason`)."""
     if not stored:
         return "no identity recorded (pre-dates this identity scheme -- an untyped historical/legacy artifact)"
+    if type(stored) is not dict:
+        return f"identity is not a JSON object (got {type(stored).__name__}) -- persisted identity must be a JSON mapping"
     for key, value in expected.items():
-        if stored.get(key) != value:
-            return f"{key}={stored.get(key)!r} does not match expected {value!r}"
+        actual = stored.get(key)
+        validator = _IDENTITY_FIELD_VALIDATORS.get(key)
+        if validator is not None and not validator(actual):
+            return f"{key}={actual!r} has an invalid type/shape for this field (expected something matching {value!r})"
+        if actual != value:
+            return f"{key}={actual!r} does not match expected {value!r}"
     return None
 
 
@@ -190,21 +246,33 @@ def round_record_validity_reason(record: dict[str, Any], *, stage: str, declared
     path than the round's own vouched-for `current_checkpoint` (even with
     identical bytes elsewhere), stale checkpoint path, changed checkpoint
     bytes."""
+    if type(record) is not dict:
+        return f"round record is not a JSON object (got {type(record).__name__})"
     expected = _round_expected_identity(stage=stage, declared_parent_checkpoint=declared_parent_checkpoint)
     stored = record.get("identity")
     reason = identity_mismatch_reason(stored, expected)
     if reason is not None:
         return reason
+    # `identity_mismatch_reason` returning `None` guarantees `type(stored) is
+    # dict` (it rejects any other type before ever reaching `None`), so the
+    # `.get()` calls below are safe without re-checking.
     checkpoint_path = record.get("carried_forward_checkpoint")
-    recorded_current_checkpoint = (stored or {}).get("current_checkpoint")
-    recorded_sha = (stored or {}).get("current_checkpoint_sha256")
-    if not checkpoint_path or not recorded_current_checkpoint or not recorded_sha:
-        return (
-            "round record is missing carried_forward_checkpoint or its recorded "
-            "identity.current_checkpoint/current_checkpoint_sha256"
-        )
-    resolved = Path(checkpoint_path).resolve()
-    recorded_resolved = Path(recorded_current_checkpoint).resolve()
+    recorded_current_checkpoint = stored.get("current_checkpoint")
+    recorded_sha = stored.get("current_checkpoint_sha256")
+    if not _is_nonempty_str(checkpoint_path):
+        return f"carried_forward_checkpoint is not a non-empty JSON string (got {checkpoint_path!r})"
+    if not _is_nonempty_str(recorded_current_checkpoint):
+        return f"identity.current_checkpoint is not a non-empty JSON string (got {recorded_current_checkpoint!r})"
+    if not _is_sha256_hex(recorded_sha):
+        return f"identity.current_checkpoint_sha256 is not a 64-character lowercase-hex SHA-256 string (got {recorded_sha!r})"
+    # Every field consumed below is now proven to be a well-formed string
+    # (or valid SHA-256 hex), so only genuine filesystem failures remain
+    # possible -- narrow to OSError rather than masking a programming bug.
+    try:
+        resolved = Path(checkpoint_path).resolve()
+        recorded_resolved = Path(recorded_current_checkpoint).resolve()
+    except OSError as exc:
+        return f"carried_forward_checkpoint {checkpoint_path!r} or identity.current_checkpoint {recorded_current_checkpoint!r} could not be resolved: {exc}"
     if resolved != recorded_resolved:
         return (
             f"carried_forward_checkpoint {checkpoint_path!r} (resolves to {resolved}) does not refer to the same "
@@ -212,9 +280,16 @@ def round_record_validity_reason(record: dict[str, Any], *, stage: str, declared
             f"(resolves to {recorded_resolved}) -- a round record must vouch for one exact checkpoint identity "
             "(path + content SHA), not merely equivalent bytes at a different path"
         )
-    if not resolved.exists():
+    try:
+        exists = resolved.exists()
+    except OSError as exc:
+        return f"carried_forward_checkpoint {checkpoint_path!r} could not be checked on disk: {exc}"
+    if not exists:
         return f"carried_forward_checkpoint {checkpoint_path!r} no longer exists on disk (stale path -- no orphan-checkpoint resume)"
-    live_sha = sha256_of_file(resolved)
+    try:
+        live_sha = sha256_of_file(resolved)
+    except OSError as exc:
+        return f"carried_forward_checkpoint {checkpoint_path!r} could not be read to verify content SHA: {exc}"
     if live_sha != recorded_sha:
         return (
             f"carried_forward_checkpoint {checkpoint_path!r} bytes changed since this round was recorded "
@@ -345,7 +420,10 @@ def load_resumable_round_reports(
         return []
     try:
         payload = json.loads(summary_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
+        log(f"Ignoring existing run summary at {summary_path} for resume: file could not be read/decoded as UTF-8 "
+            f"JSON ({exc}). Starting this stage's consecutive_passes/current_checkpoint fresh from the declared "
+            "parent checkpoint.")
         return []
     if type(payload) is not list:
         log(f"Ignoring existing run summary at {summary_path} for resume: top-level content is not a JSON list "
@@ -412,9 +490,10 @@ def load_cached_evaluation_if_current(
         return None
     try:
         report = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
+        log(f"Ignoring cached evaluation at {path}: file could not be read/decoded as UTF-8 JSON ({exc}). Recomputing.")
         return None
-    reason = identity_mismatch_reason(report.get("identity") if isinstance(report, dict) else None, expected_identity)
+    reason = identity_mismatch_reason(report.get("identity") if type(report) is dict else None, expected_identity)
     if reason is not None:
         log(f"Ignoring cached evaluation at {path}: {reason}. Recomputing.")
         return None

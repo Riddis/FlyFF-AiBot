@@ -2077,3 +2077,45 @@ sweep.
   counter field derived from history (`consecutive_passes`) is exactly as
   much an integrity target as identity fields are -- validate it against
   the history it claims to summarize, not just its own type.
+
+### [2026-08-23] top-level round schema hardening still left nested `identity` fields unvalidated before use
+- What happened: the schema hardening above validated the top-level round
+  shape (`round`/`round_passed_absolute_bar`/`consecutive_passes`) but
+  `identity_mismatch_reason()` and `round_record_validity_reason()` still
+  assumed `record["identity"]` and its nested fields were well-shaped: a
+  non-dict `identity` (e.g. a bare string) raised `AttributeError` on
+  `.get()`; a non-string `carried_forward_checkpoint`/
+  `identity.current_checkpoint` raised `TypeError` inside `Path(...)`; a
+  non-string `current_checkpoint_sha256` raised `TypeError` on the
+  `recorded_sha[:12]` formatting slice once a mismatch was detected; and a
+  persisted file with invalid UTF-8 bytes raised `UnicodeDecodeError`
+  (only `json.JSONDecodeError`/`OSError` were caught).
+- Root cause: the earlier schema-hardening pass fixed the fields it had
+  just been shown were reachable (`round`, `round_passed_absolute_bar`,
+  `consecutive_passes`) without re-deriving the FULL set of persisted
+  fields the identity layer separately reads before using -- fixing the
+  reproduced cases is not the same as proving no sibling case remains.
+- How caught: independent review pass found four concrete malformed-input
+  reproductions (string `identity`, dict `carried_forward_checkpoint`,
+  dict `identity.current_checkpoint`, int `current_checkpoint_sha256`)
+  plus invalid-UTF-8 file bytes, all raising instead of rejecting.
+- Fix: `identity_mismatch_reason()` now requires `type(stored) is dict`
+  before any `.get()`; `round_record_validity_reason()` requires exact
+  non-empty-string path fields (`_is_nonempty_str()`) and exact
+  64-lowercase-hex SHA fields (`_is_sha256_hex()`) before any
+  `Path(...)`/slice/comparison touches them, with the remaining
+  `Path.resolve()`/`.exists()`/hash calls narrowed to `except OSError`
+  (never a blanket `except Exception`); `UnicodeDecodeError` joins the
+  caught exceptions in both `load_resumable_round_reports()` and
+  `load_cached_evaluation_if_current()`. See
+  `docs/architecture/CURRICULUM_TRAINING_PIPELINE.md`'s "Malformed nested
+  identity/checkpoint fields are non-resumable, not exceptional" note and
+  `tests/test_curriculum_resume_identity.py`'s parametrized
+  field-times-wrong-type matrix.
+- Lesson: when a review names concrete reproduced crashes, fix the
+  reachable-field SET they imply, not just the literal cases reproduced --
+  a validator that checks four fields and misses a fifth of the same kind
+  just relocates the next review's finding one field over. A field
+  consumed by `.get()`, `Path()`, a hash comparison, or a string-format
+  slice needs its OWN type/shape check before that operation, independent
+  of whether a top-level schema check already ran.

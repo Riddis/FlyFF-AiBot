@@ -378,6 +378,52 @@ identity, not merely an architecture-generation check:
   out of curriculum startup. See `_round_schema_reason()` and the
   pass-sequence check inside `load_resumable_round_reports()`.
 
+  **Malformed nested identity/checkpoint fields are non-resumable, not
+  exceptional** (persisted-identity input-boundary hardening, 2026-08-23):
+  `_round_schema_reason()` only proves the top-level round shape
+  (`round`/`round_passed_absolute_bar`/`consecutive_passes`) is well-typed
+  — everything inside a round's own `identity` object is validated
+  separately, since it is reached through a different code path
+  (`identity_mismatch_reason()` and `round_record_validity_reason()`).
+  Persisted JSON is untrusted at every nesting level, so both functions
+  are schema-validated before any `Path(...)`/hash/formatting operation
+  ever touches a stored value: `identity` itself must be exactly a dict
+  (`type(stored) is dict`) before any `.get()` is called on it — a bare
+  string/list/number/bool identity is rejected as "not a JSON object",
+  never passed to `.get()` (which would raise `AttributeError` for a
+  non-dict). Every SHA-256 field consumed for identity
+  (`navigation_checkpoint_sha256`, `declared_parent_checkpoint_sha256`,
+  `current_checkpoint_sha256`, and `evaluated_checkpoint_sha256` for
+  cached evaluations) is validated as an exact 64-character lowercase-hex
+  string (`_is_sha256_hex()`) before any comparison or `[:12]`-slice
+  formatting touches it — an int, bool, `null`, wrong-length, or non-hex
+  value is rejected as malformed rather than reaching a
+  `TypeError`/`AttributeError`. Every path field consumed
+  (`carried_forward_checkpoint`, `identity.current_checkpoint`,
+  `declared_parent_checkpoint`, `evaluated_checkpoint`) must be an exact
+  non-empty JSON string (`_is_nonempty_str()`) before `Path(...)` is ever
+  called on it — a dict/list/number/bool/null value is rejected before
+  `Path()` would otherwise raise `TypeError`. `policy_action_nvec` and
+  `raw_observation_size` are validated by exact type as well
+  (`_is_exact_int_list()`, `type(v) is int`) rather than by loose `!=`
+  comparison alone, since Python's cross-type equality (`13.0 == 13`,
+  `True == 1`) would otherwise let a float or bool element silently
+  launder past a plain equality check without ever matching or rejecting
+  correctly. Once schema-validated, the remaining `Path(...).resolve()`/
+  `.exists()`/content-SHA operations are wrapped narrowly in `except
+  OSError` (never a blanket `except Exception`), so a genuine filesystem
+  failure on an otherwise well-typed value still rejects safely without
+  masking an unrelated programming bug. A persisted summary file with
+  invalid UTF-8 bytes is treated the same as invalid JSON: `UnicodeDecode
+  Error` is caught alongside `json.JSONDecodeError`/`OSError` in both
+  `load_resumable_round_reports()` and `load_cached_evaluation_if_current()`,
+  logged, and rejected as `[]`/`None` — the file itself is never rewritten,
+  repaired, or archived on any rejection path. See
+  `tests/test_curriculum_resume_identity.py`'s malformed-nested-identity
+  tests (including a parametrized field × wrong-JSON-type matrix) and the
+  `TestRunnerResumeRoundState` fallback-matrix tests exercising all three
+  canonical runners' actual `_resume_round_state()`.
+
   Each of the three canonical
   runners then derives its next round from the last validated round's
   own recorded number via `next_resumable_round()`, not from list length
