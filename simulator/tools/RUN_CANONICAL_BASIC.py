@@ -98,6 +98,7 @@ def main() -> None:
         FROZEN_NAVIGATION_CHECKPOINT_PATH,
         FROZEN_NAVIGATION_CHECKPOINT_SHA256,
         FrozenNavigationSteering,
+        farming_policy_architecture_contract,
     )
 
     training_recordings = sorted(glob.glob(str(ROOT / "recordings" / "training" / "*.zip")))
@@ -256,6 +257,7 @@ def main() -> None:
                 "event_source": "human_recordings", "event_epochs_run": event_result["epochs_run"],
             },
             curriculum_path=DAGGER_CURRICULUM, recording_paths=training_recordings + eva_only_recordings,
+            architecture_contract=farming_policy_architecture_contract(),
             starting_checkpoint=None,
             extra={
                 "event_result_summary": {
@@ -363,6 +365,7 @@ def main() -> None:
             },
             curriculum_path=DAGGER_CURRICULUM, dagger_config={"layouts": DAGGER_LAYOUTS, "seeds": round_seeds},
             recovery_config={"enabled": True, "role": "training_wheel_dagger_collection_only"},
+            architecture_contract=farming_policy_architecture_contract(),
             starting_checkpoint=str(Path(previous_checkpoint).resolve()),
         )
         log(f"Saved: {milestone_checkpoint} (+ provenance)")

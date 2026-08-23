@@ -95,6 +95,15 @@ def test_continue_farming_policy_ppo_chunk_continues_basics_own_checkpoint_direc
     assert manifest["starting_checkpoint"] == str(checkpoint.resolve())
     assert manifest["recovery_config"]["enabled"] is False
     assert manifest["architecture_contract"]["navigation_checkpoint_sha256"]
+    assert manifest["architecture_contract"]["policy_class"] == "SplitFarmingTargetEventPolicy"
+    assert manifest["architecture_contract"]["raw_observation_size"] == 923
+    # Regression guard: farming_policy_architecture_contract() must override
+    # EVERY architecture-describing key build_run_manifest's own default
+    # sets, not just some of them -- a prior bug left policy_input_size=928
+    # (the retired SplitSteeringNavigationPolicy's sidecar width) behind
+    # after the merge even though raw_observation_size was correctly
+    # overridden to 923 in the same manifest (see MISTAKES.md 2026-08-23).
+    assert manifest["architecture_contract"]["policy_input_size"] == 923
 
 
 def test_zero_shot_raw_diagnostic_parallel_matches_sequential(tmp_path: Path) -> None:

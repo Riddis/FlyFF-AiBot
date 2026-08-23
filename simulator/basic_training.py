@@ -97,6 +97,7 @@ def save_checkpoint_with_provenance(
     recording_paths: list[str] | None = None,
     recovery_config: dict[str, Any] | None = None,
     dagger_config: dict[str, Any] | None = None,
+    architecture_contract: dict[str, Any] | None = None,
     starting_checkpoint: str | None = None,
     extra: dict[str, Any] | None = None,
 ) -> Path:
@@ -107,7 +108,15 @@ def save_checkpoint_with_provenance(
     record that this run began from a fresh current-architecture
     initialization, never a historical checkpoint -- pass the real path for
     any run that legitimately continues from one (e.g. Beginner from a
-    Basic checkpoint)."""
+    Basic checkpoint).
+
+    `architecture_contract` MUST be supplied by every current Basic caller --
+    it names the actual policy architecture/action contract the saved
+    `model` implements (e.g. `simulator.navigation_subpolicy.
+    farming_policy_architecture_contract()` for `SplitFarmingTargetEventPolicy`).
+    Without it, `build_run_manifest` falls back to its own historical default
+    (`SplitSteeringNavigationPolicy`, 928-value navigation-sidecar input),
+    which is wrong for every checkpoint this function currently saves."""
 
     from .run_provenance import build_run_manifest, write_run_manifest
 
@@ -118,6 +127,7 @@ def save_checkpoint_with_provenance(
         stage=stage, milestone=milestone, seeds=seeds, config=config,
         curriculum_path=curriculum_path, heldout_manifest_path=heldout_manifest_path,
         recording_paths=recording_paths, recovery_config=recovery_config, dagger_config=dagger_config,
+        architecture_contract=architecture_contract,
         starting_checkpoint=starting_checkpoint, output_checkpoint=str(checkpoint.resolve()), extra=extra,
     )
     write_run_manifest(checkpoint, manifest)

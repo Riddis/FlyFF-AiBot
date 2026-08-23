@@ -1867,3 +1867,63 @@ sweep.
   catch this class of bug; only a test that drives the real emitting
   call site (here, the real control loop calling the real `gym.step()`)
   can.
+
+## Category: checkpoint provenance / manifest contracts
+
+### [2026-08-23] partial architecture_contract override left a stale field behind after the merge
+
+- What happened: `simulator/basic_training.py::save_checkpoint_with_provenance`
+  never passed an `architecture_contract` through to
+  `run_provenance.build_run_manifest`, so every Basic-stage checkpoint's
+  `.provenance.json` silently inherited `build_run_manifest`'s own
+  historical default contract (`policy_class="SplitSteeringNavigationPolicy"`,
+  `policy_input_size=928`) even though Basic actually trains
+  `SplitFarmingTargetEventPolicy` over the raw 923-value observation with
+  `MultiDiscrete([13, 3])` and no steering action. Fixing the missing
+  parameter (passing `simulator.navigation_subpolicy.
+  farming_policy_architecture_contract()`) was not sufficient by itself:
+  that contract function overrode `policy_class`, `raw_observation_size`,
+  and `policy_input_schema_id`, but not `policy_input_size` -- and
+  `build_run_manifest` merges an explicit `architecture_contract` onto its
+  own `default_contract` with a plain field-by-field `dict.update()`
+  (`simulator/run_provenance.py`), so any key the override dict doesn't
+  mention survives from the default untouched. The stale `policy_input_size:
+  928` (the steering-policy's navigation-sidecar width) therefore remained
+  in the manifest, contradicting the now-correct `raw_observation_size: 923`
+  in the same dict, and would have shipped as a second, more subtle wrong
+  provenance fact layered on top of the one the fix was meant to remove.
+  This same `farming_policy_architecture_contract()` function is also used
+  by `simulator/beginner_transition.py`'s two `build_run_manifest` call
+  sites, which likely carried the identical latent `policy_input_size=928`
+  bug in their own manifests undetected, since
+  `tests/test_beginner_transition.py`'s only architecture_contract
+  assertion checks `navigation_checkpoint_sha256` truthiness, not
+  `policy_input_size`.
+- Root cause: assumed passing *an* override dict to a "default, then
+  update-with-override" merge function makes the result fully correct,
+  without checking whether the override dict actually covers every key the
+  default sets that is semantically tied to the architecture being
+  described. `default_contract.update(architecture_contract)` is a shallow
+  per-key overwrite, not a "replace the whole contract" operation -- an
+  override that only touches 3 of the 4 architecture-describing keys
+  leaves the 4th as a leftover from a structurally different policy.
+- How caught: a new test
+  (`tests/test_basic_checkpoint_provenance.py::test_basic_bootstrap_save_does_not_report_the_retired_steering_navigation_policy`)
+  asserted `contract.get("policy_input_size") != 928` immediately after
+  writing the parameter-passing fix, specifically because the task
+  description's negative-assertion list ("must NOT report... 928 as the
+  farming-policy input") named the field explicitly rather than only
+  checking the fields the fix touched.
+- Fix: added `"policy_input_size": RAW_OBSERVATION_SIZE` to
+  `farming_policy_architecture_contract()` in
+  `simulator/navigation_subpolicy.py` (this policy has no navigation
+  sidecar, so its policy input IS the raw observation -- the two sizes are
+  legitimately equal, not independently-tracked values).
+- Lesson: when fixing a "wrong default leaked through" bug via a
+  dict-merge override, enumerate every key the default sets that is
+  semantically part of the same contract being overridden, not just the
+  keys the immediate symptom pointed at -- a partial override of a
+  multi-field default is silently indistinguishable from a correct one
+  unless every affected field is asserted on individually. Grep other
+  callers of the same default-merge function for the same override dict to
+  check whether they share the identical latent gap.
