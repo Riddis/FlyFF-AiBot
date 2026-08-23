@@ -65,7 +65,7 @@ def main() -> None:
     log(f"  intervention_ticks_fraction: {milestone_report['intervention_ticks_fraction']}")
     log(f"  contacts_per_step: {milestone_report['contacts_per_step']}")
     log(f"  mean_displacement_per_tick: {milestone_report['mean_displacement_per_tick']}")
-    log(f"  steering_disagreement_rate: {milestone_report['steering_disagreement_rate']}")
+    log(f"  target_disagreement_rate: {milestone_report['target_disagreement_rate']}")
     log(f"  event_disagreement_rate: {milestone_report['event_disagreement_rate']}")
     log(f"  gave_up_episode_fraction: {milestone_report['gave_up_episode_fraction']}")
     log(f"  dominant_layout_intervention_share: {milestone_report['dominant_layout_intervention_share']}")

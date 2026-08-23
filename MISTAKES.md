@@ -94,6 +94,131 @@ Entry template:
   Also: when told a bug might be "harmless," don't just accept that framing
   -- trace what actually consumes the corrupted value before agreeing.
 
+### [2026-08-22] `_observation_without_side_effects` omitted the new actor-slot sidecar from its save/restore set
+- What happened: while wiring learned farming-target selection (the
+  `Discrete(13)` action reusing the observation's own `DIRECT_ACTOR_SLOTS`
+  ordering), added `Environment._direct_actor_slot_ids` as new per-tick
+  state populated inside `_observation()`. The frozen navigator's synthetic-
+  waypoint observation call goes through
+  `navigation_subpolicy._observation_without_side_effects`, which snapshots
+  and restores a fixed list of attributes around that call so the real env
+  state isn't corrupted by the synthetic probe -- the new attribute was not
+  added to that list.
+- Root cause: adding a new piece of tick-scoped environment state and
+  forgetting that any function performing a save/probe/restore cycle over
+  "the env's mutable state" needs to be updated in lockstep -- the save/
+  restore list is not automatically complete just because the new field
+  lives on the same object.
+- How caught: self-caught on review, before any test was run against it --
+  traced what the frozen-navigator's synthetic observation call could
+  corrupt and noticed `_direct_actor_slot_ids` would be silently left set
+  to whatever the synthetic probe computed (including a bogus `actor_id=-1`
+  entry) instead of being restored to the real tick's slot mapping.
+- Fix: added `_direct_actor_slot_ids` to the explicit save/restore set in
+  `_observation_without_side_effects`, with a docstring note on why it must
+  stay there.
+- Lesson: whenever a new field is added to environment/observation state,
+  grep for every function that snapshots-and-restores "all mutable env
+  state" around a side-effecting probe call, and check whether the new
+  field belongs in that set -- don't assume an existing save/restore
+  helper is complete just because it compiles and the shape is right.
+
+### [2026-08-22] `build_fresh_basic_policy`'s optional `env` parameter silently built a policy with the wrong input width
+- What happened: `simulator/basic_training.py::build_fresh_basic_policy` took
+  an optional `env` argument that, when passed a `NavigationHistoryWrapper`-
+  wrapped (928-dim) environment (as several existing test fixtures did),
+  used that env's observation space to size the policy's input layer instead
+  of the canonical 923-dim raw farming observation. The resulting policy
+  loaded and trained without error until its first real forward pass against
+  a genuine 923-dim observation, which crashed
+  (`RuntimeError: mat1 and mat2 shapes cannot be multiplied (1x923 and
+  928x64)`).
+- Root cause: an optional constructor parameter whose presence changes the
+  model's architecture (input width) rather than just its runtime behavior
+  is a footgun -- any caller with a plausible-looking but differently-shaped
+  env silently produces an incompatible policy, with no error until a much
+  later, harder-to-attribute forward pass.
+- How caught: test failures during the Task 2 target/event policy rewrite --
+  multiple test fixtures passed a wrapped env and crashed on first real
+  forward pass, not at construction time.
+- Fix: removed the `env` parameter from `build_fresh_basic_policy` entirely
+  -- it always constructs from `FarmingPolicySpaceProbe()`'s canonical raw
+  observation/action space now, and every call site was updated to drop the
+  argument. Documented the failure mode directly in the function's
+  docstring so a future reintroduction attempt has to read past it.
+- Lesson: a constructor parameter that can silently change a model's
+  architecture based on which object happens to be passed in is worth
+  removing (or making impossible to get wrong) rather than trusting every
+  call site to pass the "right kind" of argument -- prefer a single
+  canonical source of truth for observation/action space shape over letting
+  callers each supply their own.
+
+### [2026-08-22] `basic_milestone_evaluator.py` kept computing `steering_disagreement` from renamed `_BasicTickRecord` fields
+- What happened: `_BasicTickRecord`'s fields were renamed from
+  `teacher_steering`/`policy_steering` to `teacher_target`/`policy_target`
+  as part of moving Basic from a steering head to a target-selection head,
+  but `basic_milestone_evaluator.py::_episode_record` (and its two
+  downstream consumers computing/reporting the disagreement rate) were not
+  updated in the same pass, leaving a reference to the old attribute names.
+- Root cause: the rename was made at the dataclass definition site and at
+  its most obvious/nearby consumers, but a downstream evaluator module in a
+  different file, reached only via the milestone-evaluation path rather
+  than the main training loop, was missed.
+- How caught: test failure (`AttributeError: '_BasicTickRecord' object has
+  no attribute 'teacher_steering'`) when running the milestone-evaluator
+  test file, not by code review.
+- Fix: renamed the field references and the `steering_disagreement`->
+  `target_disagreement` concept throughout `basic_milestone_evaluator.py`
+  and its log-line consumer in `simulator/tools/_basic_round_eval_worker.py`.
+- Lesson: after renaming a dataclass field, grep the whole repo for the old
+  name (not just the call sites reached by the module you're actively
+  editing) before considering the rename complete -- a module reached only
+  through a less-common code path (milestone evaluation vs. the main
+  training loop) is exactly the kind of consumer a local/nearby-only search
+  misses.
+
+### [2026-08-22] `RUN_CANONICAL_INTERMEDIATE.py`'s action-space guard was never updated for the target+event contract
+- What happened: `RUN_CANONICAL_BEGINNER.py` and `RUN_CANONICAL_ADVANCED.py`
+  each define their own independent copy of
+  `_require_farming_policy_action_space` (not a shared function), and both
+  were correctly updated during the target-selection rewrite to check
+  `MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])`.
+  `RUN_CANONICAL_INTERMEDIATE.py`'s own copy was missed and still checked
+  the retired `Discrete(len(FarmingEvent))` event-only contract -- meaning
+  it would have raised `RuntimeError` and refused to run against every
+  legitimate Beginner-graduated checkpoint the current architecture
+  actually produces (a total, immediate script failure, not a silent
+  drift), while its error message simultaneously claimed to be guarding
+  against exactly the regression it had itself become.
+- Root cause: the same guard logic was duplicated three times (once per
+  script) instead of shared, so updating two of the three during a
+  contract change gave no guarantee the third was updated too -- nothing
+  about editing `RUN_CANONICAL_BEGINNER.py`/`RUN_CANONICAL_ADVANCED.py`
+  would surface that `RUN_CANONICAL_INTERMEDIATE.py` still needed the same
+  edit, and no test exercised any of the three guards directly.
+- How caught: self-caught while writing documentation for this change --
+  cross-referencing all three scripts' guard functions side by side (to
+  describe them accurately in docs) surfaced the mismatch; not caught by
+  the 57-test focused suite run immediately beforehand, since nothing in
+  it called `RUN_CANONICAL_INTERMEDIATE.main()` or its guard function
+  directly.
+- Fix: updated `RUN_CANONICAL_INTERMEDIATE.py`'s guard to the same
+  `MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)])` check and error
+  message as the other two scripts; added
+  `tests/test_canonical_script_action_space_guards.py`, parametrized over
+  all three scripts, asserting each guard accepts a real current-contract
+  checkpoint and rejects a reconstructed stale `Discrete(len(FarmingEvent))`
+  one -- so a future drift in any one script's copy fails a test directly,
+  not just a live run.
+- Lesson: when the same validation logic is duplicated across multiple
+  near-identical scripts (rather than factored into one shared function),
+  a contract change requires grepping for the guard's own distinguishing
+  content (its expected-shape literal, its error string) across every
+  script that defines it, not just the ones you're already editing for
+  other reasons -- and duplicated validation logic like this is worth a
+  direct unit test precisely because normal integration/pipeline tests
+  are unlikely to exercise a top-level script's own guard function.
+
 ## Category: statistics / counting / accounting
 
 ### [2026-08-14] imprecise claim that planner failures are "excluded from accounting" in `summarize_general_router`
@@ -267,6 +392,84 @@ Entry template:
   index -- stateful kernels often have onset/ramp behavior that isn't
   obvious from the API surface, even when (especially when) it's already
   documented elsewhere in the same file.
+
+### [2026-08-22] confounded variable in a "steering source" isolation test during the frozen-navigation-sub-policy integration
+- What happened: while proving `simulator/basic_environment.py::_roll_
+  basic_episode` sources steering from `FrozenNavigationSteering` rather
+  than the trainable net's own (deliberately untrained) steering head,
+  wrote a test that rolled the SAME episode twice with two DIFFERENT full
+  PPO models (different seeds) and asserted the executed steering sequence
+  must be identical. It failed -- the sequences diverged partway through.
+- Root cause: the two models differed in BOTH their (irrelevant, unused)
+  steering head AND their (relevant, actually-used) event head. Different
+  event choices legitimately changed the trajectory (e.g. different EVA
+  timing), which legitimately changed what the deterministic frozen
+  navigation stack computed on LATER ticks -- a real, correct divergence,
+  not evidence of a steering-source leak. The test varied two things at
+  once while claiming to isolate one.
+- How caught: ran the test immediately; the failure diff showed divergence
+  starting at a specific tick rather than immediate/total mismatch, which
+  didn't match what a genuine "wrong head is driving steering" bug would
+  produce (that would show up in constant disagreement, not a clean
+  tick-N-onward split).
+- Fix: replaced the test with a direct sentinel-injection proof instead
+  (monkeypatch `_policy_forward` to return an impossible steering value
+  every tick, keeping its real event output; assert the sentinel never
+  reaches `record.policy_steering`) -- this isolates the ONE claim being
+  tested without touching anything else about the model.
+- Lesson: when a test claims to isolate "does X source the value" by
+  swapping out a whole object that has multiple independent outputs (a
+  policy with several heads, a config with several fields), swapping the
+  WHOLE object varies every output at once, not just the one under test --
+  prefer directly rigging/monkeypatching only the single input/output
+  actually being checked, or swap only that one component in isolation.
+
+### [2026-08-22] Basic round loop still trained the vestigial steering head after the frozen-navigation recovery
+- What happened: the frozen-navigation-sub-policy recovery (this same
+  2026-08-22 investigation, see the "task premise assumed..." entry below)
+  reported "Basic keeps its existing dual-head checkpoint shape with the
+  steering head simply never trained" as an accomplished fact. It wasn't:
+  `simulator/tools/RUN_CANONICAL_BASIC.py`'s per-round loop still called
+  `bootstrap_policy_from_human_recordings(model, dagger_path,
+  train_heads=("steering",), ...)` on every mined DAgger dataset, running a
+  real cross-entropy update against `teacher_steering`/`policy_steering`
+  labels and gating a stop condition on the resulting accuracy -- a genuine
+  gradient step into `mlp_extractor.steering_net`/`action_net.steering_out`
+  every single round, unconditionally contradicting the "never trained"
+  claim.
+- Root cause: the recovery work removed Stage 3a (the scripted-teacher
+  steering BC bootstrap) and added `FrozenNavigationSteering` to the
+  rollout loop, but only checked "does steering execute correctly" (the
+  rollout/mining path, covered by
+  `tests/test_basic_stage_frozen_navigation_integration.py`'s existing
+  sentinel-injection tests) -- not "does anything still optimize the
+  now-vestigial head." The per-round steering BC call predates the
+  recovery, was never PPO (so the recovery's own "no PPO touches steering"
+  reasoning didn't apply to it), and nothing in the existing test suite
+  exercised the supervised-loss call path at all.
+- How caught: a follow-up task explicitly required proving, not assuming,
+  the "steering head simply never trained" claim by tracing the full
+  `collect_basic_dagger_dataset -> saved dataset -> supervised training ->
+  loss computation -> optimizer parameters` path from source, per-question,
+  before treating the prior report as settled.
+- Fix: deleted the steering-only `bootstrap_policy_from_human_recordings`
+  call and its accuracy-based stop condition/report field from
+  `RUN_CANONICAL_BASIC.py`'s round loop entirely; the only remaining
+  per-round supervised call is `bootstrap_event_head`, which already
+  restricted its own trainable parameters to the event head. Added two
+  regression tests (`test_dagger_sample_selection_is_independent_of_the_
+  nets_steering_head`, `test_basic_round_supervised_update_never_touches_
+  steering_head` in the same test file) that corrupt the steering head's
+  weights and prove neither DAgger sample selection nor the round's
+  supervised loss changes as a result, while confirming the event head
+  does still update.
+- Lesson: a completion report's prose claim ("X is never trained/executed")
+  is not verified just because the *new* code proves the *new* mechanism
+  works -- it must be checked against every *pre-existing* call path that
+  could still reach the thing being retired, especially orchestration
+  scripts that predate the recovery and were never touched by it. "We
+  added the fix" is not the same claim as "we removed everything the fix
+  was supposed to make obsolete."
 
 ## Category: verification that doesn't verify
 
@@ -1279,6 +1482,69 @@ project's own no-silent-rewrite rule.
   via `git log -- <file>` on the implicated files), record it here and
   move on rather than expanding scope to fix it immediately.
 
+### [2026-08-22] the R7c re-export ratchet gate had 5 pre-existing violations on `main`, plus this task added 12 more without registering them
+- What happened: running the full offline `tests/` suite for the first
+  time in this task (Task 1's frozen-navigation-sub-policy recovery had
+  not run it to completion either) surfaced 3 failures:
+  `docs/migration/tests/test_migration_integrity.py`'s two repository-
+  integrity-gate tests, and `tests/test_path_bootstrap_registry.py::
+  test_no_new_unregistered_sys_path_bootstrap`. The path-bootstrap one was
+  simple (a new scratchpad smoke script's `sys.path.insert` needed
+  registering, same as its sibling scripts). The migration-integrity ones
+  were more significant: this task's new files (`simulator/
+  farming_target_policy.py`, `simulator/navigation_subpolicy.py`, their
+  test files, `simulator/basic_environment.py`'s rewired steering import,
+  the event-head-transplant legacy test) legitimately import canonical
+  symbols (`FarmingEvent`, `SteeringAction`, `SteeringDirection`,
+  `select_persistent_waypoint`, `SplitSteeringNavigationPolicy`) in ways
+  the R7c ratchet (`docs/migration/tools/migration_integrity.py`) flags as
+  "new" until registered in a `POST_*_R7C_SUPPLEMENT.tsv` file -- 12 such
+  new, genuinely-this-task entries. But the failing assertion listed 17
+  entries, not 12: checking a clean `main` worktree directly (not just
+  assuming) showed 5 of them (`bot/recording_sink.py`, `farming/
+  trainer.py`, `tests/test_agent_action_timing_production_path.py`, each
+  for `FarmingEvent`/`SteeringAction`) were ALREADY unregistered
+  violations on `main`, entirely unrelated to this task, that nobody had
+  caught because nobody had run this exact gate against `main` recently.
+- Root cause (two, compounding): (1) a repository-wide gate whose
+  violation set only grows when NEW files are added, but which nothing
+  forces a contributor to run before adding those files -- Task 1 added
+  `simulator/navigation_subpolicy.py` (also flagged) without ever running
+  this gate to completion, so the debt had already started accumulating
+  before this task began. (2) A pre-existing, unrelated 5-entry gap on
+  `main` that had gone undetected because the full suite (or at least this
+  specific test file) apparently was not run to green after whatever
+  change introduced `bot/recording_sink.py`'s/`farming/trainer.py`'s/
+  `tests/test_agent_action_timing_production_path.py`'s imports.
+- How caught: running the full offline test suite as required by this
+  task's own validation section, then verifying the surprising "5 items
+  I don't recognize" finding by checking out a clean `main` worktree
+  (`git worktree add`) and running `migration_integrity.check()` against
+  it directly, rather than assuming those 5 were also this task's doing
+  just because they appeared in the same failure list.
+- Fix: added `docs/migration/POST_TARGET_SELECTION_R7C_SUPPLEMENT.tsv`
+  (registered in `migration_integrity.py`'s `DEFAULT_SUPPLEMENTS`)
+  covering all 17 entries, with each row's `reason` column explicitly
+  stating whether it is genuinely new to this task or pre-existing-and-
+  unrelated (verified against `main`, not assumed) -- so the distinction
+  survives in the record even though both categories needed registering
+  for this branch's own suite to run green. Updated the hardcoded R7c
+  baseline-count assertion (200 -> 217) with an explanatory comment
+  matching the file's own precedent for prior count changes. Registered
+  the new scratchpad script in `docs/migration/tools/
+  phase11_path_bootstrap_registry.py`.
+- Lesson: run the full offline test suite (not just a focused subset)
+  before considering ANY task in this repository complete, even when the
+  focused subset is thorough -- repository-wide ratchets like R7c only
+  fail when exercised directly, and a prior task's own gap (Task 1 adding
+  files without running this gate) compounds silently until someone does.
+  When a failure list contains more entries than the current diff
+  explains, verify the unexplained ones against a clean baseline
+  checkout (`git worktree add` + run the same check) rather than assuming
+  they're all attributable to the current work -- the same "verified vs
+  inferred" discipline as the "claimed 66 full-suite test errors were
+  pre-existing... without checking" entry above.
+
 ## Category: repository hygiene / gitattributes-path drift
 
 ### [2026-08-21] `.gitattributes` byte-preservation rules silently stopped applying after path collapses
@@ -1601,3 +1867,255 @@ sweep.
   catch this class of bug; only a test that drives the real emitting
   call site (here, the real control loop calling the real `gym.step()`)
   can.
+
+## Category: checkpoint provenance / manifest contracts
+
+### [2026-08-23] partial architecture_contract override left a stale field behind after the merge
+
+- What happened: `simulator/basic_training.py::save_checkpoint_with_provenance`
+  never passed an `architecture_contract` through to
+  `run_provenance.build_run_manifest`, so every Basic-stage checkpoint's
+  `.provenance.json` silently inherited `build_run_manifest`'s own
+  historical default contract (`policy_class="SplitSteeringNavigationPolicy"`,
+  `policy_input_size=928`) even though Basic actually trains
+  `SplitFarmingTargetEventPolicy` over the raw 923-value observation with
+  `MultiDiscrete([13, 3])` and no steering action. Fixing the missing
+  parameter (passing `simulator.navigation_subpolicy.
+  farming_policy_architecture_contract()`) was not sufficient by itself:
+  that contract function overrode `policy_class`, `raw_observation_size`,
+  and `policy_input_schema_id`, but not `policy_input_size` -- and
+  `build_run_manifest` merges an explicit `architecture_contract` onto its
+  own `default_contract` with a plain field-by-field `dict.update()`
+  (`simulator/run_provenance.py`), so any key the override dict doesn't
+  mention survives from the default untouched. The stale `policy_input_size:
+  928` (the steering-policy's navigation-sidecar width) therefore remained
+  in the manifest, contradicting the now-correct `raw_observation_size: 923`
+  in the same dict, and would have shipped as a second, more subtle wrong
+  provenance fact layered on top of the one the fix was meant to remove.
+  This same `farming_policy_architecture_contract()` function is also used
+  by `simulator/beginner_transition.py`'s two `build_run_manifest` call
+  sites, which likely carried the identical latent `policy_input_size=928`
+  bug in their own manifests undetected, since
+  `tests/test_beginner_transition.py`'s only architecture_contract
+  assertion checks `navigation_checkpoint_sha256` truthiness, not
+  `policy_input_size`.
+- Root cause: assumed passing *an* override dict to a "default, then
+  update-with-override" merge function makes the result fully correct,
+  without checking whether the override dict actually covers every key the
+  default sets that is semantically tied to the architecture being
+  described. `default_contract.update(architecture_contract)` is a shallow
+  per-key overwrite, not a "replace the whole contract" operation -- an
+  override that only touches 3 of the 4 architecture-describing keys
+  leaves the 4th as a leftover from a structurally different policy.
+- How caught: a new test
+  (`tests/test_basic_checkpoint_provenance.py::test_basic_bootstrap_save_does_not_report_the_retired_steering_navigation_policy`)
+  asserted `contract.get("policy_input_size") != 928` immediately after
+  writing the parameter-passing fix, specifically because the task
+  description's negative-assertion list ("must NOT report... 928 as the
+  farming-policy input") named the field explicitly rather than only
+  checking the fields the fix touched.
+- Fix: added `"policy_input_size": RAW_OBSERVATION_SIZE` to
+  `farming_policy_architecture_contract()` in
+  `simulator/navigation_subpolicy.py` (this policy has no navigation
+  sidecar, so its policy input IS the raw observation -- the two sizes are
+  legitimately equal, not independently-tracked values).
+- Lesson: when fixing a "wrong default leaked through" bug via a
+  dict-merge override, enumerate every key the default sets that is
+  semantically part of the same contract being overridden, not just the
+  keys the immediate symptom pointed at -- a partial override of a
+  multi-field default is silently indistinguishable from a correct one
+  unless every affected field is asserted on individually. Grep other
+  callers of the same default-merge function for the same override dict to
+  check whether they share the identical latent gap.
+
+### [2026-08-23] "archive legacy artifact before reuse" still overwrote the same path it just archived
+
+- What happened: the first version of `simulator/curriculum_resume_identity.py`
+  (pre-merge blocker remediation) fixed "resume from any same-named file
+  regardless of architecture generation" by reading a cache/round-summary
+  file, checking its identity, and -- on mismatch -- copying it aside via
+  `archive_legacy_artifact()` before returning "not resumable." The bug:
+  every call site then computed a FRESH result and wrote it back to the
+  EXACT SAME path (`zero_shot_path.write_text(...)`, `summary_path.
+  write_text(...)`) that the archive had just been copied from. The
+  archive step technically ran, but the very next lines in the same
+  function silently overwrote the original -- so "historical evidence
+  remains untouched" was true only for one tick between the archive call
+  and the write call, not as a durable property. A second, independent
+  design flaw stacked on top: the archive filename was timestamp-based
+  (`.legacy-{datetime.now()...}`), so a repeated failed startup against
+  unchanged legacy bytes would create `copy1`, `copy2`, `copy3`, ... on
+  every run instead of being idempotent.
+- Root cause: treated "archive before reuse" as sufficient to satisfy
+  "never mutate historical evidence" without checking what happens
+  immediately AFTER the archive call in each of the (several) call sites
+  that share the same variable name for both the read-check path and the
+  write-fresh-result path -- an easy mistake because the code reads as
+  "archive it, then proceed as if starting fresh," which sounds safe but
+  the "proceed" step still targets the original filename.
+- How caught: independent Codex pre-merge review (final remediation pass,
+  2026-08-23), which explicitly named both the overwrite-after-archive gap
+  and the archive-naming non-idempotence as blockers, distinct from (and
+  found after) the first remediation pass that only checked architecture-
+  generation identity, not full content-based identity.
+- Fix: replaced the archive-then-overwrite pattern entirely with
+  **generation-namespaced output paths** (`current_generation_path()`
+  inserts a stable tag, e.g. `canonical_beginner_run_summary.
+  target_event_v1.json`, before the file suffix) -- current code never
+  reads or writes the historical filename at all, so there is nothing to
+  archive or accidentally overwrite for a different architecture
+  generation. The archive helper was removed outright (not merely made
+  idempotent) once the namespacing made it unnecessary for the common
+  case; these JSON artifacts are git-tracked, so history remains
+  recoverable through git for the now-rare within-generation content-drift
+  case. See `docs/architecture/CURRICULUM_TRAINING_PIPELINE.md`'s
+  "Resume-identity and evaluation-cache identity" section and
+  `tests/test_curriculum_resume_identity.py::
+  test_legacy_filename_at_old_path_is_never_read_by_the_current_loader`.
+- Lesson: when a fix's safety property is "X happens before Y" (archive
+  before overwrite), trace what Y actually targets all the way through --
+  a safety step that runs but writes to storage the very next step will
+  clobber provides no real protection. Prefer eliminating the shared
+  target entirely (different paths for different generations) over
+  sequencing safety around a single shared mutable path; a namespace
+  separation is easier to verify correct by inspection than an ordering
+  invariant is.
+
+### [2026-08-23] Round-resume identity checked content SHA but not checkpoint PATH identity, and only the LAST round of a persisted chain
+
+- What happened: even after the content-based identity strengthening
+  above, `round_record_validity_reason()` still had two independent gaps,
+  both found by a further independent Codex pre-merge review the same day.
+  (1) It compared `carried_forward_checkpoint`'s live bytes against the
+  round record's own `identity.current_checkpoint_sha256`, but never
+  checked that `carried_forward_checkpoint` and `identity.
+  current_checkpoint` named the SAME path -- a record whose identity
+  vouched for `checkpoint_A.zip` but whose `carried_forward_checkpoint`
+  pointed at a byte-identical `checkpoint_B.zip` at a different path would
+  pass, because SHA equality alone can't distinguish "the same file" from
+  "a different file that happens to hold the same bytes." (2)
+  `load_resumable_round_reports()` validated only `round_reports[-1]` (the
+  final element) before returning the ENTIRE list unchanged -- an invalid
+  or non-contiguous round 1 followed by a valid round 2 was silently
+  accepted for resume because only round 2 was ever checked, even though
+  the runners then used `len(round_reports) + 1` (i.e., the full,
+  partially-unvalidated list) to derive both the next round number and
+  (indirectly, through round 1's untrusted fields) downstream state.
+- Root cause: (1) treated "content SHA matches" as equivalent to "is the
+  vouched-for checkpoint," when a round record's job is to vouch for ONE
+  exact checkpoint identity (path + content), not merely "some file with
+  these bytes exists somewhere." (2) treated "the last element of a
+  sequential log validates" as sufficient proof the whole log is trustworthy
+  -- true only if every earlier element was already known-valid, which was
+  never actually checked; a hand-edited, corrupted, or partially-written
+  earlier record was invisible to a last-element-only check.
+- How caught: independent Codex verification pass explicitly reproducing
+  both scenarios (alternate-path/same-bytes substitution; invalid round 1 +
+  valid final round) against the then-current `simulator/
+  curriculum_resume_identity.py`.
+- Fix: `round_record_validity_reason()` now requires
+  `Path(carried_forward_checkpoint).resolve() == Path(identity.
+  current_checkpoint).resolve()` before trusting the SHA comparison at all
+  (canonical resolution, not raw-string comparison, so a legitimately
+  differently-spelled but physically identical path still matches).
+  `load_resumable_round_reports()` now validates every record in the
+  persisted list, in order, and additionally requires the recorded `round`
+  values to form the contiguous 1-based sequence `1, 2, ..., N`; any
+  invalid record or any non-contiguous/duplicate/missing round number
+  rejects the ENTIRE list (never a partial resume of a validated suffix),
+  without mutating the file. All three canonical runners now derive their
+  next round from the last validated round's own recorded number
+  (`next_resumable_round()`) rather than list length, making the
+  (now-enforced) equivalence explicit instead of assumed. See
+  `tests/test_curriculum_resume_identity.py` (checkpoint path-consistency
+  tests, whole-chain/contiguous-round-sequence tests, and the
+  `TestRunnerResumeRoundState` class exercising each real runner's
+  `_resume_round_state`) and `docs/architecture/
+  CURRICULUM_TRAINING_PIPELINE.md`'s "Resume-identity and evaluation-cache
+  identity" section.
+- Lesson: a content hash proves "these bytes exist," not "this is the
+  specific artifact this record is about" -- when a record's job is to
+  vouch for a single artifact's identity, always pair a content check with
+  a path/reference check tying the hash to the SPECIFIC field being
+  vouched for, not just any field that happens to hold a matching hash.
+  Separately: validating only the last element of a persisted sequential
+  log is never sufficient to trust the log as a whole unless every prior
+  append was already independently guaranteed valid at write time (it
+  wasn't here) -- a resumable chain must validate the full chain, and its
+  own indexing/numbering, every time it is read, not just its tail.
+
+### [2026-08-23] round-summary schema validation still used loose typing
+- What happened: even after the whole-chain/checkpoint-path strengthening
+  above, `load_resumable_round_reports()` still assumed a persisted round
+  summary was shaped correctly rather than validating it as untrusted
+  input: a non-list top-level payload or non-dict entry could raise
+  instead of being rejected safely, and `record.get("round")` compared with
+  `!=` would accept `1.0` or `True` as round `1` (Python: `1.0 == 1` and
+  `isinstance(True, int)` are both `True`). `consecutive_passes` was read
+  and trusted without ANY type/range check, and without checking it was
+  mathematically consistent with `round_passed_absolute_bar` history.
+- Root cause: treated "the file is JSON we wrote" as a guarantee about
+  what a FUTURE read would find, instead of validating a persisted file as
+  untrusted input every time it's read (a hand edit, a corrupted write, or
+  a future schema drift could all produce a structurally-wrong-but-still-
+  loadable file).
+- How caught: pre-merge hardening task, not a live failure.
+- Fix: added `_round_schema_reason()` (exact `type(x) is T` checks, never
+  `isinstance`, for the top-level list, each entry's dict-ness, and
+  `round`/`round_passed_absolute_bar`/`consecutive_passes`'s exact types)
+  plus a running pass-sequence check inside `load_resumable_round_reports()`
+  (`consecutive_passes` must be `0` after a fail and exactly
+  `previous + 1` after a pass). Any failure rejects the WHOLE summary the
+  same way an identity mismatch does -- see `tests/
+  test_curriculum_resume_identity.py`'s schema/pass-sequence test blocks
+  and `docs/architecture/CURRICULUM_TRAINING_PIPELINE.md`'s
+  "Persisted-schema strictness" note.
+- Lesson: `isinstance` is wrong for validating untrusted JSON-decoded
+  Python values against an exact schema type -- `bool` is an `int`
+  subclass, so `isinstance(x, int)` silently accepts `true`/`false` where
+  the schema means "a genuine integer." Use `type(x) is T`. Separately, a
+  counter field derived from history (`consecutive_passes`) is exactly as
+  much an integrity target as identity fields are -- validate it against
+  the history it claims to summarize, not just its own type.
+
+### [2026-08-23] top-level round schema hardening still left nested `identity` fields unvalidated before use
+- What happened: the schema hardening above validated the top-level round
+  shape (`round`/`round_passed_absolute_bar`/`consecutive_passes`) but
+  `identity_mismatch_reason()` and `round_record_validity_reason()` still
+  assumed `record["identity"]` and its nested fields were well-shaped: a
+  non-dict `identity` (e.g. a bare string) raised `AttributeError` on
+  `.get()`; a non-string `carried_forward_checkpoint`/
+  `identity.current_checkpoint` raised `TypeError` inside `Path(...)`; a
+  non-string `current_checkpoint_sha256` raised `TypeError` on the
+  `recorded_sha[:12]` formatting slice once a mismatch was detected; and a
+  persisted file with invalid UTF-8 bytes raised `UnicodeDecodeError`
+  (only `json.JSONDecodeError`/`OSError` were caught).
+- Root cause: the earlier schema-hardening pass fixed the fields it had
+  just been shown were reachable (`round`, `round_passed_absolute_bar`,
+  `consecutive_passes`) without re-deriving the FULL set of persisted
+  fields the identity layer separately reads before using -- fixing the
+  reproduced cases is not the same as proving no sibling case remains.
+- How caught: independent review pass found four concrete malformed-input
+  reproductions (string `identity`, dict `carried_forward_checkpoint`,
+  dict `identity.current_checkpoint`, int `current_checkpoint_sha256`)
+  plus invalid-UTF-8 file bytes, all raising instead of rejecting.
+- Fix: `identity_mismatch_reason()` now requires `type(stored) is dict`
+  before any `.get()`; `round_record_validity_reason()` requires exact
+  non-empty-string path fields (`_is_nonempty_str()`) and exact
+  64-lowercase-hex SHA fields (`_is_sha256_hex()`) before any
+  `Path(...)`/slice/comparison touches them, with the remaining
+  `Path.resolve()`/`.exists()`/hash calls narrowed to `except OSError`
+  (never a blanket `except Exception`); `UnicodeDecodeError` joins the
+  caught exceptions in both `load_resumable_round_reports()` and
+  `load_cached_evaluation_if_current()`. See
+  `docs/architecture/CURRICULUM_TRAINING_PIPELINE.md`'s "Malformed nested
+  identity/checkpoint fields are non-resumable, not exceptional" note and
+  `tests/test_curriculum_resume_identity.py`'s parametrized
+  field-times-wrong-type matrix.
+- Lesson: when a review names concrete reproduced crashes, fix the
+  reachable-field SET they imply, not just the literal cases reproduced --
+  a validator that checks four fields and misses a fifth of the same kind
+  just relocates the next review's finding one field over. A field
+  consumed by `.get()`, `Path()`, a hash comparison, or a string-format
+  slice needs its OWN type/shape check before that operation, independent
+  of whether a top-level schema check already ran.

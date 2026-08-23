@@ -26,7 +26,7 @@ def test_evaluate_basic_milestone_parallel_matches_sequential(tmp_path: Path) ->
         str(curriculum_path), stage="early", seed=0, episode_steps=5, episode_seconds=3.0,
     )))
     env = NavigationHistoryWrapper(base_env)
-    model = build_fresh_basic_policy(env, seed=0, device="cpu")
+    model = build_fresh_basic_policy(seed=0, device="cpu")
     env.close()
     checkpoint = tmp_path / "model.zip"
     model.save(str(checkpoint))
@@ -45,7 +45,7 @@ def test_evaluate_basic_milestone_parallel_matches_sequential(tmp_path: Path) ->
     assert sequential["n_episodes"] == parallel["n_episodes"] == len(layouts) * len(seeds)
     assert sequential["intervention_count"] == parallel["intervention_count"]
     assert sequential["contacts_per_step"] == parallel["contacts_per_step"]
-    assert sequential["steering_disagreement_rate"] == parallel["steering_disagreement_rate"]
+    assert sequential["target_disagreement_rate"] == parallel["target_disagreement_rate"]
     assert sequential["event_disagreement_rate"] == parallel["event_disagreement_rate"]
     assert sequential["gave_up_episode_fraction"] == parallel["gave_up_episode_fraction"]
     assert sequential["per_layout"].keys() == parallel["per_layout"].keys()

@@ -147,13 +147,18 @@ controller.** Do not interpret its event-branch output as combat intent,
 and do not assume it encodes any monster-approach or engagement
 behavior beyond pure waypoint navigation, without separate evidence.
 
-This checkpoint's own qualification evaluation lives in a deliberately
-separate stack (`tests/helpers/router_qualification_harness.py`, the
-850M monster-approach baseline) from the canonical Basic->Advanced
-curriculum training pipeline — the latter does not exercise this router
-at all. See
+This checkpoint's own *qualification* evaluation (does 0051200 itself
+still hold up) lives in a deliberately separate stack
+(`tests/helpers/router_qualification_harness.py`, the 850M monster-approach
+baseline) from the canonical Basic->Advanced curriculum training pipeline —
+but that is a "where is the checkpoint qualified" distinction, not a "does
+the curriculum use the router" one: the canonical curriculum's own runtime
+(training and evaluation, every stage) now DOES exercise this same
+checkpoint through this same router, via
+`simulator.navigation_subpolicy.FrozenNavigationSteering`. See
 [`CURRICULUM_TRAINING_PIPELINE.md`](CURRICULUM_TRAINING_PIPELINE.md)
-section 2 before assuming otherwise.
+sections 3 (qualification-vs-runtime distinction) and 4/5 (current
+frozen-navigation integration) rather than assuming either way.
 
 ## Evidence / Sources
 

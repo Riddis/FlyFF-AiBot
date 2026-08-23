@@ -208,6 +208,17 @@ class RecordedFarmingEnv(_BaseEnv):
         self._approach_potential_cells = 0.0
         self._best_group_actor_id: int | None = None
         self._nearest_reachable_actor_id: int | None = None
+        # The direct-actor observation block's own slot->actor_id mapping
+        # (farming.observation.ObservationBuilder.build's BuiltObservation.
+        # direct_actor_ids), cached here because _observation() only returns
+        # the raw vector -- the learned farming-target-selection action
+        # (simulator/farming_target_policy.py) needs this to resolve which
+        # real actor a chosen slot index refers to, at the SAME tick the
+        # policy saw those slots' features. Bookkeeping only, like
+        # _best_group_actor_id/_nearest_reachable_actor_id above -- never
+        # part of the returned observation vector or _info() dict, so this
+        # changes no observation/recording schema.
+        self._direct_actor_slot_ids: tuple[int, ...] = ()
         # Shared runtime infrastructure (not privileged/oracle-only): both the
         # oracle and, eventually, the learned policy's target-geometry
         # features read _best_group_actor_id/_nearest_reachable_actor_id via
@@ -248,6 +259,7 @@ class RecordedFarmingEnv(_BaseEnv):
         self._approach_potential_cells = 0.0
         self._best_group_actor_id = None
         self._nearest_reachable_actor_id = None
+        self._direct_actor_slot_ids = ()
         self._clearance_history.clear()
         self._visited_cells = set()
         start = self.model.player_start_positions[
@@ -883,6 +895,7 @@ class RecordedFarmingEnv(_BaseEnv):
                 context_map=self.map.features.context_crop(player_cell),
             )
         )
+        self._direct_actor_slot_ids = built.direct_actor_ids
         return built.vector
 
     def close(self) -> None:

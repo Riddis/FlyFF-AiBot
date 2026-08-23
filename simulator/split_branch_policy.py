@@ -333,3 +333,149 @@ class SplitSteeringNavigationPolicy(SplitSteeringEventPolicy):
             activation_fn=self.activation_fn,
             steering_input_dim=STEERING_NAVIGATION_FEATURE_SIZE,
         )
+
+
+class SplitTargetEventBranchExtractor(nn.Module):
+    """target_net and event_net each independently see the FULL raw
+    observation (no shared trunk between them, and no input-restriction
+    trick like SplitBranchExtractor's geometry-only steering slice) --
+    separate branches avoid the dueling-gradient/shortcut-learning
+    contamination SplitBranchExtractor's own module docstring documents
+    for steering+event sharing one trunk, applied here to target-selection
+    +event instead. No narrow-slice input restriction for target_net: unlike
+    steering (which had confirmed evidence of a per-layout shortcut-learning
+    failure mode that motivated restricting its input), there is no
+    equivalent finding for target selection, and it plausibly benefits from
+    the same full context event_net already uses (nearby-pack density, EVA
+    range, etc. all live in the same direct-actor observation block a
+    target decision needs)."""
+
+    def __init__(
+        self,
+        raw_obs_dim: int,
+        *,
+        target_net_arch: list[int],
+        event_net_arch: list[int],
+        vf_net_arch: list[int],
+        activation_fn: type[nn.Module],
+    ) -> None:
+        super().__init__()
+        self.raw_obs_dim = raw_obs_dim
+        self.target_net, self.latent_dim_target = _mlp(raw_obs_dim, target_net_arch, activation_fn)
+        self.event_net, self.latent_dim_event = _mlp(raw_obs_dim, event_net_arch, activation_fn)
+        self.vf_net, self.latent_dim_vf = _mlp(raw_obs_dim, vf_net_arch, activation_fn)
+        self.latent_dim_pi = self.latent_dim_target + self.latent_dim_event
+
+    def forward_actor(self, features: torch.Tensor) -> torch.Tensor:
+        raw = features[:, : self.raw_obs_dim]
+        target_latent = self.target_net(raw)
+        event_latent = self.event_net(raw)
+        return torch.cat([target_latent, event_latent], dim=1)
+
+    def forward_critic(self, features: torch.Tensor) -> torch.Tensor:
+        raw = features[:, : self.raw_obs_dim]
+        return self.vf_net(raw)
+
+    def forward(self, features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        return self.forward_actor(features), self.forward_critic(features)
+
+
+class SplitTargetEventHead(nn.Module):
+    """MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)]) logits from two
+    independently-sourced latents -- same output-layout contract as
+    SplitSteeringEventHead (columns split via th.split(logits,
+    [TARGET_ACTION_SIZE, len(FarmingEvent)], dim=1) by MultiCategorical
+    Distribution), sized for target selection instead of steering."""
+
+    def __init__(self, target_latent_dim: int, event_latent_dim: int, *, target_action_size: int, event_action_size: int) -> None:
+        super().__init__()
+        self.target_latent_dim = target_latent_dim
+        self.target_out = nn.Linear(target_latent_dim, target_action_size)
+        self.event_out = nn.Linear(event_latent_dim, event_action_size)
+
+    def forward(self, latent_pi: torch.Tensor) -> torch.Tensor:
+        target_latent = latent_pi[:, : self.target_latent_dim]
+        event_latent = latent_pi[:, self.target_latent_dim :]
+        return torch.cat([self.target_out(target_latent), self.event_out(event_latent)], dim=1)
+
+
+class SplitFarmingTargetEventPolicy(ActorCriticPolicy):
+    """The trainable full-farming policy's actual action contract under the
+    completed frozen-navigation-sub-policy + learned-target-selection
+    architecture (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md section
+    4/6, FINAL_PRE_TRAINING task): `MultiDiscrete([TARGET_ACTION_SIZE,
+    len(FarmingEvent)])` over the plain `Box(RAW_OBSERVATION_SIZE,)`
+    observation -- no steering action, no navigation sidecar (steering is
+    FrozenNavigationSteering's exclusive output, driven by THIS policy's own
+    target-selection action via `simulator.farming_target_policy`, never by
+    the environment's own deterministic target hysteresis). Used by Basic
+    (BC/DAgger) and Beginner/Intermediate/Advanced (PPO) alike -- one
+    checkpoint architecture across every stage, so Beginner continues
+    Basic's own graduated checkpoint directly (`PPO.load`), the same way
+    Intermediate/Advanced already continue Beginner's -- no cross-
+    architecture transplant/bridge needed, unlike the retired event-only
+    checkpoint's Basic -> Beginner transfer (there was something genuine to
+    discard there: a dual-head checkpoint's vestigial steering branch; here
+    there is nothing analogous to discard, since this policy never had one)."""
+
+    def __init__(
+        self,
+        *args: Any,
+        target_net_arch: list[int] | None = None,
+        event_net_arch: list[int] | None = None,
+        vf_net_arch: list[int] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self._target_net_arch = list(target_net_arch or [64, 32])
+        self._event_net_arch = list(event_net_arch or [64, 32])
+        self._vf_net_arch = list(vf_net_arch or [64, 32])
+        super().__init__(*args, **kwargs)
+
+    def _build_mlp_extractor(self) -> None:
+        raw_obs_dim = int(np.prod(self.observation_space.shape))
+        self.mlp_extractor = SplitTargetEventBranchExtractor(
+            raw_obs_dim,
+            target_net_arch=self._target_net_arch,
+            event_net_arch=self._event_net_arch,
+            vf_net_arch=self._vf_net_arch,
+            activation_fn=self.activation_fn,
+        )
+
+    def _build(self, lr_schedule) -> None:  # noqa: ANN001 - matches SB3's Schedule type
+        from stable_baselines3.common.distributions import MultiCategoricalDistribution
+
+        if not isinstance(self.action_dist, MultiCategoricalDistribution):
+            raise NotImplementedError(
+                "SplitFarmingTargetEventPolicy requires a MultiDiscrete([target_size, event_size]) action space"
+            )
+        target_action_size, event_action_size = (int(n) for n in self.action_space.nvec)
+
+        self._build_mlp_extractor()
+        self.action_net = SplitTargetEventHead(
+            self.mlp_extractor.latent_dim_target, self.mlp_extractor.latent_dim_event,
+            target_action_size=target_action_size, event_action_size=event_action_size,
+        )
+        self.value_net = nn.Linear(self.mlp_extractor.latent_dim_vf, 1)
+
+        if self.ortho_init:
+            module_gains = {
+                self.features_extractor: float(np.sqrt(2)),
+                self.mlp_extractor: float(np.sqrt(2)),
+                self.action_net: 0.01,
+                self.value_net: 1,
+            }
+            for module, gain in module_gains.items():
+                module.apply(lambda m, gain=gain: self.init_weights(m, gain))
+
+        self.optimizer = self.optimizer_class(
+            self.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs
+        )
+
+    def _get_constructor_parameters(self) -> dict[str, Any]:
+        data = super()._get_constructor_parameters()
+        data.update(
+            target_net_arch=self._target_net_arch,
+            event_net_arch=self._event_net_arch,
+            vf_net_arch=self._vf_net_arch,
+        )
+        return data

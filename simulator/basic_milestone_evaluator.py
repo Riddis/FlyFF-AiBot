@@ -32,28 +32,32 @@ def _stat(values: list[float]) -> dict[str, float] | None:
 
 
 def _episode_record(
-    model: Any, curriculum_path: str, layout_name: str, seed: int, *,
+    model: Any, navigation_steering: Any, curriculum_path: str, layout_name: str, seed: int, *,
     episode_seconds: float, max_actions: int, history_window: int, expected_clear_path_displacement: float,
 ) -> dict[str, Any]:
     """One episode's contribution to the milestone report -- the unit of
     work `evaluate_basic_milestone`'s sequential loop and its parallel
     ProcessPoolExecutor counterpart both reduce to, so the two paths can
-    never silently diverge in what they compute per episode."""
+    never silently diverge in what they compute per episode.
+
+    `navigation_steering` (a `simulator.navigation_subpolicy.
+    FrozenNavigationSteering`) supplies executed steering, matching Basic's
+    training-time rollout exactly -- see `_roll_basic_episode`'s docstring."""
     records, summary = _roll_basic_episode(
-        curriculum_path, layout_name, seed=seed, model=model,
+        curriculum_path, layout_name, seed=seed, model=model, navigation_steering=navigation_steering,
         episode_seconds=episode_seconds, max_actions=max_actions,
         history_window=history_window, expected_clear_path_displacement=expected_clear_path_displacement,
     )
     steps = max(1, len(records))
     contacts = sum(1 for r in records if r.contact)
     # Reported separately, not combined into one "disagreement" flag: a
-    # single combined rate cannot tell an operator whether steering or
-    # event is the actual source of teacher disagreement, and this
+    # single combined rate cannot tell an operator whether target selection
+    # or event is the actual source of teacher disagreement, and this
     # project's own event-head collapse sat behind a flat ~76% combined
     # rate every round without anyone being able to attribute it to either
     # head specifically.
-    steering_disagreement = float(np.mean([
-        r.teacher_steering != r.policy_steering for r in records
+    target_disagreement = float(np.mean([
+        r.teacher_target != r.policy_target for r in records
     ])) if records else 0.0
     event_disagreement = float(np.mean([
         r.teacher_event != r.policy_event for r in records
@@ -64,7 +68,7 @@ def _episode_record(
         "intervention_count": summary["intervention_count"],
         "intervention_ticks_fraction": summary["intervention_ticks"] / steps,
         "contacts_per_step": contacts / steps,
-        "steering_disagreement": steering_disagreement,
+        "target_disagreement": target_disagreement,
         "event_disagreement": event_disagreement,
         "mean_displacement": mean_displacement,
         "final_state": summary["final_state"],
@@ -82,7 +86,7 @@ def _aggregate_records(layout_names: list[str], episode_records: list[dict[str, 
     per_layout: dict[str, Any] = {}
     all_intervention_counts = [float(r["intervention_count"]) for r in episode_records]
     all_intervention_ticks_fraction = [r["intervention_ticks_fraction"] for r in episode_records]
-    all_steering_disagreement_rates = [r["steering_disagreement"] for r in episode_records]
+    all_target_disagreement_rates = [r["target_disagreement"] for r in episode_records]
     all_event_disagreement_rates = [r["event_disagreement"] for r in episode_records]
     all_contacts_per_step = [r["contacts_per_step"] for r in episode_records]
     all_mean_displacement = [r["mean_displacement"] for r in episode_records]
@@ -94,7 +98,7 @@ def _aggregate_records(layout_names: list[str], episode_records: list[dict[str, 
             "n_episodes": len(layout_recs),
             "intervention_count": _stat([float(r["intervention_count"]) for r in layout_recs]),
             "contacts_per_step": _stat([r["contacts_per_step"] for r in layout_recs]),
-            "steering_disagreement_rate": _stat([r["steering_disagreement"] for r in layout_recs]),
+            "target_disagreement_rate": _stat([r["target_disagreement"] for r in layout_recs]),
             "event_disagreement_rate": _stat([r["event_disagreement"] for r in layout_recs]),
         }
 
@@ -109,7 +113,7 @@ def _aggregate_records(layout_names: list[str], episode_records: list[dict[str, 
         "per_layout": per_layout,
         "intervention_count": _stat([float(v) for v in all_intervention_counts]),
         "intervention_ticks_fraction": _stat(all_intervention_ticks_fraction),
-        "steering_disagreement_rate": _stat(all_steering_disagreement_rates),
+        "target_disagreement_rate": _stat(all_target_disagreement_rates),
         "event_disagreement_rate": _stat(all_event_disagreement_rates),
         "contacts_per_step": _stat(all_contacts_per_step),
         "mean_displacement_per_tick": _stat(all_mean_displacement),
@@ -150,6 +154,9 @@ def evaluate_basic_milestone(
     `evaluate_basic_milestone_parallel` for a multi-process equivalent that
     trades CPU for wall-clock time against a saved checkpoint."""
 
+    from .navigation_subpolicy import FrozenNavigationSteering
+    navigation_steering = FrozenNavigationSteering.load_frozen(device="cpu")
+
     total = len(layout_names) * len(seeds)
     progress = ProgressPrinter(total, label="basic_milestone_eval", min_interval_seconds=progress_every_seconds)
     done = 0
@@ -157,7 +164,7 @@ def evaluate_basic_milestone(
     for layout_name in layout_names:
         for seed in seeds:
             episode_records.append(_episode_record(
-                model, curriculum_path, layout_name, seed,
+                model, navigation_steering, curriculum_path, layout_name, seed,
                 episode_seconds=episode_seconds, max_actions=max_actions,
                 history_window=history_window, expected_clear_path_displacement=expected_clear_path_displacement,
             ))
@@ -168,12 +175,15 @@ def evaluate_basic_milestone(
 
 
 _PARALLEL_WORKER_MODEL: Any = None
+_PARALLEL_WORKER_NAVIGATION_STEERING: Any = None
 
 
 def _init_parallel_worker(checkpoint_path: str) -> None:
-    global _PARALLEL_WORKER_MODEL
+    global _PARALLEL_WORKER_MODEL, _PARALLEL_WORKER_NAVIGATION_STEERING
     from stable_baselines3 import PPO
+    from .navigation_subpolicy import FrozenNavigationSteering
     _PARALLEL_WORKER_MODEL = PPO.load(checkpoint_path, device="cpu")
+    _PARALLEL_WORKER_NAVIGATION_STEERING = FrozenNavigationSteering.load_frozen(device="cpu")
 
 
 def _parallel_worker_task(
@@ -181,7 +191,7 @@ def _parallel_worker_task(
     history_window: int, expected_clear_path_displacement: float,
 ) -> dict[str, Any]:
     return _episode_record(
-        _PARALLEL_WORKER_MODEL, curriculum_path, layout_name, seed,
+        _PARALLEL_WORKER_MODEL, _PARALLEL_WORKER_NAVIGATION_STEERING, curriculum_path, layout_name, seed,
         episode_seconds=episode_seconds, max_actions=max_actions,
         history_window=history_window, expected_clear_path_displacement=expected_clear_path_displacement,
     )

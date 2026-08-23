@@ -102,6 +102,17 @@ MISC_TOOL_BOOTSTRAPS = frozenset(
     }
 )
 
+# New (2026-08-22), unrelated to Phase 10/11: a controlled offline smoke
+# script proving learned farming-target selection materially steers the
+# environment/router (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md
+# section 4/5), self-bootstrapping for direct script invocation like its
+# SCRATCHPAD_BOOTSTRAPS siblings above.
+LEARNED_TARGET_SELECTION_BOOTSTRAPS = frozenset(
+    {
+        "simulator/scratchpad/scratchpad_learned_target_selection_smoke.py",
+    }
+)
+
 # Top-level tests/ (not docs/migration/tests/, which is its own framework)
 # self-bootstraps for direct pytest collection from the repository root.
 TEST_BOOTSTRAPS = frozenset(
@@ -116,6 +127,7 @@ REGISTERED_BOOTSTRAPS: frozenset[str] = (
     | TRAINING_ENTRYPOINT_BOOTSTRAPS
     | SCRATCHPAD_BOOTSTRAPS
     | MISC_TOOL_BOOTSTRAPS
+    | LEARNED_TARGET_SELECTION_BOOTSTRAPS
     | TEST_BOOTSTRAPS
 )
 

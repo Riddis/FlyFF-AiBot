@@ -2,10 +2,23 @@
 graduated Basic checkpoint (models/canonical_basic_graduated.zip ==
 canonical_basic_milestone_006.zip, user-confirmed graduated 2026-08-08).
 
-Recovery is structurally impossible here -- balanced_training_vec_env_phase2
-(simulator/navigation_ppo.py) never wraps its training envs with
-RecoveryController, so resume_ppo_chunk_phase2's on-policy rollout buffer
-is always faithful. See simulator/beginner_transition.py and
+Full-farming architecture (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md
+section 4/6): Beginner's trainable policy owns the farming-TARGET-SELECTION
+action (WHICH actor/group to pursue, `simulator.farming_target_policy`) and
+the event/EVA action -- steering belongs entirely to FrozenNavigationSteering
+(production router + frozen 0051200), driven by the policy's OWN resolved
+target, never sampled or logged by this policy, and never decided by the
+environment's own deterministic best-group/nearest-reachable hysteresis.
+Basic already trains this exact `SplitFarmingTargetEventPolicy` architecture
+(MultiDiscrete([TARGET_ACTION_SIZE, len(FarmingEvent)]) over
+Box(RAW_OBSERVATION_SIZE,)), so Beginner continues Basic's own graduated
+checkpoint directly -- no cross-architecture bridge/transplant step, unlike
+the retired event-only-checkpoint design this script previously used.
+
+Recovery is structurally impossible here -- balanced_training_vec_env_
+farming_policy (simulator/navigation_ppo.py) never wraps its training envs
+with RecoveryController, so resume_ppo_chunk_farming_policy's on-policy
+rollout buffer is always faithful. See simulator/beginner_transition.py and
 simulator/basic_environment.py's module docstrings for the full rationale.
 
 Per-round flow: bounded PPO chunk (varied seed per round, for layout-
@@ -18,18 +31,23 @@ and carry the pre-rehearsal one forward instead (never accept a
 regression silently) -> check graduation.
 
 Graduation is an ABSOLUTE bar, not "better than this stage's own zero-shot
-baseline" (that would let a mediocre model graduate off a mediocre
-baseline) -- zero/noise-level physical stagnation, contacts_per_100_distance
-within the range this project has directly observed as healthy on this
-geometry family (not literally zero -- unrealistic on cluttered maps, and
-not what "noise-level" means), zero zero-kill episodes, and healthy
-coverage/kill-rate floors so a policy cannot "solve" collision-avoidance by
-doing nothing. teacher_ratio_median is reported for context only, never a
-gate -- the scripted teacher itself is known imperfect. Requires 2
-CONSECUTIVE passing rounds before declaring graduation, so one lucky
-evaluation cannot graduate a model. Bounded at MAX_ROUNDS chunks; if not
-graduated by then, stops and flags for review rather than either grinding
-forever or silently declaring success.
+baseline". ZERO COLLISIONS IS A HARD GATE (docs/PROJECT_GOALS.md section
+2a) -- graded via distinct_contact_events (genuine collision EVENTS, not
+raw contact-tick counts; see milestone_evaluator._contact_event_stats),
+required to be exactly zero across EVERY raw evaluation role: heldout,
+unseen_templates, AND challenge -- no per-role exception. Challenge's own
+"deliberately stressful, not a clean-navigation exam" framing still
+governs its other, genuinely looser thresholds (contacts-per-distance,
+stagnation), never collisions. Within the zero-collision feasible set,
+kills/hour is the primary
+optimization metric; the remaining floors (coverage, kills/hour, physical
+stagnation) exist so a policy cannot "solve" collision-avoidance by doing
+nothing. teacher_ratio_median is reported for context only, never a gate --
+the scripted teacher itself is known imperfect. Requires 2 CONSECUTIVE
+passing rounds before declaring graduation, so one lucky evaluation cannot
+graduate a model. Bounded at MAX_ROUNDS chunks; if not graduated by then,
+stops and flags for review rather than either grinding forever or silently
+declaring success.
 
 Run with: python RUN_CANONICAL_BEGINNER.py
 """
@@ -37,7 +55,6 @@ Run with: python RUN_CANONICAL_BEGINNER.py
 from __future__ import annotations
 
 import json
-import re
 import sys
 import time
 from pathlib import Path
@@ -86,18 +103,28 @@ N_EVAL_WORKERS = 6
 MAX_ROUNDS = 8
 CONSECUTIVE_PASSES_REQUIRED = 2
 
-REHEARSAL_EPOCHS = 2
+REHEARSAL_MAX_EPOCHS = 20
 REHEARSAL_LEARNING_RATE = 1e-5
 
 # --- Absolute graduation bar, calibrated from this project's own real,
 # already-observed healthy raw/recovery-off behavior (round 1's pre-
 # rehearsal heldout/unseen contacts_per_100_distance ranged ~3.5-11.3
 # with zero stagnation and zero zero-kill episodes everywhere) -- not
-# guessed, and not relative to any one run's own baseline. "Noise-level"
-# contact is interpreted as "within the range already directly observed
-# as healthy for this map family," not literally zero, which is not
-# achievable on cluttered geometry even for a good policy. ---
-GRADUATION_MAX_CONTACTS_PER_100_MAIN = 15.0  # heldout + unseen_templates
+# guessed, and not relative to any one run's own baseline. ---
+# ZERO COLLISIONS IS A HARD GATE (docs/PROJECT_GOALS.md section 2a):
+# distinct_contact_events (genuine collision EVENTS -- see milestone_
+# evaluator._contact_event_stats -- not the raw contacts_per_100_distance
+# tick-rate metric, which does NOT mean collision-free even at a low
+# value) must be exactly zero across EVERY raw graduation evaluation role
+# -- heldout, unseen_templates, AND challenge. The gate is binary
+# admission (docs/PROJECT_GOALS.md section 2a: "a candidate that collides
+# does not pass acceptance, regardless of its kills/hour"), not a metric
+# to trade off against a role's difficulty -- challenge's own "deliberately
+# stressful, not a clean-navigation exam" framing governs its OTHER
+# thresholds (contacts-per-distance, stagnation) only, never collisions.
+GRADUATION_MAX_COLLISION_EVENTS_MAIN = 0  # heldout + unseen_templates: hard zero
+GRADUATION_MAX_COLLISION_EVENTS_CHALLENGE = 0  # challenge: also hard zero -- zero collisions has no per-role exception
+GRADUATION_MAX_CONTACTS_PER_100_MAIN = 15.0  # heldout + unseen_templates -- secondary/reported, zero-collision is now binding
 GRADUATION_MAX_CONTACTS_PER_100_CHALLENGE = 25.0  # looser, per manifest's own guidance
 GRADUATION_MIN_UNIQUE_CELLS_MEDIAN = 400  # coverage floor -- well below the ~550-660 observed range
 GRADUATION_MIN_KILLS_PER_HOUR_MEDIAN = 500  # productivity floor -- well below the observed thousands
@@ -142,6 +169,16 @@ def _aggregate(report: dict) -> dict:
     stagnation = sum(l["physical_stagnation_episodes"] for l in layouts)
     zero_kill = sum(l["zero_kill_episodes"] for l in layouts)
     n_episodes = sum(l["n_episodes"] for l in layouts)
+    # total_distinct_contact_events is the evaluator's own exact per-episode
+    # sum (simulator/milestone_evaluator.py::_summarize_episodes) -- NOT a
+    # median*n_episodes reconstruction. That reconstruction is mathematically
+    # invalid (e.g. per-episode counts [0, 0, 1]: median=0, so it silently
+    # rounds a real collision down to 0) and previously defeated the
+    # zero-collision hard gate whenever collisions were concentrated in a
+    # minority of episodes below the median. See MISTAKES.md 2026-08-23.
+    total_collision_events = sum(
+        int(l["total_distinct_contact_events"]) for l in layouts if l.get("total_distinct_contact_events") is not None
+    )
     max_contacts = max(contacts_medians) if contacts_medians else None
     fixed = report.get("fixed_regression_scenarios", {})
     for result in fixed.values():
@@ -149,10 +186,12 @@ def _aggregate(report: dict) -> dict:
             max_contacts = max(max_contacts, result["contacts_per_100_distance"]) if max_contacts is not None else result["contacts_per_100_distance"]
         stagnation += int(bool(result.get("physical_stagnation")))
         zero_kill += int(bool(result.get("zero_kill")))
+        total_collision_events += int(result.get("distinct_contact_events", 0) or 0)
         n_episodes += 1
     return {
         "mean_teacher_ratio_median": float(np.mean(teacher_ratios)) if teacher_ratios else None,
         "max_layout_contacts_per_100_distance": float(max_contacts) if max_contacts is not None else None,
+        "total_collision_events": total_collision_events,
         "min_unique_cells_median": float(min(unique_cells_medians)) if unique_cells_medians else None,
         "min_kills_per_hour_median": float(min(kph_medians)) if kph_medians else None,
         "total_physical_stagnation_episodes": stagnation,
@@ -171,12 +210,17 @@ def _log_aggregate(label: str, agg: dict) -> None:
     kph = agg["min_kills_per_hour_median"]
     kph_str = f"{kph:.0f}" if kph is not None else "n/a"
     log(f"  {label}: teacher_ratio(context only)={tr_str} max_contacts/100={mc_str} "
+        f"collision_events={agg['total_collision_events']} "
         f"min_unique_cells={uc_str} min_kills/hr={kph_str} "
         f"stagnation={agg['total_physical_stagnation_episodes']} zero_kill={agg['total_zero_kill_episodes']}/{agg['total_episodes']}")
 
 
-def _check_bar(agg: dict, *, max_contacts: float, max_stagnation: int) -> list[str]:
+def _check_bar(agg: dict, *, max_collision_events: int, max_contacts: float, max_stagnation: int) -> list[str]:
     reasons = []
+    # ZERO COLLISIONS IS A HARD GATE -- checked first, and violating it
+    # alone is sufficient to fail the round regardless of every other metric.
+    if agg["total_collision_events"] > max_collision_events:
+        reasons.append(f"total_collision_events={agg['total_collision_events']} exceeds hard gate {max_collision_events}")
     if agg["total_physical_stagnation_episodes"] > max_stagnation:
         reasons.append(f"physical_stagnation_episodes={agg['total_physical_stagnation_episodes']} exceeds {max_stagnation}")
     if agg["total_zero_kill_episodes"] > GRADUATION_MAX_ZERO_KILL_EPISODES:
@@ -195,31 +239,124 @@ def _check_bar(agg: dict, *, max_contacts: float, max_stagnation: int) -> list[s
 
 def check_round_passes_absolute_bar(heldout_agg: dict, unseen_agg: dict, challenge_agg: dict) -> tuple[bool, list[str]]:
     reasons = []
-    reasons += [f"heldout: {r}" for r in _check_bar(heldout_agg, max_contacts=GRADUATION_MAX_CONTACTS_PER_100_MAIN, max_stagnation=GRADUATION_MAX_STAGNATION_MAIN)]
-    reasons += [f"unseen_templates: {r}" for r in _check_bar(unseen_agg, max_contacts=GRADUATION_MAX_CONTACTS_PER_100_MAIN, max_stagnation=GRADUATION_MAX_STAGNATION_MAIN)]
-    reasons += [f"challenge: {r}" for r in _check_bar(challenge_agg, max_contacts=GRADUATION_MAX_CONTACTS_PER_100_CHALLENGE, max_stagnation=GRADUATION_MAX_STAGNATION_CHALLENGE)]
+    reasons += [f"heldout: {r}" for r in _check_bar(heldout_agg, max_collision_events=GRADUATION_MAX_COLLISION_EVENTS_MAIN, max_contacts=GRADUATION_MAX_CONTACTS_PER_100_MAIN, max_stagnation=GRADUATION_MAX_STAGNATION_MAIN)]
+    reasons += [f"unseen_templates: {r}" for r in _check_bar(unseen_agg, max_collision_events=GRADUATION_MAX_COLLISION_EVENTS_MAIN, max_contacts=GRADUATION_MAX_CONTACTS_PER_100_MAIN, max_stagnation=GRADUATION_MAX_STAGNATION_MAIN)]
+    reasons += [f"challenge: {r}" for r in _check_bar(challenge_agg, max_collision_events=GRADUATION_MAX_COLLISION_EVENTS_CHALLENGE, max_contacts=GRADUATION_MAX_CONTACTS_PER_100_CHALLENGE, max_stagnation=GRADUATION_MAX_STAGNATION_CHALLENGE)]
     return (not reasons), reasons
 
 
-def run_full_evaluation(checkpoint_path, heldout_manifest, unseen_manifest, challenge_manifest, *, label: str) -> tuple[dict, dict, dict]:
-    from simulator.beginner_transition import evaluate_challenge_925_parallel, evaluate_heldout_925_parallel
+# Evaluation-config identity fingerprints (task section 5): only the
+# configuration that actually changes an evaluation's meaning/result.
+_HELDOUT_EVAL_CONFIG = {"episode_seconds": FULL_EPISODE_SECONDS, "max_actions": FULL_MAX_ACTIONS, "seeds": EVAL_SEEDS}
+_CHALLENGE_EVAL_CONFIG = {"episode_seconds": FULL_EPISODE_SECONDS, "max_actions": FULL_MAX_ACTIONS, "family_seeds": CHALLENGE_FAMILY_SEEDS}
 
-    heldout = evaluate_heldout_925_parallel(
-        checkpoint_path, heldout_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
-        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS,
+
+def _role_identity_kwargs(checkpoint_path, *, role: str, manifest_path: str, config: dict) -> dict:
+    return dict(
+        stage="early", declared_parent_checkpoint=GRADUATED_BASIC_CHECKPOINT, evaluated_checkpoint=checkpoint_path,
+        evaluation_role=role, manifests={role: manifest_path}, config=config,
     )
-    unseen = evaluate_heldout_925_parallel(
-        checkpoint_path, unseen_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
-        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS,
+
+
+def run_full_evaluation(checkpoint_path, heldout_manifest, unseen_manifest, challenge_manifest, *, label: str) -> tuple[dict, dict, dict]:
+    # Composed frozen-navigation evaluation (docs/architecture/
+    # CURRICULUM_TRAINING_PIPELINE.md section 4/10/12): checkpoint_path is a
+    # SplitFarmingTargetEventPolicy, graded through the SAME architecture it
+    # trains under -- target selection AND event from the checkpoint's own
+    # forward pass, steering from FrozenNavigationSteering driven by the
+    # policy's resolved target.
+    from simulator.curriculum_resume_identity import current_generation_path, with_evaluation_cache_identity
+    from simulator.milestone_evaluator import evaluate_challenge_parallel, evaluate_heldout_parallel
+
+    heldout = with_evaluation_cache_identity(
+        evaluate_heldout_parallel(
+            checkpoint_path, heldout_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
+            max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
+        ),
+        **_role_identity_kwargs(checkpoint_path, role="heldout", manifest_path=EARLY_HELDOUT_MANIFEST, config=_HELDOUT_EVAL_CONFIG),
     )
-    challenge = evaluate_challenge_925_parallel(
-        checkpoint_path, challenge_manifest, family_seeds=CHALLENGE_FAMILY_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
-        max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS,
+    unseen = with_evaluation_cache_identity(
+        evaluate_heldout_parallel(
+            checkpoint_path, unseen_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
+            max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
+        ),
+        **_role_identity_kwargs(checkpoint_path, role="unseen_templates", manifest_path=EARLY_HELDOUT_UNSEEN_MANIFEST, config=_HELDOUT_EVAL_CONFIG),
     )
-    (EVAL_DIR / f"canonical_{label}_heldout.json").write_text(json.dumps(heldout, indent=2, default=str), encoding="utf-8")
-    (EVAL_DIR / f"canonical_{label}_unseen.json").write_text(json.dumps(unseen, indent=2, default=str), encoding="utf-8")
-    (EVAL_DIR / f"canonical_{label}_challenge.json").write_text(json.dumps(challenge, indent=2, default=str), encoding="utf-8")
+    challenge = with_evaluation_cache_identity(
+        evaluate_challenge_parallel(
+            checkpoint_path, challenge_manifest, family_seeds=CHALLENGE_FAMILY_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
+            max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
+        ),
+        **_role_identity_kwargs(checkpoint_path, role="challenge", manifest_path=EARLY_CHALLENGE_MANIFEST, config=_CHALLENGE_EVAL_CONFIG),
+    )
+    current_generation_path(EVAL_DIR / f"canonical_{label}_heldout.json").write_text(json.dumps(heldout, indent=2, default=str), encoding="utf-8")
+    current_generation_path(EVAL_DIR / f"canonical_{label}_unseen.json").write_text(json.dumps(unseen, indent=2, default=str), encoding="utf-8")
+    current_generation_path(EVAL_DIR / f"canonical_{label}_challenge.json").write_text(json.dumps(challenge, indent=2, default=str), encoding="utf-8")
     return heldout, unseen, challenge
+
+
+def _load_coherent_evaluation_set(checkpoint_path, *, label: str) -> tuple[dict, dict, dict] | None:
+    """Returns (heldout, unseen, challenge) ONLY if all three cached files
+    validate against checkpoint_path's own current identity; if even one is
+    missing/invalid, returns None so the caller recomputes ALL THREE
+    together -- never a mix of valid and stale members (task section 9)."""
+    from simulator.curriculum_resume_identity import current_generation_path, evaluation_cache_identity, load_cached_evaluation_if_current
+
+    heldout = load_cached_evaluation_if_current(
+        current_generation_path(EVAL_DIR / f"canonical_{label}_heldout.json"), log=log,
+        expected_identity=evaluation_cache_identity(**_role_identity_kwargs(checkpoint_path, role="heldout", manifest_path=EARLY_HELDOUT_MANIFEST, config=_HELDOUT_EVAL_CONFIG)),
+    )
+    unseen = load_cached_evaluation_if_current(
+        current_generation_path(EVAL_DIR / f"canonical_{label}_unseen.json"), log=log,
+        expected_identity=evaluation_cache_identity(**_role_identity_kwargs(checkpoint_path, role="unseen_templates", manifest_path=EARLY_HELDOUT_UNSEEN_MANIFEST, config=_HELDOUT_EVAL_CONFIG)),
+    )
+    challenge = load_cached_evaluation_if_current(
+        current_generation_path(EVAL_DIR / f"canonical_{label}_challenge.json"), log=log,
+        expected_identity=evaluation_cache_identity(**_role_identity_kwargs(checkpoint_path, role="challenge", manifest_path=EARLY_CHALLENGE_MANIFEST, config=_CHALLENGE_EVAL_CONFIG)),
+    )
+    if heldout is None or unseen is None or challenge is None:
+        if heldout is not None or unseen is not None or challenge is not None:
+            log(f"Coherent-cache-set check for {label}: at least one role was valid but not all three -- "
+                "recomputing ALL THREE together rather than mixing valid and stale members.")
+        return None
+    return heldout, unseen, challenge
+
+
+def _resume_round_state(summary_path: Path, *, declared_parent_checkpoint: Path) -> tuple[list[dict], int, Path]:
+    """The full round-resume decision in one directly-testable place:
+    (round_reports, consecutive_passes, current_checkpoint). No
+    orphan-checkpoint resume (task section 7) -- this never inspects
+    MODELS_DIR or globs for a same-named checkpoint file; the ONLY source
+    of truth is a validated current-generation round record. Absent one,
+    `current_checkpoint` is exactly `declared_parent_checkpoint`."""
+    from simulator.curriculum_resume_identity import load_resumable_round_reports
+
+    current_checkpoint = declared_parent_checkpoint
+    consecutive_passes = 0
+    round_reports = load_resumable_round_reports(
+        summary_path, log=log, stage="early", declared_parent_checkpoint=declared_parent_checkpoint,
+    )
+    if round_reports:
+        try:
+            consecutive_passes = round_reports[-1]["consecutive_passes"]
+            current_checkpoint = Path(round_reports[-1]["carried_forward_checkpoint"])
+        except KeyError:
+            round_reports = []
+    return round_reports, consecutive_passes, current_checkpoint
+
+
+def _require_farming_policy_action_space(model, *, where: str) -> None:
+    from gymnasium import spaces
+
+    from farming.actions import FarmingEvent
+    from simulator.farming_target_policy import TARGET_ACTION_SIZE
+
+    expected = [TARGET_ACTION_SIZE, len(FarmingEvent)]
+    if not isinstance(model.action_space, spaces.MultiDiscrete) or list(model.action_space.nvec) != expected:
+        raise RuntimeError(
+            f"{where}: checkpoint has action_space={model.action_space}, expected "
+            f"MultiDiscrete({expected}) -- the full-farming action contract must never drift."
+        )
 
 
 def main() -> None:
@@ -230,15 +367,26 @@ def main() -> None:
 
     from simulator.basic_training import canonical_checkpoint_name
     from simulator.beginner_transition import (
-        graduate_basic_to_beginner,
-        rehearse_beginner_on_basic_data,
+        continue_farming_policy_ppo_chunk,
+        rehearse_farming_policy_on_basic_data,
         zero_shot_raw_diagnostic_parallel,
     )
     from simulator.curriculum_manifests import load_challenge_manifest, load_heldout_manifest
+    from simulator.curriculum_resume_identity import (
+        current_generation_path,
+        evaluation_cache_identity,
+        load_cached_evaluation_if_current,
+        next_resumable_round,
+        with_evaluation_cache_identity,
+        with_round_identity,
+    )
 
     if not GRADUATED_BASIC_CHECKPOINT.exists():
         raise FileNotFoundError(f"{GRADUATED_BASIC_CHECKPOINT} not found -- graduate a Basic checkpoint to this path first.")
     log(f"Graduated Basic checkpoint: {GRADUATED_BASIC_CHECKPOINT}")
+    _require_farming_policy_action_space(
+        PPO.load(str(GRADUATED_BASIC_CHECKPOINT), device="cpu"), where="graduated Basic checkpoint",
+    )
 
     heldout_manifest = load_heldout_manifest(EARLY_HELDOUT_MANIFEST)
     unseen_manifest = load_heldout_manifest(EARLY_HELDOUT_UNSEEN_MANIFEST)
@@ -253,15 +401,21 @@ def main() -> None:
     # ---------------------------------------------------------------
     log("=== Stage 0: zero-shot recovery-off Beginner diagnostic on the graduated Basic checkpoint (baseline, NOT a gate) ===")
     # ---------------------------------------------------------------
-    zero_shot_path = EVAL_DIR / "canonical_beginner_zero_shot_diagnostic.json"
-    if zero_shot_path.exists():
+    zero_shot_path = current_generation_path(EVAL_DIR / "canonical_beginner_zero_shot_diagnostic.json")
+    zero_shot_identity_kwargs = _role_identity_kwargs(
+        GRADUATED_BASIC_CHECKPOINT, role="zero_shot", manifest_path=EARLY_HELDOUT_MANIFEST, config=_HELDOUT_EVAL_CONFIG,
+    )
+    zero_shot_report = load_cached_evaluation_if_current(
+        zero_shot_path, log=log, expected_identity=evaluation_cache_identity(**zero_shot_identity_kwargs),
+    )
+    if zero_shot_report is not None:
         log(f"Reusing existing zero-shot diagnostic: {zero_shot_path}")
-        zero_shot_report = json.loads(zero_shot_path.read_text(encoding="utf-8"))
     else:
         zero_shot_report = zero_shot_raw_diagnostic_parallel(
             GRADUATED_BASIC_CHECKPOINT, heldout_manifest_path=EARLY_HELDOUT_MANIFEST, seeds=EVAL_SEEDS,
             episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS,
         )
+        zero_shot_report = with_evaluation_cache_identity(zero_shot_report, **zero_shot_identity_kwargs)
         zero_shot_path.write_text(json.dumps(zero_shot_report, indent=2, default=str), encoding="utf-8")
     for layout, stats in zero_shot_report["per_layout"].items():
         log(f"  zero-shot[{layout}]: stagnation={stats['physical_stagnation_episodes']}/{stats['n_episodes']} "
@@ -269,29 +423,20 @@ def main() -> None:
     log("Zero-shot diagnostic recorded as a starting-point baseline only -- never used as the graduation bar (see module docstring).")
 
     # ---------------------------------------------------------------
-    # Resume support: detect already-completed rounds by their saved
-    # checkpoints, so a restart (e.g. after this exact crash) does not
-    # redo expensive PPO/evaluation work.
+    # Resume support: a round is resumable ONLY if a validated
+    # current-generation round record (correct stage, architecture,
+    # navigation SHA, declared parent + its live SHA, and the round's own
+    # checkpoint content SHA) vouches for it -- NEVER a same-named
+    # checkpoint file found by directory glob merely because it exists
+    # (task section 7: no orphan-checkpoint resume). Every round from
+    # start_round onward is therefore always freshly trained below.
     # ---------------------------------------------------------------
-    existing_rounds: dict[int, Path] = {}
-    for p in MODELS_DIR.glob("canonical_beginner_ppo_*k.zip"):
-        m = re.match(r"canonical_beginner_ppo_(\d+)k\.zip", p.name)
-        if m and "rehearsed" not in p.name:
-            existing_rounds[int(m.group(1)) // (PPO_CHUNK_TIMESTEPS // 1000)] = p
-    current_checkpoint = GRADUATED_BASIC_CHECKPOINT
-    consecutive_passes = 0
-    round_reports: list[dict] = []
-    summary_path = EVAL_DIR / "canonical_beginner_run_summary.json"
-    if summary_path.exists():
-        try:
-            round_reports = json.loads(summary_path.read_text(encoding="utf-8"))
-            consecutive_passes = round_reports[-1]["consecutive_passes"] if round_reports else 0
-            if round_reports:
-                current_checkpoint = Path(round_reports[-1]["carried_forward_checkpoint"])
-        except (json.JSONDecodeError, OSError, KeyError, IndexError):
-            round_reports = []
+    summary_path = current_generation_path(EVAL_DIR / "canonical_beginner_run_summary.json")
+    round_reports, consecutive_passes, current_checkpoint = _resume_round_state(
+        summary_path, declared_parent_checkpoint=GRADUATED_BASIC_CHECKPOINT,
+    )
 
-    start_round = len(round_reports) + 1
+    start_round = next_resumable_round(round_reports)
 
     for round_idx in range(start_round, MAX_ROUNDS + 1):
         log(f"--- Beginner round {round_idx}/{MAX_ROUNDS} (starting from {current_checkpoint.name}) ---")
@@ -302,31 +447,31 @@ def main() -> None:
         # ---------------------------------------------------------------
         ppo_milestone = f"ppo_{round_idx * PPO_CHUNK_TIMESTEPS // 1000:03d}k"
         ppo_output = MODELS_DIR / f"{canonical_checkpoint_name('beginner', ppo_milestone)}.zip"
-        if ppo_output.exists() and round_idx in existing_rounds:
-            log(f"Reusing existing PPO chunk checkpoint: {ppo_output}")
-        else:
-            ppo_result = graduate_basic_to_beginner(
-                current_checkpoint, ppo_output, curriculum=BEGINNER_CURRICULUM, timesteps=PPO_CHUNK_TIMESTEPS,
-                stage="early", seed=round_seed, episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS,
-                device="cpu", progress_every_seconds=20.0,
-            )
-            log(f"PPO chunk done. layouts={ppo_result['training_layouts']} requested_timesteps={ppo_result['timesteps']} "
-                f"actual_timesteps={ppo_result.get('actual_timesteps', 'n/a')}")
-            log(f"Saved: {ppo_result['checkpoint_out']} (+ provenance)")
+        # No orphan-checkpoint resume (task section 7): this round is only
+        # ever reached when load_resumable_round_reports did NOT already
+        # vouch for it, so it is always freshly trained -- never reused
+        # merely because a same-named file happens to exist on disk.
+        ppo_result = continue_farming_policy_ppo_chunk(
+            current_checkpoint, ppo_output, curriculum=BEGINNER_CURRICULUM, timesteps=PPO_CHUNK_TIMESTEPS,
+            stage="early", seed=round_seed, episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS,
+            device="cpu", progress_every_seconds=20.0,
+        )
+        log(f"PPO chunk done. layouts={ppo_result['training_layouts']} requested_timesteps={ppo_result['timesteps']} "
+            f"actual_timesteps={ppo_result.get('actual_timesteps', 'n/a')}")
+        log(f"Saved: {ppo_result['checkpoint_out']} (+ provenance)")
         pre_rehearsal_checkpoint = ppo_output
         model = PPO.load(str(pre_rehearsal_checkpoint), device="cpu")
+        _require_farming_policy_action_space(model, where=f"round {round_idx} PPO chunk checkpoint")
         check_no_nan(model, f"round {round_idx} after PPO chunk")
 
         # ---------------------------------------------------------------
         log(f"=== Round {round_idx}, Stage 2: evaluate PRE-rehearsal checkpoint (raw, recovery-off) ===")
         # ---------------------------------------------------------------
         pre_label = f"{ppo_milestone}_pre_rehearsal"
-        pre_heldout_path = EVAL_DIR / f"canonical_{pre_label}_heldout.json"
-        if pre_heldout_path.exists():
-            log("Reusing existing pre-rehearsal evaluation.")
-            pre_heldout = json.loads(pre_heldout_path.read_text(encoding="utf-8"))
-            pre_unseen = json.loads((EVAL_DIR / f"canonical_{pre_label}_unseen.json").read_text(encoding="utf-8"))
-            pre_challenge = json.loads((EVAL_DIR / f"canonical_{pre_label}_challenge.json").read_text(encoding="utf-8"))
+        cached_pre = _load_coherent_evaluation_set(pre_rehearsal_checkpoint, label=pre_label)
+        if cached_pre is not None:
+            log("Reusing existing pre-rehearsal evaluation (coherent cache set: heldout+unseen+challenge all validated).")
+            pre_heldout, pre_unseen, pre_challenge = cached_pre
         else:
             pre_heldout, pre_unseen, pre_challenge = run_full_evaluation(
                 pre_rehearsal_checkpoint, heldout_manifest, unseen_manifest, challenge_manifest, label=pre_label,
@@ -345,16 +490,14 @@ def main() -> None:
         # ---------------------------------------------------------------
         rehearsed_output = MODELS_DIR / f"{canonical_checkpoint_name('beginner', ppo_milestone + '_rehearsed')}.zip"
         post_label = f"{ppo_milestone}_post_rehearsal"
-        post_heldout_path = EVAL_DIR / f"canonical_{post_label}_heldout.json"
-        if rehearsed_output.exists() and post_heldout_path.exists():
-            log("Reusing existing rehearsed checkpoint + evaluation.")
-            post_heldout = json.loads(post_heldout_path.read_text(encoding="utf-8"))
-            post_unseen = json.loads((EVAL_DIR / f"canonical_{post_label}_unseen.json").read_text(encoding="utf-8"))
-            post_challenge = json.loads((EVAL_DIR / f"canonical_{post_label}_challenge.json").read_text(encoding="utf-8"))
+        cached_post = _load_coherent_evaluation_set(rehearsed_output, label=post_label) if rehearsed_output.exists() else None
+        if cached_post is not None:
+            log("Reusing existing rehearsed checkpoint + evaluation (coherent cache set: heldout+unseen+challenge all validated).")
+            post_heldout, post_unseen, post_challenge = cached_post
         else:
-            rehearsal_result = rehearse_beginner_on_basic_data(
+            rehearsal_result = rehearse_farming_policy_on_basic_data(
                 pre_rehearsal_checkpoint, rehearsed_output, basic_dataset_paths=event_dataset_paths,
-                epochs=REHEARSAL_EPOCHS, learning_rate=REHEARSAL_LEARNING_RATE, batch_size=128, seed=round_seed,
+                max_epochs=REHEARSAL_MAX_EPOCHS, learning_rate=REHEARSAL_LEARNING_RATE, batch_size=128, seed=round_seed,
             )
             log(f"Rehearsal done. train_samples={rehearsal_result['train_samples']}")
             model2 = PPO.load(str(rehearsed_output), device="cpu")
@@ -383,20 +526,20 @@ def main() -> None:
                 damage_reasons.append(f"{label}: min unique_cells dropped {(1.0-post_u/pre_u):.1%} after rehearsal ({pre_u:.0f} -> {post_u:.0f})")
             if post_agg["total_physical_stagnation_episodes"] > pre_agg["total_physical_stagnation_episodes"]:
                 damage_reasons.append(f"{label}: physical_stagnation_episodes increased from {pre_agg['total_physical_stagnation_episodes']} to {post_agg['total_physical_stagnation_episodes']} after rehearsal")
+            if post_agg["total_collision_events"] > pre_agg["total_collision_events"]:
+                damage_reasons.append(f"{label}: total_collision_events increased from {pre_agg['total_collision_events']} to {post_agg['total_collision_events']} after rehearsal")
 
         if damage_reasons:
             log(f"!!! REHEARSAL DAMAGE DETECTED, discarding rehearsed checkpoint, carrying pre-rehearsal forward: {damage_reasons}")
             carried_forward_checkpoint = pre_rehearsal_checkpoint
-            carried_forward_heldout, carried_forward_unseen, carried_forward_challenge = pre_heldout, pre_unseen, pre_challenge
             carried_forward_agg = (pre_heldout_agg, pre_unseen_agg, pre_challenge_agg)
         else:
             log("Rehearsal did not materially damage navigation -- carrying the rehearsed checkpoint forward.")
             carried_forward_checkpoint = rehearsed_output
-            carried_forward_heldout, carried_forward_unseen, carried_forward_challenge = post_heldout, post_unseen, post_challenge
             carried_forward_agg = (post_heldout_agg, post_unseen_agg, post_challenge_agg)
 
         # ---------------------------------------------------------------
-        log(f"=== Round {round_idx}, Stage 6: absolute graduation-bar check ===")
+        log(f"=== Round {round_idx}, Stage 6: absolute graduation-bar check (zero-collision hard gate) ===")
         # ---------------------------------------------------------------
         round_passed, bar_reasons = check_round_passes_absolute_bar(*carried_forward_agg)
         if round_passed:
@@ -406,7 +549,7 @@ def main() -> None:
             consecutive_passes = 0
             log(f"Round {round_idx} did NOT pass the absolute bar: {bar_reasons}")
 
-        round_reports.append({
+        round_reports.append(with_round_identity({
             "round": round_idx,
             "pre_rehearsal_checkpoint": str(pre_rehearsal_checkpoint.resolve()),
             "rehearsal_damage_detected": bool(damage_reasons),
@@ -418,7 +561,7 @@ def main() -> None:
             "aggregates": {
                 "heldout": carried_forward_agg[0], "unseen_templates": carried_forward_agg[1], "challenge": carried_forward_agg[2],
             },
-        })
+        }, stage="early", declared_parent_checkpoint=GRADUATED_BASIC_CHECKPOINT, current_checkpoint=carried_forward_checkpoint))
         summary_path.write_text(json.dumps(round_reports, indent=2, default=str), encoding="utf-8")
         current_checkpoint = carried_forward_checkpoint
 
@@ -437,6 +580,8 @@ def main() -> None:
                 "graduated_checkpoint": str(graduated_checkpoint.resolve()),
                 "source_checkpoint": str(current_checkpoint.resolve()),
                 "graduation_bar": {
+                    "max_collision_events_main": GRADUATION_MAX_COLLISION_EVENTS_MAIN,
+                    "max_collision_events_challenge": GRADUATION_MAX_COLLISION_EVENTS_CHALLENGE,
                     "max_contacts_per_100_distance_main": GRADUATION_MAX_CONTACTS_PER_100_MAIN,
                     "max_contacts_per_100_distance_challenge": GRADUATION_MAX_CONTACTS_PER_100_CHALLENGE,
                     "min_unique_cells_median": GRADUATION_MIN_UNIQUE_CELLS_MEDIAN,
