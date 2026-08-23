@@ -555,6 +555,84 @@ coverage guarantee, only a validation-side one
   whether it also promises "every class appears somewhere in train" --
   the two are not the same guarantee and one does not imply the other.
 
+### [2026-08-24] canonical Basic relaunch: every round's async "raw
+(recovery-off) diagnostic" silently crashed on a missing heldout
+curriculum path -- separate, pre-existing, non-blocking bug discovered
+during the post-Stage-3b-fix run
+- What happened: with the Stage-3b event-bootstrap collapse fixed
+  (previous entry) and canonical Basic relaunched fresh
+  (`training_logs/canonical_basic_20260823_234310.log`/`.stderr.log`),
+  the run completed all 6 rounds successfully end to end (exit code 0,
+  `=== RUN COMPLETE ===`, 6 milestone checkpoints saved, run summary
+  written). However, every single round's async eval worker
+  (`simulator/tools/_basic_round_eval_worker.py`) crashed with an
+  uncaught `FileNotFoundError` on its "raw (recovery-off) diagnostic"
+  step (`zero_shot_raw_diagnostic_parallel`), 12 tracebacks total (2 per
+  round) in the stderr log, all for the same path: `curricula/
+  synthetic_curriculum_heldout/curriculum.json` (relative, resolved from
+  the process cwd -- missing an intended `simulator/` prefix and/or the
+  directory does not exist anywhere in the repo; confirmed via search --
+  only `.pytest_tmp/` fixture copies of `early_heldout.json` exist, no
+  real `curricula/synthetic_curriculum_heldout/` or `simulator/curricula/
+  synthetic_curriculum_heldout/` directory). The referencing manifest is
+  `simulator/evaluations/manifests/early_heldout.json`
+  (`"curriculum_path": "curricula/synthetic_curriculum_heldout/
+  curriculum.json"`).
+- Consequence, more significant than "diagnostics didn't run": the
+  worker's own milestone-eval-derived ALARM check (recovery-firing-rate
+  / dominant-layout-share / gave-up-episode-fraction thresholds) runs
+  AFTER the raw diagnostic call in `_basic_round_eval_worker.py`'s
+  `main()` -- so it never executed for ANY of the 6 rounds either,
+  silently, because `RUN_CANONICAL_BASIC.py`'s Stage 5 (`for proc in
+  eval_processes: proc.wait()`) never checks each worker's exit code.
+  This is a real gap in the "no auto-stop, but a human/monitor can catch
+  '!!! ALARM' lines" safety design: it assumed the worker would reach its
+  alarm-computation code, not that an unrelated earlier step could crash
+  the whole worker first and skip it entirely with no signal beyond a
+  buried stderr traceback. The `evaluate_basic_milestone_parallel` call
+  (assisted-mode metrics: intervention_count, target_disagreement_rate,
+  event_disagreement_rate, gave_up_episode_fraction,
+  dominant_layout_intervention_share) runs BEFORE the raw diagnostic and
+  completed successfully every round -- those numbers and the per-round
+  `canonical_basic_milestone_XXX_report.json` files are trustworthy;
+  manually applying the worker's own alarm thresholds to that printed
+  data shows round 4 and round 5 would have logged an informational
+  `dominant_layout_intervention_share >= 0.85` alarm (both 1.0, but from
+  tiny absolute intervention counts -- round 4 max=4, round 5 max=2,
+  both median=0 across seeds/layouts -- consistent with small-sample
+  concentration in one layout by chance, not a systemic collision/
+  navigation regression). No `canonical_basic_milestone_XXX_raw_
+  diagnostic.json` file exists for any round (confirmed: the worker
+  crashed before ever reaching its own `diagnostic_path.write_text` call).
+- How caught: monitoring the canonical Basic relaunch this task's own
+  instructions required after merging the Stage-3b fix; noticed
+  `dominant_layout_intervention_share: 1.0` in the live log for rounds 4
+  and 5, went to check the corresponding `!!! ALARM round 4/5` line the
+  worker's own dispatch message promised, found none in stdout, and found
+  the actual cause in the stderr log instead.
+- Fix: none -- deliberately out of scope. This is a genuinely independent
+  pre-existing bug, unrelated to the Stage-3b split fix (nothing in this
+  task's diagnosis or fix touches curricula, `_basic_round_eval_worker.py`,
+  or `zero_shot_raw_diagnostic_parallel`), discovered only because this
+  run was the first canonical Basic run in this project's history to get
+  far enough (past the Stage-3b collapse gate) to ever reach the raw
+  diagnostic step at all. Needs its own deliberate follow-up task: locate/
+  regenerate the missing `curricula/synthetic_curriculum_heldout/
+  curriculum.json` (or correct the manifest's/loader's path resolution,
+  whichever is actually wrong), and separately, make
+  `RUN_CANONICAL_BASIC.py`'s Stage 5 check each dispatched worker's
+  `proc.returncode` and surface a clear failure instead of silently
+  continuing past a crashed evaluation worker.
+- Lesson: an async, non-blocking safety check ("fire and forget, a human
+  watches for '!!! ALARM' lines") is only as reliable as the assumption
+  that the worker reaches the check at all -- an unrelated earlier step
+  crashing the whole worker process defeats the safety net completely and
+  silently, with the only symptom being an absent expected log line that
+  is easy to miss unless someone is specifically watching for it (as
+  opposed to a warning or an explicit "eval worker N failed" message).
+  Fire-and-forget async workers used as safety nets should have their
+  exit codes checked by the dispatcher, not just been waited on.
+
 ## Category: housekeeping / archival
 
 ### [date lost to compaction, before 2026-08-13] wrongly archived `scratchpad_single_obstacle_train.py`
