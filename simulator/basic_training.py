@@ -652,7 +652,16 @@ def collect_target_teacher_dataset(
     Requires a loaded `FrozenNavigationSteering` (steering is never the
     scripted teacher's own decision here, even during this bootstrap --
     steering ownership does not change during Basic, see `simulator/
-    basic_environment.py`'s module docstring)."""
+    basic_environment.py`'s module docstring).
+
+    `samples` is a MINIMUM, not an exact output count: collection keeps
+    running complete episodes, in deterministic layout order, past that
+    budget if needed so every layout ends up with >=2 complete teacher
+    episodes -- the precondition `_target_layout_stratified_episode_split`
+    requires to hold one out for validation while keeping >=1 for
+    training. The returned dataset may therefore contain somewhat more
+    than `samples` rows; it will never contain a truncated final
+    episode."""
 
     from .farming_target_policy import PersistentFarmingTarget, deterministic_target_teacher_action
     from .navigation_history import NavigationHistoryWrapper
@@ -676,10 +685,39 @@ def collect_target_teacher_dataset(
     episode_ids: list[int] = []
     layout_ids: list[int] = []
     episode_id = 0
+    layout_episode_counts = [0] * len(environments)
     progress = ProgressPrinter(int(samples), label="target_teacher_dataset_collection", min_interval_seconds=15.0)
+
+    def _coverage_satisfied() -> bool:
+        # `samples` is a MINIMUM, not an exact count: the downstream
+        # stratified train/validation split (`_target_layout_stratified_
+        # episode_split`) hard-requires >=2 complete teacher episodes per
+        # layout, so collection cannot stop on the aggregate sample count
+        # alone -- a round-robin pass that reaches the budget mid-cycle
+        # must keep going until every layout has its second episode too.
+        return len(observations) >= int(samples) and min(layout_episode_counts) >= 2
+
+    # Every episode appends at least one sample before its first
+    # termination check below, so each full round-robin pass over
+    # `environments` strictly grows both the running sample total and
+    # every layout's episode count -- `_coverage_satisfied()` is therefore
+    # guaranteed to become true in finitely many episodes. This cap is a
+    # defensive guard against that guarantee being broken by a future
+    # regression (e.g. a layout whose episodes can be zero-length), not a
+    # bound this run is expected to approach.
+    max_episode_attempts = int(samples) + 2 * len(environments) + 1
+
     try:
-        while len(observations) < int(samples):
+        while not _coverage_satisfied():
             for layout_id, (_entry, base_env) in enumerate(environments):
+                if episode_id >= max_episode_attempts:
+                    raise RuntimeError(
+                        "collect_target_teacher_dataset: exceeded "
+                        f"{max_episode_attempts} teacher episodes without "
+                        "reaching the sample budget and >=2 episodes for "
+                        "every layout -- an environment is likely "
+                        "producing near-empty episodes"
+                    )
                 env = NavigationHistoryWrapper(base_env)
                 observation, _ = env.reset(seed=seed + episode_id * 1009 + layout_id * 37)
                 navigation_steering.reset()
@@ -702,21 +740,22 @@ def collect_target_teacher_dataset(
                         np.asarray([steering, int(teacher_command.event)], dtype=np.int64)
                     )
                     progress.update(min(len(observations), int(samples)))
-                    if len(observations) >= int(samples) or terminated or truncated:
+                    if terminated or truncated:
                         break
                 episode_id += 1
-                if len(observations) >= int(samples):
+                layout_episode_counts[layout_id] += 1
+                if _coverage_satisfied():
                     break
     finally:
         for _, env in environments:
             env.close()
     progress.finish()
 
-    obs = np.asarray(observations[: int(samples)], dtype=np.float32)
-    labels = np.asarray(actions[: int(samples)], dtype=np.int64)
-    episode_index = np.asarray(episode_ids[: int(samples)], dtype=np.int64)
-    layout_index = np.asarray(layout_ids[: int(samples)], dtype=np.int64)
-    if obs.shape != (int(samples), RAW_OBSERVATION_SIZE) or labels.shape != (int(samples), 2):
+    obs = np.asarray(observations, dtype=np.float32)
+    labels = np.asarray(actions, dtype=np.int64)
+    episode_index = np.asarray(episode_ids, dtype=np.int64)
+    layout_index = np.asarray(layout_ids, dtype=np.int64)
+    if obs.shape != (len(observations), RAW_OBSERVATION_SIZE) or labels.shape != (len(observations), 2):
         raise ValueError(f"Unexpected target-teacher arrays: observations={obs.shape}, actions={labels.shape}")
 
     train_indices, validation_indices, validation_episodes = _target_layout_stratified_episode_split(
