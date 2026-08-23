@@ -326,6 +326,68 @@ Entry template:
   selection logic when only the persistence/hysteresis behavior needs to
   change.
 
+### [2026-08-23] canonical Basic run crashed: fixed sample budget doesn't guarantee every layout gets 2 teacher episodes
+- What happened: a from-scratch launch of `RUN_CANONICAL_BASIC.py` (main
+  SHA `041d715`) crashed in Stage 3a with `ValueError: Layout 2 needs at
+  least two teacher episodes`, raised by `basic_training.py`'s
+  `_target_layout_stratified_episode_split` and called from
+  `collect_target_teacher_dataset`, after successfully collecting all
+  3000/3000 requested samples.
+- Root cause: `collect_target_teacher_dataset` round-robins episodes across
+  the 7 `DAGGER_LAYOUTS` in a `while len(observations) < samples` outer loop
+  and stops the INSTANT the fixed `TARGET_TEACHER_SAMPLES=3000` sample
+  budget is hit, mid-cycle, via `if len(observations) >= int(samples): break`
+  right after each layout's episode completes. Episode length varies
+  (early `terminated`/`truncated`), so how many full round-robin passes fit
+  in 3000 samples is not guaranteed to be a whole number -- whichever
+  layout the budget happened to run out on before its second episode
+  started ends up with only 1 episode. `_target_layout_stratified_episode_
+  split` unconditionally requires >=2 episodes per layout (to hold one out
+  for validation while keeping >=1 for training) with no fallback for a
+  layout that only got 1. Deterministic given `seed=0` (`TARGET_TEACHER_
+  SAMPLES`, `DAGGER_LAYOUTS`, and per-layout episode-reset seeding are all
+  fixed) -- reruns of the exact same command reproduce this identically;
+  not a transient/environmental failure.
+- How caught: the run's own traceback, preserved in `training_logs/
+  canonical_basic_20260823_223723.log`, while executing the user's
+  explicit instruction to launch and monitor canonical Basic training.
+  Caught before any checkpoint, run summary, or resume state was written
+  (crash occurs before `RUN_CANONICAL_BASIC.py`'s first
+  `save_checkpoint_with_provenance` call), so no contamination risk -- a
+  clean rerun after a real code fix starts genuinely fresh.
+- Fix (`fix/basic-target-teacher-layout-coverage`, follow-up task):
+  `collect_target_teacher_dataset` now tracks a per-layout completed-
+  episode counter and treats `samples` as a MINIMUM -- the outer loop's
+  stopping condition became `len(observations) >= samples AND
+  min(layout_episode_counts) >= 2`, checked only after a full episode
+  completes, so a round-robin pass that reaches the budget mid-cycle keeps
+  going (in the same deterministic layout order) until every layout has
+  its second episode. Also fixed the co-located episode-boundary bug: the
+  old per-step `if len(observations) >= samples or terminated or
+  truncated: break` could cut an episode off mid-way purely because the
+  budget was hit, handing the split a truncated pseudo-episode; the budget
+  check was removed from that inner break (now only `terminated or
+  truncated`), and the final `[:samples]` slice on the collected arrays
+  was removed so a genuinely complete final episode is never truncated
+  after the fact. A defensive `max_episode_attempts` cap (`samples + 2 *
+  len(environments) + 1`) guards against a future regression breaking the
+  "every episode yields >=1 sample" invariant the loop's termination proof
+  relies on. `_target_layout_stratified_episode_split`'s own >=2-episode
+  requirement was deliberately left unchanged (no single-episode
+  fallback) -- the collector now guarantees its precondition instead.
+  Verified against the exact failing configuration (`DAGGER_CURRICULUM`,
+  `DAGGER_LAYOUTS`, `seed=0`, `samples=3000`) in
+  `tests/test_basic_training_pipeline.py::
+  test_collect_target_teacher_dataset_canonical_configuration_has_full_layout_coverage`.
+- Lesson: a "collect N total samples across K categories" loop that can
+  stop mid-cycle on a raw sample-count budget does not by construction
+  guarantee a minimum PER-CATEGORY episode/example count -- when a
+  downstream step (here, a stratified train/val split) hard-requires a
+  per-category minimum, that minimum must be enforced by the collection
+  loop itself (e.g. collect per-layout episode quotas first, samples
+  second), not assumed to fall out of an aggregate budget across an
+  odd number of variable-length episodes.
+
 ## Category: housekeeping / archival
 
 ### [date lost to compaction, before 2026-08-13] wrongly archived `scratchpad_single_obstacle_train.py`

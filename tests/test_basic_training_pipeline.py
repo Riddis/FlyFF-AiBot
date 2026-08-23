@@ -434,12 +434,119 @@ def test_collect_target_teacher_dataset_and_bootstrap_target_from_teacher(tmp_pa
         str(curriculum_path), ["01_early_open_field_typical_fast"], samples=200,
         episode_seconds=8.0, max_actions=40, seed=0,
     )
-    assert dataset["observations"].shape == (200, RAW_OBSERVATION_SIZE)
-    assert dataset["actions"].shape == (200, 2)
+    # `samples` is a minimum, not an exact count (see collect_target_teacher_
+    # dataset's docstring): collection keeps running complete episodes past
+    # the budget until every layout has >=2 of them, so the dataset may end
+    # up somewhat larger than requested but never smaller or mid-episode-cut.
+    n = dataset["observations"].shape[0]
+    assert n >= 200
+    assert dataset["observations"].shape == (n, RAW_OBSERVATION_SIZE)
+    assert dataset["actions"].shape == (n, 2)
     assert dataset["actions"][:, 0].max() < TARGET_ACTION_SIZE
+    episode_index = dataset["episode_index"]
+    layout_index = dataset["layout_index"]
+    for layout in np.unique(layout_index):
+        assert len(np.unique(episode_index[layout_index == layout])) >= 2
 
     model = build_fresh_basic_policy(seed=0, device="cpu")
     result = bootstrap_target_from_teacher(model, dataset, epochs=2, seed=0, progress_every_seconds=999.0)
     assert result["train_samples"] > 0
     for name, param in model.policy.named_parameters():
         assert not torch.isnan(param).any(), f"NaN in {name}"
+
+
+def test_collect_target_teacher_dataset_continues_past_tiny_budget_for_layout_coverage(tmp_path: Path) -> None:
+    """Direct regression test for the underlying semantic bug (MISTAKES.md,
+    2026-08-23 "canonical Basic run crashed" entry): a fixed aggregate
+    sample budget must never be able to end collection before every layout
+    has >=2 complete teacher episodes, and must never cut an episode off
+    mid-way just to land on that budget exactly. `samples=3` here is far
+    smaller than even one layout's first episode produces, so the OLD
+    collector (single `len(observations) >= samples` check, breaking
+    inside the per-step action loop) would have stopped inside layout 0's
+    very first episode -- 1 truncated pseudo-episode for layout 0, 0
+    episodes for the other two layouts."""
+    curriculum_path = generate_curriculum_from_plan(
+        tmp_path / "curriculum",
+        [
+            ("early", "open_field", "typical", "fast", 0),
+            ("early", "open_field", "low", "fast", 0),
+            ("early", "wide_neck", "typical", "fast", 0),
+        ],
+        seed=555002, overwrite=True,
+    )
+    layout_names = [
+        "01_early_open_field_typical_fast", "02_early_open_field_low_fast", "03_early_wide_neck_typical_fast",
+    ]
+    dataset = collect_target_teacher_dataset(
+        str(curriculum_path), layout_names, samples=3,
+        episode_seconds=8.0, max_actions=40, seed=0,
+    )
+
+    n = dataset["observations"].shape[0]
+    assert n > 3, "the tiny budget must be exceeded once complete-episode coverage is enforced"
+    assert dataset["observations"].shape == (n, RAW_OBSERVATION_SIZE)
+    assert dataset["actions"].shape == (n, 2)
+
+    episode_index = dataset["episode_index"]
+    layout_index = dataset["layout_index"]
+    assert set(np.unique(layout_index).tolist()) == set(range(len(layout_names)))
+    for layout in np.unique(layout_index):
+        episodes_here = np.unique(episode_index[layout_index == layout])
+        assert len(episodes_here) >= 2, f"layout {layout} has only {len(episodes_here)} teacher episodes"
+
+    train_idx = dataset["train_indices"]
+    val_idx = dataset["validation_indices"]
+    train_episodes = {int(e) for e in episode_index[train_idx]}
+    val_episodes = {int(e) for e in episode_index[val_idx]}
+    assert train_episodes.isdisjoint(val_episodes)
+    assert set(int(l) for l in layout_index[val_idx]) == set(range(len(layout_names)))
+
+
+def test_collect_target_teacher_dataset_canonical_configuration_has_full_layout_coverage() -> None:
+    """Regression test for the actual 2026-08-23 canonical Basic launch
+    crash: `collect_target_teacher_dataset` with the EXACT canonical
+    `RUN_CANONICAL_BASIC.py` configuration (real `DAGGER_CURRICULUM`,
+    `DAGGER_LAYOUTS`, `seed=0`, `samples=TARGET_TEACHER_SAMPLES=3000`) used
+    to stop mid-round-robin the instant the sample budget was hit, before
+    every one of the 7 layouts had produced its second complete teacher
+    episode -- crashing `_target_layout_stratified_episode_split` with
+    "Layout 2 needs at least two teacher episodes" (see MISTAKES.md). This
+    reruns the exact failing configuration end to end."""
+    from simulator.tools.RUN_CANONICAL_BASIC import (
+        DAGGER_CURRICULUM,
+        DAGGER_EPISODE_SECONDS,
+        DAGGER_LAYOUTS,
+        DAGGER_MAX_ACTIONS,
+        SEED,
+        TARGET_TEACHER_SAMPLES,
+    )
+
+    dataset = collect_target_teacher_dataset(
+        DAGGER_CURRICULUM, DAGGER_LAYOUTS, samples=TARGET_TEACHER_SAMPLES,
+        episode_seconds=DAGGER_EPISODE_SECONDS, max_actions=DAGGER_MAX_ACTIONS, seed=SEED,
+    )
+
+    n = dataset["observations"].shape[0]
+    assert n >= TARGET_TEACHER_SAMPLES
+    assert dataset["observations"].shape == (n, RAW_OBSERVATION_SIZE)
+    assert dataset["actions"].shape == (n, 2)
+    assert list(dataset["layout_names"]) == DAGGER_LAYOUTS
+
+    episode_index = dataset["episode_index"]
+    layout_index = dataset["layout_index"]
+    episodes_by_layout = {
+        int(layout): sorted(int(e) for e in np.unique(episode_index[layout_index == layout]))
+        for layout in np.unique(layout_index)
+    }
+    assert set(episodes_by_layout) == set(range(len(DAGGER_LAYOUTS)))
+    for layout, episodes in episodes_by_layout.items():
+        assert len(episodes) >= 2, f"layout {DAGGER_LAYOUTS[layout]} has only {len(episodes)} teacher episodes"
+
+    train_idx = dataset["train_indices"]
+    val_idx = dataset["validation_indices"]
+    train_episodes = {int(e) for e in episode_index[train_idx]}
+    val_episodes = {int(e) for e in episode_index[val_idx]}
+    assert train_episodes.isdisjoint(val_episodes)
+    assert set(int(l) for l in layout_index[val_idx]) == set(range(len(DAGGER_LAYOUTS)))
+    assert set(int(l) for l in layout_index[train_idx]) == set(range(len(DAGGER_LAYOUTS)))
