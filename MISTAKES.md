@@ -1980,3 +1980,66 @@ sweep.
   sequencing safety around a single shared mutable path; a namespace
   separation is easier to verify correct by inspection than an ordering
   invariant is.
+
+### [2026-08-23] Round-resume identity checked content SHA but not checkpoint PATH identity, and only the LAST round of a persisted chain
+
+- What happened: even after the content-based identity strengthening
+  above, `round_record_validity_reason()` still had two independent gaps,
+  both found by a further independent Codex pre-merge review the same day.
+  (1) It compared `carried_forward_checkpoint`'s live bytes against the
+  round record's own `identity.current_checkpoint_sha256`, but never
+  checked that `carried_forward_checkpoint` and `identity.
+  current_checkpoint` named the SAME path -- a record whose identity
+  vouched for `checkpoint_A.zip` but whose `carried_forward_checkpoint`
+  pointed at a byte-identical `checkpoint_B.zip` at a different path would
+  pass, because SHA equality alone can't distinguish "the same file" from
+  "a different file that happens to hold the same bytes." (2)
+  `load_resumable_round_reports()` validated only `round_reports[-1]` (the
+  final element) before returning the ENTIRE list unchanged -- an invalid
+  or non-contiguous round 1 followed by a valid round 2 was silently
+  accepted for resume because only round 2 was ever checked, even though
+  the runners then used `len(round_reports) + 1` (i.e., the full,
+  partially-unvalidated list) to derive both the next round number and
+  (indirectly, through round 1's untrusted fields) downstream state.
+- Root cause: (1) treated "content SHA matches" as equivalent to "is the
+  vouched-for checkpoint," when a round record's job is to vouch for ONE
+  exact checkpoint identity (path + content), not merely "some file with
+  these bytes exists somewhere." (2) treated "the last element of a
+  sequential log validates" as sufficient proof the whole log is trustworthy
+  -- true only if every earlier element was already known-valid, which was
+  never actually checked; a hand-edited, corrupted, or partially-written
+  earlier record was invisible to a last-element-only check.
+- How caught: independent Codex verification pass explicitly reproducing
+  both scenarios (alternate-path/same-bytes substitution; invalid round 1 +
+  valid final round) against the then-current `simulator/
+  curriculum_resume_identity.py`.
+- Fix: `round_record_validity_reason()` now requires
+  `Path(carried_forward_checkpoint).resolve() == Path(identity.
+  current_checkpoint).resolve()` before trusting the SHA comparison at all
+  (canonical resolution, not raw-string comparison, so a legitimately
+  differently-spelled but physically identical path still matches).
+  `load_resumable_round_reports()` now validates every record in the
+  persisted list, in order, and additionally requires the recorded `round`
+  values to form the contiguous 1-based sequence `1, 2, ..., N`; any
+  invalid record or any non-contiguous/duplicate/missing round number
+  rejects the ENTIRE list (never a partial resume of a validated suffix),
+  without mutating the file. All three canonical runners now derive their
+  next round from the last validated round's own recorded number
+  (`next_resumable_round()`) rather than list length, making the
+  (now-enforced) equivalence explicit instead of assumed. See
+  `tests/test_curriculum_resume_identity.py` (checkpoint path-consistency
+  tests, whole-chain/contiguous-round-sequence tests, and the
+  `TestRunnerResumeRoundState` class exercising each real runner's
+  `_resume_round_state`) and `docs/architecture/
+  CURRICULUM_TRAINING_PIPELINE.md`'s "Resume-identity and evaluation-cache
+  identity" section.
+- Lesson: a content hash proves "these bytes exist," not "this is the
+  specific artifact this record is about" -- when a record's job is to
+  vouch for a single artifact's identity, always pair a content check with
+  a path/reference check tying the hash to the SPECIFIC field being
+  vouched for, not just any field that happens to hold a matching hash.
+  Separately: validating only the last element of a persisted sequential
+  log is never sufficient to trust the log as a whole unless every prior
+  append was already independently guaranteed valid at write time (it
+  wasn't here) -- a resumable chain must validate the full chain, and its
+  own indexing/numbering, every time it is read, not just its tail.

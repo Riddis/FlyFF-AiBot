@@ -376,6 +376,7 @@ def main() -> None:
         current_generation_path,
         evaluation_cache_identity,
         load_cached_evaluation_if_current,
+        next_resumable_round,
         with_evaluation_cache_identity,
         with_round_identity,
     )
@@ -435,7 +436,7 @@ def main() -> None:
         summary_path, declared_parent_checkpoint=GRADUATED_BASIC_CHECKPOINT,
     )
 
-    start_round = len(round_reports) + 1
+    start_round = next_resumable_round(round_reports)
 
     for round_idx in range(start_round, MAX_ROUNDS + 1):
         log(f"--- Beginner round {round_idx}/{MAX_ROUNDS} (starting from {current_checkpoint.name}) ---")

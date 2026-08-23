@@ -31,6 +31,7 @@ from simulator.curriculum_resume_identity import (
     load_cached_evaluation_if_current,
     load_resumable_round_reports,
     manifest_identity,
+    next_resumable_round,
     round_identity,
     round_record_validity_reason,
     sha256_of_file,
@@ -119,9 +120,9 @@ def current_checkpoint(tmp_path: Path) -> Path:
     return _write(tmp_path / "canonical_beginner_ppo_010k.zip", b"round 1 checkpoint bytes")
 
 
-def _valid_round_record(parent_checkpoint: Path, current_checkpoint: Path, *, stage: str = "early") -> dict:
+def _valid_round_record(parent_checkpoint: Path, current_checkpoint: Path, *, stage: str = "early", round_number: int = 1) -> dict:
     return with_round_identity(
-        {"round": 1, "consecutive_passes": 1, "carried_forward_checkpoint": str(current_checkpoint.resolve())},
+        {"round": round_number, "consecutive_passes": 1, "carried_forward_checkpoint": str(current_checkpoint.resolve())},
         stage=stage, declared_parent_checkpoint=parent_checkpoint, current_checkpoint=current_checkpoint,
     )
 
@@ -198,6 +199,57 @@ def test_round_record_missing_carried_forward_checkpoint_is_rejected(parent_chec
     assert reason is not None
 
 
+# --- round_record_validity_reason: checkpoint PATH consistency (defect 1) --
+#
+# `identity.current_checkpoint` (the round's own vouched-for checkpoint) and
+# `carried_forward_checkpoint` (what the runner will actually resume from)
+# must refer to the SAME canonical path, not merely matching bytes at a
+# DIFFERENT path -- see task section 2/3/4.
+
+
+def test_round_record_rejects_carried_forward_checkpoint_at_a_different_path_with_identical_bytes(parent_checkpoint, tmp_path):
+    """Task section 4.A: checkpoint_A and checkpoint_B hold IDENTICAL bytes
+    at DIFFERENT paths. The record's own identity vouches for checkpoint_A
+    (that is what was actually produced/evaluated this round), but
+    carried_forward_checkpoint names checkpoint_B. Matching bytes elsewhere
+    must not launder a different path into "the same checkpoint"."""
+    checkpoint_a = _write(tmp_path / "checkpoint_a.zip", b"identical checkpoint bytes")
+    checkpoint_b = _write(tmp_path / "checkpoint_b.zip", b"identical checkpoint bytes")
+    record = _valid_round_record(parent_checkpoint, checkpoint_a)
+    record["carried_forward_checkpoint"] = str(checkpoint_b.resolve())
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+    assert "does not refer to the same checkpoint" in reason
+
+
+def test_round_record_accepts_same_path_same_bytes(parent_checkpoint, current_checkpoint):
+    """Task section 4.B: identity.current_checkpoint and
+    carried_forward_checkpoint both name the same checkpoint, bytes
+    unchanged -- must accept."""
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is None
+
+
+def test_round_record_accepts_carried_forward_checkpoint_differently_spelled_but_canonically_identical_path(parent_checkpoint, current_checkpoint):
+    """Task section 4.D: same physical file, different spelling (redundant
+    `..` traversal) -- must accept once canonicalized, must not compare raw
+    strings."""
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    differently_spelled = current_checkpoint.parent / ".." / current_checkpoint.parent.name / current_checkpoint.name
+    assert str(differently_spelled) != str(current_checkpoint.resolve()), "test setup must actually exercise differently-spelled paths"
+    record["carried_forward_checkpoint"] = str(differently_spelled)
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is None
+
+
+def test_round_record_with_no_identity_current_checkpoint_is_rejected(parent_checkpoint, current_checkpoint):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    del record["identity"]["current_checkpoint"]
+    reason = round_record_validity_reason(record, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert reason is not None
+
+
 # --- load_resumable_round_reports: real temporary files -------------------
 
 
@@ -231,6 +283,100 @@ def test_load_resumable_round_reports_never_mutates_the_file_on_rejection(tmp_pa
 def test_load_resumable_round_reports_missing_file_returns_empty(tmp_path, parent_checkpoint):
     result = load_resumable_round_reports(tmp_path / "does_not_exist.json", log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
     assert result == []
+
+
+def _build_round_chain(tmp_path: Path, parent_checkpoint: Path, round_numbers: list[int], *, stage: str = "early") -> list[dict]:
+    """Builds a list of round records, one per entry in `round_numbers` (in
+    the given order), each carrying its own distinct real temp checkpoint
+    file so content-SHA validation is exercised for real, not stubbed."""
+    records = []
+    for n in round_numbers:
+        checkpoint = _write(tmp_path / f"round_{n}_checkpoint.zip", f"round {n} checkpoint bytes".encode())
+        records.append(_valid_round_record(parent_checkpoint, checkpoint, stage=stage, round_number=n))
+    return records
+
+
+# --- load_resumable_round_reports: whole-chain validation + round sequence
+# (defect 2, task sections 5-11) -------------------------------------------
+
+
+@pytest.mark.parametrize("round_numbers", [[1], [1, 2], [1, 2, 3]])
+def test_load_resumable_round_reports_accepts_contiguous_valid_chains(tmp_path, parent_checkpoint, round_numbers):
+    records = _build_round_chain(tmp_path, parent_checkpoint, round_numbers)
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps(records), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert [r["round"] for r in result] == round_numbers
+
+
+@pytest.mark.parametrize("round_numbers", [[2], [1, 3], [1, 2, 4], [1, 1]])
+def test_load_resumable_round_reports_rejects_non_contiguous_round_sequences(tmp_path, parent_checkpoint, round_numbers):
+    records = _build_round_chain(tmp_path, parent_checkpoint, round_numbers)
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps(records), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+def test_load_resumable_round_reports_rejects_non_integer_round_value(tmp_path, parent_checkpoint, current_checkpoint):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["round"] = "1"  # a string, not the int the real runners always write
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps([record]), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+def test_load_resumable_round_reports_rejects_missing_round_value(tmp_path, parent_checkpoint, current_checkpoint):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    del record["round"]
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps([record]), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+def test_load_resumable_round_reports_rejects_invalid_first_round_even_with_valid_final_round(tmp_path, parent_checkpoint):
+    """The core defect-2 regression (task section 10): Codex found that only
+    the LAST round was validated, so an invalid round 1 followed by a valid
+    round 2 was silently accepted (round 2 alone validated). The whole
+    summary must now be rejected."""
+    records = _build_round_chain(tmp_path, parent_checkpoint, [1, 2])
+    records[0]["identity"]["curriculum_stage"] = "corrupted-stage"  # round 1 now invalid
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps(records), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == [], "an invalid round 1 must reject the WHOLE chain, even though round 2 alone would validate"
+
+
+def test_load_resumable_round_reports_rejects_valid_prefix_with_invalid_final_round(tmp_path, parent_checkpoint):
+    records = _build_round_chain(tmp_path, parent_checkpoint, [1, 2])
+    records[1]["identity"]["curriculum_stage"] = "corrupted-stage"  # round 2 now invalid
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps(records), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+def test_load_resumable_round_reports_never_mutates_the_file_on_invalid_prefix_rejection(tmp_path, parent_checkpoint):
+    records = _build_round_chain(tmp_path, parent_checkpoint, [1, 2])
+    records[0]["identity"]["curriculum_stage"] = "corrupted-stage"
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    original_bytes = json.dumps(records).encode("utf-8")
+    summary_path.write_bytes(original_bytes)
+    load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert summary_path.read_bytes() == original_bytes
+
+
+# --- next_resumable_round ---------------------------------------------------
+
+
+def test_next_resumable_round_is_1_for_empty_chain():
+    assert next_resumable_round([]) == 1
+
+
+def test_next_resumable_round_is_last_validated_round_plus_1():
+    assert next_resumable_round([{"round": 1}, {"round": 2}, {"round": 3}]) == 4
 
 
 def test_legacy_filename_at_old_path_is_never_read_by_the_current_loader(tmp_path, parent_checkpoint, current_checkpoint):
@@ -397,3 +543,78 @@ def test_runner_source_calls_the_new_resume_identity_gate(module, expected_decla
     assert "load_resumable_round_reports" in resume_state_source
     assert "existing_rounds" not in whole_module_source, "orphan-checkpoint glob resume must be fully removed"
     assert "MODELS_DIR.glob" not in resume_state_source, "_resume_round_state must never inspect the filesystem for checkpoints"
+
+
+# --- each canonical runner's actual _resume_round_state(): behavioral,
+# not source-string, proof (task section 12) --------------------------------
+
+
+@pytest.mark.parametrize("module,stage", [
+    (BEGINNER, "early"),
+    (INTERMEDIATE, "intermediate"),
+    (ADVANCED, "advanced"),
+])
+class TestRunnerResumeRoundState:
+    def test_no_summary_starts_from_parent_with_zero_passes_at_initial_round(self, module, stage, tmp_path, parent_checkpoint):
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert round_reports == []
+        assert consecutive_passes == 0
+        assert current_checkpoint == parent_checkpoint
+        assert next_resumable_round(round_reports) == 1
+
+    def test_valid_contiguous_summary_resumes_the_final_validated_round(self, module, stage, tmp_path, parent_checkpoint):
+        records = _build_round_chain(tmp_path, parent_checkpoint, [1, 2], stage=stage)
+        records[0]["consecutive_passes"] = 1
+        records[1]["consecutive_passes"] = 2
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        summary_path.write_text(json.dumps(records), encoding="utf-8")
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert [r["round"] for r in round_reports] == [1, 2]
+        assert consecutive_passes == 2
+        assert current_checkpoint.resolve() == Path(records[1]["carried_forward_checkpoint"]).resolve()
+        assert next_resumable_round(round_reports) == 3
+
+    def test_invalid_first_round_with_valid_final_round_rejects_whole_summary(self, module, stage, tmp_path, parent_checkpoint):
+        records = _build_round_chain(tmp_path, parent_checkpoint, [1, 2], stage=stage)
+        records[0]["identity"]["curriculum_stage"] = "corrupted-stage"
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        summary_path.write_text(json.dumps(records), encoding="utf-8")
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert round_reports == []
+        assert consecutive_passes == 0
+        assert current_checkpoint == parent_checkpoint
+        assert next_resumable_round(round_reports) == 1
+
+    def test_same_byte_alternate_checkpoint_path_rejects_whole_summary(self, module, stage, tmp_path, parent_checkpoint):
+        checkpoint_a = _write(tmp_path / "checkpoint_a.zip", b"identical bytes")
+        checkpoint_b = _write(tmp_path / "checkpoint_b.zip", b"identical bytes")
+        record = _valid_round_record(parent_checkpoint, checkpoint_a, stage=stage, round_number=1)
+        record["carried_forward_checkpoint"] = str(checkpoint_b.resolve())
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        summary_path.write_text(json.dumps([record]), encoding="utf-8")
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert round_reports == []
+        assert consecutive_passes == 0
+        assert current_checkpoint == parent_checkpoint
+
+    def test_changed_checkpoint_bytes_rejects_whole_summary(self, module, stage, tmp_path, parent_checkpoint):
+        checkpoint = _write(tmp_path / "round_1_checkpoint.zip", b"round 1 bytes")
+        record = _valid_round_record(parent_checkpoint, checkpoint, stage=stage, round_number=1)
+        _write(checkpoint, b"round 1 bytes -- REPLACED")
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        summary_path.write_text(json.dumps([record]), encoding="utf-8")
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert round_reports == []
+        assert consecutive_passes == 0
+        assert current_checkpoint == parent_checkpoint

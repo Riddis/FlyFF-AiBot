@@ -27,7 +27,20 @@ Two layers close this gap:
    was produced by the EXACT checkpoint/parent/stage/manifest/config the
    current run is about to use -- checkpoint identity is content-based
    (SHA-256), never path-alone, since a same-named file can hold different
-   model bytes across restarts/quarantines.
+   model bytes across restarts/quarantines. A round record's own
+   `carried_forward_checkpoint` must also refer to the SAME canonical path
+   as that same record's `identity.current_checkpoint` -- matching bytes
+   at a DIFFERENT path is never sufficient, since that would let a record
+   vouch for one checkpoint while a completely different file is actually
+   resumed from.
+
+3. **Whole-chain validation** (`load_resumable_round_reports`): every
+   round record in a persisted summary is validated in order, and the
+   recorded `round` numbers must form the contiguous 1-based sequence
+   `1, 2, ..., N` -- an invalid or non-contiguous prefix always discards
+   the ENTIRE summary (never a partial resume of a validated suffix),
+   and the next round to train is derived from the last validated round's
+   own recorded number (`next_resumable_round`), not merely list length.
 
 No archive-copy mechanism: these JSON files are git-tracked (history
 recoverable via git if ever needed), the namespaced paths already keep
@@ -165,21 +178,40 @@ def round_record_validity_reason(record: dict[str, Any], *, stage: str, declared
     """Returns `None` if `record` (one element of a resumable round list)
     may be trusted to resume from: matching generation/stage/declared
     parent (+ its live content identity), AND its own recorded
-    `carried_forward_checkpoint` still exists on disk with UNCHANGED bytes
-    (content-based, not path-alone -- a same-named file can hold different
-    model bytes across restarts/quarantines). Covers every case section 8
-    of the task requires: wrong parent, wrong parent bytes, wrong stage,
-    wrong architecture, stale checkpoint path, changed checkpoint bytes."""
+    `carried_forward_checkpoint` refers to the SAME checkpoint the record's
+    own `identity.current_checkpoint` vouches for (canonical path equality,
+    not raw-string equality -- a legitimately differently-spelled but
+    physically identical path must still match), AND that checkpoint still
+    exists on disk with UNCHANGED bytes (content-based, not path-alone -- a
+    same-named file can hold different model bytes across
+    restarts/quarantines). Covers every case section 8 of the task
+    requires: wrong parent, wrong parent bytes, wrong stage, wrong
+    architecture, a `carried_forward_checkpoint` that names a DIFFERENT
+    path than the round's own vouched-for `current_checkpoint` (even with
+    identical bytes elsewhere), stale checkpoint path, changed checkpoint
+    bytes."""
     expected = _round_expected_identity(stage=stage, declared_parent_checkpoint=declared_parent_checkpoint)
     stored = record.get("identity")
     reason = identity_mismatch_reason(stored, expected)
     if reason is not None:
         return reason
     checkpoint_path = record.get("carried_forward_checkpoint")
+    recorded_current_checkpoint = (stored or {}).get("current_checkpoint")
     recorded_sha = (stored or {}).get("current_checkpoint_sha256")
-    if not checkpoint_path or not recorded_sha:
-        return "round record is missing carried_forward_checkpoint or its recorded current_checkpoint_sha256"
-    resolved = Path(checkpoint_path)
+    if not checkpoint_path or not recorded_current_checkpoint or not recorded_sha:
+        return (
+            "round record is missing carried_forward_checkpoint or its recorded "
+            "identity.current_checkpoint/current_checkpoint_sha256"
+        )
+    resolved = Path(checkpoint_path).resolve()
+    recorded_resolved = Path(recorded_current_checkpoint).resolve()
+    if resolved != recorded_resolved:
+        return (
+            f"carried_forward_checkpoint {checkpoint_path!r} (resolves to {resolved}) does not refer to the same "
+            f"checkpoint as this round's own recorded identity.current_checkpoint {recorded_current_checkpoint!r} "
+            f"(resolves to {recorded_resolved}) -- a round record must vouch for one exact checkpoint identity "
+            "(path + content SHA), not merely equivalent bytes at a different path"
+        )
     if not resolved.exists():
         return f"carried_forward_checkpoint {checkpoint_path!r} no longer exists on disk (stale path -- no orphan-checkpoint resume)"
     live_sha = sha256_of_file(resolved)
@@ -268,10 +300,13 @@ def load_resumable_round_reports(
     <namespace>.json` round list (pass `summary_path =
     current_generation_path(...)`  -- this function does not apply the
     namespace itself, so callers control exactly which path is read).
-    Returns it unchanged if its LAST round validates
-    (`round_record_validity_reason`); otherwise logs why and returns `[]`
-    (a fresh start for this stage's `consecutive_passes`/
-    `current_checkpoint` state) WITHOUT ever mutating the file."""
+    Returns it unchanged only if EVERY round in it validates, in order
+    (`round_record_validity_reason`), AND the recorded `round` numbers form
+    the contiguous 1-based sequence `1, 2, ..., len(round_reports)` --
+    a validated suffix following an invalid or non-contiguous prefix is
+    NEVER partially resumed. Otherwise logs why and returns `[]` (a fresh
+    start for this stage's `consecutive_passes`/`current_checkpoint` state)
+    WITHOUT ever mutating the file."""
     if not summary_path.exists():
         return []
     try:
@@ -280,12 +315,32 @@ def load_resumable_round_reports(
         return []
     if not round_reports:
         return []
-    reason = round_record_validity_reason(round_reports[-1], stage=stage, declared_parent_checkpoint=declared_parent_checkpoint)
-    if reason is not None:
-        log(f"Ignoring existing run summary at {summary_path} for resume: {reason}. "
-            "Starting this stage's consecutive_passes/current_checkpoint fresh from the declared parent checkpoint.")
-        return []
+    for expected_round_number, record in enumerate(round_reports, start=1):
+        recorded_round_number = record.get("round")
+        if recorded_round_number != expected_round_number:
+            log(f"Ignoring existing run summary at {summary_path} for resume: round sequence is not the contiguous "
+                f"1-based sequence expected -- position {expected_round_number} in the list has round="
+                f"{recorded_round_number!r}, expected {expected_round_number}. "
+                "Starting this stage's consecutive_passes/current_checkpoint fresh from the declared parent checkpoint.")
+            return []
+        reason = round_record_validity_reason(record, stage=stage, declared_parent_checkpoint=declared_parent_checkpoint)
+        if reason is not None:
+            log(f"Ignoring existing run summary at {summary_path} for resume: round {expected_round_number} invalid: "
+                f"{reason}. Starting this stage's consecutive_passes/current_checkpoint fresh from the declared "
+                "parent checkpoint.")
+            return []
     return round_reports
+
+
+def next_resumable_round(round_reports: list[dict[str, Any]]) -> int:
+    """The next round to train, derived from the LAST VALIDATED round's own
+    recorded `round` number (never merely `len(round_reports) + 1`, even
+    though `load_resumable_round_reports`'s contiguity check makes those
+    equivalent in practice -- this keeps the semantic dependency on the
+    validated round number explicit). Canonical initial round is 1."""
+    if not round_reports:
+        return 1
+    return round_reports[-1]["round"] + 1
 
 
 def load_cached_evaluation_if_current(

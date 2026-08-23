@@ -322,10 +322,11 @@ corrected 2026-08-23, see `tests/test_basic_checkpoint_provenance.py` and
 `MISTAKES.md`'s same-day "partial architecture_contract override" entry.
 
 **Resume-identity and evaluation-cache identity** (pre-merge blocker
-remediation 2026-08-23, strengthened by the final remediation the same
-day): `simulator/curriculum_resume_identity.py` gives every stored
-current-generation artifact a full, content-based identity, not merely an
-architecture-generation check:
+remediation 2026-08-23, strengthened twice more the same day — once for
+per-artifact content identity, once for whole-round-chain and
+checkpoint-path-identity validation): `simulator/curriculum_resume_identity.py`
+gives every stored current-generation artifact a full, content-based
+identity, not merely an architecture-generation check:
 
 - **Round records** (`canonical_<stage>_run_summary.<namespace>.json`) —
   `round_identity()` stamps `generation_id`, `policy_action_nvec`,
@@ -336,10 +337,34 @@ architecture-generation check:
   `round_record_validity_reason()` rejects a stored round if the
   architecture/stage/parent don't match what the current run expects, OR
   if the parent checkpoint's bytes changed since the round was recorded,
-  OR if the round's own `carried_forward_checkpoint` path no longer
-  exists, OR if that file's live content SHA-256 no longer matches what
-  was recorded (a same-named file with different model bytes is
-  detected, not silently trusted).
+  OR if the round's own `carried_forward_checkpoint` does not
+  canonically resolve to the SAME path as that same record's own
+  `identity.current_checkpoint` (matching bytes at a different path is
+  never sufficient — a round record must vouch for one exact checkpoint
+  identity, path + content SHA, not merely equivalent bytes somewhere
+  else), OR if that checkpoint's path no longer exists, OR if its live
+  content SHA-256 no longer matches what was recorded (a same-named file
+  with different model bytes is detected, not silently trusted).
+  `load_resumable_round_reports()` validates EVERY round record in the
+  persisted list, in order — not merely the last one — and additionally
+  requires the recorded `round` numbers to form the contiguous 1-based
+  sequence `1, 2, ..., N`; an invalid or non-contiguous prefix rejects
+  the ENTIRE summary (never a partial resume of a validated suffix, and
+  the file is never mutated on rejection). Each of the three canonical
+  runners then derives its next round from the last validated round's
+  own recorded number via `next_resumable_round()`, not from list length
+  (the two are equivalent once contiguity is enforced, but the
+  dependency is made explicit rather than assumed). Round-to-round
+  checkpoint continuity beyond each round's own self-consistency and its
+  match against the stage's fixed declared parent is not provable from
+  the current schema: `declared_parent_checkpoint` is the same
+  stage-level graduated parent for every round of a stage (e.g. every
+  Beginner round's declared parent is the graduated Basic checkpoint),
+  not the previous round's own output — no field records "the checkpoint
+  this round started from" separately from the stage-level parent, so a
+  round-N-to-round-(N+1) continuity chain is not currently checked (and
+  would require a schema addition, not just a validation addition, to
+  add).
 - **Cached evaluations** (zero-shot diagnostic, pre-/post-rehearsal
   heldout/unseen/challenge) — `evaluation_cache_identity()` additionally
   stamps `evaluated_checkpoint` (path + content SHA-256), `evaluation_role`
