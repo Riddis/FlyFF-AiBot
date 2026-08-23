@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
 from simulator.curriculum_manifests import (
+    SIMULATOR_ROOT,
     ChallengeManifest,
     FixedRegressionScenario,
     GeneratorValidationManifest,
@@ -13,6 +15,7 @@ from simulator.curriculum_manifests import (
     load_challenge_manifest,
     load_generator_validation_manifest,
     load_heldout_manifest,
+    resolve_manifest_curriculum_path,
     save_manifest,
 )
 from simulator.synthetic import generate_curriculum_from_plan
@@ -98,3 +101,46 @@ def test_assert_disjoint_from_training_rejects_pointing_at_training_itself(tmp_p
     )
     with pytest.raises(ValueError, match="training curriculum itself"):
         assert_disjoint_from_training(manifest, training_path, manifest_root=".")
+
+
+def test_resolve_manifest_curriculum_path_is_relative_to_the_simulator_package_root() -> None:
+    """Manifest curriculum_path fields (e.g. "curricula/foo/curriculum.json")
+    are stored relative to `simulator/` (this module's own directory), never
+    the repo root, the manifest JSON's directory, or a subprocess's cwd --
+    the actual bug behind the Basic raw-diagnostic FileNotFoundError (see
+    MISTAKES.md 2026-08-24)."""
+    resolved = resolve_manifest_curriculum_path("curricula/synthetic_curriculum_heldout/curriculum.json")
+    assert resolved == SIMULATOR_ROOT / "curricula" / "synthetic_curriculum_heldout" / "curriculum.json"
+    assert resolved.exists()
+
+
+def test_resolve_manifest_curriculum_path_passes_through_an_already_absolute_path(tmp_path: Path) -> None:
+    absolute = tmp_path / "curriculum.json"
+    assert resolve_manifest_curriculum_path(str(absolute)) == absolute
+    assert resolve_manifest_curriculum_path(absolute) == absolute
+
+
+def test_every_current_manifest_curriculum_path_resolves_to_an_existing_file() -> None:
+    """The same relative-path convention is shared by every manifest under
+    simulator/evaluations/manifests/ (Basic diagnostics, Beginner,
+    Intermediate, Advanced all load through load_heldout_manifest/
+    load_challenge_manifest) -- prove none of the current manifests'
+    curriculum_path fields are broken the same way Basic's raw diagnostic
+    was, not just the one that already crashed."""
+    manifests_dir = SIMULATOR_ROOT / "evaluations" / "manifests"
+    checked = 0
+    for manifest_path in sorted(manifests_dir.glob("*.json")):
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        role = payload.get("role")
+        if role == "heldout":
+            resolved = resolve_manifest_curriculum_path(payload["curriculum_path"])
+            assert resolved.exists(), f"{manifest_path.name}: curriculum_path {payload['curriculum_path']!r} -> {resolved} does not exist"
+            checked += 1
+        elif role == "challenge":
+            resolved = resolve_manifest_curriculum_path(payload["challenge_family_curriculum_path"])
+            assert resolved.exists(), f"{manifest_path.name}: challenge_family_curriculum_path -> {resolved} does not exist"
+            for scenario in payload["fixed_regression_scenarios"]:
+                scenario_resolved = resolve_manifest_curriculum_path(scenario["curriculum_path"])
+                assert scenario_resolved.exists(), f"{manifest_path.name}: scenario {scenario['id']!r} curriculum_path -> {scenario_resolved} does not exist"
+            checked += 1
+    assert checked > 0, "expected at least one heldout/challenge manifest under simulator/evaluations/manifests/"

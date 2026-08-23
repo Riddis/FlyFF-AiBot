@@ -70,17 +70,11 @@ def main() -> None:
     log(f"  gave_up_episode_fraction: {milestone_report['gave_up_episode_fraction']}")
     log(f"  dominant_layout_intervention_share: {milestone_report['dominant_layout_intervention_share']}")
 
-    log("Running raw (recovery-off) diagnostic (informational only)...")
-    diagnostic = zero_shot_raw_diagnostic_parallel(
-        checkpoint_path, heldout_manifest_path=RAW_DIAGNOSTIC_HELDOUT_MANIFEST,
-        seeds=RAW_DIAGNOSTIC_SEEDS, episode_seconds=DAGGER_EPISODE_SECONDS, max_actions=DAGGER_MAX_ACTIONS, n_workers=4,
-    )
-    diagnostic_path = EVAL_DIR / f"canonical_basic_milestone_{round_idx:03d}_raw_diagnostic.json"
-    diagnostic_path.write_text(json.dumps(diagnostic, indent=2, default=str), encoding="utf-8")
-    for layout, stats in diagnostic["per_layout"].items():
-        log(f"  raw[{layout}]: stagnation={stats['physical_stagnation_episodes']}/{stats['n_episodes']} "
-            f"contacts/100={stats['mean_contacts_per_100_distance']:.2f}")
-
+    # Assisted-mode alarm calculation/reporting MUST run before the raw
+    # diagnostic below -- the raw diagnostic is informational-only and can
+    # raise (e.g. on a missing/misresolved curriculum path), and losing the
+    # alarm check silently in that case previously masked all 6 rounds'
+    # worth of ALARM output for a human/monitor to catch (see MISTAKES.md).
     alarms = []
     if (milestone_report["intervention_ticks_fraction"]
             and milestone_report["intervention_ticks_fraction"]["median"] >= RECOVERY_ALARM_INTERVENTION_TICKS_FRACTION):
@@ -94,6 +88,17 @@ def main() -> None:
         log(f"!!! ALARM round {round_idx}: {alarms}")
     else:
         log(f"Round {round_idx} eval clean, no alarms.")
+
+    log("Running raw (recovery-off) diagnostic (informational only)...")
+    diagnostic = zero_shot_raw_diagnostic_parallel(
+        checkpoint_path, heldout_manifest_path=RAW_DIAGNOSTIC_HELDOUT_MANIFEST,
+        seeds=RAW_DIAGNOSTIC_SEEDS, episode_seconds=DAGGER_EPISODE_SECONDS, max_actions=DAGGER_MAX_ACTIONS, n_workers=4,
+    )
+    diagnostic_path = EVAL_DIR / f"canonical_basic_milestone_{round_idx:03d}_raw_diagnostic.json"
+    diagnostic_path.write_text(json.dumps(diagnostic, indent=2, default=str), encoding="utf-8")
+    for layout, stats in diagnostic["per_layout"].items():
+        log(f"  raw[{layout}]: stagnation={stats['physical_stagnation_episodes']}/{stats['n_episodes']} "
+            f"contacts/100={stats['mean_contacts_per_100_distance']:.2f}")
 
 
 if __name__ == "__main__":

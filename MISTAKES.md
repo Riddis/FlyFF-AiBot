@@ -633,6 +633,64 @@ during the post-Stage-3b-fix run
   Fire-and-forget async workers used as safety nets should have their
   exit codes checked by the dispatcher, not just been waited on.
 
+### [2026-08-24] fix for the above: prior entry's "directory does not exist anywhere in the repo" claim was wrong -- the curriculum was never missing, only misresolved
+- What happened: implementing the deliberate follow-up the previous entry
+  called for, `simulator/curricula/synthetic_curriculum_heldout/
+  curriculum.json` (and its 24 `variants/` subdirectories) turned out to
+  exist in the repository the whole time, unchanged since the
+  `runtime/`-extraction consolidation commit `1ce4138` (`git log` on the
+  path). The previous entry's search had concluded "the directory does
+  not exist anywhere in the repo," which was simply incorrect -- an
+  unverified claim that shaped its whole diagnosis. Every manifest under
+  `simulator/evaluations/manifests/` (not just `early_heldout.json`)
+  stores `curriculum_path` the same way -- relative to `simulator/` itself
+  (e.g. `"curricula/synthetic_curriculum_heldout/curriculum.json"` ->
+  `simulator/curricula/synthetic_curriculum_heldout/curriculum.json`) --
+  but `beginner_transition.zero_shot_raw_diagnostic[_parallel]` and every
+  public entry point in `milestone_evaluator.py` (`evaluate_heldout`,
+  `evaluate_challenge`, and their `_parallel` siblings, used by the not-
+  yet-started Beginner/Intermediate/Advanced stages) passed
+  `manifest.curriculum_path` straight into `SyntheticCurriculum.load`/
+  `run_composed_episode`/`run_episode` unresolved, so it was interpreted
+  relative to the process's cwd -- `simulator/tools/RUN_CANONICAL_BASIC.py`
+  launches the eval worker with `cwd=str(ROOT)` (repo root), one directory
+  above `simulator/`, so the lookup landed on a real but wrong path.
+- Root cause: no single canonical resolution rule existed for a manifest's
+  `curriculum_path` field; every caller independently (and inconsistently)
+  assumed it was directly openable.
+- How caught: this task's explicit instruction to re-diagnose before
+  patching a single filename, cross-checking the manifest's referent
+  against the real filesystem instead of trusting the earlier "not found"
+  conclusion.
+- Fix: added `simulator.curriculum_manifests.resolve_manifest_curriculum_path()`
+  as the one canonical resolution rule (resolves relative to
+  `SIMULATOR_ROOT = Path(__file__).resolve().parent`, i.e. the
+  `simulator/` package directory; passes an already-absolute path through
+  unchanged, which is what every existing test/scratchpad tool that builds
+  a manifest with a `tmp_path`-based curriculum already relies on). Applied
+  it at every call site that turns a manifest's `curriculum_path`/
+  `challenge_family_curriculum_path`/`FixedRegressionScenario.curriculum_path`
+  into a filesystem path, in both `beginner_transition.py` (Basic's raw
+  diagnostic) and `milestone_evaluator.py` (Beginner/Intermediate/Advanced's
+  heldout/challenge evaluators, latently affected by the identical bug even
+  though none of those stages have run yet). Verified every current
+  manifest's `curriculum_path` now resolves to a file that actually exists
+  (`tests/test_curriculum_manifests.py::
+  test_every_current_manifest_curriculum_path_resolves_to_an_existing_file`).
+  Separately fixed the alarm-ordering gap (assisted-mode alarm
+  calculation/logging now runs immediately after the milestone evaluator,
+  before the raw diagnostic, so a raw-diagnostic failure can never suppress
+  it again) and Stage 5's blind `proc.wait()` (extracted to
+  `collect_eval_worker_results()`, which raises `RuntimeError` naming every
+  round whose worker exited non-zero, instead of unconditionally printing
+  "All N dispatched evaluation worker(s) finished.").
+- Lesson: "confirmed via search" is only as good as the search actually
+  run -- when a diagnosis's own severity claim ("the directory does not
+  exist ANYWHERE") is the thing a fix would most cheaply falsify, verify
+  it directly (`find`/`git log` on the exact path) before building a
+  follow-up task description around it, rather than carrying the earlier
+  claim forward unchecked.
+
 ## Category: housekeeping / archival
 
 ### [date lost to compaction, before 2026-08-13] wrongly archived `scratchpad_single_obstacle_train.py`

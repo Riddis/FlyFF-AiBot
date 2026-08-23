@@ -29,6 +29,29 @@ from typing import Any
 
 from .synthetic import SyntheticCurriculum
 
+# Every manifest's curriculum_path field (HeldoutManifest.curriculum_path,
+# ChallengeManifest.challenge_family_curriculum_path,
+# FixedRegressionScenario.curriculum_path) is stored relative to this
+# module's own directory (the `simulator/` package root), e.g.
+# "curricula/synthetic_curriculum_heldout/curriculum.json" ->
+# simulator/curricula/synthetic_curriculum_heldout/curriculum.json -- NOT
+# relative to the repo root, the manifest JSON's own directory, or a
+# subprocess's cwd. An already-absolute curriculum_path (as many tests and
+# scratchpad tools construct directly) passes through unchanged.
+SIMULATOR_ROOT = Path(__file__).resolve().parent
+
+
+def resolve_manifest_curriculum_path(curriculum_path: str | Path) -> Path:
+    """The one canonical resolution rule for a manifest curriculum_path
+    field -- every caller that turns `curriculum_path` into a filesystem
+    path (to load a `SyntheticCurriculum` or run an episode against it) must
+    go through this function instead of treating the stored string as
+    directly openable relative to whatever the current process's cwd
+    happens to be."""
+
+    path = Path(curriculum_path)
+    return path if path.is_absolute() else (SIMULATOR_ROOT / path)
+
 
 @dataclass(frozen=True)
 class FixedRegressionScenario:

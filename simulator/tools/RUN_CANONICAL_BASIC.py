@@ -77,6 +77,26 @@ def check_no_nan(model, where: str) -> None:
             raise RuntimeError(f"NaN/Inf detected in {name} at {where} -- stopping, not continuing through this.")
 
 
+def collect_eval_worker_results(eval_processes: list[tuple[int, subprocess.Popen]]) -> None:
+    """Wait on every dispatched async round-eval worker, then verify every
+    one actually succeeded -- Stage 5 previously only waited and then
+    unconditionally reported success, which let all 6 real workers finish
+    non-zero (raw-diagnostic FileNotFoundError) while the run still printed
+    a clean summary (see MISTAKES.md). Never kills/aborts a still-running
+    worker early; only raises after every worker has been waited on, so a
+    slow-but-healthy worker is never mistaken for a failure."""
+    for _round_idx, proc in eval_processes:
+        proc.wait()
+    failed = [(round_idx, proc.returncode) for round_idx, proc in eval_processes if proc.returncode != 0]
+    if failed:
+        failed_desc = ", ".join(f"round {round_idx} (exit {returncode})" for round_idx, returncode in failed)
+        raise RuntimeError(
+            f"{len(failed)} of {len(eval_processes)} dispatched evaluation worker(s) failed: {failed_desc}. "
+            "Assisted-mode milestone metrics/alarms and/or raw diagnostics for these rounds may be missing or "
+            "incomplete -- see each worker's own stdout/stderr above for the failure."
+        )
+
+
 def main() -> None:
     MODELS_DIR.mkdir(exist_ok=True)
     EVAL_DIR.mkdir(exist_ok=True)
@@ -128,7 +148,7 @@ def main() -> None:
     build_human_bootstrap_dataset(demo_path, bootstrap_dataset_path)
     log(f"Bootstrap dataset (raw 923-dim, no navigation sidecar -- steering is fully external): {bootstrap_dataset_path}")
 
-    eval_processes: list[subprocess.Popen] = []
+    eval_processes: list[tuple[int, subprocess.Popen]] = []
     eval_worker_script = ROOT / "simulator" / "tools" / "_basic_round_eval_worker.py"
 
     def dispatch_round_eval(checkpoint_path: Path, round_idx: int) -> None:
@@ -139,7 +159,7 @@ def main() -> None:
             [sys.executable, str(eval_worker_script), str(checkpoint_path), str(round_idx)],
             cwd=str(ROOT),
         )
-        eval_processes.append(proc)
+        eval_processes.append((round_idx, proc))
 
     # ---------------------------------------------------------------
     # Resume support: if earlier milestone checkpoints already exist (e.g.
@@ -416,9 +436,8 @@ def main() -> None:
     # ---------------------------------------------------------------
     log("=== Stage 5: waiting on outstanding async evaluations, final summary ===")
     # ---------------------------------------------------------------
-    for proc in eval_processes:
-        proc.wait()
-    log(f"All {len(eval_processes)} dispatched evaluation worker(s) finished.")
+    collect_eval_worker_results(eval_processes)
+    log(f"All {len(eval_processes)} dispatched evaluation worker(s) finished successfully.")
     summary_path.write_text(json.dumps(all_round_reports, indent=2, default=str), encoding="utf-8")
     log(f"Full run summary written to {summary_path}")
     log(f"Final checkpoint: {previous_checkpoint}")

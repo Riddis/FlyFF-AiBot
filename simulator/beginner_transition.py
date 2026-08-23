@@ -199,19 +199,20 @@ def zero_shot_raw_diagnostic(
 
     from stable_baselines3 import PPO
 
-    from .curriculum_manifests import load_heldout_manifest
+    from .curriculum_manifests import load_heldout_manifest, resolve_manifest_curriculum_path
     from .navigation_subpolicy import FrozenNavigationSteering, run_composed_episode
 
     model = PPO.load(str(checkpoint), device="cpu")
     net = model.policy
     navigation_steering = FrozenNavigationSteering.load_frozen(device="cpu")
     manifest = load_heldout_manifest(heldout_manifest_path)
+    curriculum_path = str(resolve_manifest_curriculum_path(manifest.curriculum_path))
 
     per_layout_results: dict[str, list[dict[str, Any]]] = {}
     for layout_name in manifest.layouts:
         per_layout_results[layout_name] = [
             run_composed_episode(
-                manifest.curriculum_path, layout_name, farming_policy=net, navigation_steering=navigation_steering,
+                curriculum_path, layout_name, farming_policy=net, navigation_steering=navigation_steering,
                 seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage,
             )
             for seed in seeds
@@ -256,10 +257,11 @@ def zero_shot_raw_diagnostic_parallel(
 
     from concurrent.futures import ProcessPoolExecutor
 
-    from .curriculum_manifests import load_heldout_manifest
+    from .curriculum_manifests import load_heldout_manifest, resolve_manifest_curriculum_path
 
     manifest = load_heldout_manifest(heldout_manifest_path)
-    tasks = [(manifest.curriculum_path, layout_name, seed, episode_seconds, max_actions, manifest.stage)
+    curriculum_path = str(resolve_manifest_curriculum_path(manifest.curriculum_path))
+    tasks = [(curriculum_path, layout_name, seed, episode_seconds, max_actions, manifest.stage)
               for layout_name in manifest.layouts for seed in seeds]
     with ProcessPoolExecutor(
         max_workers=max(1, n_workers), initializer=_init_raw_diagnostic_worker, initargs=(str(checkpoint),),
