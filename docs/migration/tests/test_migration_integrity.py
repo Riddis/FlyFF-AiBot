@@ -539,6 +539,25 @@ def test_actual_supplement_covers_exactly_the_35_post_phase9_r7c_edges() -> None
     assert all("navigation" in key for key in keys)
 
 
+def test_actual_supplement_covers_exactly_the_35_post_premerge_ownership_r7c_edges() -> None:
+    """Registering simulator/farming_target_policy.py and simulator/
+    navigation_subpolicy.py in CANONICAL_OWNERS.toml (pre-merge blocker
+    remediation, blocker 5) made the tool track their symbols for the
+    first time, surfacing 30 already-existing import edges (tests,
+    scratchpads, basic_environment.py, and farming_target_policy.py's own
+    cross-import of navigation_subpolicy.py) plus 5 more from this same
+    task's own new test files -- none of it new architectural coupling."""
+    rows = integrity.load_supplement(REPO / "docs/migration/POST_PREMERGE_OWNERSHIP_R7C_SUPPLEMENT.tsv")
+    assert len(rows) == 35
+    keys = integrity.supplement_keys(rows)
+    assert all(key.startswith("R7c|") for key in keys)
+    assert all(
+        "simulator.farming_target_policy" in key or "simulator.navigation_subpolicy" in key
+        or ".navigation_subpolicy" in key or "navigation.movement_kernel" in key or "farming.actions" in key
+        for key in keys
+    )
+
+
 def test_actual_repository_integrity_gate_is_green_via_frozen_baseline_plus_supplement() -> None:
     payload, errors = integrity.check(REPO)
     assert errors == [], json.dumps(payload, indent=2, sort_keys=True)
@@ -571,7 +590,21 @@ def test_actual_repository_integrity_gate_is_green_via_frozen_baseline_plus_supp
     # offline suite runs green -- see docs/migration/
     # POST_TARGET_SELECTION_R7C_SUPPLEMENT.tsv for the per-row detail and
     # which category each of the 17 falls into.
-    assert payload["baseline_counts"] == {"R6": 0, "R7a": 0, "R7b": 0, "R7c": 217}
+    # 252 (was 217): the pre-merge blocker remediation (2026-08-23)
+    # registered simulator/farming_target_policy.py and simulator/
+    # navigation_subpolicy.py in CANONICAL_OWNERS.toml (blocker 5) -- both
+    # already-existing files, now tracked as canonical owners of symbols
+    # (PersistentFarmingTarget, FarmingPolicyWrapper, FrozenNavigationSteering,
+    # etc.) other already-existing files (tests, scratchpads,
+    # basic_environment.py, farming_target_policy.py itself importing from
+    # navigation_subpolicy.py) already legitimately imported. Registering
+    # the concept made the tool see these pre-existing import edges for the
+    # first time -- 30 edges -- plus 5 more from this same task's own new
+    # test files (test_basic_checkpoint_provenance.py,
+    # test_curriculum_resume_identity.py) importing the same
+    # already-canonical symbols. See docs/migration/
+    # POST_PREMERGE_OWNERSHIP_R7C_SUPPLEMENT.tsv for the per-row detail.
+    assert payload["baseline_counts"] == {"R6": 0, "R7a": 0, "R7b": 0, "R7c": 252}
     assert payload["r9_violations"] == 0
     assert payload["r10_failures"] == []
     assert set(payload["supplement_entries_applied"]) == _all_supplement_keys()

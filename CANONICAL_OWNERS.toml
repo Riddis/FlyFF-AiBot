@@ -203,3 +203,32 @@ target_owner = "farming.sb3_training namespace retained as checkpoint ABI unless
 status = "green-frozen-checkpoint-abi"
 accepted_baseline_violation = false
 minimum_owners = 1
+
+[[concept]]
+id = "learned_farming_target_selection"
+rule = "R7a"
+symbols = [
+  "PersistentFarmingTarget", "resolve_target_slot_action", "FarmingPolicyWrapper",
+  "KEEP_CURRENT_TARGET_ACTION", "FARMING_TARGET_SLOTS", "TARGET_ACTION_SIZE",
+]
+current_owners = ["simulator/farming_target_policy.py"]
+target_owner = "simulator/farming_target_policy.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+note = "The completing piece of the full-farming architecture (docs/architecture/CURRICULUM_TRAINING_PIPELINE.md section 4/6): learned target selection, owned separately from steering (frozen_navigation_steering_subpolicy below) and from the event/EVA action (farming_action_contract above)."
+
+[[concept]]
+id = "frozen_navigation_steering_subpolicy"
+rule = "R7a"
+symbols = [
+  "FrozenNavigationSteering", "SteeringTickResult", "FrozenNavigationWrapper",
+  "farming_policy_architecture_contract", "verify_frozen_navigation_checkpoint",
+  "FROZEN_NAVIGATION_CHECKPOINT_PATH", "FROZEN_NAVIGATION_CHECKPOINT_SHA256",
+]
+current_owners = ["simulator/navigation_subpolicy.py"]
+target_owner = "simulator/navigation_subpolicy.py"
+status = "green-canonical-shared-owner"
+accepted_baseline_violation = false
+minimum_owners = 1
+note = "Steering execution owner for the canonical Basic->Advanced curriculum: the frozen models/generalized_waypoint_both_seed2_0051200.zip checkpoint driven by the production router (qualified_persistent_waypoint_selector above), never relearned by the curriculum's own trainable policy."

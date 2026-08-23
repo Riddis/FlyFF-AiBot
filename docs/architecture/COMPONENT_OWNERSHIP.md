@@ -45,6 +45,8 @@ Never assume a file is dead because it "looks old." Check
 | Shared movement kernel | `navigation/movement_kernel.py` | R7a |
 | Shared navigation evidence | `navigation/navigation_evidence.py` | R7a |
 | Tower map profiles | `farming/map_profile.py` | R7a |
+| Learned farming-target selection | `simulator/farming_target_policy.py` | R7a |
+| Frozen navigation steering sub-policy | `simulator/navigation_subpolicy.py` | R7a |
 
 ## 3. Three distinct kinds of "not the canonical implementation"
 
