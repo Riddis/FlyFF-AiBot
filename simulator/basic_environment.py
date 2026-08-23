@@ -174,6 +174,7 @@ def _roll_basic_episode(
     previous_distance = 0.0
     previous_contacts = 0
     intervention_ticks = 0
+    target_invalidations_by_planner_failure = 0
     for tick in range(int(max_actions)):
         raw = np.asarray(observation, dtype=np.float32)[:RAW_OBSERVATION_SIZE]
         teacher_target_action = deterministic_target_teacher_action(base_env)
@@ -188,7 +189,26 @@ def _roll_basic_episode(
         if resolved_target_id is None:
             policy_steering = int(SteeringDirection.NONE)
         else:
-            policy_steering = navigation_steering.steering_action(env, target_actor_id=resolved_target_id).steering
+            tick_result = navigation_steering.steering_action(env, target_actor_id=resolved_target_id)
+            policy_steering = tick_result.steering
+            if tick_result.planner_failure:
+                # Same invalidation rule as FarmingPolicyWrapper.step/
+                # run_composed_episode (docs/architecture/CURRICULUM_
+                # TRAINING_PIPELINE.md section 5): the production router
+                # could not produce a route to this still-alive/present
+                # target right now -- objectively non-navigable under the
+                # actual planner/reachability contract. Clear the learned
+                # target and the steering oracle's own stale route/
+                # controller/snapshot state so the NEXT tick's policy_
+                # forward() is a genuine new decision, never a silent
+                # heuristic (deterministic-teacher) substitution -- the
+                # teacher continues to LABEL this and every later tick as
+                # it always does (DAgger supervision is untouched), it
+                # never becomes the executed target.
+                target_tracker.invalidate()
+                navigation_steering.reset()
+                resolved_target_id = None
+                target_invalidations_by_planner_failure += 1
         clearance = derive_physical_clearance_features(raw)
 
         # Exact call contract/order as milestone_evaluator.run_episode:
@@ -237,6 +257,7 @@ def _roll_basic_episode(
         "intervention_count": len(recovery.interventions),
         "intervention_ticks": intervention_ticks,
         "final_state": recovery.state.value,
+        "target_invalidations_by_planner_failure": int(target_invalidations_by_planner_failure),
     }
     return records, summary
 
