@@ -480,6 +480,81 @@ Entry template:
   and stop at the new boundary rather than assuming "the crash is fixed"
   means "the run will complete."
 
+### [2026-08-23, follow-up] Stage 3b collapse root cause confirmed: the
+persistent human-session train/validation split had no TRAIN-side class-
+coverage guarantee, only a validation-side one
+- Root cause, confirmed directly against the real data (not guessed):
+  `canonical_basic_human_demos.npz`/`canonical_basic_bootstrap_dataset.npz`
+  contain exactly 8 human recording sessions -- 2 `direct_keyboard`
+  (session 0: 1196 rows, session 1: 1488 rows; the ONLY sessions
+  containing any `NONE` or `JUMP` event examples at all) and 6 `eva_only`
+  (208/62/111/21/97/89 rows; every row `CAST_EVA` by construction, per
+  `build_human_bootstrap_dataset`'s docstring). `bootstrap_farming_event_
+  head` splits via `basic_training._persistent_event_split` ->
+  `factorized_v193_training._human_session_stratified_split`, seeded per
+  file from `_stable_file_seed(bootstrap_dataset_path)` (a hash of the
+  file's own path, deterministic and fixed once written). For this exact
+  path, that seed's `rng.permutation(8 sessions)[:round(8*0.2)]` happened
+  to draw sessions `{0, 1}` -- both `direct_keyboard` sessions -- into the
+  initial validation pick. `_human_session_stratified_split` already
+  guaranteed validation would not be missing a required class, but had no
+  symmetric guarantee for TRAIN; with both direct_keyboard sessions
+  assigned to validation, train (all 6 eva_only sessions, 588 rows) ended
+  up with ZERO `NONE` examples and ZERO `JUMP` examples -- 100% `CAST_EVA`
+  by construction. `bootstrap_farming_event_head`'s class-weighted loss
+  (`_sqrt_inverse_class_weights`) cannot fix this: no loss weighting can
+  teach a head to recognize a class it was never shown even once. The
+  resulting `event class 0 recall 0.000` was not really "collapse" in the
+  sense of a training-dynamics failure -- the model correctly fit a
+  training set that was, by an unlucky but entirely deterministic seed
+  draw, 100% one class. Verified via isolated reproduction
+  (`bootstrap_farming_event_head` alone, real dataset, seed=0): before the
+  fix, train=588 (exactly the 6 eva_only sessions' row sum)/val=2684
+  (exactly the 2 direct_keyboard sessions' row sum), matching the failing
+  run's logged numbers exactly.
+- This is a real, previously-undetected gap in `_human_session_stratified_
+  split`'s design (`simulator/factorized_v193_training.py`), not a
+  regression from the target+event retrofit and not a data-labeling bug
+  -- the labels, `event_label_valid` masking, and enum semantics were all
+  independently confirmed correct from the raw dataset; the class-weighted
+  loss/optimizer/gate threshold were all independently confirmed correct
+  by the isolated after-fix run (see below). The two-phase resampling+
+  calibration history referenced by `bootstrap_event_head`'s docstring
+  (commits `0ef5b95`/`0299084`) was NOT restored -- irrelevant here, since
+  the problem was zero training examples of a class, which no resampling
+  or calibration scheme can fix either.
+- Fix (`fix/basic-event-bootstrap-collapse`,
+  `simulator/factorized_v193_training.py`'s `_human_session_stratified_
+  split`): added a second, symmetric coverage pass after the existing
+  validation-coverage pass -- for each required class, if TRAIN has zero
+  examples of it, move one validation session that carries the class back
+  to train, unless doing so would strip validation of its own last
+  remaining source of some (possibly different) required class (in which
+  case the class exists in only one session total and is left as a real,
+  reported data-scarcity fact rather than relocating the same starvation
+  onto validation instead). Collapse gate unchanged/not weakened.
+- Isolated proof after fix (same real dataset, same seed=0, deterministic
+  across repeated runs): train=1784 (session 0 + all 6 eva_only sessions),
+  validation=1488 (session 1 alone) -- both splits now contain real
+  `NONE`/`CAST_EVA`/`JUMP` examples. Accuracy 0.132 -> 0.662. Validation
+  recall after: `NONE`=0.683 (support 1335), `CAST_EVA`=0.521 (support
+  140), `JUMP`=0.0 (support 13, below `minimum_class_support_for_gate=20`,
+  correctly reported underdetermined rather than gated). Collapse gate:
+  PASS (`gate_passed=True`, no reasons). Focused tests (`tests/test_basic_
+  training_pipeline.py`, `tests/test_basic_stage_frozen_navigation_
+  integration.py`, `tests/test_event_head_transplant.py`, plus the shared-
+  function's other legacy callers in `tests/test_factorized_hybrid_
+  training_v193.py`/`tests/test_factorized_pilot_v193.py`): all pass.
+- Lesson: a "guarantee every required class appears in validation" split
+  invariant is not sufficient on its own -- with few, size-skewed sessions
+  (here: only 2 sessions carry 2 of 3 classes at all), the same session-
+  count-based draw that satisfies a validation-only guarantee can starve
+  TRAIN of those classes entirely, and a class-weighted loss is powerless
+  against zero examples. Any session/episode-holdout split that promises
+  "every class appears somewhere in validation" should be checked for
+  whether it also promises "every class appears somewhere in train" --
+  the two are not the same guarantee and one does not imply the other.
+
 ## Category: housekeeping / archival
 
 ### [date lost to compaction, before 2026-08-13] wrongly archived `scratchpad_single_obstacle_train.py`

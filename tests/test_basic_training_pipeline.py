@@ -363,6 +363,55 @@ def test_load_event_training_pool_offsets_sessions_and_defaults_dagger_role(tmp_
     assert list(pool["source_recording_role"][:3]) == ["direct_keyboard", "direct_keyboard", "eva_only"]
 
 
+def test_human_session_stratified_split_guarantees_train_side_class_coverage() -> None:
+    """Regression test for the real canonical Basic Stage-3b event-bootstrap
+    collapse (MISTAKES.md, 2026-08-23 follow-up entry): before the fix,
+    `_human_session_stratified_split` only guaranteed every required class
+    appeared somewhere in VALIDATION, with no symmetric guarantee for
+    TRAIN. This dataset faithfully reproduces the real canonical Basic
+    human dataset's session composition (2 sessions with real NONE/CAST_EVA
+    /JUMP examples plus their exact real per-session label counts; 6
+    homogeneous 100%-CAST_EVA sessions with the exact real sizes) and the
+    exact real `_stable_file_seed` value for `canonical_basic_bootstrap_
+    dataset.npz`, which deterministically draws both NONE/JUMP-carrying
+    sessions into the initial validation pick. Before the fix this left
+    TRAIN with zero NONE and zero JUMP examples -- exactly the observed
+    real failure (train=588, val=2684, `event class 0 recall 0.000`,
+    100% CAST_EVA in train). After the fix, TRAIN must contain real
+    examples of every class VALIDATION requires."""
+    from simulator.factorized_v193_training import _human_session_stratified_split
+
+    session_sizes = [1196, 1488, 208, 62, 111, 21, 97, 89]
+    session_index = np.concatenate([np.full(n, i, dtype=np.int64) for i, n in enumerate(session_sizes)])
+    event_labels = np.concatenate([
+        np.array([0] * 1107 + [1] * 86 + [2] * 3, dtype=np.int64),
+        np.array([0] * 1335 + [1] * 140 + [2] * 13, dtype=np.int64),
+        np.ones(208, dtype=np.int64), np.ones(62, dtype=np.int64), np.ones(111, dtype=np.int64),
+        np.ones(21, dtype=np.int64), np.ones(97, dtype=np.int64), np.ones(89, dtype=np.int64),
+    ])
+    labels = np.column_stack([np.zeros_like(event_labels), event_labels])
+    steering_valid = np.zeros(len(event_labels), dtype=np.bool_)
+    event_valid = np.ones(len(event_labels), dtype=np.bool_)
+
+    # The real _stable_file_seed(<repo>/simulator/evaluations/
+    # canonical_basic_bootstrap_dataset.npz) -- confirmed (before this fix)
+    # to draw sessions {0, 1}, both NONE/JUMP-carrying, into validation.
+    real_seed = 492710033
+    train_idx, val_idx = _human_session_stratified_split(
+        session_index, steering_valid, event_valid, labels, validation_fraction=0.2, seed=real_seed,
+    )
+
+    assert len(train_idx) > 0 and len(val_idx) > 0
+    train_events, val_events = event_labels[train_idx], event_labels[val_idx]
+    for value in (0, 1):  # NONE, CAST_EVA: both must survive in BOTH splits.
+        assert np.any(train_events == value), f"train missing event class {value} -- the Stage-3b collapse"
+        assert np.any(val_events == value), f"validation missing event class {value}"
+    # Exact real recovered split, deterministic: session 0 -> train (with all
+    # 6 eva_only sessions), session 1 -> validation alone.
+    assert len(train_idx) == 1784
+    assert len(val_idx) == 1488
+
+
 def test_persistent_event_split_is_stable_as_pool_grows(tmp_path: Path) -> None:
     """Regression test for real cross-round data leakage: a session held
     out for validation when the pool was small must not silently become
