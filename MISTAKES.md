@@ -388,6 +388,98 @@ Entry template:
   second), not assumed to fall out of an aggregate budget across an
   odd number of variable-length episodes.
 
+### [2026-08-23] `collect_target_teacher_dataset`'s fix reintroduces log spam once collection runs past its displayed 100%
+- What happened: after the layout-coverage fix above, the relaunched
+  canonical Basic run's log filled with thousands of duplicate
+  `[target_teacher_dataset_collection] 3000/3000 (100.0%) ...` lines
+  instead of one, while the collector ran its required extra episodes
+  past the `samples` budget for layout coverage.
+- Root cause: `ProgressPrinter.update()` (`simulator/progress_reporting.
+  py`) treats `done >= self.total` as `is_last` and unconditionally
+  prints on every `is_last` call, bypassing `min_interval_seconds`
+  throttling -- fine under the old collector, which only ever reached
+  `len(observations) >= samples` once (immediately breaking the loop),
+  but the fixed collector now calls `progress.update(min(len(
+  observations), int(samples)))` on every remaining step of every
+  extra post-budget episode, and each of those calls has `done ==
+  self.total` (`min(...)` clamps `done` at `total`), so every single one
+  prints. Purely a display artifact -- collection, the split, and the
+  written dataset are all correct; verified samples/episode/layout
+  counts against the live npz (see the fix entry above).
+- Fix: none applied here -- caught only after relaunch (not during the
+  focused offline tests, whose datasets are small enough that the extra
+  post-budget episodes are short), and this task's instructions were to
+  report a technical development like this rather than patch mid-run.
+  Left for deliberate follow-up: either stop calling `progress.update`
+  once `len(observations) >= samples` (further collection is then only
+  about per-layout coverage, not sample-count progress), or fix
+  `ProgressPrinter`'s `is_last` throttle bypass to fire once, not on
+  every subsequent call once `done >= total`.
+- Lesson: a "minimal diff" review has to check not just direct semantic
+  correctness but also what a changed loop makes a callee's existing
+  code path do that it functionally never did before -- here, calling
+  `ProgressPrinter.update()` with `done` pinned at `total` repeatedly was
+  never exercised by the old collector because it always broke on the
+  first such call, so nothing about `ProgressPrinter` itself needed to
+  look wrong for this to still be a real regression once collection
+  could keep running after reaching the budget.
+
+### [2026-08-23] canonical Basic relaunch: Stage 3b event-only collapse gate fails immediately after the Stage 3a fix (new, separate blocker)
+- What happened: after the target-teacher layout-coverage fix above was
+  merged (main SHA `907767c`) and canonical Basic relaunched fresh
+  (`training_logs/canonical_basic_20260823_230646.log`), Stage 3a now
+  succeeds cleanly (4792 samples, all 7 `DAGGER_LAYOUTS` with exactly 2
+  episodes each, 2362 train / 2430 validation samples, disjoint by
+  episode). The run then reached Stage 3b (`bootstrap_farming_event_head`
+  training the event head on the human-recording bootstrap dataset,
+  `RUN_CANONICAL_BASIC.py` line ~232) and immediately failed its
+  event-only collapse gate: `RuntimeError: Event bootstrap failed its
+  event-only collapse gate: ['event class 0 recall 0.000 is below 0.200
+  (support=2442)']`.
+- Diagnosis (symptom only, root cause NOT investigated -- out of this
+  task's scope, which was the Stage 3a layout-coverage bug only): the
+  human bootstrap dataset's event labels are `FarmingEvent.NONE=0`
+  (support 2442, ~91% of 2684 samples), `CAST_EVA=1` (support 226,
+  recall 1.0 after training), `JUMP=2` (support 16, recall 0.0). The
+  trained event head appears to have collapsed to predicting `CAST_EVA`
+  near-unconditionally (100% recall on a 226/2684 minority class, 0%
+  recall on the 2442/2684 majority class) -- accuracy actually got worse
+  during training (0.136 -> 0.084), consistent with a real collapse, not
+  a measurement artifact. This is unrelated to the Stage 3a fix above:
+  Stage 3b reads only `bootstrap_dataset_path` (the Stage 1 human-demo
+  export), which the Stage 3a change never touches.
+  `bootstrap_farming_event_head` already claims (see its docstring) to
+  use class-weighted loss specifically to avoid majority-class collapse
+  -- this run's result is either a genuine regression in that mechanism,
+  a property of this particular human-recording session mix, or a
+  gate threshold that doesn't fit this dataset; undetermined without
+  further investigation.
+- How caught: executing the user's explicit instruction to relaunch and
+  monitor canonical Basic after the Stage 3a hotfix merged, per the
+  task's own "if another genuine exception occurs: stop, preserve
+  evidence, report" instruction (section 17) -- deliberately NOT patched
+  or re-run in the same session. No checkpoint, run summary, or resume
+  state was written (crash occurs before `RUN_CANONICAL_BASIC.py`'s
+  first `save_checkpoint_with_provenance` call), so no contamination
+  risk for a future corrected rerun. `simulator/evaluations/
+  canonical_basic_target_teacher_dataset.npz` (new, from the Stage 3a
+  fix) and the regenerated `canonical_basic_bootstrap_dataset.npz` are
+  legitimate fresh-run outputs, left in place.
+- Fix: none -- correctly out of scope for the layout-coverage task.
+  Needs its own deliberate follow-up task to actually diagnose why the
+  event-only collapse gate fires (inspect `bootstrap_farming_event_head`
+  in `simulator/basic_training.py`, the actual per-session event-label
+  distribution in `canonical_basic_human_demos.npz`/
+  `canonical_basic_bootstrap_dataset.npz`, and whether this reproduces
+  deterministically under `seed=0` before treating it as a real
+  regression versus a gate-tuning issue).
+- Lesson: fixing one deterministic crash in a multi-stage pipeline only
+  guarantees that stage now succeeds -- it does not imply the pipeline
+  as a whole is healthy; the very next stage can fail on its own,
+  entirely unrelated precondition the first fix never touched. Report
+  and stop at the new boundary rather than assuming "the crash is fixed"
+  means "the run will complete."
+
 ## Category: housekeeping / archival
 
 ### [date lost to compaction, before 2026-08-13] wrongly archived `scratchpad_single_obstacle_train.py`
