@@ -357,6 +357,17 @@ def _summarize_episodes(label: str, results: list[dict[str, Any]], teacher_media
             sum(1 for r in results if r.get("any_contact")) / len(results) if results else None
         ),
         "distinct_contact_events": _stat(results, "distinct_contact_events"),
+        # The authoritative exact total for the zero-collision hard gate.
+        # distinct_contact_events above is median/min/max ONLY -- reconstructing
+        # a total from round(median * n_episodes) is mathematically invalid
+        # (e.g. episode counts [0, 0, 1]: median=0, so that reconstruction
+        # yields 0 despite one real collision) and previously let a nonzero
+        # collision total round down to 0 whenever collisions were
+        # concentrated in a minority of episodes -- exactly the case the
+        # hard gate exists to catch. This sums every episode's raw
+        # distinct_contact_events directly, the same pattern
+        # total_persistent_contact_runs below already uses.
+        "total_distinct_contact_events": sum(int(r.get("distinct_contact_events", 0) or 0) for r in results),
         "max_consecutive_contact_ticks": _stat(results, "max_consecutive_contact_ticks"),
         "total_contact_ticks": _stat(results, "total_contact_ticks"),
         "episodes_with_persistent_contact": sum(1 for r in results if r.get("persistent_contact_runs", 0) > 0),

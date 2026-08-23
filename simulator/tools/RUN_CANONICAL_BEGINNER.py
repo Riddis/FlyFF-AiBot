@@ -170,13 +170,15 @@ def _aggregate(report: dict) -> dict:
     stagnation = sum(l["physical_stagnation_episodes"] for l in layouts)
     zero_kill = sum(l["zero_kill_episodes"] for l in layouts)
     n_episodes = sum(l["n_episodes"] for l in layouts)
-    # distinct_contact_events._stat returns median/min/max across episodes
-    # per layout -- sum each layout's TOTAL (median * n_episodes, the same
-    # aggregation shape total_physical_stagnation_episodes already uses)
-    # for a true collision-EVENT count across the whole manifest.
+    # total_distinct_contact_events is the evaluator's own exact per-episode
+    # sum (simulator/milestone_evaluator.py::_summarize_episodes) -- NOT a
+    # median*n_episodes reconstruction. That reconstruction is mathematically
+    # invalid (e.g. per-episode counts [0, 0, 1]: median=0, so it silently
+    # rounds a real collision down to 0) and previously defeated the
+    # zero-collision hard gate whenever collisions were concentrated in a
+    # minority of episodes below the median. See MISTAKES.md 2026-08-23.
     total_collision_events = sum(
-        int(round(l["distinct_contact_events"]["median"] * l["n_episodes"]))
-        for l in layouts if l.get("distinct_contact_events")
+        int(l["total_distinct_contact_events"]) for l in layouts if l.get("total_distinct_contact_events") is not None
     )
     max_contacts = max(contacts_medians) if contacts_medians else None
     fixed = report.get("fixed_regression_scenarios", {})
@@ -251,20 +253,21 @@ def run_full_evaluation(checkpoint_path, heldout_manifest, unseen_manifest, chal
     # trains under -- target selection AND event from the checkpoint's own
     # forward pass, steering from FrozenNavigationSteering driven by the
     # policy's resolved target.
+    from simulator.curriculum_resume_identity import with_current_generation_identity
     from simulator.milestone_evaluator import evaluate_challenge_parallel, evaluate_heldout_parallel
 
-    heldout = evaluate_heldout_parallel(
+    heldout = with_current_generation_identity(evaluate_heldout_parallel(
         checkpoint_path, heldout_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
         max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
-    )
-    unseen = evaluate_heldout_parallel(
+    ))
+    unseen = with_current_generation_identity(evaluate_heldout_parallel(
         checkpoint_path, unseen_manifest, seeds=EVAL_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
         max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
-    )
-    challenge = evaluate_challenge_parallel(
+    ))
+    challenge = with_current_generation_identity(evaluate_challenge_parallel(
         checkpoint_path, challenge_manifest, family_seeds=CHALLENGE_FAMILY_SEEDS, episode_seconds=FULL_EPISODE_SECONDS,
         max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS, use_frozen_navigation=True,
-    )
+    ))
     (EVAL_DIR / f"canonical_{label}_heldout.json").write_text(json.dumps(heldout, indent=2, default=str), encoding="utf-8")
     (EVAL_DIR / f"canonical_{label}_unseen.json").write_text(json.dumps(unseen, indent=2, default=str), encoding="utf-8")
     (EVAL_DIR / f"canonical_{label}_challenge.json").write_text(json.dumps(challenge, indent=2, default=str), encoding="utf-8")
@@ -298,6 +301,11 @@ def main() -> None:
         zero_shot_raw_diagnostic_parallel,
     )
     from simulator.curriculum_manifests import load_challenge_manifest, load_heldout_manifest
+    from simulator.curriculum_resume_identity import (
+        load_cached_report_if_current,
+        load_resumable_round_reports,
+        with_current_generation_identity,
+    )
 
     if not GRADUATED_BASIC_CHECKPOINT.exists():
         raise FileNotFoundError(f"{GRADUATED_BASIC_CHECKPOINT} not found -- graduate a Basic checkpoint to this path first.")
@@ -320,14 +328,15 @@ def main() -> None:
     log("=== Stage 0: zero-shot recovery-off Beginner diagnostic on the graduated Basic checkpoint (baseline, NOT a gate) ===")
     # ---------------------------------------------------------------
     zero_shot_path = EVAL_DIR / "canonical_beginner_zero_shot_diagnostic.json"
-    if zero_shot_path.exists():
+    zero_shot_report = load_cached_report_if_current(zero_shot_path, log=log)
+    if zero_shot_report is not None:
         log(f"Reusing existing zero-shot diagnostic: {zero_shot_path}")
-        zero_shot_report = json.loads(zero_shot_path.read_text(encoding="utf-8"))
     else:
         zero_shot_report = zero_shot_raw_diagnostic_parallel(
             GRADUATED_BASIC_CHECKPOINT, heldout_manifest_path=EARLY_HELDOUT_MANIFEST, seeds=EVAL_SEEDS,
             episode_seconds=FULL_EPISODE_SECONDS, max_actions=FULL_MAX_ACTIONS, n_workers=N_EVAL_WORKERS,
         )
+        zero_shot_report = with_current_generation_identity(zero_shot_report)
         zero_shot_path.write_text(json.dumps(zero_shot_report, indent=2, default=str), encoding="utf-8")
     for layout, stats in zero_shot_report["per_layout"].items():
         log(f"  zero-shot[{layout}]: stagnation={stats['physical_stagnation_episodes']}/{stats['n_episodes']} "
@@ -346,16 +355,21 @@ def main() -> None:
             existing_rounds[int(m.group(1)) // (PPO_CHUNK_TIMESTEPS // 1000)] = p
     current_checkpoint = GRADUATED_BASIC_CHECKPOINT
     consecutive_passes = 0
-    round_reports: list[dict] = []
     summary_path = EVAL_DIR / "canonical_beginner_run_summary.json"
-    if summary_path.exists():
+    summary_existed_before = summary_path.exists()
+    round_reports = load_resumable_round_reports(summary_path, log=log, declared_parent_checkpoint=GRADUATED_BASIC_CHECKPOINT)
+    if round_reports:
         try:
-            round_reports = json.loads(summary_path.read_text(encoding="utf-8"))
-            consecutive_passes = round_reports[-1]["consecutive_passes"] if round_reports else 0
-            if round_reports:
-                current_checkpoint = Path(round_reports[-1]["carried_forward_checkpoint"])
-        except (json.JSONDecodeError, OSError, KeyError, IndexError):
+            consecutive_passes = round_reports[-1]["consecutive_passes"]
+            current_checkpoint = Path(round_reports[-1]["carried_forward_checkpoint"])
+        except KeyError:
             round_reports = []
+    if summary_existed_before and not round_reports:
+        # Either genuinely empty, or rejected by load_resumable_round_reports
+        # for an identity mismatch -- in both cases this summary can no
+        # longer vouch for same-named pre-built checkpoint files either, so
+        # do not silently reuse them via the round-checkpoint glob above.
+        existing_rounds = {}
 
     start_round = len(round_reports) + 1
 
@@ -389,9 +403,9 @@ def main() -> None:
         # ---------------------------------------------------------------
         pre_label = f"{ppo_milestone}_pre_rehearsal"
         pre_heldout_path = EVAL_DIR / f"canonical_{pre_label}_heldout.json"
-        if pre_heldout_path.exists():
+        pre_heldout = load_cached_report_if_current(pre_heldout_path, log=log)
+        if pre_heldout is not None:
             log("Reusing existing pre-rehearsal evaluation.")
-            pre_heldout = json.loads(pre_heldout_path.read_text(encoding="utf-8"))
             pre_unseen = json.loads((EVAL_DIR / f"canonical_{pre_label}_unseen.json").read_text(encoding="utf-8"))
             pre_challenge = json.loads((EVAL_DIR / f"canonical_{pre_label}_challenge.json").read_text(encoding="utf-8"))
         else:
@@ -413,9 +427,9 @@ def main() -> None:
         rehearsed_output = MODELS_DIR / f"{canonical_checkpoint_name('beginner', ppo_milestone + '_rehearsed')}.zip"
         post_label = f"{ppo_milestone}_post_rehearsal"
         post_heldout_path = EVAL_DIR / f"canonical_{post_label}_heldout.json"
-        if rehearsed_output.exists() and post_heldout_path.exists():
+        post_heldout = load_cached_report_if_current(post_heldout_path, log=log)
+        if rehearsed_output.exists() and post_heldout is not None:
             log("Reusing existing rehearsed checkpoint + evaluation.")
-            post_heldout = json.loads(post_heldout_path.read_text(encoding="utf-8"))
             post_unseen = json.loads((EVAL_DIR / f"canonical_{post_label}_unseen.json").read_text(encoding="utf-8"))
             post_challenge = json.loads((EVAL_DIR / f"canonical_{post_label}_challenge.json").read_text(encoding="utf-8"))
         else:
@@ -473,7 +487,7 @@ def main() -> None:
             consecutive_passes = 0
             log(f"Round {round_idx} did NOT pass the absolute bar: {bar_reasons}")
 
-        round_reports.append({
+        round_reports.append(with_current_generation_identity({
             "round": round_idx,
             "pre_rehearsal_checkpoint": str(pre_rehearsal_checkpoint.resolve()),
             "rehearsal_damage_detected": bool(damage_reasons),
@@ -485,7 +499,7 @@ def main() -> None:
             "aggregates": {
                 "heldout": carried_forward_agg[0], "unseen_templates": carried_forward_agg[1], "challenge": carried_forward_agg[2],
             },
-        })
+        }, declared_parent_checkpoint=GRADUATED_BASIC_CHECKPOINT))
         summary_path.write_text(json.dumps(round_reports, indent=2, default=str), encoding="utf-8")
         current_checkpoint = carried_forward_checkpoint
 
