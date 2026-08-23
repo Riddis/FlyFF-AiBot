@@ -91,6 +91,15 @@ def farming_policy_architecture_contract() -> dict[str, Any]:
         ),
         "raw_observation_size": RAW_OBSERVATION_SIZE,
         "policy_input_schema_id": "923-value raw production observation contract (no navigation sidecar)",
+        # Overrides build_run_manifest's own default_contract["policy_input_size"]
+        # (928, the steering-policy navigation-sidecar width) -- this policy's
+        # input IS the raw observation, unaugmented, so the two sizes are
+        # equal. Without this explicit override the stale 928 default would
+        # otherwise survive build_run_manifest's field-by-field dict.update()
+        # merge even after raw_observation_size/policy_input_schema_id were
+        # correctly overridden -- a real bug caught by
+        # tests/test_basic_checkpoint_provenance.py.
+        "policy_input_size": RAW_OBSERVATION_SIZE,
         "navigation_checkpoint_path": str(FROZEN_NAVIGATION_CHECKPOINT_PATH),
         "navigation_checkpoint_sha256": FROZEN_NAVIGATION_CHECKPOINT_SHA256,
         "navigation_ownership": "steering is FrozenNavigationSteering's output; this checkpoint never samples/logs it",
@@ -415,6 +424,7 @@ def run_composed_episode(
     event_matches: list[bool] = []
     target_matches: list[bool] = []
     invalid_target_selections = 0
+    target_invalidations_by_planner_failure = 0
     eva_target_counts: list[int] = []
     teacher_events: list[int] = []
     policy_events: list[int] = []
@@ -442,7 +452,19 @@ def run_composed_episode(
         if resolved_target_id is None:
             steering = int(SteeringDirection.NONE)
         else:
-            steering = navigation_steering.steering_action(env, target_actor_id=resolved_target_id).steering
+            tick_result = navigation_steering.steering_action(env, target_actor_id=resolved_target_id)
+            steering = tick_result.steering
+            if tick_result.planner_failure:
+                # Same invalidation rule as FarmingPolicyWrapper.step: the
+                # production router could not produce a route to this still
+                # alive/present target right now -- objectively non-
+                # navigable under the actual planner/reachability contract.
+                # Clear both the tracker's target and the steering oracle's
+                # own stale route/controller state.
+                target_tracker.invalidate()
+                navigation_steering.reset()
+                resolved_target_id = None
+                target_invalidations_by_planner_failure += 1
 
         steering_choices.append(steering)
         steering_matches.append(steering == int(teacher_command.steering))
@@ -481,6 +503,7 @@ def run_composed_episode(
         "event_agreement": float(np.mean(event_matches)) if event_matches else None,
         "target_agreement": float(np.mean(target_matches)) if target_matches else None,
         "invalid_target_selection_rate": float(invalid_target_selections) / max(1, len(steering_choices)),
+        "target_invalidations_by_planner_failure": int(target_invalidations_by_planner_failure),
         "corr_angle_p_left": None,
         "corr_angle_p_right": None,
         "geodesic_euclidean_disagreement_rate": (

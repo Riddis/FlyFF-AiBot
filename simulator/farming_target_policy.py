@@ -118,6 +118,16 @@ class PersistentFarmingTarget:
     def reset(self) -> None:
         self._current_target_id = None
 
+    def invalidate(self) -> None:
+        """Clears the current target outside the death check in
+        `apply_action` -- for a target that is still alive/present but has
+        become objectively non-navigable under the production planner (see
+        `FarmingPolicyWrapper.step`). Same "degrade to no-target, a genuine
+        new decision point for the policy's own next sampled action" outcome
+        as death; never a silent heuristic substitution of a different
+        actor."""
+        self._current_target_id = None
+
     @property
     def current_target_id(self) -> int | None:
         return self._current_target_id
@@ -189,11 +199,32 @@ class FarmingPolicyWrapper(gym.Wrapper):
 
         resolved_target_id, invalid_target_selection = self._target.apply_action(base_env, target_action)
         tick_result: SteeringTickResult | None = None
+        target_invalidated_by_planner_failure = False
         if resolved_target_id is None:
             steering = int(SteeringDirection.NONE)
         else:
             tick_result = self._steering.steering_action(self.env, target_actor_id=resolved_target_id)
             steering = tick_result.steering
+            if tick_result.planner_failure:
+                # The production router could not produce a route to the
+                # currently-selected (still alive/present) target from the
+                # player's current position -- by definition, objectively
+                # non-navigable right now under the actual production
+                # planner/reachability contract. Invalidate rather than
+                # leave the target latched indefinitely on steering=NONE:
+                # clear both the resolved target id and the steering
+                # oracle's own stale route/controller/snapshot state, so the
+                # next tick is a genuine new decision point for the policy
+                # -- never a silent heuristic substitution of a different
+                # actor. No timeout/retry-count needed: the router already
+                # retries every tick this target stays selected (steering_
+                # action replans whenever self._route is None), so this is
+                # already the smallest possible invalidation bound -- one
+                # tick, immediate, on the authoritative failure signal.
+                self._target.invalidate()
+                self._steering.reset()
+                resolved_target_id = None
+                target_invalidated_by_planner_failure = True
 
         command = np.array([steering, event_action], dtype=np.int64)
         obs, reward, terminated, truncated, info = self.env.step(command)
@@ -212,6 +243,7 @@ class FarmingPolicyWrapper(gym.Wrapper):
         info["steering_replanned"] = tick_result.replanned if tick_result else False
         info["steering_planner_failure"] = tick_result.planner_failure if tick_result else False
         info["steering_waypoint"] = tick_result.waypoint if tick_result else None
+        info["target_invalidated_by_planner_failure"] = target_invalidated_by_planner_failure
         return np.asarray(obs, dtype=np.float32)[:RAW_OBSERVATION_SIZE], adjusted_reward, terminated, truncated, info
 
 

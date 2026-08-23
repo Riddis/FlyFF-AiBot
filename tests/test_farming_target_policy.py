@@ -16,6 +16,7 @@ import pytest
 from gymnasium import spaces
 
 from farming.actions import FarmingEvent
+from navigation.movement_kernel import SteeringDirection
 from navigation.navigation_evidence import RAW_OBSERVATION_SIZE
 from simulator.environment import RecordedFarmingEnv
 from simulator.farming_target_policy import (
@@ -29,7 +30,7 @@ from simulator.farming_target_policy import (
     resolve_target_slot_action,
 )
 from simulator.navigation_history import NavigationHistoryWrapper
-from simulator.navigation_subpolicy import FrozenNavigationSteering
+from simulator.navigation_subpolicy import FrozenNavigationSteering, SteeringTickResult
 from tests.helpers.router_qualification_harness import build_multi_wall_world
 
 
@@ -341,5 +342,152 @@ def test_farming_policy_wrapper_full_episode_persistence_switch_and_death_sequen
     # silently resolved for it.
     _, _, _, _, info = wrapped.step(np.asarray([_slot_action_for(a_id), int(FarmingEvent.NONE)]))
     assert info["resolved_target_id"] == a_id, "tick 5: the policy's own re-selection of A did not resolve to A"
+
+    wrapped.close()
+
+
+def test_farming_policy_wrapper_planner_failure_invalidates_target_and_clears_router_state(frozen_steering_model):
+    """The blocker this test guards: a target that is still alive/present
+    but that the production router cannot currently route to must be
+    INVALIDATED -- cleared to no-target, with the steering oracle's own
+    stale route/controller/snapshot state cleared too -- never left latched
+    indefinitely behind a steering=NONE hold. Forces the planner-failure
+    signal directly (`SteeringTickResult.planner_failure=True`) rather than
+    crafting exact wall geometry: the planner's own success/failure
+    determination is already covered by tests/test_kinodynamic_route_
+    planner.py; this test is about what FarmingPolicyWrapper.step does with
+    that signal, which is deterministic and geometry-independent."""
+    env = _make_env(episode_steps=200, population=8)
+    steering = copy.copy(frozen_steering_model)
+    wrapped = FarmingPolicyWrapper(env, steering)
+    wrapped.reset(seed=19)
+
+    a_pos = env.unwrapped.map.layout_to_native(46, 20)
+    b_pos = env.unwrapped.map.layout_to_native(20, 45)
+    a_id, b_id = _place_actors(env, [a_pos, b_pos])
+    base_env = env.unwrapped
+
+    def _slot_action_for(actor_id: int) -> int:
+        base_env._observation()
+        return base_env._direct_actor_slot_ids.index(actor_id) + 1
+
+    # Tick 1: select A for real -- establishes genuine route/controller
+    # state on the steering oracle, so the assertions below prove it was
+    # actually cleared, not merely absent because it was never set.
+    _, _, _, _, info = wrapped.step(np.asarray([_slot_action_for(a_id), int(FarmingEvent.NONE)]))
+    assert info["resolved_target_id"] == a_id
+    assert info["target_invalidated_by_planner_failure"] is False
+    assert wrapped._steering._route is not None, "test setup: a real route must exist before forcing failure"
+    assert wrapped._steering._target_id == a_id
+
+    real_steering_action = FrozenNavigationSteering.steering_action
+
+    def _force_planner_failure(self, env_arg, *, target_actor_id):
+        return SteeringTickResult(
+            steering=int(SteeringDirection.NONE), waypoint=(base_env.player_x, base_env.player_z),
+            replanned=False, planner_failure=True,
+        )
+
+    FrozenNavigationSteering.steering_action = _force_planner_failure
+    try:
+        _, _, _, _, info = wrapped.step(np.asarray([KEEP_CURRENT_TARGET_ACTION, int(FarmingEvent.NONE)]))
+    finally:
+        FrozenNavigationSteering.steering_action = real_steering_action
+
+    assert info["target_invalidated_by_planner_failure"] is True
+    assert info["resolved_target_id"] is None, "planner failure must clear the target to NONE, not leave it latched"
+    assert wrapped._target.current_target_id is None
+    assert wrapped._steering._route is None, "stale route must be cleared on invalidation"
+    assert wrapped._steering._controller is None, "stale persistence controller must be cleared on invalidation"
+    assert wrapped._steering._target_id is None, "stale target id on the steering oracle must be cleared on invalidation"
+
+    # KEEP after invalidation must resolve to no-target -- never a silent
+    # heuristic substitution of a different live actor (e.g. B).
+    _, _, _, _, info = wrapped.step(np.asarray([KEEP_CURRENT_TARGET_ACTION, int(FarmingEvent.NONE)]))
+    assert info["resolved_target_id"] is None, "KEEP after invalidation must stay at no-target"
+    assert info["target_invalidated_by_planner_failure"] is False, "invalidation is a one-tick event, not a persistent flag"
+
+    # Explicit reselection of B must reach the REAL production router (a
+    # genuine plan_route call), proving the policy retains full ownership
+    # of the next target decision -- no heuristic replacement anywhere in
+    # this sequence.
+    call_log: list[int] = []
+
+    def _spy(self, env_arg, *, target_actor_id):
+        call_log.append(target_actor_id)
+        return real_steering_action(self, env_arg, target_actor_id=target_actor_id)
+
+    FrozenNavigationSteering.steering_action = _spy
+    try:
+        _, _, _, _, info = wrapped.step(np.asarray([_slot_action_for(b_id), int(FarmingEvent.NONE)]))
+    finally:
+        FrozenNavigationSteering.steering_action = real_steering_action
+    assert call_log == [b_id], "explicit reselection did not reach the production router with the policy's own chosen actor"
+    assert info["resolved_target_id"] == b_id
+
+    wrapped.close()
+
+
+def test_farming_policy_wrapper_disappearance_and_respawn_require_explicit_reselection(frozen_steering_model):
+    """Disappearance (actor no longer present/alive) degrades a KEPT target
+    to no-target exactly like death (same `_actor_position` check, same
+    code path). A respawned actor (alive again, at a new position) is NOT
+    silently reacquired by KEEP -- the policy must explicitly reselect it,
+    same as any other live actor, and that explicit reselection reaches the
+    router with the actor's NEW position."""
+    env = _make_env(episode_steps=200, population=8)
+    steering = copy.copy(frozen_steering_model)
+    wrapped = FarmingPolicyWrapper(env, steering)
+    wrapped.reset(seed=23)
+
+    a_pos = env.unwrapped.map.layout_to_native(46, 20)
+    a_id = _place_actors(env, [a_pos])[0]
+    base_env = env.unwrapped
+
+    def _slot_action_for(actor_id: int) -> int:
+        base_env._observation()
+        return base_env._direct_actor_slot_ids.index(actor_id) + 1
+
+    _, _, _, _, info = wrapped.step(np.asarray([_slot_action_for(a_id), int(FarmingEvent.NONE)]))
+    assert info["resolved_target_id"] == a_id
+
+    # Disappearance: mark not-alive (the same mechanism death uses -- this
+    # environment has no separate "removed from the world" representation;
+    # `_actor_position` treats both identically by design).
+    for actor in base_env.actors:
+        if actor.actor_id == a_id:
+            actor.alive = False
+
+    _, _, _, _, info = wrapped.step(np.asarray([KEEP_CURRENT_TARGET_ACTION, int(FarmingEvent.NONE)]))
+    assert info["resolved_target_id"] is None, "disappearance must degrade a KEPT target to no-target"
+
+    # Respawn: alive again, at a new position. KEEP must NOT silently
+    # reacquire it -- the policy already handed back to no-target above,
+    # and no-target KEEP stays no-target regardless of what becomes alive.
+    respawn_pos = env.unwrapped.map.layout_to_native(20, 45)
+    for actor in base_env.actors:
+        if actor.actor_id == a_id:
+            actor.alive = True
+            actor.x, actor.z = respawn_pos
+
+    _, _, _, _, info = wrapped.step(np.asarray([KEEP_CURRENT_TARGET_ACTION, int(FarmingEvent.NONE)]))
+    assert info["resolved_target_id"] is None, "KEEP must not silently reacquire a respawned actor"
+
+    # Explicit reselection after respawn resolves to the actor's NEW
+    # position and reaches the real production router.
+    real_steering_action = FrozenNavigationSteering.steering_action
+    call_log: list[int] = []
+
+    def _spy(self, env_arg, *, target_actor_id):
+        call_log.append(target_actor_id)
+        return real_steering_action(self, env_arg, target_actor_id=target_actor_id)
+
+    FrozenNavigationSteering.steering_action = _spy
+    try:
+        _, _, _, _, info = wrapped.step(np.asarray([_slot_action_for(a_id), int(FarmingEvent.NONE)]))
+    finally:
+        FrozenNavigationSteering.steering_action = real_steering_action
+    assert call_log == [a_id]
+    assert info["resolved_target_id"] == a_id
 
     wrapped.close()
