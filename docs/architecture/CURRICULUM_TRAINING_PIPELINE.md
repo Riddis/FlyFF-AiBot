@@ -1,9 +1,16 @@
 # Curriculum Training Pipeline (canonical Basic -> Advanced)
 
 **Confidence: VERIFIED_CONTRACT** for module roles, call paths, and the
-router-independence claim (direct source reads, cited below);
-**HISTORICAL_EVIDENCE** for the graduation-history claims ported from
-docstrings/run logs.
+current frozen-navigation/router-integration state (direct source reads,
+cited below); **HISTORICAL_EVIDENCE** for the graduation-history claims
+ported from docstrings/run logs. **Current truth (read this before section
+2's historical narrative): the production router IS exercised by every
+stage of this curriculum** — the frozen 0051200 checkpoint, driven by
+`navigation.kinodynamic_route_planner`, owns steering end to end via
+`simulator.navigation_subpolicy.FrozenNavigationSteering`; the curriculum's
+own trainable policy owns only learned target selection + the event/EVA
+action. See section 4/5 for the full current architecture and section 2 for
+why an earlier version of this same document said the opposite.
 
 ## 1. What this is
 
@@ -53,12 +60,15 @@ Supporting modules:
   per-stage round orchestration (DAgger mining / PPO chunk + rehearsal +
   graduation check).
 
-## 2. This curriculum does not exercise the production router
+## 2. Historical note: this curriculum originally did not exercise the production router (superseded — see section 4/5 for current state)
 
-**This is the fact most likely to be assumed incorrectly by anyone
-approaching this pipeline from the navigation/router side of the
-codebase — verify it again from source if it matters to your task,
-rather than trusting this document alone.**
+**CURRENT STATE FIRST, since this section's own heading described the
+opposite of today's architecture: every stage now exercises the production
+router via the frozen 0051200 checkpoint (`FrozenNavigationSteering`) —
+see section 4/5. What follows is the original 2026-08-22 investigation that
+established the (now-corrected) gap below; kept because the reasoning and
+evidence trail remain useful context for why the recovery happened, not
+because the conclusion still holds.**
 
 `milestone_evaluator.py::run_episode` (the evaluator every
 `RUN_CANONICAL_*.py` stage and every `evaluate_heldout`/
@@ -301,7 +311,49 @@ untouched). Every checkpoint's own provenance manifest
 farming_policy_architecture_contract()` — the paired frozen navigation
 checkpoint's path and SHA-256 — because a full-farming checkpoint is not
 reproducible, or even executable, by itself without knowing which
-navigator it composes with.
+navigator it composes with. Basic's own two save call sites
+(`simulator/basic_training.py::save_checkpoint_with_provenance`, called
+from `RUN_CANONICAL_BASIC.py`'s bootstrap and milestone saves) did not pass
+this `architecture_contract` through until 2026-08-23 — every Basic
+checkpoint's manifest silently inherited `build_run_manifest`'s own
+`SplitSteeringNavigationPolicy`/928-value default instead, wrong for the
+`SplitFarmingTargetEventPolicy`/923-value checkpoints Basic actually saves;
+corrected 2026-08-23, see `tests/test_basic_checkpoint_provenance.py` and
+`MISTAKES.md`'s same-day "partial architecture_contract override" entry.
+
+**Resume-identity gate** (pre-merge blocker remediation, 2026-08-23):
+`simulator/curriculum_resume_identity.py` defines the minimum identity
+(`generation_id`, `policy_action_nvec`, `raw_observation_size`,
+`navigation_checkpoint_sha256`, and each stage's own `declared_parent_
+checkpoint`) a stored `canonical_<stage>_run_summary.json` round or cached
+evaluation (zero-shot diagnostic, pre-/post-rehearsal) must carry to be
+trusted for resume/reuse. Beginner/Intermediate/Advanced previously resumed
+`consecutive_passes`/`current_checkpoint`/cached evaluations from any
+same-named file purely because it existed on disk — including the tracked
+pre-2026-08-21-root-collapse summaries that still embed obsolete
+`flyff_farming_simulator/` checkpoint paths and a stale `consecutive_
+passes=2`. A stored artifact whose identity is missing or mismatched is now
+archived byte-identical (never mutated in place) and ignored for resume;
+the current run starts fresh from the stage's own declared parent
+checkpoint. See `tests/test_curriculum_resume_identity.py`.
+
+**Target invalidation on planner failure** (pre-merge blocker remediation,
+2026-08-23): a selected target that is still alive/present but that the
+production router cannot currently produce a route to (`SteeringTickResult.
+planner_failure=True`) is now treated the same as death/disappearance —
+`PersistentFarmingTarget.invalidate()` clears the resolved target to `NONE`
+and `FrozenNavigationSteering.reset()` clears its own stale route/
+persistence-controller/snapshot state, both in `FarmingPolicyWrapper.step`
+and `run_composed_episode`. Previously the target stayed latched
+indefinitely (steering held at `NONE` every tick) once a route could not be
+found, silently substituting "no movement" for what should have been a new
+target decision. Invalidation is immediate (one tick, on the router's own
+authoritative failure signal) and never a heuristic substitution of a
+different actor — the next tick's `KEEP` resolves to no-target until the
+policy explicitly selects again. See `info["target_invalidated_by_planner_
+failure"]` for the per-tick telemetry flag and `tests/
+test_farming_target_policy.py`'s planner-failure/disappearance/respawn
+lifecycle tests.
 
 **Zero-collision hard graduation gate** (`docs/PROJECT_GOALS.md` §2a):
 Beginner, Intermediate, and Advanced all gate graduation on
@@ -317,7 +369,17 @@ framing governs its other, genuinely looser thresholds (contacts-per-
 distance, stagnation) only, never collisions; an earlier revision of
 Beginner's own script briefly allowed exactly 1 collision event on
 challenge specifically, which was a contract violation, corrected
-2026-08-23. Advanced's `AUTO_GRADUATION_ENABLED=False` bypass flag
+2026-08-23. `total_collision_events` is computed from the evaluator's own
+exact per-episode sum (`milestone_evaluator._summarize_episodes`'s
+`total_distinct_contact_events` field, `sum(episode["distinct_contact_
+events"] for episode in results)`) — each `RUN_CANONICAL_*.py`'s
+`_aggregate()` previously reconstructed a total as `round(median *
+n_episodes)`, which is mathematically invalid (e.g. per-episode counts
+`[0, 0, 1]` have median 0, silently rounding a real collision down to 0)
+and could pass a round with genuine, uncounted collisions whenever they
+were concentrated in a minority of episodes below the median; corrected
+2026-08-23, see `tests/test_collision_aggregation_exact_total.py`.
+Advanced's `AUTO_GRADUATION_ENABLED=False` bypass flag
 (disabled 2026-08-08 pending this exact fix) has been removed entirely,
 restoring real, unattended auto-graduation for Advanced on the same
 standard as the other stages.
