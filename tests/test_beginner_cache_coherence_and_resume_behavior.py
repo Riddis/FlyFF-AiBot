@@ -99,7 +99,7 @@ def test_valid_matching_round_record_resumes_correctly(tmp_path, module, parent_
     real_checkpoint = _write(tmp_path / f"canonical_{stage}_ppo_010k.zip", b"round 1's real checkpoint bytes")
     summary_path = current_generation_path(tmp_path / f"canonical_{stage}_run_summary.json")
     record = with_round_identity(
-        {"round": 1, "consecutive_passes": 1, "carried_forward_checkpoint": str(real_checkpoint.resolve())},
+        {"round": 1, "round_passed_absolute_bar": True, "consecutive_passes": 1, "carried_forward_checkpoint": str(real_checkpoint.resolve())},
         stage=stage, declared_parent_checkpoint=declared_parent, current_checkpoint=real_checkpoint,
     )
     summary_path.write_text(json.dumps([record]), encoding="utf-8")
@@ -126,7 +126,7 @@ def test_valid_summary_but_checkpoint_bytes_changed_is_not_resumed(tmp_path, mod
     real_checkpoint = _write(tmp_path / f"canonical_{stage}_ppo_010k.zip", b"round 1's real checkpoint bytes")
     summary_path = current_generation_path(tmp_path / f"canonical_{stage}_run_summary.json")
     record = with_round_identity(
-        {"round": 1, "consecutive_passes": 1, "carried_forward_checkpoint": str(real_checkpoint.resolve())},
+        {"round": 1, "round_passed_absolute_bar": True, "consecutive_passes": 1, "carried_forward_checkpoint": str(real_checkpoint.resolve())},
         stage=stage, declared_parent_checkpoint=declared_parent, current_checkpoint=real_checkpoint,
     )
     summary_path.write_text(json.dumps([record]), encoding="utf-8")

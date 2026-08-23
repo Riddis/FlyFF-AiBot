@@ -350,7 +350,35 @@ identity, not merely an architecture-generation check:
   requires the recorded `round` numbers to form the contiguous 1-based
   sequence `1, 2, ..., N`; an invalid or non-contiguous prefix rejects
   the ENTIRE summary (never a partial resume of a validated suffix, and
-  the file is never mutated on rejection). Each of the three canonical
+  the file is never mutated on rejection).
+
+  **Persisted-schema strictness** (round-summary schema hardening,
+  2026-08-23): a stored round summary is untrusted/corruptible input, not
+  a trusted internal structure, so `load_resumable_round_reports()` also
+  requires, before any identity check runs: the top-level JSON payload is
+  exactly a list (`type(payload) is list` — a dict, string, number,
+  boolean, or `null` payload is rejected, never iterated as if it were a
+  round list); every entry is exactly a dict (`type(record) is dict`);
+  `record["round"]` is an exact JSON integer (`type(...) is int`, which in
+  Python excludes `bool` — `isinstance(True, int)` is `True`, so an
+  `isinstance` check would wrongly accept `round: true` as round `1`);
+  `record["round_passed_absolute_bar"]` is an exact JSON boolean
+  (`type(...) is bool`); and `record["consecutive_passes"]` is an exact
+  non-negative JSON integer. Beyond per-field typing, `consecutive_passes`
+  must also be mathematically consistent with the round's own
+  `round_passed_absolute_bar` and every earlier round's history: `0` when
+  `round_passed_absolute_bar` is `False`, and exactly one more than the
+  previous round's `consecutive_passes` when it is `True` — this is what
+  stops a hand-edited or corrupted file from manufacturing graduation
+  progress that was never actually earned. Any single failure — malformed
+  JSON, a non-list payload, a non-dict entry anywhere in the list, a
+  non-canonical field type, or an inconsistent pass-sequence — rejects the
+  WHOLE summary the same way an identity mismatch does: logged, `[]`
+  returned, the file left completely untouched, never an exception raised
+  out of curriculum startup. See `_round_schema_reason()` and the
+  pass-sequence check inside `load_resumable_round_reports()`.
+
+  Each of the three canonical
   runners then derives its next round from the last validated round's
   own recorded number via `next_resumable_round()`, not from list length
   (the two are equivalent once contiguity is enforced, but the

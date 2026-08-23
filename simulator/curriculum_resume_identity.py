@@ -293,6 +293,28 @@ def with_evaluation_cache_identity(
     }
 
 
+def _round_schema_reason(record: Any) -> str | None:
+    """Returns a reason string if `record` fails structural/type validation
+    for a persisted round entry, independent of checkpoint/generation
+    identity. Every check uses an EXACT type comparison (`type(x) is T`),
+    never `isinstance`: `bool` is a subclass of `int` in Python (`True ==
+    1`, `isinstance(True, int)` is `True`), so `isinstance`-based checks
+    would silently accept `round: true` as round 1 or `consecutive_passes:
+    True` as 1 -- persisted JSON is untrusted input and must never be
+    allowed to exploit that looseness to manufacture a valid-looking round
+    or graduation progress that was never actually earned."""
+    if type(record) is not dict:
+        return f"round record is not a JSON object (got {type(record).__name__})"
+    if type(record.get("round")) is not int:
+        return f"round field is not an exact JSON integer (got {record.get('round')!r})"
+    if type(record.get("round_passed_absolute_bar")) is not bool:
+        return f"round_passed_absolute_bar is not an exact JSON boolean (got {record.get('round_passed_absolute_bar')!r})"
+    consecutive_passes = record.get("consecutive_passes")
+    if type(consecutive_passes) is not int or consecutive_passes < 0:
+        return f"consecutive_passes is not a non-negative exact JSON integer (got {consecutive_passes!r})"
+    return None
+
+
 def load_resumable_round_reports(
     summary_path: Path, *, log: Callable[[str], None], stage: str, declared_parent_checkpoint: Path | str,
 ) -> list[dict[str, Any]]:
@@ -300,36 +322,70 @@ def load_resumable_round_reports(
     <namespace>.json` round list (pass `summary_path =
     current_generation_path(...)`  -- this function does not apply the
     namespace itself, so callers control exactly which path is read).
-    Returns it unchanged only if EVERY round in it validates, in order
-    (`round_record_validity_reason`), AND the recorded `round` numbers form
-    the contiguous 1-based sequence `1, 2, ..., len(round_reports)` --
-    a validated suffix following an invalid or non-contiguous prefix is
-    NEVER partially resumed. Otherwise logs why and returns `[]` (a fresh
-    start for this stage's `consecutive_passes`/`current_checkpoint` state)
-    WITHOUT ever mutating the file."""
+    Persisted state is treated as untrusted/corruptible input: malformed
+    JSON, a non-list top-level payload, a non-dict round entry, a
+    non-canonical field type (e.g. `round: 1.0` or `round: true`), and a
+    `consecutive_passes` value inconsistent with the record's own
+    `round_passed_absolute_bar` history (see `_round_schema_reason` and the
+    per-round pass-sequence check below) are ALL rejected the same way as
+    an identity mismatch -- never raised as an exception, never used to
+    manufacture graduation progress, never partially resumed. Returns the
+    round list unchanged only if EVERY round in it validates, in order:
+    structurally (`_round_schema_reason`), the recorded `round` numbers
+    form the contiguous 1-based sequence `1, 2, ..., len(round_reports)`,
+    `consecutive_passes` is exactly `0` when `round_passed_absolute_bar` is
+    `False` and exactly one more than the previous round's
+    `consecutive_passes` when it is `True`, and finally checkpoint/
+    generation identity (`round_record_validity_reason`) -- a validated
+    suffix following an invalid or non-contiguous prefix is NEVER partially
+    resumed. Otherwise logs why and returns `[]` (a fresh start for this
+    stage's `consecutive_passes`/`current_checkpoint` state) WITHOUT ever
+    mutating the file."""
     if not summary_path.exists():
         return []
     try:
-        round_reports = json.loads(summary_path.read_text(encoding="utf-8"))
+        payload = json.loads(summary_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return []
-    if not round_reports:
+    if type(payload) is not list:
+        log(f"Ignoring existing run summary at {summary_path} for resume: top-level content is not a JSON list "
+            f"(got {type(payload).__name__}). Starting this stage's consecutive_passes/current_checkpoint fresh "
+            "from the declared parent checkpoint.")
         return []
-    for expected_round_number, record in enumerate(round_reports, start=1):
-        recorded_round_number = record.get("round")
+    if not payload:
+        return []
+    previous_consecutive_passes = 0
+    for expected_round_number, record in enumerate(payload, start=1):
+        schema_reason = _round_schema_reason(record)
+        if schema_reason is not None:
+            log(f"Ignoring existing run summary at {summary_path} for resume: position {expected_round_number} in "
+                f"the list is invalid: {schema_reason}. Starting this stage's consecutive_passes/current_checkpoint "
+                "fresh from the declared parent checkpoint.")
+            return []
+        recorded_round_number = record["round"]
         if recorded_round_number != expected_round_number:
             log(f"Ignoring existing run summary at {summary_path} for resume: round sequence is not the contiguous "
                 f"1-based sequence expected -- position {expected_round_number} in the list has round="
                 f"{recorded_round_number!r}, expected {expected_round_number}. "
                 "Starting this stage's consecutive_passes/current_checkpoint fresh from the declared parent checkpoint.")
             return []
+        round_passed = record["round_passed_absolute_bar"]
+        consecutive_passes = record["consecutive_passes"]
+        expected_consecutive_passes = previous_consecutive_passes + 1 if round_passed else 0
+        if consecutive_passes != expected_consecutive_passes:
+            log(f"Ignoring existing run summary at {summary_path} for resume: round {expected_round_number} has "
+                f"consecutive_passes={consecutive_passes} inconsistent with its round_passed_absolute_bar="
+                f"{round_passed!r} and the preceding pass history (expected {expected_consecutive_passes}). "
+                "Starting this stage's consecutive_passes/current_checkpoint fresh from the declared parent checkpoint.")
+            return []
+        previous_consecutive_passes = consecutive_passes
         reason = round_record_validity_reason(record, stage=stage, declared_parent_checkpoint=declared_parent_checkpoint)
         if reason is not None:
             log(f"Ignoring existing run summary at {summary_path} for resume: round {expected_round_number} invalid: "
                 f"{reason}. Starting this stage's consecutive_passes/current_checkpoint fresh from the declared "
                 "parent checkpoint.")
             return []
-    return round_reports
+    return payload
 
 
 def next_resumable_round(round_reports: list[dict[str, Any]]) -> int:

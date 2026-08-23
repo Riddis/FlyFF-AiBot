@@ -120,9 +120,17 @@ def current_checkpoint(tmp_path: Path) -> Path:
     return _write(tmp_path / "canonical_beginner_ppo_010k.zip", b"round 1 checkpoint bytes")
 
 
-def _valid_round_record(parent_checkpoint: Path, current_checkpoint: Path, *, stage: str = "early", round_number: int = 1) -> dict:
+def _valid_round_record(
+    parent_checkpoint: Path, current_checkpoint: Path, *, stage: str = "early", round_number: int = 1,
+    round_passed_absolute_bar: bool = True, consecutive_passes: int = 1,
+) -> dict:
     return with_round_identity(
-        {"round": round_number, "consecutive_passes": 1, "carried_forward_checkpoint": str(current_checkpoint.resolve())},
+        {
+            "round": round_number,
+            "round_passed_absolute_bar": round_passed_absolute_bar,
+            "consecutive_passes": consecutive_passes,
+            "carried_forward_checkpoint": str(current_checkpoint.resolve()),
+        },
         stage=stage, declared_parent_checkpoint=parent_checkpoint, current_checkpoint=current_checkpoint,
     )
 
@@ -288,11 +296,20 @@ def test_load_resumable_round_reports_missing_file_returns_empty(tmp_path, paren
 def _build_round_chain(tmp_path: Path, parent_checkpoint: Path, round_numbers: list[int], *, stage: str = "early") -> list[dict]:
     """Builds a list of round records, one per entry in `round_numbers` (in
     the given order), each carrying its own distinct real temp checkpoint
-    file so content-SHA validation is exercised for real, not stubbed."""
+    file so content-SHA validation is exercised for real, not stubbed.
+    Every built record passes the absolute bar, with `consecutive_passes`
+    incrementing by POSITION in the list (1, 2, 3, ...) so the chain also
+    satisfies the pass-sequence consistency check by construction; tests
+    that need a non-contiguous or otherwise-invalid chain are expected to
+    be rejected by an earlier check (round numbering / identity) before
+    pass-sequence consistency would even matter."""
     records = []
-    for n in round_numbers:
+    for position, n in enumerate(round_numbers, start=1):
         checkpoint = _write(tmp_path / f"round_{n}_checkpoint.zip", f"round {n} checkpoint bytes".encode())
-        records.append(_valid_round_record(parent_checkpoint, checkpoint, stage=stage, round_number=n))
+        records.append(_valid_round_record(
+            parent_checkpoint, checkpoint, stage=stage, round_number=n,
+            round_passed_absolute_bar=True, consecutive_passes=position,
+        ))
     return records
 
 
@@ -366,6 +383,158 @@ def test_load_resumable_round_reports_never_mutates_the_file_on_invalid_prefix_r
     summary_path.write_bytes(original_bytes)
     load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
     assert summary_path.read_bytes() == original_bytes
+
+
+# --- load_resumable_round_reports: strict schema validation (round-summary
+# schema hardening, 2026-08-23) -- persisted JSON is untrusted input and
+# must never crash startup, manufacture graduation progress, or partially
+# resume. Every check below uses EXACT type comparisons, never truthy/loose
+# equality (Python's `True == 1` and `1.0 == 1` would otherwise let
+# malformed persisted state masquerade as valid). ------------------------
+
+
+@pytest.mark.parametrize("payload", [{}, "abc", 1, True, None])
+def test_load_resumable_round_reports_rejects_non_list_top_level_payload(tmp_path, parent_checkpoint, payload):
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps(payload), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+def test_load_resumable_round_reports_accepts_empty_list_as_valid_empty_state(tmp_path, parent_checkpoint):
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text("[]", encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+def test_load_resumable_round_reports_rejects_malformed_json_without_raising(tmp_path, parent_checkpoint):
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text("{not valid json", encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+@pytest.mark.parametrize("entry", [None, "round", 1, []])
+def test_load_resumable_round_reports_rejects_non_dict_round_entry(tmp_path, parent_checkpoint, entry):
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps([entry]), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+def test_load_resumable_round_reports_rejects_whole_summary_on_a_malformed_entry_amid_otherwise_valid_records(tmp_path, parent_checkpoint):
+    records = _build_round_chain(tmp_path, parent_checkpoint, [1, 2, 3])
+    payload = [records[0], "garbage", records[2]]
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps(payload), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+@pytest.mark.parametrize("bad_round_value", [1.0, True, False, "1", None])
+def test_load_resumable_round_reports_rejects_non_exact_int_round_value(tmp_path, parent_checkpoint, current_checkpoint, bad_round_value):
+    """`isinstance(True, int)` is `True` in Python -- an exact `type(x) is
+    int` check is required so `round: true` (bool) is never treated as
+    round `1`, and `round: 1.0` (float) is never treated as the exact
+    integer `1` a real runner always writes."""
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["round"] = bad_round_value
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps([record]), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+@pytest.mark.parametrize("bad_value", [-1, 1.0, True, False, "1", None])
+def test_load_resumable_round_reports_rejects_non_exact_nonnegative_int_consecutive_passes(tmp_path, parent_checkpoint, current_checkpoint, bad_value):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["consecutive_passes"] = bad_value
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps([record]), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+def test_load_resumable_round_reports_rejects_missing_consecutive_passes(tmp_path, parent_checkpoint, current_checkpoint):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    del record["consecutive_passes"]
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps([record]), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+@pytest.mark.parametrize("bad_value", [0, 1, "true", "false", None])
+def test_load_resumable_round_reports_rejects_non_exact_bool_round_passed_absolute_bar(tmp_path, parent_checkpoint, current_checkpoint, bad_value):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    record["round_passed_absolute_bar"] = bad_value
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps([record]), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+def test_load_resumable_round_reports_rejects_missing_round_passed_absolute_bar(tmp_path, parent_checkpoint, current_checkpoint):
+    record = _valid_round_record(parent_checkpoint, current_checkpoint)
+    del record["round_passed_absolute_bar"]
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps([record]), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
+
+
+# --- load_resumable_round_reports: consecutive_passes must be mathematically
+# consistent with round_passed_absolute_bar across the whole chain, never
+# just individually well-typed (prevents persisted state from falsely
+# manufacturing graduation progress). ---------------------------------------
+
+
+def _build_pass_sequence_chain(tmp_path: Path, parent_checkpoint: Path, sequence: list[tuple[bool, int]]) -> list[dict]:
+    records = []
+    for round_number, (round_passed, consecutive_passes) in enumerate(sequence, start=1):
+        checkpoint = _write(tmp_path / f"seq_round_{round_number}_checkpoint.zip", f"seq round {round_number} bytes".encode())
+        records.append(_valid_round_record(
+            parent_checkpoint, checkpoint, round_number=round_number,
+            round_passed_absolute_bar=round_passed, consecutive_passes=consecutive_passes,
+        ))
+    return records
+
+
+@pytest.mark.parametrize("sequence", [
+    [(False, 0)],
+    [(True, 1)],
+    [(True, 1), (True, 2)],
+    [(True, 1), (False, 0)],
+    [(True, 1), (False, 0), (True, 1)],
+])
+def test_load_resumable_round_reports_accepts_consistent_pass_sequences(tmp_path, parent_checkpoint, sequence):
+    records = _build_pass_sequence_chain(tmp_path, parent_checkpoint, sequence)
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps(records), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert len(result) == len(sequence)
+
+
+@pytest.mark.parametrize("sequence", [
+    [(False, 1)],
+    [(True, 0)],
+    [(True, 2)],
+    [(True, 1), (True, 1)],
+    [(True, 1), (True, 3)],
+    [(True, 1), (False, 1)],
+    [(False, 0), (True, 2)],
+])
+def test_load_resumable_round_reports_rejects_inconsistent_pass_sequences(tmp_path, parent_checkpoint, sequence):
+    """Each of these has individually well-typed fields but a
+    `consecutive_passes` value that does not follow from
+    `round_passed_absolute_bar` history -- persisted state manufacturing
+    graduation progress that was never actually earned."""
+    records = _build_pass_sequence_chain(tmp_path, parent_checkpoint, sequence)
+    summary_path = current_generation_path(tmp_path / "canonical_beginner_run_summary.json")
+    summary_path.write_text(json.dumps(records), encoding="utf-8")
+    result = load_resumable_round_reports(summary_path, log=lambda _m: None, stage="early", declared_parent_checkpoint=parent_checkpoint)
+    assert result == []
 
 
 # --- next_resumable_round ---------------------------------------------------
@@ -618,3 +787,73 @@ class TestRunnerResumeRoundState:
         assert round_reports == []
         assert consecutive_passes == 0
         assert current_checkpoint == parent_checkpoint
+
+    # --- schema-hardening fallback matrix (task section 14) ----------------
+
+    def test_non_list_top_level_payload_falls_back_to_declared_parent(self, module, stage, tmp_path, parent_checkpoint):
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        summary_path.write_text(json.dumps({"round": 1}), encoding="utf-8")
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert round_reports == []
+        assert consecutive_passes == 0
+        assert current_checkpoint == parent_checkpoint
+        assert next_resumable_round(round_reports) == 1
+
+    def test_float_round_value_falls_back_to_declared_parent(self, module, stage, tmp_path, parent_checkpoint):
+        checkpoint = _write(tmp_path / "round_1_checkpoint.zip", b"round 1 bytes")
+        record = _valid_round_record(parent_checkpoint, checkpoint, stage=stage, round_number=1)
+        record["round"] = 1.0
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        summary_path.write_text(json.dumps([record]), encoding="utf-8")
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert round_reports == []
+        assert consecutive_passes == 0
+        assert current_checkpoint == parent_checkpoint
+        assert next_resumable_round(round_reports) == 1
+
+    def test_bool_round_value_falls_back_to_declared_parent(self, module, stage, tmp_path, parent_checkpoint):
+        checkpoint = _write(tmp_path / "round_1_checkpoint.zip", b"round 1 bytes")
+        record = _valid_round_record(parent_checkpoint, checkpoint, stage=stage, round_number=1)
+        record["round"] = True
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        summary_path.write_text(json.dumps([record]), encoding="utf-8")
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert round_reports == []
+        assert consecutive_passes == 0
+        assert current_checkpoint == parent_checkpoint
+        assert next_resumable_round(round_reports) == 1
+
+    def test_impossible_consecutive_passes_falls_back_to_declared_parent(self, module, stage, tmp_path, parent_checkpoint):
+        checkpoint = _write(tmp_path / "round_1_checkpoint.zip", b"round 1 bytes")
+        record = _valid_round_record(
+            parent_checkpoint, checkpoint, stage=stage, round_number=1,
+            round_passed_absolute_bar=True, consecutive_passes=99,
+        )
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        summary_path.write_text(json.dumps([record]), encoding="utf-8")
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert round_reports == []
+        assert consecutive_passes == 0
+        assert current_checkpoint == parent_checkpoint
+        assert next_resumable_round(round_reports) == 1
+
+    def test_malformed_record_amid_otherwise_valid_chain_falls_back_to_declared_parent(self, module, stage, tmp_path, parent_checkpoint):
+        records = _build_round_chain(tmp_path, parent_checkpoint, [1, 2, 3], stage=stage)
+        payload = [records[0], "garbage", records[2]]
+        summary_path = current_generation_path(tmp_path / "canonical_x_run_summary.json")
+        summary_path.write_text(json.dumps(payload), encoding="utf-8")
+        round_reports, consecutive_passes, current_checkpoint = module._resume_round_state(
+            summary_path, declared_parent_checkpoint=parent_checkpoint,
+        )
+        assert round_reports == []
+        assert consecutive_passes == 0
+        assert current_checkpoint == parent_checkpoint
+        assert next_resumable_round(round_reports) == 1

@@ -2043,3 +2043,37 @@ sweep.
   append was already independently guaranteed valid at write time (it
   wasn't here) -- a resumable chain must validate the full chain, and its
   own indexing/numbering, every time it is read, not just its tail.
+
+### [2026-08-23] round-summary schema validation still used loose typing
+- What happened: even after the whole-chain/checkpoint-path strengthening
+  above, `load_resumable_round_reports()` still assumed a persisted round
+  summary was shaped correctly rather than validating it as untrusted
+  input: a non-list top-level payload or non-dict entry could raise
+  instead of being rejected safely, and `record.get("round")` compared with
+  `!=` would accept `1.0` or `True` as round `1` (Python: `1.0 == 1` and
+  `isinstance(True, int)` are both `True`). `consecutive_passes` was read
+  and trusted without ANY type/range check, and without checking it was
+  mathematically consistent with `round_passed_absolute_bar` history.
+- Root cause: treated "the file is JSON we wrote" as a guarantee about
+  what a FUTURE read would find, instead of validating a persisted file as
+  untrusted input every time it's read (a hand edit, a corrupted write, or
+  a future schema drift could all produce a structurally-wrong-but-still-
+  loadable file).
+- How caught: pre-merge hardening task, not a live failure.
+- Fix: added `_round_schema_reason()` (exact `type(x) is T` checks, never
+  `isinstance`, for the top-level list, each entry's dict-ness, and
+  `round`/`round_passed_absolute_bar`/`consecutive_passes`'s exact types)
+  plus a running pass-sequence check inside `load_resumable_round_reports()`
+  (`consecutive_passes` must be `0` after a fail and exactly
+  `previous + 1` after a pass). Any failure rejects the WHOLE summary the
+  same way an identity mismatch does -- see `tests/
+  test_curriculum_resume_identity.py`'s schema/pass-sequence test blocks
+  and `docs/architecture/CURRICULUM_TRAINING_PIPELINE.md`'s
+  "Persisted-schema strictness" note.
+- Lesson: `isinstance` is wrong for validating untrusted JSON-decoded
+  Python values against an exact schema type -- `bool` is an `int`
+  subclass, so `isinstance(x, int)` silently accepts `true`/`false` where
+  the schema means "a genuine integer." Use `type(x) is T`. Separately, a
+  counter field derived from history (`consecutive_passes`) is exactly as
+  much an integrity target as identity fields are -- validate it against
+  the history it claims to summarize, not just its own type.
