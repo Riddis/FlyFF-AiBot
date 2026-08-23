@@ -26,7 +26,12 @@ import numpy as np
 import torch
 
 from farming.actions import FarmingEvent
-from .curriculum_manifests import ChallengeManifest, GeneratorValidationManifest, HeldoutManifest
+from .curriculum_manifests import (
+    ChallengeManifest,
+    GeneratorValidationManifest,
+    HeldoutManifest,
+    resolve_manifest_curriculum_path,
+)
 from .dagger_v193 import _density_binned_eva_report, _merge_density_binned_eva
 from .movement_classification import classify_episode_movement
 from .scripted_policies import scripted_command
@@ -415,10 +420,11 @@ def evaluate_heldout(
     if navigation_steering is not None and use_recovery:
         raise ValueError("navigation_steering and use_recovery are mutually exclusive -- see this function's docstring")
     net = model.policy
+    curriculum_path = str(resolve_manifest_curriculum_path(manifest.curriculum_path))
     per_layout: dict[str, Any] = {}
     for layout_name in manifest.layouts:
         teacher_results = [
-            _run_teacher_episode(manifest.curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage)
+            _run_teacher_episode(curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage)
             for seed in seeds
         ]
         teacher_median_kph = float(np.median([r["kills_per_simulated_hour"] for r in teacher_results]))
@@ -426,7 +432,7 @@ def evaluate_heldout(
             from .navigation_subpolicy import run_composed_episode
             policy_results = [
                 run_composed_episode(
-                    manifest.curriculum_path, layout_name, farming_policy=net, navigation_steering=navigation_steering,
+                    curriculum_path, layout_name, farming_policy=net, navigation_steering=navigation_steering,
                     seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage,
                 )
                 for seed in seeds
@@ -434,7 +440,7 @@ def evaluate_heldout(
         else:
             policy_results = [
                 run_episode(
-                    manifest.curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds,
+                    curriculum_path, layout_name, net=net, seed=seed, episode_seconds=episode_seconds,
                     max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=manifest.stage,
                 )
                 for seed in seeds
@@ -470,14 +476,17 @@ def evaluate_challenge(
             max_actions=max_actions, recovery=(_new_recovery_controller() if use_recovery else None), stage=manifest.stage,
         )
 
+    challenge_family_curriculum_path = str(resolve_manifest_curriculum_path(manifest.challenge_family_curriculum_path))
+
     fixed_results: dict[str, Any] = {}
     for scenario in manifest.fixed_regression_scenarios:
+        scenario_curriculum_path = str(resolve_manifest_curriculum_path(scenario.curriculum_path))
         teacher = _run_teacher_episode(
-            scenario.curriculum_path, scenario.layout, seed=scenario.seed,
+            scenario_curriculum_path, scenario.layout, seed=scenario.seed,
             episode_seconds=scenario.episode_seconds, max_actions=scenario.max_actions, stage=manifest.stage,
         )
         policy = _roll_policy(
-            scenario.curriculum_path, scenario.layout, seed=scenario.seed,
+            scenario_curriculum_path, scenario.layout, seed=scenario.seed,
             episode_seconds=scenario.episode_seconds, max_actions=scenario.max_actions,
         )
         policy["teacher_ratio"] = policy["kills_per_simulated_hour"] / teacher["kills_per_simulated_hour"] if teacher["kills_per_simulated_hour"] else None
@@ -487,13 +496,13 @@ def evaluate_challenge(
     per_layout: dict[str, Any] = {}
     for layout_name in manifest.challenge_family_layouts:
         teacher_results = [
-            _run_teacher_episode(manifest.challenge_family_curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage)
+            _run_teacher_episode(challenge_family_curriculum_path, layout_name, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, stage=manifest.stage)
             for seed in family_seeds
         ]
         teacher_median_kph = float(np.median([r["kills_per_simulated_hour"] for r in teacher_results]))
         policy_results = [
             _roll_policy(
-                manifest.challenge_family_curriculum_path, layout_name, seed=seed,
+                challenge_family_curriculum_path, layout_name, seed=seed,
                 episode_seconds=episode_seconds, max_actions=max_actions,
             )
             for seed in family_seeds
@@ -566,8 +575,9 @@ def evaluate_heldout_parallel(
 
     from concurrent.futures import ProcessPoolExecutor
 
+    curriculum_path = str(resolve_manifest_curriculum_path(manifest.curriculum_path))
     tasks = [
-        (manifest.curriculum_path, layout_name, seed, episode_seconds, max_actions, use_recovery, manifest.stage)
+        (curriculum_path, layout_name, seed, episode_seconds, max_actions, use_recovery, manifest.stage)
         for layout_name in manifest.layouts for seed in seeds
     ]
     with ProcessPoolExecutor(
@@ -626,11 +636,12 @@ def evaluate_challenge_parallel(
     from concurrent.futures import ProcessPoolExecutor
 
     fixed_tasks = [
-        (s.curriculum_path, s.layout, s.seed, s.episode_seconds, s.max_actions, s.expected_failure_signature, use_recovery, manifest.stage)
+        (str(resolve_manifest_curriculum_path(s.curriculum_path)), s.layout, s.seed, s.episode_seconds, s.max_actions, s.expected_failure_signature, use_recovery, manifest.stage)
         for s in manifest.fixed_regression_scenarios
     ]
+    challenge_family_curriculum_path = str(resolve_manifest_curriculum_path(manifest.challenge_family_curriculum_path))
     family_tasks = [
-        (manifest.challenge_family_curriculum_path, layout_name, seed, episode_seconds, max_actions, use_recovery, manifest.stage)
+        (challenge_family_curriculum_path, layout_name, seed, episode_seconds, max_actions, use_recovery, manifest.stage)
         for layout_name in manifest.challenge_family_layouts for seed in family_seeds
     ]
 

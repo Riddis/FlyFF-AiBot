@@ -48,7 +48,14 @@ Supporting modules:
   layouts), `ChallengeManifest` (fixed regression scenarios + fresh
   challenge-family siblings), `GeneratorValidationManifest` (suspected
   generator-constraint violations, excluded from scoring until a human
-  confirms).
+  confirms). Every manifest's `curriculum_path` field (and
+  `challenge_family_curriculum_path`/`FixedRegressionScenario.
+  curriculum_path`) is stored relative to `simulator/` itself, never the
+  repo root, the manifest JSON's own directory, or a subprocess's cwd —
+  callers MUST resolve it through `resolve_manifest_curriculum_path()`
+  before treating it as an openable path (a caller that skipped this,
+  Basic's raw diagnostic, silently crashed every round of the first
+  canonical Basic run to reach it; see `MISTAKES.md` 2026-08-24).
 - `simulator/milestone_evaluator.py` — the **one evaluator both training
   and grading use**: `run_episode` rolls a loaded policy through one
   episode and reports kills/hour, contact/collision statistics, steering/
