@@ -481,16 +481,25 @@ def _human_session_stratified_split(
     validation_fraction: float,
     seed: int,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Hold out whole human sessions, but guarantee validation still
-    contains every steering/event class that exists anywhere in the
-    label-valid data.
+    """Hold out whole human sessions, but guarantee BOTH train and
+    validation still contain every steering/event class that exists
+    anywhere in the label-valid data.
 
     A naive random session holdout can land entirely on e.g. eva_only-role
     sessions, whose samples are all event=CAST_EVA with no steering-valid or
     event=NONE examples at all -- that would fail the stage gate regardless
     of how well the policy actually performs, exactly the same failure mode
     ``_layout_stratified_episode_split`` already guards against for the
-    scripted dataset.
+    scripted dataset. The symmetric failure on the TRAIN side is just as
+    real and was not originally guarded against: confirmed against this
+    project's actual canonical Basic human dataset (2 direct_keyboard + 6
+    eva_only sessions), where the stable per-file seed happened to draw
+    both direct_keyboard sessions -- the only sessions with any NONE/JUMP
+    examples -- into the initial validation pick, leaving TRAIN with zero
+    NONE and zero JUMP examples. A class-weighted loss cannot recover from
+    a class that never appears in training even once; the trained head
+    deterministically collapsed onto whatever class train did have
+    (CAST_EVA). See MISTAKES.md's Stage-3b event-bootstrap-collapse entry.
     """
 
     sessions = np.unique(session_index)
@@ -522,6 +531,47 @@ def _human_session_stratified_split(
         # No session anywhere has this class (e.g. no recorded jump at all):
         # nothing to add. The gate itself treats a genuinely absent class as
         # "no examples", never a failure, so this is a safe no-op.
+
+    # Symmetric guarantee for TRAIN: the loop above only ever ADDS sessions
+    # to validation, so if the class-count-based initial draw happens to
+    # place every session carrying a given required class into validation
+    # (confirmed for real: with this project's 2 direct_keyboard + 6
+    # eva_only human sessions, the stable per-file seed for the canonical
+    # Basic bootstrap dataset draws exactly the 2 direct_keyboard sessions
+    # into the initial validation pick -- the only sessions with any
+    # NONE/JUMP examples at all -- leaving TRAIN with zero NONE and zero
+    # JUMP examples), no amount of downstream loss class-weighting can teach
+    # a head to recognize a class it was never shown even once; the trained
+    # head deterministically collapses onto whatever class train DOES have.
+    # Move one validation session carrying the missing class back to train,
+    # unless doing so would itself strip validation of its own last
+    # remaining source of some (possibly different) required class -- in
+    # that irreducible-scarcity case (a class existing in only one session
+    # total), leave train without it rather than just relocating the same
+    # starvation onto validation instead.
+    for valid_mask, value, head in required:
+        train_current = ~np.isin(session_index, tuple(validation_sessions)) & valid_mask
+        if np.any(labels[train_current, head] == value):
+            continue
+        candidates = [
+            int(session)
+            for session in sorted(validation_sessions)
+            if np.any(labels[(session_index == session) & valid_mask, head] == value)
+        ]
+        for candidate in candidates:
+            remaining = validation_sessions - {candidate}
+            remaining_mask = np.isin(session_index, tuple(remaining))
+            if all(
+                np.any(labels[remaining_mask & vmask, h] == v)
+                or not np.any(labels[(session_index == candidate) & vmask, h] == v)
+                for vmask, v, h in required
+            ):
+                validation_sessions.discard(candidate)
+                break
+        # If no safe candidate exists, every session with this class is
+        # already load-bearing for validation's own coverage -- a real
+        # data-scarcity fact to surface via the reported diagnostics, not
+        # something this split can manufacture away.
 
     validation_mask = np.isin(session_index, tuple(validation_sessions))
     return np.flatnonzero(~validation_mask), np.flatnonzero(validation_mask)
