@@ -42,7 +42,7 @@ this note exists to prevent repeating).
 .\.venv\Scripts\python.exe docs\migration\tools\migration_integrity.py check
 ```
 
-**Accepted baseline:** `ok: true`, `R6=0 R7a=0 R7b=0 R7c=252 R9=0
+**Accepted baseline:** `ok: true`, `R6=0 R7a=0 R7b=0 R7c=256 R9=0
 R10=0`. (`R7b` is a retired rule kept only so a legacy/ package boundary
 never silently reappears uncaught -- see `CANONICAL_OWNERS.toml`'s
 retirement note.) `R10` additionally reports `r10_checkpoint_count: 313`,

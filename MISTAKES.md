@@ -1927,3 +1927,56 @@ sweep.
   unless every affected field is asserted on individually. Grep other
   callers of the same default-merge function for the same override dict to
   check whether they share the identical latent gap.
+
+### [2026-08-23] "archive legacy artifact before reuse" still overwrote the same path it just archived
+
+- What happened: the first version of `simulator/curriculum_resume_identity.py`
+  (pre-merge blocker remediation) fixed "resume from any same-named file
+  regardless of architecture generation" by reading a cache/round-summary
+  file, checking its identity, and -- on mismatch -- copying it aside via
+  `archive_legacy_artifact()` before returning "not resumable." The bug:
+  every call site then computed a FRESH result and wrote it back to the
+  EXACT SAME path (`zero_shot_path.write_text(...)`, `summary_path.
+  write_text(...)`) that the archive had just been copied from. The
+  archive step technically ran, but the very next lines in the same
+  function silently overwrote the original -- so "historical evidence
+  remains untouched" was true only for one tick between the archive call
+  and the write call, not as a durable property. A second, independent
+  design flaw stacked on top: the archive filename was timestamp-based
+  (`.legacy-{datetime.now()...}`), so a repeated failed startup against
+  unchanged legacy bytes would create `copy1`, `copy2`, `copy3`, ... on
+  every run instead of being idempotent.
+- Root cause: treated "archive before reuse" as sufficient to satisfy
+  "never mutate historical evidence" without checking what happens
+  immediately AFTER the archive call in each of the (several) call sites
+  that share the same variable name for both the read-check path and the
+  write-fresh-result path -- an easy mistake because the code reads as
+  "archive it, then proceed as if starting fresh," which sounds safe but
+  the "proceed" step still targets the original filename.
+- How caught: independent Codex pre-merge review (final remediation pass,
+  2026-08-23), which explicitly named both the overwrite-after-archive gap
+  and the archive-naming non-idempotence as blockers, distinct from (and
+  found after) the first remediation pass that only checked architecture-
+  generation identity, not full content-based identity.
+- Fix: replaced the archive-then-overwrite pattern entirely with
+  **generation-namespaced output paths** (`current_generation_path()`
+  inserts a stable tag, e.g. `canonical_beginner_run_summary.
+  target_event_v1.json`, before the file suffix) -- current code never
+  reads or writes the historical filename at all, so there is nothing to
+  archive or accidentally overwrite for a different architecture
+  generation. The archive helper was removed outright (not merely made
+  idempotent) once the namespacing made it unnecessary for the common
+  case; these JSON artifacts are git-tracked, so history remains
+  recoverable through git for the now-rare within-generation content-drift
+  case. See `docs/architecture/CURRICULUM_TRAINING_PIPELINE.md`'s
+  "Resume-identity and evaluation-cache identity" section and
+  `tests/test_curriculum_resume_identity.py::
+  test_legacy_filename_at_old_path_is_never_read_by_the_current_loader`.
+- Lesson: when a fix's safety property is "X happens before Y" (archive
+  before overwrite), trace what Y actually targets all the way through --
+  a safety step that runs but writes to storage the very next step will
+  clobber provides no real protection. Prefer eliminating the shared
+  target entirely (different paths for different generations) over
+  sequencing safety around a single shared mutable path; a namespace
+  separation is easier to verify correct by inspection than an ordering
+  invariant is.

@@ -321,39 +321,102 @@ checkpoint's manifest silently inherited `build_run_manifest`'s own
 corrected 2026-08-23, see `tests/test_basic_checkpoint_provenance.py` and
 `MISTAKES.md`'s same-day "partial architecture_contract override" entry.
 
-**Resume-identity gate** (pre-merge blocker remediation, 2026-08-23):
-`simulator/curriculum_resume_identity.py` defines the minimum identity
-(`generation_id`, `policy_action_nvec`, `raw_observation_size`,
-`navigation_checkpoint_sha256`, and each stage's own `declared_parent_
-checkpoint`) a stored `canonical_<stage>_run_summary.json` round or cached
-evaluation (zero-shot diagnostic, pre-/post-rehearsal) must carry to be
-trusted for resume/reuse. Beginner/Intermediate/Advanced previously resumed
-`consecutive_passes`/`current_checkpoint`/cached evaluations from any
-same-named file purely because it existed on disk — including the tracked
-pre-2026-08-21-root-collapse summaries that still embed obsolete
-`flyff_farming_simulator/` checkpoint paths and a stale `consecutive_
-passes=2`. A stored artifact whose identity is missing or mismatched is now
-archived byte-identical (never mutated in place) and ignored for resume;
-the current run starts fresh from the stage's own declared parent
-checkpoint. See `tests/test_curriculum_resume_identity.py`.
+**Resume-identity and evaluation-cache identity** (pre-merge blocker
+remediation 2026-08-23, strengthened by the final remediation the same
+day): `simulator/curriculum_resume_identity.py` gives every stored
+current-generation artifact a full, content-based identity, not merely an
+architecture-generation check:
 
-**Target invalidation on planner failure** (pre-merge blocker remediation,
-2026-08-23): a selected target that is still alive/present but that the
-production router cannot currently produce a route to (`SteeringTickResult.
-planner_failure=True`) is now treated the same as death/disappearance —
-`PersistentFarmingTarget.invalidate()` clears the resolved target to `NONE`
-and `FrozenNavigationSteering.reset()` clears its own stale route/
-persistence-controller/snapshot state, both in `FarmingPolicyWrapper.step`
-and `run_composed_episode`. Previously the target stayed latched
-indefinitely (steering held at `NONE` every tick) once a route could not be
-found, silently substituting "no movement" for what should have been a new
-target decision. Invalidation is immediate (one tick, on the router's own
-authoritative failure signal) and never a heuristic substitution of a
-different actor — the next tick's `KEEP` resolves to no-target until the
-policy explicitly selects again. See `info["target_invalidated_by_planner_
-failure"]` for the per-tick telemetry flag and `tests/
-test_farming_target_policy.py`'s planner-failure/disappearance/respawn
-lifecycle tests.
+- **Round records** (`canonical_<stage>_run_summary.<namespace>.json`) —
+  `round_identity()` stamps `generation_id`, `policy_action_nvec`,
+  `raw_observation_size`, `navigation_checkpoint_sha256`,
+  `curriculum_stage`, `declared_parent_checkpoint` (path)
+  + `declared_parent_checkpoint_sha256` (content), and the round's own
+  `current_checkpoint` (path) + `current_checkpoint_sha256` (content).
+  `round_record_validity_reason()` rejects a stored round if the
+  architecture/stage/parent don't match what the current run expects, OR
+  if the parent checkpoint's bytes changed since the round was recorded,
+  OR if the round's own `carried_forward_checkpoint` path no longer
+  exists, OR if that file's live content SHA-256 no longer matches what
+  was recorded (a same-named file with different model bytes is
+  detected, not silently trusted).
+- **Cached evaluations** (zero-shot diagnostic, pre-/post-rehearsal
+  heldout/unseen/challenge) — `evaluation_cache_identity()` additionally
+  stamps `evaluated_checkpoint` (path + content SHA-256), `evaluation_role`
+  (`heldout`/`unseen_templates`/`challenge`/`pre_rehearsal`/
+  `post_rehearsal`/`zero_shot` — a cache computed for one role can never
+  satisfy a lookup for another), each referenced manifest's content
+  SHA-256, and a canonical (sorted-key JSON, SHA-256) fingerprint of the
+  evaluation configuration that actually affects results (episode
+  duration, seeds, family seeds) — never irrelevant repository state, and
+  `git.commit` is deliberately excluded so a documentation-only commit
+  never invalidates a legitimately resumable cache.
+- **Beginner's heldout/unseen/challenge caches are one coherent set**
+  (`RUN_CANONICAL_BEGINNER.py::_load_coherent_evaluation_set`): all three
+  must independently validate against the SAME checkpoint before any is
+  reused; if even one is missing or stale, all three are recomputed
+  together — never a mix of valid and stale members.
+- **No orphan-checkpoint resume**: `_resume_round_state()` (one per
+  stage) never inspects `MODELS_DIR` or globs for a same-named checkpoint
+  file — the ONLY path to resuming a round's checkpoint is a validated
+  round record vouching for it by content SHA. Absent one, the stage
+  starts fresh from its declared graduated parent checkpoint, even if a
+  plausible-looking orphaned PPO chunk file exists on disk.
+- **Current vs. historical generations never collide on disk**:
+  `current_generation_path()` writes every current-generation artifact
+  under a namespaced filename (`canonical_beginner_run_summary.
+  target_event_v1.json`, not the historical `canonical_beginner_run_
+  summary.json`) — current code never reads or writes the historical
+  path at all, so tracked pre-2026-08-21-root-collapse summaries (which
+  still embed obsolete `flyff_farming_simulator/` checkpoint paths and a
+  stale `consecutive_passes=2`) are left completely untouched by
+  construction, not by a read-then-reject-then-archive step that could
+  still end up overwriting them (the earlier design's actual bug — see
+  `MISTAKES.md`'s 2026-08-23 "archive-then-overwrite" entry). There is no
+  archive-copy mechanism: these files are git-tracked (history recoverable
+  via git if ever needed) and a content mismatch within one generation is
+  a rare edge case, not the common path this scheme exists to handle.
+
+See `tests/test_curriculum_resume_identity.py` and `tests/
+test_beginner_cache_coherence_and_resume_behavior.py` (the latter drives
+each runner's actual `_resume_round_state`/`_load_coherent_evaluation_set`
+functions against real temporary files, not source-string inspection).
+
+**Target invalidation on planner failure** (pre-merge blocker remediation
+2026-08-23; extended to Basic's own production rollout by the final
+remediation the same day): a selected target that is still alive/present
+but that the production router cannot currently produce a route to
+(`SteeringTickResult.planner_failure=True`) is treated the same as death/
+disappearance — the resolved target is cleared to `NONE` and the steering
+oracle's own stale route/persistence-controller/snapshot state is reset.
+This now applies identically everywhere a target is resolved and steered:
+`FarmingPolicyWrapper.step` (Beginner/Intermediate/Advanced PPO training
+and evaluation), `run_composed_episode` (the shared composed-evaluation
+rollout every `evaluate_heldout`/`evaluate_challenge` call dispatches
+through), and `simulator/basic_environment.py::_roll_basic_episode` (Basic's
+own real training-time rollout AND, since `basic_milestone_evaluator.py`
+calls the same function, Basic's milestone evaluation too — one fix, no
+separate loop to keep in sync). Basic's deterministic target-selection
+TEACHER (`deterministic_target_teacher_action`) continues to LABEL every
+tick for DAgger supervision exactly as before; invalidation never causes
+the environment to silently EXECUTE the teacher's pick in place of the
+learned target. Recovery (Basic's own recovery-assisted collection) has no
+coupling to target/navigation state at all (confirmed directly:
+`RecoveryController` never references `PersistentFarmingTarget` or
+`FrozenNavigationSteering`), so it cannot resurrect an invalidated target
+or substitute a different actor. Invalidation is immediate (one tick, on
+the router's own authoritative failure signal, no timeout/retry-count
+needed since the router already retries every tick a target stays
+selected) and never a heuristic substitution of a different actor — the
+next tick's `KEEP` resolves to no-target until the policy explicitly
+selects again. See `info["target_invalidated_by_planner_failure"]` /
+`run_composed_episode`'s `target_invalidations_by_planner_failure` counter
+/ `_roll_basic_episode`'s own `summary["target_invalidations_by_planner_
+failure"]` for the per-path telemetry, and `tests/
+test_farming_target_policy.py`'s (Beginner+) and `tests/
+test_basic_stage_frozen_navigation_integration.py`'s (Basic's REAL
+production rollout, not just the shared helper in isolation)
+planner-failure/disappearance/respawn lifecycle tests.
 
 **Zero-collision hard graduation gate** (`docs/PROJECT_GOALS.md` §2a):
 Beginner, Intermediate, and Advanced all gate graduation on

@@ -539,16 +539,32 @@ def test_actual_supplement_covers_exactly_the_35_post_phase9_r7c_edges() -> None
     assert all("navigation" in key for key in keys)
 
 
-def test_actual_supplement_covers_exactly_the_35_post_premerge_ownership_r7c_edges() -> None:
+def test_actual_supplement_covers_exactly_the_39_post_premerge_ownership_r7c_edges() -> None:
     """Registering simulator/farming_target_policy.py and simulator/
     navigation_subpolicy.py in CANONICAL_OWNERS.toml (pre-merge blocker
     remediation, blocker 5) made the tool track their symbols for the
-    first time, surfacing 30 already-existing import edges (tests,
+    first time, surfacing 28 genuinely pre-existing import edges (tests,
     scratchpads, basic_environment.py, and farming_target_policy.py's own
-    cross-import of navigation_subpolicy.py) plus 5 more from this same
-    task's own new test files -- none of it new architectural coupling."""
+    cross-import of navigation_subpolicy.py, present before this
+    remediation branch touched those files at all) plus 11 new edges from
+    this same overall remediation effort's own changes: 2 from the
+    pre-merge blocker remediation's blocker 4 fix to tests/
+    test_farming_target_policy.py (new SteeringDirection and
+    SteeringTickResult imports added alongside its planner-failure
+    invalidation tests), 5 from that same task's brand-new test files
+    (test_basic_checkpoint_provenance.py, test_curriculum_resume_
+    identity.py), and 4 from the FINAL pre-merge remediation's blocker B
+    fix (Basic's real _roll_basic_episode production-path planner-failure
+    test in tests/test_basic_stage_frozen_navigation_integration.py,
+    which needed FarmingEvent/KEEP_CURRENT_TARGET_ACTION/SteeringDirection/
+    SteeringTickResult to construct its controlled scenario) -- none of it
+    new architectural coupling in any case, just new/newly-tracked
+    consumers of already-canonical symbols. (An earlier version of this
+    docstring said "30 pre-existing + 5 new" for a then-35-row supplement;
+    corrected 2026-08-23 first for the blocker-4 misclassification, then
+    grown again the same day by the final remediation's own 4 new edges.)"""
     rows = integrity.load_supplement(REPO / "docs/migration/POST_PREMERGE_OWNERSHIP_R7C_SUPPLEMENT.tsv")
-    assert len(rows) == 35
+    assert len(rows) == 39
     keys = integrity.supplement_keys(rows)
     assert all(key.startswith("R7c|") for key in keys)
     assert all(
@@ -598,13 +614,23 @@ def test_actual_repository_integrity_gate_is_green_via_frozen_baseline_plus_supp
     # etc.) other already-existing files (tests, scratchpads,
     # basic_environment.py, farming_target_policy.py itself importing from
     # navigation_subpolicy.py) already legitimately imported. Registering
-    # the concept made the tool see these pre-existing import edges for the
-    # first time -- 30 edges -- plus 5 more from this same task's own new
-    # test files (test_basic_checkpoint_provenance.py,
+    # the concept made the tool see 28 genuinely pre-existing import edges
+    # for the first time, plus 7 new edges introduced by that same
+    # remediation effort itself: 2 from blocker 4's fix to tests/
+    # test_farming_target_policy.py (new SteeringDirection/SteeringTickResult
+    # imports) and 5 from that task's brand-new test files
+    # (test_basic_checkpoint_provenance.py,
     # test_curriculum_resume_identity.py) importing the same
-    # already-canonical symbols. See docs/migration/
+    # already-canonical symbols -- 28 + 7 = 35 total.
+    # 256 (was 252): the FINAL pre-merge remediation (2026-08-23, same day)
+    # added 4 more R7c edges via blocker B's real-production-path Basic
+    # planner-failure test (tests/test_basic_stage_frozen_navigation_
+    # integration.py): FarmingEvent, KEEP_CURRENT_TARGET_ACTION,
+    # SteeringDirection, SteeringTickResult -- all already-canonical
+    # symbols, new legitimate consumer, not new architectural coupling.
+    # 35 + 4 = 39 total. See docs/migration/
     # POST_PREMERGE_OWNERSHIP_R7C_SUPPLEMENT.tsv for the per-row detail.
-    assert payload["baseline_counts"] == {"R6": 0, "R7a": 0, "R7b": 0, "R7c": 252}
+    assert payload["baseline_counts"] == {"R6": 0, "R7a": 0, "R7b": 0, "R7c": 256}
     assert payload["r9_violations"] == 0
     assert payload["r10_failures"] == []
     assert set(payload["supplement_entries_applied"]) == _all_supplement_keys()
