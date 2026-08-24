@@ -92,6 +92,7 @@ in the authorized Phase-A scope.
 | Phase-A commit | `e59e35ee318535d63dfe802610047ddf1ed5d001` |
 | Locally merged main | `d98ec3b5ba34527eb59acf028921a091586cced9` |
 | Audit branch | `audit/beginner-navigation-stack` |
+| Audit evidence/report commit | `bc6c249` (`Audit Beginner navigation stack failures`) |
 | Pushed | **NO** — the origin/main mutation requires separate explicit user approval; the safety reviewer rejected the unauthorised push attempt |
 
 Expected pre-existing generated Basic/Beginner artifacts were preserved. The
