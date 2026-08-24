@@ -45,3 +45,7 @@ def test_sb3_progress_callback_does_not_spam_past_total(capsys) -> None:
     # first call (5) + exactly one forced completion line once >= total, not
     # one line per subsequent overshoot call
     assert len(lines) == 2
+    assert "(100.0%)" in lines[-1]
+    assert "requested=10/10" in lines[-1]
+    assert "actual_rollout_aligned=11" in lines[-1]
+    assert "101." not in lines[-1]
