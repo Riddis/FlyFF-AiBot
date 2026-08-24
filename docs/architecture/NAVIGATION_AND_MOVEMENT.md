@@ -160,6 +160,28 @@ checkpoint through this same router, via
 sections 3 (qualification-vs-runtime distinction) and 4/5 (current
 frozen-navigation integration) rather than assuming either way.
 
+## 8. Beginner composition audit status (2026-08-24/25)
+
+The offline audit in
+`simulator/run_logs/BEGINNER_NAVIGATION_STACK_AUDIT_20260824.md` supersedes
+any assumption that the historical 119/120
+monster-approach baseline proves the *current full composition* is safe on
+Beginner geometry. The planner, movement kernel, collision physics, and
+928-value history semantics did not regress. The current failure is at their
+composition boundaries:
+
+1. a failed plan yields `SteeringDirection.NONE`, which is forward motion;
+2. failure invalidation can be followed by immediate same-actor reselection
+   and hundreds of repeated plans;
+3. a one-state goal-radius success is rejected by
+   `FrozenNavigationSteering` as failure; and
+4. persistent-waypoint compression does not bind 0051200 to the planner's
+   safe primitive sequence.
+
+These are known debt, not authorized production fixes in the audit. The next
+gate must qualify planner/router, frozen steering, and full composition
+separately on each curriculum geometry class before farming PPO resumes.
+
 ## Evidence / Sources
 
 - `navigation/kinodynamic_route_planner.py`, `navigation/

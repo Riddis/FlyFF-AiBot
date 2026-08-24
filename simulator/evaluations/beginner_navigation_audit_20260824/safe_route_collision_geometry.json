@@ -1,0 +1,408 @@
+{
+  "checkpoint": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\models\\canonical_beginner_ppo_010k.zip",
+  "layout": "04_early_wide_neck_typical_bursty",
+  "seed": 1,
+  "contact_onset_tick": 40,
+  "navigation_state_class": "VALID_PLAN_STABLE_WAYPOINT",
+  "route_plan_tick": 39,
+  "route_states": 9,
+  "route_length_cells": 22.94360296782514,
+  "route_min_clearance_cells": 1.4142135623730951,
+  "planned_first_primitive": "RIGHT",
+  "all_route_cells_traversable": true,
+  "current_waypoint_segment_clear": true,
+  "current_waypoint_segment_clearance_cells": 1.4142135623730951,
+  "physics_contact_onset": true,
+  "pre_cell": [
+    105,
+    115
+  ],
+  "post_cell": [
+    106,
+    116
+  ],
+  "waypoint_cell": [
+    117,
+    111
+  ],
+  "previous_steering": 1,
+  "applied_steering": 1,
+  "desired_waypoint_angle_radians": 2.3741989695936603,
+  "navigation_sidecar": [
+    1.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0
+  ],
+  "steering_probabilities": [
+    0.038550909608602524,
+    0.9606608748435974,
+    0.0007882456411607563
+  ],
+  "preceding_pose_primitive_geometry": [
+    {
+      "tick": 32,
+      "applied_steering": "NONE",
+      "actual_contact_onset": false,
+      "primitive_geometry": {
+        "NONE": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            43.826747541235264,
+            -77.59694595852274,
+            -2.8756538485559453
+          ]
+        },
+        "LEFT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            44.79506129608319,
+            -79.2022114304083,
+            -2.0826758485559456
+          ]
+        },
+        "RIGHT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            43.9067331542134,
+            -75.54154850246981,
+            2.533882458623643
+          ]
+        }
+      }
+    },
+    {
+      "tick": 33,
+      "applied_steering": "RIGHT",
+      "actual_contact_onset": false,
+      "primitive_geometry": {
+        "NONE": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            39.599191351899904,
+            -78.74849319426254,
+            -2.8756538485559453
+          ]
+        },
+        "LEFT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            40.56750510674783,
+            -80.3537586661481,
+            -2.0826758485559456
+          ]
+        },
+        "RIGHT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            39.61962437576896,
+            -76.87390223765593,
+            2.6145534586236416
+          ]
+        }
+      }
+    },
+    {
+      "tick": 34,
+      "applied_steering": "NONE",
+      "actual_contact_onset": false,
+      "primitive_geometry": {
+        "NONE": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            35.83261962555506,
+            -74.67006753605406,
+            2.6145534586236416
+          ]
+        },
+        "LEFT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            35.368446066390504,
+            -76.48639671052328,
+            -2.8756538485559453
+          ]
+        },
+        "RIGHT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            37.35310771807754,
+            -73.28472557064279,
+            1.7409044586236424
+          ]
+        }
+      }
+    },
+    {
+      "tick": 35,
+      "applied_steering": "NONE",
+      "actual_contact_onset": false,
+      "primitive_geometry": {
+        "NONE": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            32.045614875341165,
+            -72.4662328344522,
+            2.6145534586236416
+          ]
+        },
+        "LEFT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            31.581441316176612,
+            -74.28256200892142,
+            -2.8756538485559453
+          ]
+        },
+        "RIGHT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            33.39549842393305,
+            -71.16533961504612,
+            1.821575458623642
+          ]
+        }
+      }
+    },
+    {
+      "tick": 36,
+      "applied_steering": "LEFT",
+      "actual_contact_onset": false,
+      "primitive_geometry": {
+        "NONE": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            28.25861012512727,
+            -70.26239813285034,
+            2.6145534586236416
+          ]
+        },
+        "LEFT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            27.794436565962712,
+            -72.07872730731955,
+            -2.8756538485559453
+          ]
+        },
+        "RIGHT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            29.608493673719156,
+            -68.96150491344426,
+            1.821575458623642
+          ]
+        }
+      }
+    },
+    {
+      "tick": 37,
+      "applied_steering": "LEFT",
+      "actual_contact_onset": false,
+      "primitive_geometry": {
+        "NONE": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 6.4031242374328485,
+          "physics_contact": false,
+          "physics_end": [
+            23.566880376627388,
+            -73.23027454305935,
+            -2.8756538485559453
+          ]
+        },
+        "LEFT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 5.656854249492381,
+          "physics_contact": false,
+          "physics_end": [
+            24.678216370668878,
+            -74.9611670033179,
+            -2.0020048485559467
+          ]
+        },
+        "RIGHT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 7.0,
+          "physics_contact": false,
+          "physics_end": [
+            23.587313400496402,
+            -71.35568358645274,
+            2.6145534586236416
+          ]
+        }
+      }
+    },
+    {
+      "tick": 38,
+      "applied_steering": "RIGHT",
+      "actual_contact_onset": false,
+      "primitive_geometry": {
+        "NONE": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 3.605551275463989,
+          "physics_contact": false,
+          "physics_end": [
+            22.84684940751952,
+            -78.94166790350774,
+            -2.0020048485559467
+          ]
+        },
+        "LEFT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 3.1622776601683795,
+          "physics_contact": false,
+          "physics_end": [
+            24.88739915791229,
+            -79.20092282979485,
+            -1.128355848555946
+          ]
+        },
+        "RIGHT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 2.8284271247461903,
+          "physics_contact": false,
+          "physics_end": [
+            21.42276266314259,
+            -77.72245270201722,
+            -2.7949828485559465
+          ]
+        }
+      }
+    },
+    {
+      "tick": 39,
+      "applied_steering": "LEFT",
+      "actual_contact_onset": false,
+      "primitive_geometry": {
+        "NONE": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 1.0,
+          "physics_contact": false,
+          "physics_end": [
+            17.301750823073018,
+            -79.21092634442203,
+            -2.7949828485559465
+          ]
+        },
+        "LEFT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 1.0,
+          "physics_contact": false,
+          "physics_end": [
+            18.39627344330832,
+            -80.73294112649505,
+            -2.0020048485559467
+          ]
+        },
+        "RIGHT": {
+          "planner_arc_collision_free": true,
+          "planner_arc_min_clearance_cells": 1.4142135623730951,
+          "physics_contact": false,
+          "physics_end": [
+            17.21584512926977,
+            -77.15576780737325,
+            2.6145534586236416
+          ]
+        }
+      }
+    },
+    {
+      "tick": 40,
+      "applied_steering": "LEFT",
+      "actual_contact_onset": true,
+      "primitive_geometry": {
+        "NONE": {
+          "planner_arc_collision_free": false,
+          "planner_arc_min_clearance_cells": 0.0,
+          "physics_contact": true,
+          "physics_end": [
+            16.839611524631366,
+            -80.73294112649505,
+            -2.0020048485559467
+          ]
+        },
+        "LEFT": {
+          "planner_arc_collision_free": false,
+          "planner_arc_min_clearance_cells": 0.0,
+          "physics_contact": true,
+          "physics_end": [
+            18.605456230551734,
+            -81.53973549186775,
+            -1.128355848555946
+          ]
+        },
+        "RIGHT": {
+          "planner_arc_collision_free": false,
+          "planner_arc_min_clearance_cells": 0.0,
+          "physics_contact": true,
+          "physics_end": [
+            16.873335208454655,
+            -80.73294112649505,
+            -2.7949828485559465
+          ]
+        }
+      }
+    }
+  ],
+  "two_step_counterfactual_from_tick_before_onset": {
+    "NONE": {
+      "first_tick_contact": false,
+      "second_tick_contact_by_action": {
+        "NONE": true,
+        "LEFT": true,
+        "RIGHT": true
+      },
+      "has_collision_free_second_action": false
+    },
+    "LEFT": {
+      "first_tick_contact": false,
+      "second_tick_contact_by_action": {
+        "NONE": true,
+        "LEFT": true,
+        "RIGHT": true
+      },
+      "has_collision_free_second_action": false
+    },
+    "RIGHT": {
+      "first_tick_contact": false,
+      "second_tick_contact_by_action": {
+        "NONE": false,
+        "LEFT": true,
+        "RIGHT": false
+      },
+      "has_collision_free_second_action": true
+    }
+  },
+  "overlay": "C:\\Users\\Ridd\\Documents\\Repos\\Flyff RL\\simulator\\evaluations\\beginner_navigation_audit_20260824\\safe_route_collision_occupancy_overlay.png"
+}

@@ -76,6 +76,30 @@ Source of record: `tools/future_runtime_profile/dependency_profiles.toml`'s
   where user settings should canonically live, not evidence-driven
   cleanup). See `docs/architecture/SYSTEM_OVERVIEW.md` section 3a.
 
+### Beginner navigation composition (confirmed 2026-08-24/25)
+
+The offline Beginner navigation audit confirmed three unresolved runtime
+limitations. Full evidence and ordered remediation are in
+`simulator/run_logs/BEGINNER_NAVIGATION_STACK_AUDIT_20260824.md`.
+
+- **Failed-plan `NONE` is forward motion, not stop.** The target/router are
+  reset, but immediate reselection can re-run the same failed problem every
+  tick while continuing into contact. This is the primary collision/wedge
+  mechanism in the audited cases.
+- **One-state planner success is rejected by composition.** `plan_route`
+  returns a valid one-state route when already inside its 2.5-cell goal
+  radius; `FrozenNavigationSteering` treats `len(route) < 2` as failure,
+  producing avoidable invalidation/reselection churn.
+- **Waypoint compression discards the planner's primitive sequence.** A
+  clear waypoint chord does not constrain 0051200 to the planner's safe
+  first primitive. The audit includes a counterfactual where the planner
+  chose `RIGHT`, 0051200 chose `LEFT`, and only the latter created an
+  unavoidable next-tick collision state.
+
+Do not start another full Beginner PPO run until these are remediated and
+standalone composed navigation passes the exact distinct-contact onset gate
+on Beginner geometry.
+
 ## Real scientific uncertainty (reader timing / population)
 
 See `docs/architecture/RECORDING_TELEMETRY_AND_ARCHIVES.md` sections
