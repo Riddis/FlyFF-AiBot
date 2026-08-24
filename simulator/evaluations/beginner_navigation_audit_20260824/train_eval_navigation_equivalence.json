@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "layout": "04_early_wide_neck_typical_bursty",
+  "seed": 1,
+  "ticks_compared": 450,
+  "navigation_vectors_compared": 310,
+  "navigation_vector_size": 928,
+  "max_position_delta_native": 0.0,
+  "max_heading_delta_radians": 0.0,
+  "actions": "identical deterministic teacher target + NONE event",
+  "optimizer_updates": 0
+}

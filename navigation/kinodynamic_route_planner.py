@@ -72,6 +72,7 @@ from __future__ import annotations
 
 import heapq
 import math
+import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -110,6 +111,29 @@ DEFAULT_MAX_EXPANSIONS = 40_000  # was 6000 -- the 2026-08-12 heading-fidelity
 # with a larger budget), not a fit to any specific failing episode.
 DEFAULT_MAX_DISTANCE_CELLS = 120.0
 POSITION_SNAP_CELLS = 1.0  # state-key rounding for the closed set
+
+
+class PlanFailureReason(Enum):
+    """Exhaustive audit vocabulary shared with the farming composition.
+
+    ``plan_route`` itself can directly emit the geometric/search reasons.
+    The remaining composition-level values are used by offline audit
+    callers before or around the planner call; keeping one enum prevents
+    ad-hoc post-hoc string inference.
+    """
+
+    SEARCH_BUDGET_EXHAUSTED = "SEARCH_BUDGET_EXHAUSTED"
+    OPEN_SET_EXHAUSTED_NO_PATH = "OPEN_SET_EXHAUSTED_NO_PATH"
+    START_OUT_OF_BOUNDS = "START_OUT_OF_BOUNDS"
+    GOAL_OUT_OF_BOUNDS = "GOAL_OUT_OF_BOUNDS"
+    START_BLOCKED = "START_BLOCKED"
+    GOAL_BLOCKED = "GOAL_BLOCKED"
+    CLEARANCE_REJECTION = "CLEARANCE_REJECTION"
+    ROUTER_PRECONDITION_FAILURE = "ROUTER_PRECONDITION_FAILURE"
+    MAP_LOOKUP_FAILURE = "MAP_LOOKUP_FAILURE"
+    TARGET_POSITION_INVALID = "TARGET_POSITION_INVALID"
+    INTERNAL_EXCEPTION = "INTERNAL_EXCEPTION"
+    OTHER = "OTHER"
 
 
 def _normalize_angle(angle: float) -> float:
@@ -283,8 +307,46 @@ def plan_route(
     destination configuration. If `stats` is provided, it is populated
     with `expansions` (int) before returning, for external reporting --
     does not change the return value's shape."""
+    started_at = time.perf_counter() if stats is not None else 0.0
     cell_size = map_model.native_units_per_cell
     max_native_distance = max_distance_cells * cell_size
+
+    start_cell = map_model.native_to_layout_cell(start_x, start_z)
+    goal_cell = map_model.native_to_layout_cell(destination_x, destination_z)
+    precondition_reason: PlanFailureReason | None = None
+    if start_cell is None:
+        precondition_reason = PlanFailureReason.START_OUT_OF_BOUNDS
+    elif goal_cell is None:
+        precondition_reason = PlanFailureReason.GOAL_OUT_OF_BOUNDS
+    elif not map_model.traversable[start_cell[1], start_cell[0]]:
+        precondition_reason = PlanFailureReason.START_BLOCKED
+    elif not map_model.traversable[goal_cell[1], goal_cell[0]]:
+        precondition_reason = PlanFailureReason.GOAL_BLOCKED
+
+    def finish_stats(
+        *, reason: PlanFailureReason | None, expansions: int, route: list[KinoState] | None = None,
+        blocked_edge_rejections: int = 0, distance_bound_rejections: int = 0,
+    ) -> None:
+        if stats is None:
+            return
+        stats.update({
+            "success": reason is None,
+            "failure_reason": reason.value if reason is not None else None,
+            "expansions": int(expansions),
+            "max_expansions": int(max_expansions),
+            "max_distance_cells": float(max_distance_cells),
+            "start_cell": tuple(start_cell) if start_cell is not None else None,
+            "goal_cell": tuple(goal_cell) if goal_cell is not None else None,
+            "euclidean_distance_cells": float(
+                math.hypot(destination_x - start_x, destination_z - start_z) / cell_size
+            ),
+            "blocked_edge_rejections": int(blocked_edge_rejections),
+            # Clearance is a soft cost in this planner, never a hard reject.
+            "clearance_rejections": 0,
+            "distance_bound_rejections": int(distance_bound_rejections),
+            "route_states": len(route) if route is not None else 0,
+            "planning_seconds": float(time.perf_counter() - started_at),
+        })
 
     def heuristic(x: float, z: float) -> float:
         # Admissible: no steering choice covers more ground per tick than
@@ -301,6 +363,8 @@ def plan_route(
     came_from: dict[tuple[int, int, int, int], tuple[tuple[int, int, int, int], KinoState]] = {}
     best_state_by_key: dict[tuple[int, int, int, int], KinoState] = {start_key: start_state}
     expansions = 0
+    blocked_edge_rejections = 0
+    distance_bound_rejections = 0
 
     while open_heap and expansions < max_expansions:
         _f, _order, current = heapq.heappop(open_heap)
@@ -312,16 +376,22 @@ def plan_route(
         expansions += 1
 
         if math.hypot(destination_x - current.x, destination_z - current.z) <= GOAL_RADIUS_CELLS * cell_size:
-            if stats is not None:
-                stats["expansions"] = expansions
-            return _reconstruct(came_from, current_key, current)
+            route = _reconstruct(came_from, current_key, current)
+            finish_stats(
+                reason=None, expansions=expansions, route=route,
+                blocked_edge_rejections=blocked_edge_rejections,
+                distance_bound_rejections=distance_bound_rejections,
+            )
+            return route
 
         for direction in STEERING_CHOICES:
             valid, clearance = _arc_edge_check(map_model, current, direction, cell_size)
             if not valid:
+                blocked_edge_rejections += 1
                 continue
             new_state = _successor_state(current, direction, cell_size)
             if math.hypot(new_state.x - start_x, new_state.z - start_z) > max_native_distance:
+                distance_bound_rejections += 1
                 continue
 
             clearance_penalty = max(0.0, DESIRED_CLEARANCE_CELLS - clearance) * CLEARANCE_PENALTY_WEIGHT
@@ -337,8 +407,20 @@ def plan_route(
                 counter += 1
                 heapq.heappush(open_heap, (tentative_g + heuristic(new_state.x, new_state.z), counter, new_state))
 
-    if stats is not None:
-        stats["expansions"] = expansions
+    straight_distance_cells = math.hypot(destination_x - start_x, destination_z - start_z) / cell_size
+    budget_exhausted = (
+        expansions >= max_expansions
+        or straight_distance_cells > max_distance_cells + GOAL_RADIUS_CELLS
+    )
+    reason = precondition_reason or (
+        PlanFailureReason.SEARCH_BUDGET_EXHAUSTED
+        if budget_exhausted else PlanFailureReason.OPEN_SET_EXHAUSTED_NO_PATH
+    )
+    finish_stats(
+        reason=reason, expansions=expansions,
+        blocked_edge_rejections=blocked_edge_rejections,
+        distance_bound_rejections=distance_bound_rejections,
+    )
     return []
 
 

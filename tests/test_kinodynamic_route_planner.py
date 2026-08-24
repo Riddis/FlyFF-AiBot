@@ -19,8 +19,15 @@ import numpy as np
 import pytest
 
 from navigation.kinodynamic_route_planner import (
-    DESIRED_CLEARANCE_CELLS, _STEERING_NAMES, _direct_hop_min_clearance, _normalize_angle,
-    _segment_clear, annotate_route_edges, bin_to_heading, plan_route, select_persistent_waypoint,
+    _STEERING_NAMES,
+    DESIRED_CLEARANCE_CELLS,
+    PlanFailureReason,
+    _direct_hop_min_clearance,
+    _normalize_angle,
+    _segment_clear,
+    annotate_route_edges,
+    plan_route,
+    select_persistent_waypoint,
     select_persistent_waypoint_experimental_collision_free_fallback,
 )
 from navigation.movement_kernel import SteeringDirection, resolve_signed_turn_radians
@@ -45,6 +52,75 @@ def _route_is_collision_free(map_model: MapModel, route) -> bool:
         if not _segment_clear(map_model, a.x, a.z, b.x, b.z):
             return False
     return True
+
+
+class TestPlanRouteFailureDiagnostics:
+    def test_success_reports_direct_planner_evidence(self):
+        map_model = _open_map()
+        start = map_model.layout_to_native(CENTER, CENTER)
+        goal = map_model.layout_to_native(CENTER + 10, CENTER)
+        stats = {}
+
+        route = plan_route(
+            map_model, start_x=start[0], start_z=start[1], start_heading=0.0,
+            destination_x=goal[0], destination_z=goal[1], stats=stats,
+        )
+
+        assert route
+        assert stats["success"] is True
+        assert stats["failure_reason"] is None
+        assert stats["expansions"] > 0
+        assert stats["planning_seconds"] >= 0.0
+        assert stats["clearance_rejections"] == 0
+
+    def test_expansion_budget_exhaustion_is_not_mislabeled_no_path(self):
+        map_model = _open_map()
+        start = map_model.layout_to_native(CENTER, CENTER)
+        goal = map_model.layout_to_native(CENTER + 10, CENTER)
+        stats = {}
+
+        route = plan_route(
+            map_model, start_x=start[0], start_z=start[1], start_heading=0.0,
+            destination_x=goal[0], destination_z=goal[1], max_expansions=0, stats=stats,
+        )
+
+        assert route == []
+        assert stats["failure_reason"] == PlanFailureReason.SEARCH_BUDGET_EXHAUSTED.value
+        assert stats["expansions"] == 0
+
+    def test_blocked_goal_is_reported_directly(self):
+        arr = np.ones((SIZE, SIZE), dtype=bool)
+        # Block the entire 2.5-cell goal-tolerance region. Blocking only
+        # the exact goal cell is not enough: reaching a nearby free cell is
+        # a legitimate planner success by contract.
+        arr[CENTER - 3 : CENTER + 4, CENTER + 7 : CENTER + 14] = False
+        map_model = MapModel.from_arrays(arr)
+        start = map_model.layout_to_native(CENTER, CENTER)
+        goal = map_model.layout_to_native(CENTER + 10, CENTER)
+        stats = {}
+
+        route = plan_route(
+            map_model, start_x=start[0], start_z=start[1], start_heading=0.0,
+            destination_x=goal[0], destination_z=goal[1], stats=stats,
+        )
+
+        assert route == []
+        assert stats["failure_reason"] == PlanFailureReason.GOAL_BLOCKED.value
+
+    def test_radial_distance_bound_is_reported_as_search_budget(self):
+        map_model = _open_map()
+        start = map_model.layout_to_native(CENTER, CENTER)
+        goal = map_model.layout_to_native(CENTER + 20, CENTER)
+        stats = {}
+
+        route = plan_route(
+            map_model, start_x=start[0], start_z=start[1], start_heading=0.0,
+            destination_x=goal[0], destination_z=goal[1], max_distance_cells=5.0, stats=stats,
+        )
+
+        assert route == []
+        assert stats["failure_reason"] == PlanFailureReason.SEARCH_BUDGET_EXHAUSTED.value
+        assert stats["distance_bound_rejections"] > 0
 
 
 class TestUnobstructedStraightPath:

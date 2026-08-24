@@ -2584,3 +2584,21 @@ sweep.
   determinism guarantee, trace it through to the ACTUAL argument values a
   real call site passes, not just to the function that implements the
   guarantee.
+
+### [2026-08-24] Planner diagnostic test assumed a blocked exact goal cell must fail despite the 2.5-cell goal radius
+- What happened: the first `GOAL_BLOCKED` reason-code regression fixture
+  blocked only the exact destination cell and asserted `plan_route()` must
+  return no route. The real planner correctly succeeded at a nearby free
+  state inside `GOAL_RADIUS_CELLS=2.5`.
+- Root cause: treated the destination coordinate as an exact occupancy
+  requirement instead of re-deriving the planner's actual success
+  predicate before designing the diagnostic fixture.
+- How caught: the new focused planner test failed against unchanged
+  production search semantics (`route` contained four valid states).
+- Fix: block the entire admissible goal-radius neighborhood in the test.
+  Failure diagnostics still report `GOAL_BLOCKED` only when a blocked goal
+  coincides with an actual failed search; a blocked exact cell alone is not
+  called a failure.
+- Lesson: planner precondition labels must be subordinate to the planner's
+  real goal-tolerance contract. Never infer unreachability from exact-cell
+  occupancy when success is radius-based.
