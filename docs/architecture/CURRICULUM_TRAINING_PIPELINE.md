@@ -553,6 +553,39 @@ Advanced's `AUTO_GRADUATION_ENABLED=False` bypass flag
 restoring real, unattended auto-graduation for Advanced on the same
 standard as the other stages.
 
+**PPO TensorBoard instrumentation** (2026-08-24): every call through the
+shared `continue_farming_policy_ppo_chunk` used by Beginner, Intermediate,
+and Advanced configures Stable-Baselines3's supported TensorBoard logger at
+a deterministic directory:
+
+```
+training_logs/tensorboard/
+  canonical_<stage>/
+    target_event_v1/
+      <checkpoint-output-stem>/
+        events.out.tfevents.*
+```
+
+For example, Beginner round 1 writes below `canonical_beginner/
+target_event_v1/canonical_beginner_ppo_010k/`. The checkpoint provenance
+manifest records the resolved directory. Standard SB3 keys include
+`train/approx_kl`, `train/clip_fraction`, `train/entropy_loss`, `train/
+explained_variance`, `train/policy_gradient_loss`, `train/value_loss`,
+`train/learning_rate`, `train/loss`, `rollout/ep_rew_mean`, and `rollout/
+ep_len_mean`. One cheap callback also emits per-rollout target/event action
+counts, KEEP rate, invalid-target rate, planner failure count/rate, distinct
+contact-event count, effective FPS, and cumulative lifetime timesteps; it
+retains no per-tick trace. Basic remains supervised BC/DAgger-only by
+design, so there is no Basic PPO loop to instrument. The shared helper is
+stage-parameterized, but this change does not invent one.
+
+This instrumentation is prospective only. TensorBoard scalars cannot be
+reconstructed from the already-finished canonical Beginner run; its
+custom text progress/evaluation evidence remains the only available record
+for that run. `tests/test_beginner_transition.py` performs a bounded two-
+rollout offline smoke and parses the resulting event file to require both
+the standard SB3 keys and the project-specific aggregates.
+
 ## Evidence / Sources
 
 - `simulator/tools/RUN_CANONICAL_BASIC.py`, `RUN_CANONICAL_BEGINNER.py`,

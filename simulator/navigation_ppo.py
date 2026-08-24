@@ -235,6 +235,7 @@ def resume_ppo_chunk_farming_policy(
     gae_lambda: float = 0.95,
     ent_coef: float = 0.015,
     callback: Any = None,
+    tensorboard_log: str | Path | None = None,
 ) -> dict[str, Any]:
     """Beginner/Intermediate/Advanced PPO continuation under the completed
     frozen-navigation-sub-policy + learned-target-selection architecture --
@@ -261,6 +262,12 @@ def resume_ppo_chunk_farming_policy(
             n_steps=n_steps, batch_size=batch_size, n_epochs=n_epochs, learning_rate=learning_rate,
             clip_range=clip_range, target_kl=target_kl, gamma=gamma, gae_lambda=gae_lambda, ent_coef=ent_coef,
         )
+        if tensorboard_log is not None:
+            from stable_baselines3.common.logger import configure
+
+            tensorboard_path = Path(tensorboard_log)
+            tensorboard_path.mkdir(parents=True, exist_ok=True)
+            policy.set_logger(configure(str(tensorboard_path), ["tensorboard"]))
         if not isinstance(policy.action_space, type(env.action_space)) or policy.action_space != env.action_space:
             raise ValueError(
                 f"Checkpoint action space {policy.action_space} does not match the full-farming "
@@ -296,4 +303,5 @@ def resume_ppo_chunk_farming_policy(
         "num_timesteps_after": num_timesteps_after,
         "checkpoint_in": str(Path(checkpoint).resolve()),
         "checkpoint_out": str(Path(output).resolve()),
+        "tensorboard_log": str(Path(tensorboard_log).resolve()) if tensorboard_log is not None else None,
     }

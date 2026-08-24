@@ -44,6 +44,7 @@ def continue_farming_policy_ppo_chunk(
     device: str = "cpu",
     progress_every_seconds: float = 15.0,
     canonical_stage: str = "beginner",
+    tensorboard_log: str | Path | None = None,
 ) -> dict[str, Any]:
     """One bounded PPO chunk on an already-`SplitFarmingTargetEventPolicy`-
     shaped checkpoint (Basic's own graduated checkpoint, or a prior round's
@@ -52,12 +53,28 @@ def continue_farming_policy_ppo_chunk(
     balanced_training_vec_env_farming_policy`'s `FarmingPolicyWrapper`
     composition, never sampled by or logged from this policy. Used
     identically by Beginner, Intermediate, and Advanced -- only the
-    curriculum/checkpoint lineage and `canonical_stage` differ."""
+    curriculum/checkpoint lineage and `canonical_stage` differ.
 
+    TensorBoard output defaults to a deterministic stage/generation/chunk
+    directory beside the repository's ``models`` and ``training_logs``
+    roots. Tests or non-canonical callers whose output lives elsewhere get
+    the same layout rooted beside their own output directory."""
+
+    from .curriculum_resume_identity import GENERATION_NAMESPACE
     from .navigation_ppo import resume_ppo_chunk_farming_policy
     from .navigation_subpolicy import farming_policy_architecture_contract
-    from .progress_reporting import SB3ProgressCallback
+    from .progress_reporting import (
+        CurriculumRolloutMetricsCallback,
+        SB3ProgressCallback,
+    )
     from .run_provenance import build_run_manifest, write_run_manifest
+
+    if tensorboard_log is None:
+        output_path = Path(output).resolve()
+        tensorboard_log = (
+            output_path.parent.parent / "training_logs" / "tensorboard"
+            / f"canonical_{canonical_stage}" / GENERATION_NAMESPACE / output_path.stem
+        )
 
     conservative_ppo_hparams = {
         "n_steps": 256, "batch_size": 128, "n_epochs": 4, "learning_rate": 5e-5,
@@ -66,12 +83,21 @@ def continue_farming_policy_ppo_chunk(
     result = resume_ppo_chunk_farming_policy(
         checkpoint=checkpoint, curriculum=curriculum, output=output, timesteps=timesteps,
         stage=stage, seed=seed, episode_seconds=episode_seconds, max_actions=max_actions, device=device,
-        callback=SB3ProgressCallback(int(timesteps), label=f"{canonical_stage}_ppo", min_interval_seconds=progress_every_seconds),
+        callback=[
+            SB3ProgressCallback(
+                int(timesteps), label=f"{canonical_stage}_ppo",
+                min_interval_seconds=progress_every_seconds,
+            ),
+            CurriculumRolloutMetricsCallback(),
+        ],
+        tensorboard_log=tensorboard_log,
     )
     manifest = build_run_manifest(
         stage=canonical_stage, milestone="ppo_chunk", seeds=seed,
         config={"timesteps": timesteps, "stage": stage, "episode_seconds": episode_seconds,
-                "max_actions": max_actions, **conservative_ppo_hparams},
+                "max_actions": max_actions,
+                "tensorboard_log": str(Path(tensorboard_log).resolve()) if tensorboard_log is not None else None,
+                **conservative_ppo_hparams},
         curriculum_path=str(curriculum), recovery_config={"enabled": False, "reason": "structural -- see module docstring"},
         architecture_contract=farming_policy_architecture_contract(),
         starting_checkpoint=str(Path(checkpoint).resolve()), output_checkpoint=result["checkpoint_out"],
@@ -115,12 +141,10 @@ def rehearse_farming_policy_on_basic_data(
     from .navigation_subpolicy import farming_policy_architecture_contract
     from .run_provenance import build_run_manifest, write_run_manifest
 
-    combined_path = Path(output).with_suffix(".rehearsal_combined.npz")
-    _concatenate_basic_datasets(basic_dataset_paths, combined_path)
-
     model = PPO.load(str(checkpoint), device="cpu")
     result = bootstrap_farming_event_head(
-        model, combined_path, max_epochs=max_epochs, learning_rate=learning_rate, batch_size=batch_size, seed=seed,
+        model, basic_dataset_paths,
+        max_epochs=max_epochs, learning_rate=learning_rate, batch_size=batch_size, seed=seed,
     )
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -135,31 +159,6 @@ def rehearse_farming_policy_on_basic_data(
     )
     write_run_manifest(output_path, manifest)
     return result
-
-
-def _concatenate_basic_datasets(dataset_paths: list[str | Path], output_path: Path) -> Path:
-    import numpy as np
-
-    observations, actions, steering_valid, session_index = [], [], [], []
-    session_offset = 0
-    for path in dataset_paths:
-        with np.load(Path(path), allow_pickle=False) as data:
-            observations.append(np.asarray(data["observations"], dtype=np.float32))
-            actions.append(np.asarray(data["actions"], dtype=np.int64))
-            steering_valid.append(np.asarray(data["steering_label_valid"], dtype=np.bool_))
-            sessions = np.asarray(data["session_index"], dtype=np.int64)
-            session_index.append(sessions + session_offset)
-            session_offset += int(sessions.max()) + 1 if len(sessions) else 0
-    np.savez_compressed(
-        output_path,
-        observations=np.concatenate(observations, axis=0),
-        actions=np.concatenate(actions, axis=0),
-        steering_label_valid=np.concatenate(steering_valid, axis=0),
-        session_index=np.concatenate(session_index, axis=0),
-    )
-    return output_path
-
-
 def _aggregate_raw_diagnostic(checkpoint: str | Path, per_layout_results: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
     per_layout: dict[str, Any] = {}
     for layout_name, results in per_layout_results.items():

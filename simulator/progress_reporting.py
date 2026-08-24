@@ -9,9 +9,10 @@ stdout file) or in a foreground console (see it live).
 
 from __future__ import annotations
 
-import sys
+from collections import Counter
 import time
-from typing import Any
+
+import numpy as np
 
 from stable_baselines3.common.callbacks import BaseCallback
 
@@ -100,9 +101,10 @@ class SB3ProgressCallback(BaseCallback):
         self._printed_first = True
         if is_last:
             self._printed_last = True
+        requested_progress = min(chunk_timesteps, self.total_timesteps)
         elapsed = now - self._start_time
         rate = chunk_timesteps / elapsed if elapsed > 1e-6 else 0.0
-        remaining = max(0, self.total_timesteps - chunk_timesteps)
+        remaining = max(0, self.total_timesteps - requested_progress)
         eta_seconds = remaining / rate if rate > 1e-9 else float("inf")
         eta_text = f"{eta_seconds:6.0f}s" if eta_seconds < 36000 else "  n/a"
         recent_rewards = self._recent_episode_stat("r")
@@ -111,10 +113,10 @@ class SB3ProgressCallback(BaseCallback):
         if recent_rewards is not None:
             stats = f" ep_reward_mean={recent_rewards:8.3f} ep_len_mean={recent_lengths:6.1f}"
         print(
-            f"[{self.label}] {chunk_timesteps}/{self.total_timesteps} "
-            f"({100.0 * chunk_timesteps / max(1, self.total_timesteps):5.1f}%) "
+            f"[{self.label}] requested={requested_progress}/{self.total_timesteps} "
+            f"({100.0 * requested_progress / max(1, self.total_timesteps):5.1f}%) "
             f"elapsed={elapsed:6.0f}s rate={rate:7.1f}steps/s eta={eta_text}{stats} "
-            f"(lifetime={self.num_timesteps})",
+            f"(actual_rollout_aligned={chunk_timesteps} lifetime={self.num_timesteps})",
             flush=True,
         )
         return True
@@ -127,3 +129,90 @@ class SB3ProgressCallback(BaseCallback):
         if not values:
             return None
         return float(sum(values) / len(values))
+
+
+class CurriculumRolloutMetricsCallback(BaseCallback):
+    """Cheap per-rollout aggregates for the farming PPO composition.
+
+    The wrapper already puts compact action/navigation facts in ``info``;
+    this callback only counts them and emits one TensorBoard summary per
+    rollout. It deliberately does not retain per-tick forensic traces.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._target_actions: Counter[int] = Counter()
+        self._event_actions: Counter[int] = Counter()
+        self._steps = 0
+        self._invalid_targets = 0
+        self._planner_failures = 0
+        self._planner_attempts = 0
+        self._distinct_contacts = 0
+        self._in_contact: list[bool] = []
+        self._previous_contacts: list[int] = []
+        self._training_start_time = 0.0
+        self._training_start_timesteps = 0
+
+    def _on_training_start(self) -> None:
+        n_envs = int(getattr(self.training_env, "num_envs", 1))
+        self._in_contact = [False] * n_envs
+        self._previous_contacts = [0] * n_envs
+        self._training_start_time = time.monotonic()
+        self._training_start_timesteps = int(self.num_timesteps)
+
+    def _on_rollout_start(self) -> None:
+        self._target_actions.clear()
+        self._event_actions.clear()
+        self._steps = 0
+        self._invalid_targets = 0
+        self._planner_failures = 0
+        self._planner_attempts = 0
+        self._distinct_contacts = 0
+
+    def _on_step(self) -> bool:
+        actions = np.asarray(self.locals.get("actions", []))
+        infos = self.locals.get("infos", [])
+        dones = np.asarray(self.locals.get("dones", []), dtype=np.bool_).reshape(-1)
+        if actions.ndim == 1 and actions.size == 2:
+            actions = actions.reshape(1, 2)
+        if actions.ndim >= 2 and actions.shape[-1] >= 2:
+            for target_action, event_action in actions[:, :2]:
+                self._target_actions[int(target_action)] += 1
+                self._event_actions[int(event_action)] += 1
+
+        for env_index, info in enumerate(infos):
+            self._steps += 1
+            self._invalid_targets += int(bool(info.get("invalid_target_selection", False)))
+            attempted = bool(info.get("steering_plan_attempted", False))
+            failed = bool(info.get("steering_planner_failure", False))
+            self._planner_attempts += int(attempted)
+            self._planner_failures += int(failed)
+
+            contacts = int(info.get("contacts", 0) or 0)
+            contact_this_tick = contacts > self._previous_contacts[env_index]
+            if contact_this_tick and not self._in_contact[env_index]:
+                self._distinct_contacts += 1
+            self._in_contact[env_index] = contact_this_tick
+            self._previous_contacts[env_index] = contacts
+            if env_index < len(dones) and bool(dones[env_index]):
+                self._in_contact[env_index] = False
+                self._previous_contacts[env_index] = 0
+        return True
+
+    def _on_rollout_end(self) -> None:
+        total_actions = max(1, sum(self._target_actions.values()))
+        for action, count in sorted(self._target_actions.items()):
+            self.logger.record(f"farming/target_action_{action}_count", count)
+        for action, count in sorted(self._event_actions.items()):
+            self.logger.record(f"farming/event_action_{action}_count", count)
+        self.logger.record("farming/target_keep_rate", self._target_actions.get(0, 0) / total_actions)
+        self.logger.record("farming/invalid_target_selection_rate", self._invalid_targets / max(1, self._steps))
+        self.logger.record("navigation/planner_failure_count", self._planner_failures)
+        self.logger.record(
+            "navigation/planner_failure_rate", self._planner_failures / max(1, self._planner_attempts),
+        )
+        self.logger.record("navigation/distinct_contact_events", self._distinct_contacts)
+        elapsed = max(1e-9, time.monotonic() - self._training_start_time)
+        elapsed_steps = int(self.num_timesteps) - self._training_start_timesteps
+        self.logger.record("diagnostics/fps", elapsed_steps / elapsed)
+        self.logger.record("time/cumulative_timesteps", int(self.num_timesteps))

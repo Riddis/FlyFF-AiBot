@@ -2484,3 +2484,103 @@ sweep.
   consumed by `.get()`, `Path()`, a hash comparison, or a string-format
   slice needs its OWN type/shape check before that operation, independent
   of whether a top-level schema check already ran.
+
+## Category: training pipeline / dataset provenance
+
+### [2026-08-24] Beginner event-head rehearsal's per-file split-persistence guarantee is defeated by pre-concatenation into a round-unique filename
+- What happened: found during the Beginner non-graduation causal-diagnosis
+  task (all 8 canonical Beginner rounds' rehearsal passes were rejected as
+  "damaging" -- `canonical_beginner_run_summary.target_event_v1.json`,
+  every round's `rehearsal_damage_detected: true`). `simulator/basic_
+  training.py::_persistent_event_split`'s own docstring explicitly claims
+  the train/validation assignment for each SOURCE FILE (the human
+  bootstrap dataset, each Basic-stage mined DAgger round `.npz`) is
+  "permanently fixed the first time this function sees it, and stays
+  fixed no matter how many later rounds' files get appended" -- achieved
+  by hashing each file's own path via `_stable_file_seed(path)`
+  independently, using `pool["row_boundaries"]` (one entry per ORIGINAL
+  source path) as the per-file iteration set. `simulator/beginner_
+  transition.py::rehearse_farming_policy_on_basic_data`, however, first
+  calls `_concatenate_basic_datasets(basic_dataset_paths, combined_path)`
+  where `combined_path = Path(output).with_suffix(".rehearsal_combined.npz")`
+  -- and `output` embeds the round-specific milestone name (`ppo_010k`,
+  `ppo_020k`, ..., `ppo_080k`; `RUN_CANONICAL_BEGINNER.py` lines ~491/538).
+  It then calls `bootstrap_farming_event_head(model, combined_path, ...)`
+  with THIS SINGLE MERGED PATH, not the original `basic_dataset_paths`
+  list. Inside `bootstrap_farming_event_head`
+  (`simulator/basic_training.py` line ~946-948), a bare path is wrapped to
+  a one-element list (`dataset_paths = [dataset_paths]`) and passed to
+  `_load_event_training_pool`/`_persistent_event_split` as-is -- so
+  `pool["row_boundaries"]` ends up with exactly ONE entry, for
+  `combined_path` itself, and `_stable_file_seed(combined_path)` hashes a
+  filename that is DIFFERENT every single round (because `combined_path`
+  embeds that round's own milestone name), even though the underlying 7
+  source files (1 human bootstrap + 6 static Basic-era DAgger files) never
+  change across all 8 Beginner rounds. The persistence guarantee
+  `_persistent_event_split` exists specifically to provide is therefore
+  silently defeated for every Beginner rehearsal call: which rows land in
+  train vs. validation is re-randomized (re-hashed) every round, purely
+  because of round-number-derived filename churn in an intermediate
+  concatenated artifact, not because of any real data change.
+- Root cause: `_concatenate_basic_datasets` was added as a pre-processing
+  step (to merge multiple `.npz` files into one before calling a function
+  whose signature already natively accepts `dataset_paths: list[str |
+  Path]`), which collapses the very per-source-file identity
+  `_persistent_event_split` depends on into a single, round-uniquely-named
+  file. `bootstrap_farming_event_head`'s docstring even says "`dataset_
+  paths` may be a single path... or a list ... see `_load_event_training_
+  pool` for how sources are combined; that function and
+  `_persistent_event_split` are unchanged and safe to reuse" -- correctly
+  describing the list-of-original-paths case, but `rehearse_farming_
+  policy_on_basic_data` doesn't use that case; it pre-merges first, so the
+  "unchanged and safe to reuse" claim doesn't actually hold for the
+  concatenated-then-single-path call pattern this function uses.
+- How caught: while diagnosing why every Beginner round's rehearsal was
+  rejected (task-driven investigation into `docs/architecture/
+  CURRICULUM_TRAINING_PIPELINE.md`'s Beginner rehearsal mechanism);
+  confirmed directly from source (not inferred) by reading
+  `_persistent_event_split`, `bootstrap_farming_event_head`'s dataset-path
+  handling (`simulator/basic_training.py` line ~946-948, ~963), and
+  `rehearse_farming_policy_on_basic_data`/`_concatenate_basic_datasets`
+  (`simulator/beginner_transition.py` line ~118-160) side by side, and
+  verifying `combined_path`'s filename is round-specific via `RUN_
+  CANONICAL_BEGINNER.py`'s `ppo_milestone`-embedded `rehearsed_output`
+  naming.
+- Consequence (as far as evidence supports, not further): a genuine
+  training/validation split instability across Beginner's 8 rehearsal
+  passes, compounded by (separately confirmed) zero-tolerance damage
+  thresholds evaluated on only 2 seeds/layout -- together the best-
+  supported explanation for the 8/8 rehearsal rejection rate, though NOT
+  the sole/certain cause (train/eval state-distribution drift as PPO
+  progresses is a separate, independently plausible contributor -- see
+  the Beginner non-graduation causal-diagnosis report for the full
+  multi-factor treatment). Does not affect Basic's own DAgger-round calls
+  to `bootstrap_farming_event_head`, which (per `RUN_CANONICAL_BASIC.py`)
+  pass the accumulating list of individual per-round dataset paths
+  directly, never through `_concatenate_basic_datasets` -- persistence
+  there is intact.
+- Fix: `rehearse_farming_policy_on_basic_data` now passes the ordered list
+  of ORIGINAL `basic_dataset_paths` directly to
+  `bootstrap_farming_event_head`; the redundant round-named concatenation
+  helper and artifact were removed. `_persistent_event_split` therefore
+  sees one stable row boundary/path seed per true source again. Regression
+  coverage in `tests/test_beginner_transition.py` proves two different
+  round-output names produce identical train sessions, validation
+  sessions, and sample counts; train/validation sessions are disjoint;
+  every non-event parameter (including the full target head) remains
+  byte-for-byte unchanged; and at least one event-head parameter changes.
+  No retraining was performed, and the prior 8-round outcome is unchanged
+  because every rehearsed checkpoint had already been rejected.
+- Lesson: a function whose docstring promises a persistence/stability
+  guarantee keyed on "each source file's own path" is only as reliable as
+  every CALLER's choice of what counts as "a source file" -- a caller
+  that pre-merges multiple stable-path inputs into one new,
+  differently-named artifact before calling that function silently
+  changes what "per-file" means, defeating the guarantee even though the
+  callee's own logic is completely correct and even though the callee's
+  docstring explicitly says it's "safe to reuse" (that claim is true only
+  for callers that actually pass the original per-source paths through,
+  which this specific caller does not). When auditing a persistence/
+  determinism guarantee, trace it through to the ACTUAL argument values a
+  real call site passes, not just to the function that implements the
+  guarantee.

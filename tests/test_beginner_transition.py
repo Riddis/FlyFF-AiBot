@@ -6,22 +6,26 @@ from pathlib import Path
 import torch
 from stable_baselines3 import PPO
 
-from simulator.basic_training import build_fresh_basic_policy
+from simulator.basic_environment import collect_basic_dagger_dataset, save_basic_dagger_dataset
+from simulator.basic_training import (
+    _load_event_training_pool,
+    _persistent_event_split,
+    build_fresh_basic_policy,
+    build_human_bootstrap_dataset,
+)
 from simulator.beginner_transition import (
     continue_farming_policy_ppo_chunk,
     rehearse_farming_policy_on_basic_data,
     zero_shot_raw_diagnostic,
     zero_shot_raw_diagnostic_parallel,
 )
-from simulator.basic_environment import collect_basic_dagger_dataset, save_basic_dagger_dataset
-from simulator.basic_training import build_human_bootstrap_dataset
 from simulator.demonstrations import export_demonstrations
 from simulator.farming_target_policy import TARGET_ACTION_SIZE
 from simulator.map_model import MapModel
 from simulator.navigation_dataset import MiningConfig
 from simulator.navigation_ppo import balanced_training_vec_env_farming_policy
 from simulator.navigation_subpolicy import FrozenNavigationSteering
-from simulator.synthetic import generate_curriculum_from_plan, iter_variant_environments
+from simulator.synthetic import generate_curriculum_from_plan
 from tests.test_simulator_core import _synthetic_recording
 
 LAYOUT = "01_early_open_field_typical_fast"
@@ -70,15 +74,9 @@ def test_continue_farming_policy_ppo_chunk_continues_basics_own_checkpoint_direc
     curriculum_path = _tiny_curriculum(tmp_path)
     checkpoint = _basic_checkpoint(tmp_path, curriculum_path)
     before = PPO.load(str(checkpoint), device="cpu")
-    before_value_weight = None
-    for name, param in before.policy.named_parameters():
-        if "value" in name and param.dim() == 2:
-            before_value_weight = param.detach().clone()
-            break
-
     output = tmp_path / "canonical_beginner_ppo_smoke.zip"
     result = continue_farming_policy_ppo_chunk(
-        checkpoint, output, curriculum=str(curriculum_path), timesteps=32,
+        checkpoint, output, curriculum=str(curriculum_path), timesteps=512,
         stage="early", seed=0, episode_seconds=3.0, max_actions=20,
     )
     assert Path(result["checkpoint_out"]).exists()
@@ -104,6 +102,23 @@ def test_continue_farming_policy_ppo_chunk_continues_basics_own_checkpoint_direc
     # after the merge even though raw_observation_size was correctly
     # overridden to 923 in the same manifest (see MISTAKES.md 2026-08-23).
     assert manifest["architecture_contract"]["policy_input_size"] == 923
+
+    from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+
+    event_files = list(Path(result["tensorboard_log"]).glob("events.out.tfevents.*"))
+    assert event_files, "PPO learn() did not create a TensorBoard event file"
+    accumulator = EventAccumulator(str(Path(result["tensorboard_log"])))
+    accumulator.Reload()
+    scalar_keys = set(accumulator.Tags()["scalars"])
+    assert {
+        "train/approx_kl", "train/clip_fraction", "train/entropy_loss",
+        "train/explained_variance", "train/policy_gradient_loss",
+        "train/value_loss", "train/learning_rate", "train/loss",
+        "rollout/ep_rew_mean", "rollout/ep_len_mean",
+        "time/cumulative_timesteps", "diagnostics/fps",
+        "farming/target_keep_rate", "farming/invalid_target_selection_rate",
+        "navigation/planner_failure_count", "navigation/distinct_contact_events",
+    }.issubset(scalar_keys)
 
 
 def test_zero_shot_raw_diagnostic_parallel_matches_sequential(tmp_path: Path) -> None:
@@ -146,21 +161,87 @@ def test_rehearse_farming_policy_on_basic_data_combines_human_and_dagger_data(tm
     )
     dagger_path = save_basic_dagger_dataset(mined, str(tmp_path / "dagger.npz"))
 
+    source_paths = [bootstrap_path, dagger_path]
+    pool = _load_event_training_pool(source_paths)
+    train_idx, validation_idx = _persistent_event_split(source_paths, pool, validation_fraction=0.2)
+    train_sessions = set(pool["session_index"][train_idx].tolist())
+    validation_sessions = set(pool["session_index"][validation_idx].tolist())
+    assert train_sessions.isdisjoint(validation_sessions)
+    before_parameters = {
+        name: parameter.detach().clone() for name, parameter in model.policy.named_parameters()
+    }
+
     output = tmp_path / "canonical_beginner_rehearsed_smoke.zip"
     result = rehearse_farming_policy_on_basic_data(
-        checkpoint, output, basic_dataset_paths=[bootstrap_path, dagger_path], max_epochs=2, batch_size=4, seed=0,
+        checkpoint, output, basic_dataset_paths=source_paths, max_epochs=2, batch_size=4, seed=0,
     )
     assert output.exists()
     reloaded = PPO.load(str(output), device="cpu")
     for name, param in reloaded.policy.named_parameters():
         assert not torch.isnan(param).any(), f"NaN in {name} after rehearsal"
-    assert result["train_samples"] > 0
+        if "mlp_extractor.event_net" not in name and "action_net.event_out" not in name:
+            assert torch.equal(before_parameters[name], param), f"non-event parameter changed: {name}"
+    assert any(
+        not torch.equal(before_parameters[name], param)
+        for name, param in reloaded.policy.named_parameters()
+        if "mlp_extractor.event_net" in name or "action_net.event_out" in name
+    ), "event-only rehearsal did not update any event-head parameter"
+    assert result["train_samples"] == len(train_idx)
+    assert result["validation_samples"] == len(validation_idx)
+    assert not output.with_suffix(".rehearsal_combined.npz").exists()
 
     manifest_path = output.with_suffix("").with_suffix(".provenance.json")
     assert manifest_path.exists()
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["milestone"] == "rehearsal"
     assert manifest["starting_checkpoint"] == str(checkpoint.resolve())
+
+
+def test_rehearsal_split_is_independent_of_round_output_filename(tmp_path: Path, monkeypatch) -> None:
+    import numpy as np
+
+    from simulator import basic_training
+
+    curriculum_path = _tiny_curriculum(tmp_path)
+    checkpoint = _basic_checkpoint(tmp_path, curriculum_path)
+
+    def write_source(path: Path, session_offset: int) -> Path:
+        observations = np.zeros((12, 923), dtype=np.float32)
+        actions = np.column_stack([
+            np.zeros(12, dtype=np.int64),
+            np.tile(np.array([0, 1, 2], dtype=np.int64), 4),
+        ])
+        sessions = np.repeat(np.arange(4, dtype=np.int64) + session_offset, 3)
+        np.savez_compressed(
+            path, observations=observations, actions=actions,
+            steering_label_valid=np.zeros(12, dtype=np.bool_), session_index=sessions,
+        )
+        return path
+
+    source_paths = [write_source(tmp_path / "basic_a.npz", 0), write_source(tmp_path / "basic_b.npz", 10)]
+    observed_splits = []
+
+    def capture_split(_model, dataset_paths, **_kwargs):
+        pool = _load_event_training_pool(list(dataset_paths))
+        train_idx, validation_idx = _persistent_event_split(list(dataset_paths), pool, validation_fraction=0.2)
+        observed_splits.append({
+            "train_sessions": tuple(sorted(set(pool["session_index"][train_idx].tolist()))),
+            "validation_sessions": tuple(sorted(set(pool["session_index"][validation_idx].tolist()))),
+            "train_samples": len(train_idx),
+            "validation_samples": len(validation_idx),
+        })
+        return observed_splits[-1]
+
+    monkeypatch.setattr(basic_training, "bootstrap_farming_event_head", capture_split)
+    for output_name in ("ppo_010k_rehearsed.zip", "ppo_080k_rehearsed.zip"):
+        rehearse_farming_policy_on_basic_data(
+            checkpoint, tmp_path / output_name, basic_dataset_paths=source_paths, max_epochs=1,
+        )
+
+    assert observed_splits[0] == observed_splits[1]
+    assert set(observed_splits[0]["train_sessions"]).isdisjoint(
+        observed_splits[0]["validation_sessions"]
+    )
 
 
 def test_farming_policy_action_space_is_multidiscrete_target_event() -> None:

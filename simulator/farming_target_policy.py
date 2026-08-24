@@ -240,6 +240,12 @@ class FarmingPolicyWrapper(gym.Wrapper):
         info["invalid_target_selection"] = invalid_target_selection
         info["invalid_target_selection_penalty"] = invalid_target_penalty
         info["resolved_target_id"] = resolved_target_id
+        info["sampled_target_action"] = target_action
+        info["sampled_event_action"] = event_action
+        info["applied_steering_action"] = steering
+        info["steering_plan_attempted"] = bool(
+            tick_result and (tick_result.replanned or tick_result.planner_failure)
+        )
         info["steering_replanned"] = tick_result.replanned if tick_result else False
         info["steering_planner_failure"] = tick_result.planner_failure if tick_result else False
         info["steering_waypoint"] = tick_result.waypoint if tick_result else None
